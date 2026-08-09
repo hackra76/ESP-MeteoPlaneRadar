@@ -7,8 +7,6 @@ přístroji spojuje sledování letadel v okolí a animovanou srážkovou situac
 
 > Za vývojem stojí **[chiptron.cz](https://chiptron.cz)** a Claude AI.
 
-**Článek najdete na** https://chiptron.cz/meteoradar-a-radar-letadel-na-jednom-kulatem-displeji/
-
 ---
 
 ## Co to je
@@ -48,13 +46,23 @@ Stačí tahle jedna deska a USB‑C kabel. Nic se nepájí ani nedrátuje.
   poslední platná data místo zablikání na prázdno.
   Interval stahování se řídí rozsahem: 5 s (10/25 km), 10 s (50 km), 15 s
   (100 km). Při chybě se interval zdvojnásobí.
+- **Odkud a kam letadlo letí** — klepnutím na letadlo se kromě výšky, rychlosti
+  a kurzu dotáhne i **výchozí a cílové město**, registrace a typ letounu.
+  Databáze se ptáme až ve chvíli, kdy detail otevřete, a odpověď si pamatujeme.
+  Řada letů trasu v databázi nemá (soukromá letadla, vojenské stroje) — pak se
+  nezobrazí nic.
 - **Meteoradar ČHMÚ** — srážkový kompozit s **animací** (až 6 snímků, krok
   5 min, ~2 sn./s, pauza mezi cykly), **indikací času** ke každému snímku
-  („nyní / −X min“ + HH:MM), legendou dBZ / mm/h, obrysem ČR a městy. Obraz je
-  maskovaný do kruhu displeje.
-- **Nastavení** — jas, WiFi (captive portál s QR kódem), poloha, orientace
-  mapy, zobrazení aktuální verze firmwaru a tlačítko pro bezdrátovou
-  aktualizaci.
+  („nyní / −X min“ + HH:MM), legendou dBZ / mm/h, obrysy států a městy. Obraz je
+  maskovaný do kruhu displeje. Rozsah přepínáte **25, 50, 100, 200 km a celá
+  ČR** — poslední ukazuje celou republiku bez ohledu na to, kde jste.
+- **Čas a venkovní teplota** na obou radarových obrazovkách, jedním řádkem pod
+  tečkami výběru obrazovky. Hodiny se berou z hlavičky HTTP odpovědí, které
+  stahujeme tak jako tak — fungují proto i tam, kde poskytovatel internetu
+  blokuje NTP. Dokud čas nedorazí, zůstává řádek prázdný.
+- **Nastavení** — jas, jednotky (letecké / metrické), WiFi (captive portál
+  s QR kódem), poloha, orientace mapy, zobrazení aktuální verze firmwaru
+  a tlačítko pro bezdrátovou aktualizaci.
 - **Orientace podle výhledu** — nastavíte, **který světový směr je nahoře na
   displeji** (`S`, `SV`, `V`, …), a letadla na displeji jsou ve stejném směru
   jako ta za oknem. Osm poloh po 45°. Podrobnosti níže v [Ovládání](#ovládání).
@@ -65,8 +73,9 @@ Stačí tahle jedna deska a USB‑C kabel. Nic se nepájí ani nedrátuje.
   jste skončili.
 - **Bez blikání pixelů** — celý snímek se kreslí do jednoho bufferu v PSRAM a
   na panel se posílá jedním přenosem synchronizovaným s VSYNC.
-- **Provoz 24/7** — hardwarový watchdog, zotavení dotykového řadiče po zámrzu
-  I2C a kontrola volné paměti před každým stahováním.
+- **Provoz 24/7** — hardwarový watchdog, hlídač displeje (když panel přestane
+  vykreslovat, deska se sama restartuje) a kontrola volné paměti před každým
+  stahováním.
 
 ## Ovládání
 
@@ -81,6 +90,19 @@ Ovládá se gesty na dotykovém displeji:
 | **Držení BOOT při startu (~3 s)** | tovární reset (WiFi + nastavení) |
 
 Obrazovky jsou tři: **Letadla → Meteoradar → Nastavení** (dokola).
+
+### Co je v Nastavení
+
+| Položka | K čemu |
+|---|---|
+| **Jas** | posuvník, hodnota přežije restart |
+| **Jednotky** | přepínání mezi **leteckými** (ft, kt) a **metrickými** (m, km/h) |
+| **Nahore** | který světový směr je nahoře na displeji — viz níže |
+| **WiFi / poloha** | otevře konfigurační portál (QR kód na displeji) |
+| **Aktualizace FW** | spustí režim bezdrátové aktualizace |
+
+Přepínání jednotek bývalo v detailu letadla; přesunulo se sem, protože je to
+předvolba jako každá jiná, a v panelu se tím uvolnilo místo pro trasu letu.
 
 ### Orientace mapy (Nastavení → `Nahore`)
 
@@ -102,7 +124,7 @@ v `src/Config.h`, musí ale dělit 90 — jinak přestane být dosažitelný př
 východ a západ.
 
 **Meteoradar se záměrně neotáčí** — srážková mapa se čte severem nahoru a
-orientaci v ní drží obrys ČR.
+orientaci v ní drží obrysy států.
 
 > Aktualizujete‑li z verze 0.5.1 nebo starší, kde se zadávalo „o kolik mapu
 > otočit", orientace se vrátí na sever nahoře. Nastavte si ji prosím znovu.
@@ -121,7 +143,7 @@ funguje vždy.
 | | Full programming | OTA (přes WiFi) |
 |---|---|---|
 | Čím | prohlížeč + USB‑C kabel | jen prohlížeč, bezdrátově |
-| Soubor | `MeteoPlaneRadar_v0.X.Y.ino.merged.bin` | `MeteoPlaneRadar_v0.X.Y.ino.bin` |
+| Soubor | `MeteoPlaneRadar_v0.4.ino.merged.bin` | `MeteoPlaneRadar_v0.4.ino.bin` |
 | Kdy | první nahrání, přechod z verze nižší než 0.4, záchrana | běžná aktualizace z verze 0.4 a vyšší |
 
 > ### ⚠️ Máte verzi starší než 0.4 (nebo nevíte jakou)?
@@ -137,7 +159,7 @@ funguje vždy.
 Nahraje celou paměť včetně jejího rozdělení. Funguje vždy, i na úplně nové desce.
 
 1. Stáhněte si z [**Releases**](../../releases) soubor
-   **`MeteoPlaneRadar_v0.X.Y.ino.merged.bin`** (ten s `merged`).
+   **`MeteoPlaneRadar_v0.4.ino.merged.bin`** (ten s `merged`).
 2. Připojte desku k počítači USB‑C kabelem — do konektoru označeného **USB**
    (viz poznámka o konektorech níže).
 3. Otevřete **[esp32flasher.chiptron.cz](https://esp32flasher.chiptron.cz)**
@@ -151,7 +173,7 @@ Nahraje celou paměť včetně jejího rozdělení. Funguje vždy, i na úplně 
 Od verze 0.4 můžete nový firmware nahrát bezdrátově, přímo ze zařízení.
 
 1. Stáhněte si z [**Releases**](../../releases) soubor
-   **`MeteoPlaneRadar_v0.X.Y.ino.bin`** — pozor, **ten bez `merged`**.
+   **`MeteoPlaneRadar_v0.4.ino.bin`** — pozor, **ten bez `merged`**.
 2. V zařízení jděte do **Nastavení** a klepněte na **Firmware update**.
 3. Zařízení vytvoří WiFi síť **`MeteoPlaneRadar`** (bez hesla) a ukáže QR kód.
    Připojte se k ní telefonem nebo notebookem.
@@ -190,14 +212,17 @@ Otevřete Sériový monitor (v Arduino IDE, nebo libovolný terminál) a nastavt
 rychlost **115200 Bd**. Po startu uvidíte například:
 
 ```
-=== MeteoPlaneRadar v0.5.4 ===
+=== MeteoPlaneRadar v0.5.5 ===
 Duvod restartu: zapnuti napajeni
 Volna pamet: 218432 B
 Displej: dvojity framebuffer, kresleni bez kopirovani
 CST820 ID: 0xB5
 WiFi ok, IP 192.168.1.42
+Cas nastaven z hlavicky Date: 21:42
 ADSB: 12 aircraft (8421 bytes)
+Teplota: 18.3 C
 Meteoradar: 6 ramcu
+TRASA CSA123: nalezeno
 ```
 
 První dva řádky jsou v hlášení chyb nejcennější. **Duvod restartu** rozliší
@@ -264,25 +289,64 @@ Při vydání soubory pojmenujte s verzí, např. `MeteoPlaneRadar_v0.4.ino.bin`
 
 ## Zdroje dat a API
 
-Jen pro osobní, nekomerční použití — respektujte prosím podmínky poskytovatelů:
+Jen pro osobní, nekomerční použití — respektujte prosím podmínky poskytovatelů.
+Žádný z těchto zdrojů nevyžaduje registraci ani API klíč.
 
-- **Letadla:** adsb.fi — <https://adsb.fi>
-  API: `https://opendata.adsb.fi/api/v3/lat/{lat}/lon/{lon}/dist/{nm}`
-- **Srážky (meteoradar):** Český hydrometeorologický ústav (ČHMÚ) —
-  <https://opendata.chmi.cz>
-  Kompozit: `https://opendata.chmi.cz/meteorology/weather/radar/composite/maxz/png/`
-- **Poloha podle IP:** ip‑api.com — <http://ip-api.com>
+| Data | Zdroj | Poznámka |
+|---|---|---|
+| Letadla | [adsb.fi](https://adsb.fi) | zdarma, bez klíče, osobní použití |
+| Srážky | [ČHMÚ opendata](https://opendata.chmi.cz) | nutné uvést zdroj |
+| Trasa letu, registrace, typ | [adsbdb.com](https://www.adsbdb.com) | dotaz jen na vybrané letadlo |
+| Venkovní teplota | [Open-Meteo](https://open-meteo.com) | do 10 000 dotazů denně |
+| Aktuální čas | hlavička `Date` v odpovědích výše | žádné další spojení |
+| Hranice států | [Natural Earth](https://www.naturalearthdata.com/) 1:10m | public domain |
+| Města | [GeoNames](https://www.geonames.org/) | **CC BY 4.0** |
+| Poloha podle IP | [ip-api.com](http://ip-api.com) | automatická detekce |
+
+**Podrobnosti k endpointům:**
+
+- Letadla: `https://opendata.adsb.fi/api/v3/lat/{lat}/lon/{lon}/dist/{nm}`
+- Kompozit ČHMÚ: `https://opendata.chmi.cz/meteorology/weather/radar/composite/maxz/png/`
+- Trasa letu: `https://api.adsbdb.com/v0/callsign/{callsign}`
+- Letoun: `https://api.adsbdb.com/v0/aircraft/{icao_hex}`
+- Teplota: `https://api.open-meteo.com/v1/forecast?...&current=temperature_2m`
+
+### Uvedení autorů mapových dat
+
+Podklad mapy (`src/EuMapData.h`) je odvozený z těchto zdrojů a je potřeba je
+uvádět i v odvozených dílech:
+
+- **Hranice států:** [Natural Earth](https://www.naturalearthdata.com/) 1:10m,
+  public domain, převzato přes
+  [world-atlas](https://github.com/topojson/world-atlas). Zjednodušeno
+  algoritmem Douglas–Peucker s tolerancí 0,005° (~555 m).
+- **Města:** [GeoNames](https://www.geonames.org/), licence
+  **[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)**. Vybrána sídla
+  nad 50 000 obyvatel, názvy převedeny do ASCII (vestavěný font nemá diakritiku).
+
+> **Poznámka k hodinám.** Zařízení nemá NTP klienta. Čas se čte z hlavičky
+> `Date`, kterou nese každá HTTP odpověď — je přesná na sekundu, nestojí žádné
+> spojení navíc a projde i tam, kde je port 123 blokovaný.
 
 > Meteoradar ČHMÚ pokrývá **Českou republiku a blízké okolí**. Když máte polohu
 > nastavenou jinam (třeba do zahraničí), zůstane meteo obrazovka prázdná — data
-> pro tu oblast neexistují. Radar letadel funguje kdekoliv.
+> pro tu oblast neexistují. Radar letadel funguje kdekoliv, mapový podklad
+> pokrývá EU‑27 plus Británii, Švýcarsko a Norsko.
 
 ## Licence
 
 MIT (viz `LICENSE`). Kód smíte volně používat, upravovat i komerčně nasazovat —
-musíte si ale zařídit komerční využívání používaných API! Nad rámec licence
-budeme rádi, když na obrazovce nastavení ponecháte řádek **chiptron.cz** ve
-stejné velikosti a barvě jako v originále — je to prosba, ne podmínka.
+musíte si ale zařídit komerční využívání používaných API!
+
+**Pozor, na data se licence MIT nevztahuje.** Mapová data v `src/EuMapData.h`
+mají vlastní podmínky: hranice z Natural Earth jsou public domain, ale **města
+z GeoNames jsou pod CC BY 4.0**, což znamená, že v jakémkoliv odvozeném díle
+musíte uvést jejich autora. Podrobnosti v sekci
+[Uvedení autorů mapových dat](#uvedení-autorů-mapových-dat).
+
+Nad rámec licence budeme rádi, když na obrazovce nastavení ponecháte řádek
+**chiptron.cz** ve stejné velikosti a barvě jako v originále — je to prosba,
+ne podmínka.
 
 ## Inspirace
 

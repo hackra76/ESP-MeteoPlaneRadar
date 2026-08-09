@@ -11,6 +11,106 @@ pohromadě v `src/Config.h`.
 
 ---
 
+## [0.5.5]
+
+### Přidáno
+- **Česká města mají vlastní seznam.** Evropská data obsahují jen sídla nad
+  50 000 obyvatel a zkratky si generují strojově prvními čtyřmi písmeny, takže
+  z Prahy byla `PRAH` a okresní města jako Znojmo úplně vypadla. Nový
+  `CzCitiesData.h` proto pro Českou republiku evropská data **nahrazuje** —
+  všech 59 měst i s původními zkratkami (`PHA`, `OVA`, `PLZ`) a při malých
+  rozsazích plnými názvy. Dlouhá jména jsou zkrácená: `Jablonec n. N.`,
+  `Zdar n. S.`, `Usti n. L.`
+  Města z evropské sady, která leží v Česku, se přeskakují — párování je podle
+  **souřadnic**, ne podle názvu, protože ten se v obou sadách píše jinak.
+  Ověřeno proti datům: všech 21 překryvů se spáruje jedna ku jedné, nic se
+  nekreslí dvakrát a Drážďany ani Žilina, které padnou do stejného obdélníku,
+  o evropský záznam nepřijdou.
+- **Popisky měst se už nepřekrývají.** Při rozsahu 200 km a u pohledu na celou
+  republiku se jména psala přes sebe. Každý vykreslený popisek si nově zabírá
+  místo a ten, který by do něj zasáhl, se zahodí celý — půlka jména pod jiným
+  jménem je horší než žádné jméno. Města se kreslí po skupinách od největších,
+  takže o místo přijde vždy ta menší obec vedle. Ověřeno: u pohledu na celou ČR
+  53 popisků a **nula překryvů**.
+- **Meteoradar kreslí stejnou evropskou mapu jako radar letadel.** Dosud měl
+  vlastní obrys ČR s padesáti body; nově používá `EuMapData` s 30 894 body
+  hranic a 1 100 městy, tedy stejná data i stejnou podrobnost jako letadla.
+  Na rozsahu „cela CR" jsou díky tomu vidět i obrysy sousedních států, takže
+  republika nevisí v prázdnu. Soubory `CzBorder.*` a `CzBorderData.h` odpadly.
+- **Čas a venkovní teplota** na jednom řádku pod tečkami výběru obrazovky, na
+  radaru letadel i na meteoradaru. Dokud se čas nenačte, zůstává řádek prázdný.
+  Počet letadel je nově menším písmem a na meteoradaru se indikátor snímku
+  posunul níž, aby se řádek vešel.
+- **Hodiny bez NTP.** Čas se bere z hlavičky `Date` v HTTP odpovědích, které
+  stahujeme tak jako tak. Neprochází portem 123, takže ho poskytovatel
+  internetu nemá jak zablokovat, nečeká se při startu a nepřibylo žádné
+  spojení navíc.
+- **Rozsah „cela CR" na meteoradaru.** Pátý rozsah za 200 km ukazuje celou
+  republiku nezávisle na tom, kde uživatel je.
+- **Odkud a kam letadlo letí.** V detailu letadla přibyly dva řádky `Z:`
+  a `Do:` s výchozím a cílovým městem z adsbdb.com, k tomu registrace a typ
+  letounu. Rozdělení na dva řádky bylo kvůli velikosti písma — jedna řádka se
+  šipkou mezi městy se musela zmenšit tak, že byla špatně čitelná. Takhle má
+  každý řádek celou šířku panelu a u většiny tras vyjde největší velikost.
+  Ptáme se jen na vybrané letadlo, nikdy na celý seznam, a odpověď se pamatuje.
+  Řada letů trasu v databázi nemá a pak se nezobrazí nic.
+
+### Opraveno
+- **Meteoradar při načítání nezčerná.** Dosud se každých pět minut na několik
+  sekund objevila černá obrazovka s nápisem „Nacitam animaci...". Nově zůstane
+  poslední platná animace na displeji a pod indikátorem snímku se objeví jen
+  malá žlutá poznámka. Když stahování selže — výpadek spojení, nedostupný
+  server — snímky se **nezahodí**, zůstane starší sada a v poznámce se objeví
+  `bez spojeni, zobrazena starsi data`.
+- **V detailu letadla chyběl popisek `Typ:`.** Přidán zpátky. Zobrazuje se
+  krátký kód typu (`A320`, `B738`); adsb.fi ho hlásí jen někdy, takže když
+  chybí, doplní se z adsbdb (pole `icao_type`).
+- **Názvy měst s diakritikou se vykreslovaly jako změť znaků.** adsbdb vrací
+  jména v Unicode — turecký İzmir se posílá jako `İzmir`, což je v UTF-8 dva
+  bajty, a sedmibitový font z nich udělal dva náhodné znaky. Na displeji pak
+  bylo něco jako `-?zmir`. Nově se text před vykreslením převede na ASCII:
+  diakritika se zahodí, písmeno pod ní zůstane. Ověřeno na `İzmir`, `Malmö`,
+  `Kraków`, `Košice`, `Gdańsk`, `Şanlıurfa` i `Tromsø`.
+- **Teplota se nezobrazovala.** První pokus o stažení se počítal i tehdy, když
+  ještě neběžela WiFi, a další byl pak na řadě až za deset minut. Nově se čeká
+  na připojení a dokud teplota není známá, zkouší se každou minutu. Odpověď se
+  navíc čte celá najednou, ne po proudu, aby ji nemohl utnout chunked přenos.
+- **U velkých rozsahů skákala poloha do nesmyslů.** Výřez z obrázku ČHMÚ se
+  ořezával na okraje snímku, takže přestal být vystředěný na uživatele — ale
+  křížek se pořád kreslil doprostřed displeje. U Chebu na 200 km to dělalo přes
+  80 km stranou, u Ostravy zhruba 10 km; z Prahy se chyba neprojevila, protože
+  tam výřez na okraj nedosáhne. Nově se výřez neořezává, chybějící část se
+  vykreslí černě a křížek se kreslí na skutečnou polohu.
+- **Dotykový řadič se čte, jen když má co říct.** CST820 hlásí připravená data
+  signálem INT, který jsme dosud vůbec nesledovali — četlo se každých pár
+  milisekund bez ohledu na stav čipu. Odtud pocházela ta „vadná čtení" a samé
+  `0xFF`, které jsme od 0.5.1 zahazovali. Nově se čte na přerušení, během
+  doteku průběžně, plus záchranné čtení jednou za `TOUCH_IDLE_POLL_MS`.
+  Neúspěšné čtení se už nepočítá jako chyba — spící čip prostě neodpovídá.
+  Vypíná se přepínačem `TOUCH_USE_INT`.
+
+### Odebráno
+- **Automatická obnova dotykového řadiče** včetně počítání vadných vzorků.
+  Po opravě výše nemá co řešit, a jejím smazáním zmizelo jediné místo, které
+  za běhu zapisovalo na obvod držící napájení displeje.
+- Nepoužívané snímkové API ČHMÚ, `LCD_DrawBitmap` a `TCA9554_ReadOutput`.
+
+### Změněno
+- **Nové zdroje dat** — adsbdb.com (trasa letu, registrace, typ) a Open-Meteo
+  (venkovní teplota), obojí zdarma a bez registrace. Do přehledu zdrojů je
+  doplněna i mapa: hranice z Natural Earth (public domain) a města z GeoNames
+  (CC BY 4.0), což je licence vyžadující uvedení autora — dosud chybělo.
+- **Přepínání jednotek se přesunulo do Nastavení.** Je to předvolba jako každá
+  jiná, ne něco, co se mění u konkrétního letadla — a v detailu letadla se tím
+  uvolnilo místo pro trasu.
+- **Trasa v detailu letadla je stejně velká a stejnou barvou jako letecké
+  údaje nad ní.** Je to informace stejného druhu a odlišná barva naznačovala
+  rozdíl, který tam není. Zmenší se jen tehdy, když se delší z obou řádků
+  nevejde do panelu; případný přesah se ořízne a zakončí tečkou. Typ letounu
+  a registrace nově sdílejí jeden řádek, aby na trasu zbyly dva.
+- Výřezy snímků se alokují rovnou na největší rozsah, takže přepnutí rozsahu
+  už nikdy nealokuje a nemá jak narazit na fragmentovanou PSRAM.
+
 ## [0.5.4]
 
 ### Opraveno
