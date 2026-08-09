@@ -19,11 +19,11 @@
 
 // Round panel - controls centred in a vertical list. The rows are packed a bit
 // tighter than before to make room for the map-rotation row.
-#define ROW_BRIGHT   92    // brightness label
-#define SL_Y        116    // slider
-#define ROW_WIFI    156
-#define ROW_LOC     206
-#define ROT_Y       254    // map rotation row
+#define ROW_BRIGHT   88    // brightness label
+#define SL_Y        110    // slider
+#define ROW_WIFI    148
+#define ROW_LOC     194
+#define ROT_Y       238    // map orientation row
 #define ROT_H        40
 
 // Brightness slider.
@@ -40,15 +40,18 @@
 
 // Small compass preview on the left edge, next to the rotation row.
 #define COMPASS_CX    48
-#define COMPASS_CY   274
+#define COMPASS_CY   258
 #define COMPASS_R     24
 
-// Two stacked buttons (WiFi/location + firmware update).
+// Three stacked buttons. Units moved here from the aircraft detail panel: it
+// is a preference, it belongs with the other preferences, and the detail panel
+// needed the space for the route line.
 #define BTN_X   90
 #define BTN_W   300
-#define BTN_H   42
-#define BTN1_Y  300        // WiFi / poloha (portal)
-#define BTN2_Y  348        // aktualizace FW (OTA)
+#define BTN_H    36
+#define BTN0_Y  288        // jednotky (letecke / metricke)
+#define BTN1_Y  330        // WiFi / poloha (portal)
+#define BTN2_Y  372        // aktualizace FW (OTA)
 
 static bool s_wantsPortal = false;
 static bool s_wantsOTA    = false;
@@ -95,6 +98,11 @@ bool ScreenSettings_HandleTap(int x, int y) {
       Settings_SetTopBearing((uint16_t)((top + MAP_ROT_STEP_DEG) % 360));
       return true;
     }
+  }
+  // Units toggle - aviation (ft, kt) or metric (m, km/h).
+  if (x >= BTN_X && x <= BTN_X + BTN_W && y >= BTN0_Y && y <= BTN0_Y + BTN_H) {
+    Settings_SetMetricUnits(!Settings_MetricUnits());
+    return true;
   }
   // "WiFi / poloha" button.
   if (x >= BTN_X && x <= BTN_X + BTN_W && y >= BTN1_Y && y <= BTN1_Y + BTN_H) {
@@ -187,6 +195,14 @@ void ScreenSettings_Draw() {
     gfx->setCursor(lx, ly); gfx->print("S");
   }
 
+  // --- Button 0: units ---
+  {
+    bool metric = Settings_MetricUnits();
+    gfx->fillRoundRect(BTN_X, BTN0_Y, BTN_W, BTN_H, 10, C_GRAY);
+    UI_TextCentered(metric ? "Jednotky: metricke" : "Jednotky: letecke",
+                    BTN0_Y + BTN_H / 2 - 8, C_BLACK, 2);
+  }
+
   // --- Button 1: change WiFi / location (portal) ---
   gfx->fillRoundRect(BTN_X, BTN1_Y, BTN_W, BTN_H, 12, C_CYAN);
   UI_TextCentered("WiFi / poloha", BTN1_Y + BTN_H / 2 - 8, C_BLACK, 2);
@@ -196,5 +212,5 @@ void ScreenSettings_Draw() {
   UI_TextCentered("Aktualizace FW", BTN2_Y + BTN_H / 2 - 8, C_BLACK, 2);
 
   // Signature at the bottom.
-  UI_TextCentered("chiptron.cz", 404, C_GREEN, 2);
+  UI_TextCentered("chiptron.cz", 418, C_GREEN, 2);
 }

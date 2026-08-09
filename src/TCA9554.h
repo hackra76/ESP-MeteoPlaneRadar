@@ -24,7 +24,6 @@
 
 void     TCA9554_Init();                       // all EXIO pins as outputs
 bool     TCA9554_SetPin(uint8_t pin, bool high);   // false = the I2C write failed
-uint8_t  TCA9554_ReadOutput();
 
 // Reads the expander back and repairs it if it does not match what we last
 // wrote. This chip holds LCD reset, LCD chip-select and LCD POWER, so a single

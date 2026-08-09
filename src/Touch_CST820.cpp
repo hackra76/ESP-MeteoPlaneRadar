@@ -23,6 +23,18 @@ static bool readRegs(uint8_t reg, uint8_t* buf, size_t len) {
   return true;
 }
 
+// --- INT line --------------------------------------------------------------
+// The controller pulls INT low when it has a touch report ready. Reading the
+// registers at any other time gives stale or garbage data - and once the chip
+// drops into standby it may not answer at all, which our old unconditional
+// polling counted as an error. An interrupt is used rather than a level check
+// because the pulse is short and would be missed while a frame is being drawn.
+static volatile bool s_intFlag = false;
+static bool          s_fingerDown = false;
+static unsigned long s_lastPoll = 0;
+
+static void IRAM_ATTR onTouchInt() { s_intFlag = true; }
+
 bool Touch_Init() {
   // Reset via EXIO2.
   TCA9554_SetPin(EXIO_TOUCH_RST, false);
@@ -31,6 +43,13 @@ bool Touch_Init() {
   delay(50);
 
   pinMode(CST820_INT_PIN, INPUT_PULLUP);
+#if TOUCH_USE_INT
+  // detachInterrupt first - Touch_Init() may be called again at runtime.
+  detachInterrupt(digitalPinToInterrupt(CST820_INT_PIN));
+  attachInterrupt(digitalPinToInterrupt(CST820_INT_PIN), onTouchInt, FALLING);
+  s_intFlag = false;
+  s_fingerDown = false;
+#endif
 
   // Try reading the chip ID (register 0xA7) as a communication test.
   uint8_t id = 0;
@@ -42,100 +61,51 @@ bool Touch_Init() {
   return false;
 }
 
-#if TOUCH_DEBUG
-static uint32_t s_badReads = 0;      // rejected samples since the last report
-static uint32_t s_badReported = 0;   // millis() of the last report
-#endif
-
-// Consecutive rejected samples. A handful is normal on a busy bus; a long run
-// means the controller is wedged and needs a reset. Counted regardless of
-// TOUCH_DEBUG, because the recovery below depends on it.
-static uint16_t s_badRun = 0;
-
-// Report a rejected sample at most once a second, so a noisy bus cannot flood
-// the console (and slow everything down in the process).
-static void noteBadSample(const char* why) {
-  s_badRun++;
-#if TOUCH_DEBUG
-  s_badReads++;
-  uint32_t now = millis();
-  if (now - s_badReported >= 1000) {
-    s_badReported = now;
-    Serial.printf("TOUCH: zahozeno %lu vadnych cteni (%s)\n",
-                  (unsigned long)s_badReads, why);
-    s_badReads = 0;
-  }
-#else
-  (void)why;
-#endif
-}
-
-// An I2C glitch can leave the CST820 answering but talking nonsense, and it
-// never recovers on its own - the touchscreen simply stops working until the
-// board is power-cycled. A long run of rejected samples is the symptom, so
-// reset the chip and start over.
-static void recoverIfWedged() {
-  if (s_badRun < TOUCH_REINIT_BAD) return;
-  s_badRun = 0;
-#if TOUCH_RECOVERY
-  // Rate-limited on purpose - see the comment at TOUCH_RECOVERY in Config.h.
-  static unsigned long lastTry = 0;
-  static bool firstTry = true;
-  if (!firstTry && millis() - lastTry < TOUCH_RECOVERY_MIN_MS) return;
-  firstTry = false;
-  lastTry = millis();
-  Serial.println("TOUCH: prilis mnoho vadnych cteni, resetuji radic");
-  Touch_Init();
-  // The reset went through the expander that also holds the display's power
-  // and reset lines, and the bus was already misbehaving. Make sure we did not
-  // take the panel down with us.
-  TCA9554_Verify();
-#else
-  // Kept even in a release build - this is the one line that would tell us the
-  // wedged controller is a real thing and not just a theory. Rate-limited so it
-  // cannot flood the console on a permanently noisy bus.
-  static unsigned long lastMsg = 0;
-  if (lastMsg == 0 || millis() - lastMsg >= TOUCH_RECOVERY_MIN_MS) {
-    lastMsg = millis();
-    Serial.println("TOUCH: mnoho vadnych cteni (obnova radice je vypnuta)");
-  }
-#endif
-}
+// The three checks in Touch_Read below are all that is left of a much larger
+// apparatus that used to count bad samples and reset the controller when there
+// were too many. That machinery is gone: it existed because we polled the chip
+// unconditionally and mistook "the controller is asleep and not answering" for
+// "the controller is broken". Reading only when INT says so removed the cause,
+// and with it the only code that wrote to the I/O expander at runtime - which
+// is what could switch the display off for good.
 
 void Touch_Read(TouchData* out) {
   out->points = 0;
+
+#if TOUCH_USE_INT
+  // Read when: the chip raised an event, a finger is already down (we need the
+  // movement samples and the release), or the fallback timer expired.
+  unsigned long nowMs = millis();
+  bool due = s_intFlag || s_fingerDown || (nowMs - s_lastPoll >= TOUCH_IDLE_POLL_MS);
+  if (!due) return;
+  s_intFlag = false;
+  s_lastPoll = nowMs;
+#endif
+
   uint8_t buf[6] = {};
   // Register 0x02 = number of points, followed by the coordinates.
-  if (!readRegs(0x02, buf, 6)) { noteBadSample("I2C cteni selhalo"); recoverIfWedged(); return; }
+  // A read that fails is NOT treated as a fault: a controller in standby simply
+  // does not answer, which is normal behaviour, not a broken chip. And it must
+  // NOT clear s_fingerDown - one dropped read in the middle of a drag would
+  // stop the per-pass polling and the rest of the gesture would be lost.
+  if (!readRegs(0x02, buf, 6)) return;
 
   // --- Sanity checks on the data itself -------------------------------------
   // The I2C transfer can succeed (the chip ACKs) and still hand back garbage,
   // typically all 0xFF. Decoded naively that is "15 points at (4095, 4095)",
   // which the UI then treats as a real tap somewhere off the map - and that is
   // exactly what kept closing the aircraft detail panel on its own.
-  if (buf[0] == 0xFF && buf[1] == 0xFF && buf[2] == 0xFF) {
-    noteBadSample("same 0xFF");
-    recoverIfWedged();
-    return;
-  }
+  if (buf[0] == 0xFF && buf[1] == 0xFF && buf[2] == 0xFF) return;
 
   uint8_t points = buf[0] & 0x0F;
-  if (points == 0) { s_badRun = 0; return; }   // no finger - the normal case
-  if (points > 1) {                     // CST820 is a single-touch controller
-    noteBadSample("nesmyslny pocet bodu");
-    recoverIfWedged();
-    return;
-  }
+  if (points == 0) { s_fingerDown = false; return; }   // finger lifted
+  if (points > 1) return;               // CST820 is a single-touch controller
 
   uint16_t x = ((buf[1] & 0x0F) << 8) | buf[2];
   uint16_t y = ((buf[3] & 0x0F) << 8) | buf[4];
-  if (x >= LCD_WIDTH || y >= LCD_HEIGHT) {   // outside the panel = not real
-    noteBadSample("souradnice mimo displej");
-    recoverIfWedged();
-    return;
-  }
+  if (x >= LCD_WIDTH || y >= LCD_HEIGHT) return;   // outside the panel
 
-  s_badRun = 0;          // a fully valid sample - the controller is healthy
+  s_fingerDown = true;   // keep reading every pass until the finger lifts
   out->points = points;
   out->x = x;
   out->y = y;

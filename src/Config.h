@@ -64,7 +64,50 @@
 // ---------------------------------------------------------------------------
 //  Weather radar (CHMU)
 // ---------------------------------------------------------------------------
-#define METEO_RANGES_KM { 25.0f, 50.0f, 100.0f, 200.0f }
+// Radius in km around the user's position. The value 0 is special: it means
+// "the whole country", a fixed view that ignores where the user is (see the
+// CZ_VIEW_* box below). Keep it last - it is the widest of them all.
+#define METEO_RANGES_KM { 25.0f, 50.0f, 100.0f, 200.0f, 0.0f }
+
+// The fixed "whole country" view: centre of the republic and a radius wide
+// enough to hold it. Expressed as centre + radius rather than a bounding box on
+// purpose - the CHMU image has a different pixel-per-degree scale on each axis,
+// so a box that looks square in pixels is NOT square on the ground and would
+// stretch the country vertically. Going through the same radius maths as every
+// other range keeps the scale honest (1.08 km per pixel in both directions).
+//
+// The country is 486 x 279 km, so 260 km of radius covers it with a margin that
+// keeps the western tip clear of the round bezel. Costs ~480 kB of PSRAM per
+// frame, ~2.9 MB for all six.
+#define CZ_VIEW_LAT       49.805f
+#define CZ_VIEW_LON       15.475f
+#define CZ_VIEW_RADIUS_KM 260.0f
+
+// ---------------------------------------------------------------------------
+//  Clock and outside temperature (the line under the screen dots)
+// ---------------------------------------------------------------------------
+// Temperature comes from Open-Meteo: free, no key, no registration, a few
+// hundred bytes per answer.
+#define OUTSIDE_TEMP_URL "https://api.open-meteo.com/v1/forecast"
+#define OUTSIDE_TEMP_PERIOD_MS 600000UL   // 10 min - it is a model value
+#define OUTSIDE_TEMP_RETRY_MS   60000UL   // sooner while we have nothing yet
+
+// Degree symbol. The built-in font is 7-bit ASCII, so a real "°" may come out
+// as a random glyph; "degC" is the safe spelling. Flip to 1 only after checking
+// on the actual display that the character renders.
+#define OUTSIDE_DEG_SYMBOL 0
+#if OUTSIDE_DEG_SYMBOL
+  #define OUTSIDE_DEG_TEXT "\xB0C"
+#else
+  #define OUTSIDE_DEG_TEXT "degC"
+#endif
+
+// ---------------------------------------------------------------------------
+//  Flight route lookup (adsbdb.com) - free, no key, no registration.
+//  Asked only when an aircraft's detail is opened, one aircraft at a time.
+// ---------------------------------------------------------------------------
+#define ROUTE_API_BASE "https://api.adsbdb.com"
+#define ROUTE_CACHE_N  8     // remembered answers (callsign or hex)
 
 // ---------------------------------------------------------------------------
 //  OTA (firmware update over WiFi)
@@ -89,29 +132,22 @@
 // finger is really up. Real gestures last 40 ms and up, so 60 ms costs nothing.
 #define TOUCH_RELEASE_MS 60
 
-// After this many consecutive rejected samples the controller is assumed to be
-// wedged (typically after an I2C glitch) and gets re-initialised.
-#define TOUCH_REINIT_BAD 40
-
-// 0 = never re-initialise the touch controller at runtime.
+// 1 = only read the controller when it says it has something to report.
 //
-// Worth knowing what this costs: the reset line runs through the TCA9554, and
-// that same chip also holds the display's reset, chip-select and POWER. So the
-// recovery reaches for the expander exactly when the I2C bus is known to be
-// misbehaving - and a corrupted write there switches the panel off for good,
-// with the sketch still running (black screen, no watchdog, needs a power
-// cycle). Set this to 0 to rule the whole path out when diagnosing that.
+// The CST820 signals a touch event by pulling INT low; reading the registers at
+// any other moment returns stale or garbage data, and the chip also puts itself
+// into standby when nothing is happening, where it may not answer at all. We
+// used to poll it every few milliseconds regardless - which is where the all
+// 0xFF samples came from. The pin is watched by an interrupt (a level check
+// would miss the pulse while a frame is being drawn), and there is still a slow
+// fallback poll so a lost edge cannot leave the touch dead.
 //
-// DEFAULT IS 0, deliberately. Users did report the black screen; nobody has
-// ever reported a wedged touch controller - that was a theoretical failure the
-// recovery was written for. Trading a real fault for a hypothetical one is a
-// bad deal. If the wedge ever does show up in a log, reset the chip some other
-// way than through the expander that holds the display's power line.
-#define TOUCH_RECOVERY 0
+// Set to 0 to go back to unconditional polling if the touch ever feels
+// unresponsive on some board revision.
+#define TOUCH_USE_INT 1
 
-// Never re-initialise more often than this. A wedged controller stays wedged,
-// so hammering it every few hundred milliseconds only multiplies the risk above.
-#define TOUCH_RECOVERY_MIN_MS 60000UL
+// Fallback poll while idle - only a safety net for a missed interrupt.
+#define TOUCH_IDLE_POLL_MS 250
 
 // How often to read the I/O expander back and repair it if it does not match
 // what we wrote (TCA9554_Verify). Cheap - one I2C register read.

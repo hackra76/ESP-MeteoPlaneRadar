@@ -11,6 +11,7 @@
 #include "ADSB.h"
 #include "Settings.h"
 #include "Config.h"
+#include "Route.h"
 #include "EuBorder.h"
 #include "UI.h"
 #include "Display_ST7701.h"
@@ -87,6 +88,7 @@ static void selectNone(const char* reason) {
   s_selectedHex[0] = '\0';
   s_selMiss = 0;
   s_selCacheOk = false;
+  Route_Clear();
 }
 static void selectHex(const char* hex) {
   strncpy(s_selectedHex, hex, sizeof(s_selectedHex) - 1);
@@ -243,19 +245,12 @@ bool ScreenPlanes_Tick() {
   return false;    // otherwise skip the redraw (keeps swiping responsive)
 }
 
-// Short tap: if the detail is open -> either toggle the units (button at the bottom)
-// or close it. Otherwise select the nearest aircraft.
+// Short tap: with the detail open any tap closes it (the units toggle that used
+// to sit at the bottom of the panel now lives on the settings screen).
+// Otherwise select the nearest aircraft.
 bool ScreenPlanes_HandleTap(int x, int y) {
-  if (ScreenPlanes_DetailOpen()) {   // detail is open
-    // Units button zone (bottom of the panel).
-    const int pw = 320, ph = 260;
-    int px = R_CX - pw / 2, py = R_CY - ph / 2;
-    int btnY = py + ph - 42;
-    if (x >= px + 18 && x <= px + pw - 18 && y >= btnY && y <= btnY + 32) {
-      Settings_SetMetricUnits(!Settings_MetricUnits());   // toggle + persist
-      return true;
-    }
-    selectNone("tap mimo panel");   // tapped elsewhere -> close
+  if (ScreenPlanes_DetailOpen()) {
+    selectNone("tap mimo panel");
     return true;
   }
   // Find the aircraft nearest the tap (within 30 px), then remember *which
@@ -269,6 +264,8 @@ bool ScreenPlanes_HandleTap(int x, int y) {
   }
   if (best >= 0 && s_planeHex[best][0]) {
     selectHex(s_planeHex[best]);
+    // The callsign is only known from the data, so the lookup is kicked off
+    // where the aircraft is drawn (below) - here we just have the hex.
     return true;
   }
   return false;
@@ -315,9 +312,11 @@ void ScreenPlanes_Draw() {
     int rad = LCD_WIDTH / 2 - 4;
     bool showFull = (range <= 25.0f);    // full names only at close range
     uint8_t maxTier;
-    if      (range <= 25.0f) maxTier = 3;   // everything down to 50k
-    else if (range <= 50.0f) maxTier = 2;   // 150k and above
-    else                     maxTier = 1;   // 300k and above
+    // Tier 3 includes the Czech district towns, which is what makes the map
+    // recognisable close to home; further out only the bigger places survive,
+    // otherwise the labels would bury the traffic.
+    if (range <= 50.0f) maxTier = 3;
+    else                maxTier = 2;
     EuBorder_DrawCities(cityProject, R_CX, R_CY, rad, C_DKGRAY, C_GRAY,
                         showFull, maxTier, lat0, lat1, lon0, lon1);
   }
@@ -378,13 +377,18 @@ void ScreenPlanes_Draw() {
     shown++;
   }
 
-  // Aircraft count at the top (the title was dropped to save space).
+  // Top of the screen, under the screen-selector dots at y=18:
+  //   y 30..45  clock + outside temperature (size 2, the same as the range)
+  //   y 52..59  aircraft count (size 1 - it is a secondary number)
+  //   y 74      altitude legend
+  UI_DrawStatusLine(30);
+
   char sub[32];
   if (WiFi.status() != WL_CONNECTED || !s_dataOk) {
-    UI_TextCentered(s_status.c_str(), 48, C_YELLOW, 2);
+    UI_TextCentered(s_status.c_str(), 52, C_YELLOW, 1);
   } else {
     snprintf(sub, sizeof(sub), "Letadel: %d", shown);
-    UI_TextCentered(sub, 48, C_CYAN, 2);
+    UI_TextCentered(sub, 52, C_CYAN, 1);
   }
 
   // --- Altitude legend ---
@@ -423,7 +427,7 @@ void ScreenPlanes_Draw() {
   // --- Compass marks ---
   // Bearing b appears on screen at angle (b - rotation), 0 = up, clockwise.
   // Small size-1 letters at r = 205 slot in between the screen dots (y=18),
-  // the aircraft count (y=48) and the range row at the bottom.
+  // the status line (y=30), the aircraft count (y=52) and the range row.
   {
     const int   cr = 205;
     const char* lbl[4] = { "S", "V", "J", "Z" };   // sever, vychod, jih, zapad
@@ -514,29 +518,76 @@ void ScreenPlanes_Draw() {
     else        snprintf(line, sizeof(line), "Stoupani: %.0f ft/m %s", ac.baroRate, ar);
     gfx->setCursor(px + 18, ty); gfx->print(line); ty += 26;
 
-    // Type (if known).
-    if (ac.type[0]) {
-      snprintf(line, sizeof(line), "Typ: %s", ac.type);
+    // Ask adsbdb where this flight is going. Idempotent - a repeated call with
+    // the same aircraft does nothing, and the answer is cached.
+    Route_Select(ac.callsign, ac.hex);
+    const RouteInfo* rt = Route_Get();
+
+    // Type and registration share a row - the route below needs two lines and
+    // this is where they come from. Type prefers what adsb.fi sent and falls
+    // back to the airframe database.
+    // Both sources give the short ICAO type code - "A320", "B738". adsb.fi
+    // reports it only sometimes, so adsbdb fills the gaps.
+    const char* typ = ac.type[0] ? ac.type : ((rt && rt->type[0]) ? rt->type : nullptr);
+    if (typ || (rt && rt->reg[0])) {
+      snprintf(line, sizeof(line), "Typ: %s%s%s",
+               typ ? typ : "?",
+               (rt && rt->reg[0]) ? "  " : "",
+               (rt && rt->reg[0]) ? rt->reg : "");
+      // The label plus a long type plus a registration can outgrow the panel.
+      int maxCh = (pw - 36) / 12;
+      if ((int)strlen(line) > maxCh) { line[maxCh - 1] = '.'; line[maxCh] = '\0'; }
       gfx->setCursor(px + 18, ty); gfx->print(line);
     }
+    ty += 28;
+
+    // Route on TWO lines - "Z:" above "Do:". One line with an arrow between
+    // the cities had to shrink to fit two names side by side and ended up
+    // unreadably small; split in half, each line has the whole panel width to
+    // itself and can be drawn much larger.
+    //
+    // The route starts at the same size and in the same colour as the flight
+    // data above it - it is the same kind of information, and a different
+    // colour only suggested a difference that is not there. It shrinks only
+    // when it has to, because city names vary wildly ("Doha" against
+    // "Frankfurt am Main"). Anything that still would not fit is cut and ends
+    // with a full stop rather than running over the border.
+    const int avail = pw - 36;
+    if (Route_GetState() == ROUTE_WAIT) {
+      gfx->setTextSize(2); gfx->setTextColor(C_GRAY);
+      gfx->setCursor(px + 18, ty); gfx->print("zjistuji trasu");
+    } else if (rt && (rt->from[0] || rt->to[0])) {
+      char l1[36], l2[36];
+      snprintf(l1, sizeof(l1), "Z: %s",  rt->from[0] ? rt->from : "?");
+      snprintf(l2, sizeof(l2), "Do: %s", rt->to[0]   ? rt->to   : "?");
+      int len = (int)strlen(l1);
+      if ((int)strlen(l2) > len) len = (int)strlen(l2);
+
+      // The built-in font is 6 px wide per size step. Start at the size the
+      // rest of the panel uses and only go down.
+      int size = 2;
+      if (len * 12 > avail) size = 1;
+      int maxCh = avail / (6 * size);
+      if ((int)strlen(l1) > maxCh) { l1[maxCh - 1] = '.'; l1[maxCh] = '\0'; }
+      if ((int)strlen(l2) > maxCh) { l2[maxCh - 1] = '.'; l2[maxCh] = '\0'; }
+
+      gfx->setTextSize(size); gfx->setTextColor(C_WHITE);
+      gfx->setCursor(px + 18, ty);                  gfx->print(l1);
+      gfx->setCursor(px + 18, ty + 8 * size + 6);   gfx->print(l2);
+    }
+    gfx->setTextSize(2); gfx->setTextColor(C_WHITE);
 
     // While the aircraft is missing from the data (grace period) say so, so the
     // frozen values are not mistaken for live ones.
     if (signalLost) {
       gfx->setTextSize(1); gfx->setTextColor(C_YELLOW);
       const char* lost = "signal ztracen";
-      gfx->setCursor(px + pw - 18 - (int)strlen(lost) * 6, py + ph - 56);
+      gfx->setCursor(px + pw - 18 - (int)strlen(lost) * 6, py + ph - 18);
       gfx->print(lost);
     }
 
-    // Units toggle button at the bottom.
-    int btnY = py + ph - 42;
-    gfx->fillRoundRect(px + 18, btnY, pw - 36, 32, 8, C_CYAN);
-    gfx->setTextSize(1); gfx->setTextColor(C_BLACK);
-    const char* btnLabel = metric ? "Jednotky: metricke (klik = letecke)"
-                                   : "Jednotky: letecke (klik = metricke)";
-    int tw = strlen(btnLabel) * 6;
-    gfx->setCursor(px + 18 + (pw - 36 - tw) / 2, btnY + 12);
-    gfx->print(btnLabel);
+    // The units toggle used to live here. It moved to the settings screen -
+    // it is a preference, not something you change per aircraft, and the panel
+    // needed the room for the route.
   }
 }

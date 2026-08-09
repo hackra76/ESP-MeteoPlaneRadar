@@ -15,6 +15,7 @@
 #include <math.h>
 #include <string.h>   // strcmp / strncpy for the hex identity handling
 #include "esp_heap_caps.h"   // PSRAM body buffer
+#include "Outside.h"         // clock is seeded from the response header
 
 static const float KM_PER_NM = 1.852f;
 
@@ -190,11 +191,17 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
       if (attempt < MAX_ATTEMPTS) { delay(200); continue; }
       return false;
     }
+    // The response header carries the current time - that is where the clock
+    // comes from, so ask HTTPClient to keep it (see Outside.h).
+    static const char* WANTED[] = { "Date" };
+    http.collectHeaders(WANTED, 1);
     // Identify ourselves - adsb.fi's free API asks callers to be polite.
     http.addHeader("User-Agent", "MeteoPlaneRadar/1.0 (+https://chiptron.cz)");
     http.addHeader("Accept", "application/json");
 
     int code = http.GET();
+    // Seed the clock even from a non-OK answer - the header is there either way.
+    if (http.hasHeader("Date")) Outside_NoteHttpDate(http.header("Date").c_str());
     if (code != HTTP_CODE_OK) {
       Serial.printf("ADSB: HTTP %d (attempt %d)\n", code, attempt);
       http.end();

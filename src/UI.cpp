@@ -8,6 +8,9 @@
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)
 // =============================================================================
 #include "UI.h"
+#include "Outside.h"
+#include "Display_ST7701.h"
+#include <math.h>
 #include "qrcode.h"
 #include "Display_ST7701.h"
 
@@ -23,6 +26,35 @@ void UI_TextCenteredIn(const char* text, int x, int w, int cy,
 
 void UI_TextCentered(const char* text, int cy, uint16_t color, uint8_t size) {
   UI_TextCenteredIn(text, 0, LCD_WIDTH, cy, color, size);
+}
+
+int UI_ChordHalfWidth(int y) {
+  const int R = LCD_WIDTH / 2 - 2;          // same margin as the screens use
+  long dy = (long)y - LCD_HEIGHT / 2;
+  long d2 = (long)R * R - dy * dy;
+  if (d2 <= 0) return 0;
+  return (int)sqrtf((float)d2);
+}
+
+void UI_DrawStatusLine(int cy) {
+  char txt[OUTSIDE_TEXT_MAX];
+  Outside_StatusText(txt, sizeof(txt));
+  if (!txt[0]) return;                      // nothing known yet - leave it empty
+
+  // Measure against the circle at the LOWER edge of the text, which is the
+  // narrower end. The longest string this can produce is "23:59   -12 degC"
+  // (~192 px at size 2) and the chord here is around 265 px, so it fits - but
+  // check anyway: a wider font or a lower line would silently overflow.
+  int16_t x1, y1; uint16_t tw, th;
+  gfx->setTextSize(2);
+  gfx->getTextBounds(txt, 0, 0, &x1, &y1, &tw, &th);
+  int room = 2 * UI_ChordHalfWidth(cy + 16) - 8;
+  if ((int)tw > room) return;
+
+  // Dark backing - on the weather screen this sits straight on top of the radar
+  // image, where white on yellow rain would be unreadable.
+  gfx->fillRect(LCD_WIDTH / 2 - (int)tw / 2 - 6, cy - 3, (int)tw + 12, 22, C_BLACK);
+  UI_TextCentered(txt, cy, C_WHITE, 2);
 }
 
 void UI_DrawWifiQR(const char* ssid, const char* password, bool open,

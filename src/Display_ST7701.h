@@ -67,7 +67,6 @@ extern esp_lcd_panel_handle_t panel_handle;
 bool ST7701_Init();   // false = panel could not be brought up (see serial log)
 
 // Blit a colour rectangle straight to the panel (x2/y2 inclusive).
-void LCD_DrawBitmap(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t* color);
 
 // --- Double buffering (zero copy) -------------------------------------------
 // The panel owns TWO framebuffers in PSRAM. We draw straight into the one that

@@ -8,6 +8,8 @@
 #include <HTTPClient.h>
 #include "esp_heap_caps.h"
 #include "Config.h"
+#include "TimeUtil.h"
+#include "Outside.h"
 
 static const char* NAME_PREFIX = "pacz2gmaps3.z_max3d.";
 
@@ -31,17 +33,6 @@ static String extractTimestamp(const String& name) {
   return date + hhmm;   // YYYYMMDDHHMM
 }
 
-// Days since 1970-01-01 for a civil (proleptic Gregorian) date. Hinnant's
-// days_from_civil - exact, no loops, no library date support needed.
-static long daysFromCivil(int y, unsigned m, unsigned d) {
-  y -= m <= 2;
-  const int era = (y >= 0 ? y : y - 399) / 400;
-  const unsigned yoe = (unsigned)(y - era * 400);
-  const unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
-  const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-  return (long)era * 146097 + (long)doe - 719468;
-}
-
 // The name carries a UTC timestamp; the label wants local time. The conversion
 // deliberately does NOT look at the current clock - it turns the frame's own
 // date into an epoch and lets the TZ rules decide CET or CEST for THAT date.
@@ -58,8 +49,7 @@ static String timeTextFromName(const String& name) {
   int mm = ts.substring(10, 12).toInt();
   if (Y < 2000 || Mo < 1 || Mo > 12 || D < 1 || D > 31) return "";
 
-  time_t utc = (time_t)daysFromCivil(Y, (unsigned)Mo, (unsigned)D) * 86400L
-             + (long)hh * 3600L + (long)mm * 60L;
+  time_t utc = TimeUtil_UtcToEpoch(Y, Mo, D, hh, mm, 0);
   struct tm lt;
   localtime_r(&utc, &lt);
   char out[6];
@@ -225,8 +215,12 @@ int CHMU_FetchAnim(int wantN) {
   s_topCount = 0;
   WiFiClientSecure client; client.setInsecure();
   HTTPClient http; http.setTimeout(15000);
+  static const char* WANTED[] = { "Date" };
+  http.collectHeaders(WANTED, 1);
   if (!http.begin(client, CHMU_INDEX_URL)) return s_animCount;
-  if (http.GET() != HTTP_CODE_OK) { http.end(); return s_animCount; }
+  int code = http.GET();
+  if (http.hasHeader("Date")) Outside_NoteHttpDate(http.header("Date").c_str());
+  if (code != HTTP_CODE_OK) { http.end(); return s_animCount; }
   WiFiClient* stream = http.getStreamPtr();
   String window; uint8_t buf[512]; unsigned long last = millis();
   while (http.connected()) {

@@ -254,12 +254,6 @@ uint16_t* LCD_FrameBuffer(int idx) {
   return (uint16_t*)(idx == 0 ? fb0 : fb1);
 }
 
-void LCD_DrawBitmap(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t* color) {
-  if (!panel_handle) return;
-  // esp_lcd treats x_end/y_end as exclusive, hence the +1.
-  esp_lcd_panel_draw_bitmap(panel_handle, x1, y1, x2 + 1, y2 + 1, color);
-}
-
 void LCD_Flush(const uint16_t* fb) {
   if (!panel_handle || !fb) return;   // panel init failed - nothing to draw on
   // With two framebuffers the driver recognises one of its own buffers, skips

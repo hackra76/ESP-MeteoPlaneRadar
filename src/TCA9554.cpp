@@ -53,10 +53,6 @@ bool TCA9554_SetPin(uint8_t pin, bool high) {
   return false;
 }
 
-uint8_t TCA9554_ReadOutput() {
-  return readReg(TCA9554_OUTPUT_REG);
-}
-
 bool TCA9554_Verify() {
   bool ok = false;
   uint8_t now = readReg(TCA9554_OUTPUT_REG, &ok);

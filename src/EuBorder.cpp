@@ -9,8 +9,10 @@
 // =============================================================================
 #include "EuBorder.h"
 #include "EuMapData.h"
+#include "CzCitiesData.h"   // Czech cities - they replace the European ones
 #include "UI.h"
 #include <string.h>
+#include <math.h>
 
 // Decode a fixed-point vertex back into degrees.
 static inline float ptLon(uint16_t v) { return EU_LON_ORIGIN + v * EU_COORD_SCALE; }
@@ -69,42 +71,120 @@ void EuBorder_Draw(ProjectFn project, uint16_t color,
   }
 }
 
+// Do we have this place in our own Czech list? Matched on POSITION, not on the
+// name: our list writes some of them differently ("Usti n. L." against the
+// European "Usti nad Labem") and a name comparison would let those through
+// twice. Verified against the real data - all 21 overlaps pair up one to one,
+// and no two distinct towns fall within the tolerance of each other.
+static bool haveCzechCity(float lat, float lon) {
+  const float TOL = 0.05f;                 // about 5 km
+  for (int i = 0; i < CZ_CITY_COUNT; i++) {
+    if (fabsf(CZ_CITIES[i].lat - lat) <= TOL &&
+        fabsf(CZ_CITIES[i].lon - lon) <= TOL) return true;
+  }
+  return false;
+}
+
+// --- Label collision ---------------------------------------------------------
+// At the widest ranges the labels start sitting on top of each other and the
+// map turns into mush. Every label that gets drawn claims a rectangle; a later
+// one that would overlap it is dropped entirely, dot and all - half a name
+// under another name is worse than no name.
+//
+// Cities are drawn tier by tier, so the bigger place always wins the spot and
+// it is the small town next to it that disappears.
+#define LABEL_MAX 96
+struct LabelBox { int16_t x0, y0, x1, y1; };
+static LabelBox s_used[LABEL_MAX];
+static int      s_usedN = 0;
+
+static bool boxFree(const LabelBox& b) {
+  for (int i = 0; i < s_usedN; i++) {
+    const LabelBox& u = s_used[i];
+    if (b.x0 <= u.x1 && b.x1 >= u.x0 && b.y0 <= u.y1 && b.y1 >= u.y0) return false;
+  }
+  return true;
+}
+
+// One city. Split out of the loop below so the European set and the Czech
+// list can share it.
+static void drawOneCity(const EuCity& c, ProjectFn project, int cx, int cy,
+                        long r2, uint16_t dotColor, uint16_t textColor,
+                        bool showFull, uint8_t tier,
+                        float lat0, float lat1, float lon0, float lon1);
+
 void EuBorder_DrawCities(ProjectFn project, int cx, int cy, int radius,
                          uint16_t dotColor, uint16_t textColor,
                          bool showFull, uint8_t maxTier,
                          float lat0, float lat1, float lon0, float lon1) {
   long r2 = (long)radius * radius;
 
-  for (int i = 0; i < EU_CITY_COUNT; i++) {
-    const EuCity& c = EU_CITIES[i];
+  s_usedN = 0;
 
-    // Importance filter: at longer ranges only the big cities survive, so a
-    // dense region like the Ruhr or the Randstad does not bury the aircraft
-    // under a pile of labels.
-    if (c.tier > maxTier) continue;
+  // Tier by tier, biggest first - whoever claims the space first keeps it.
+  for (uint8_t tier = 1; tier <= maxTier; tier++) {
+    for (int i = 0; i < EU_CITY_COUNT; i++) {
+      const EuCity& c = EU_CITIES[i];
+      // Czech cities come from our own list instead - same places, but with the
+      // abbreviations people actually recognise (PHA, not PRAH). Only places we
+      // really do have are skipped, so Dresden or Wroclaw, which fall inside the
+      // same rectangle, still get drawn from the European data.
+      if (c.lat >= CZ_BOX_LAT0 && c.lat <= CZ_BOX_LAT1 &&
+          c.lon >= CZ_BOX_LON0 && c.lon <= CZ_BOX_LON1 &&
+          haveCzechCity(c.lat, c.lon)) continue;
+      drawOneCity(c, project, cx, cy, r2, dotColor, textColor,
+                  showFull, tier, lat0, lat1, lon0, lon1);
+    }
+    for (int i = 0; i < CZ_CITY_COUNT; i++)
+      drawOneCity(CZ_CITIES[i], project, cx, cy, r2, dotColor, textColor,
+                  showFull, tier, lat0, lat1, lon0, lon1);
+  }
+}
+
+static void drawOneCity(const EuCity& c, ProjectFn project, int cx, int cy,
+                        long r2, uint16_t dotColor, uint16_t textColor,
+                        bool showFull, uint8_t tier,
+                        float lat0, float lat1, float lon0, float lon1) {
+  {
+
+    // This pass draws exactly one tier - see the loop in the caller.
+    if (c.tier != tier) return;
 
     // Geographic cull before projecting.
-    if (c.lat < lat0 || c.lat > lat1 || c.lon < lon0 || c.lon > lon1) continue;
+    if (c.lat < lat0 || c.lat > lat1 || c.lon < lon0 || c.lon > lon1) return;
 
     int sx, sy;
     project(c.lat, c.lon, &sx, &sy);
 
     // Skip anything outside the display circle.
     long dx = sx - cx, dy = sy - cy;
-    if (dx * dx + dy * dy > r2) continue;
+    if (dx * dx + dy * dy > r2) return;
 
-    // City dot.
-    gfx->fillCircle(sx, sy, 3, dotColor);
-
-    // Full name or abbreviation.
+    // Where the label goes: to the right of the dot, or to the left when that
+    // would spill out of the circle.
     const char* label = showFull ? c.name : c.abbr;
     int tw = strlen(label) * 6;
-    int tx = sx + 9;   // offset from the dot
     int ty = sy - 4;
-    // If the label would spill out of the circle on the right, put it on the left.
-    if ((long)(tx + tw - cx) * (tx + tw - cx) + dy * dy > r2) {
-      tx = sx - 9 - tw;
+    int tx = sx + 9;
+    if ((long)(tx + tw - cx) * (tx + tw - cx) + dy * dy > r2) tx = sx - 9 - tw;
+
+    // Claim the space, dot included, with two pixels of air around it. If it is
+    // taken, try the other side of the dot before giving up.
+    LabelBox b = { (int16_t)(sx - 5), (int16_t)(ty - 2),
+                   (int16_t)(tx + tw + 2), (int16_t)(ty + 10) };
+    if (tx < sx) { b.x0 = (int16_t)(tx - 2); b.x1 = (int16_t)(sx + 5); }
+    if (!boxFree(b)) {
+      int alt = (tx > sx) ? (sx - 9 - tw) : (sx + 9);
+      LabelBox b2 = { (int16_t)(alt - 2), (int16_t)(ty - 2),
+                      (int16_t)(alt + tw + 2), (int16_t)(ty + 10) };
+      if (alt > sx) { b2.x0 = (int16_t)(sx - 5); b2.x1 = (int16_t)(alt + tw + 2); }
+      else          { b2.x1 = (int16_t)(sx + 5); }
+      if (!boxFree(b2)) return;          // both sides busy - drop this town
+      tx = alt; b = b2;
     }
+    if (s_usedN < LABEL_MAX) s_used[s_usedN++] = b;
+
+    gfx->fillCircle(sx, sy, 3, dotColor);
     gfx->setTextSize(1);
     gfx->setTextColor(textColor);
     gfx->setCursor(tx, ty);

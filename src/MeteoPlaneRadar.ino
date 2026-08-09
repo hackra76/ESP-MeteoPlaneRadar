@@ -13,9 +13,14 @@
 //           - TCA9554 I/O expander (LCD reset / CS / power control)
 //
 //  Screens (cycled by a LONG press):
-//    1) Aircraft radar - adsb.fi, tap an aircraft for details
-//    2) Meteoradar     - CHMU precipitation composite, animated
-//    3) Settings       - brightness, WiFi, location
+//    1) Aircraft radar - adsb.fi, tap an aircraft for details (altitude, speed,
+//                        heading, type, and where it is flying from and to)
+//    2) Meteoradar     - CHMU precipitation composite, animated, ranges from
+//                        25 km up to the whole country
+//    3) Settings       - brightness, units, WiFi, location, map orientation
+//
+//  Both radar screens carry a line with the clock and the outside temperature
+//  under the screen dots.
 //
 //  Controls (both radar screens):
 //    - swipe left/right             = change the range
@@ -46,9 +51,21 @@
 //    - Preferences, Wire, HTTPClient, esp_lcd     - part of the ESP32 core
 //
 //  Data sources (attribution required, personal non-commercial use only):
-//    - Aircraft: adsb.fi, https://adsb.fi
-//    - Precip.:  Cesky hydrometeorologicky ustav (CHMU), https://opendata.chmi.cz
-//    - Location: ip-api.com (automatic detection by IP)
+//    - Aircraft:    adsb.fi, https://adsb.fi
+//    - Precip.:     Cesky hydrometeorologicky ustav (CHMU),
+//                   https://opendata.chmi.cz
+//    - Flight route + airframe:
+//                   adsbdb.com, https://www.adsbdb.com - free lookup database,
+//                   no key. Asked only when an aircraft's detail is opened.
+//    - Temperature: Open-Meteo, https://open-meteo.com - free, no key.
+//    - Clock:       the "Date" header of the responses above. No NTP client:
+//                   one user's ISP blocks UDP 123 and the header is already
+//                   there, accurate to the second.
+//    - Location:    ip-api.com (automatic detection by IP)
+//    - Map:         country outlines from Natural Earth 1:10m (public domain)
+//                   and cities from GeoNames (CC BY 4.0,
+//                   https://www.geonames.org/). Both radar screens draw the
+//                   same European data - see src/EuMapData.h.
 //
 // Inspired
 // https://github.com/MatixYo/ESP32-Plane-Radar
@@ -85,6 +102,8 @@
 #include "ScreenSettings.h"
 #include "OTA.h"
 #include "Watchdog.h"
+#include "Outside.h"
+#include "Route.h"
 
 // Board pins, time zone, ranges and limits all live in Config.h.
 
@@ -449,6 +468,8 @@ void loop() {
   }
 
   displayWatchdog();
+  Outside_Tick();    // outside temperature, every few minutes
+  Route_Tick();      // pending "where is it flying from/to" lookup
   Settings_Tick();   // debounced persist of range/screen to NVS
   Watchdog_Feed();
   delay(5);
