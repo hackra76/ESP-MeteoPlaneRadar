@@ -1,6 +1,11 @@
 # arduino-cli sketch profile - pins the core and library versions so the build
 # is reproducible (locally and in CI).
-#   arduino-cli compile --profile default src
+#   arduino-cli compile --profile default MeteoPlaneRadar
+#
+# WiFiManager was dropped in 0.6.0: the configuration portal is now served by
+# the project's own web server, which speaks both languages and does not block
+# the main loop. Nothing replaced it - WebServer, DNSServer and ESPmDNS all
+# come with the ESP32 core.
 profiles:
   default:
     fqbn: esp32:esp32:esp32s3:PSRAM=opi,FlashSize=16M,PartitionScheme=custom,CDCOnBoot=cdc,FlashMode=qio
@@ -10,9 +15,6 @@ profiles:
       - GFX Library for Arduino (1.4.9)
       - PNGdec (1.0.1)
       - ArduinoJson (7.1.0)
-      - WiFiManager (2.0.17)
       - ElegantOTA (3.1.6)
-      - ESP Async WebServer (3.3.12)
-      - Async TCP (3.2.10)
 
 default_profile: default

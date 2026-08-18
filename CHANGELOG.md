@@ -5,9 +5,50 @@ Formát vychází z [Keep a Changelog](https://keepachangelog.com/cs/1.1.0/),
 verzování je [semantické](https://semver.org/lang/cs/).
 
 Verze je v jediném místě: `src/Version.h` (`FW_VERSION`). Zobrazuje se na
-obrazovce Nastavení, na OTA obrazovce a v sériovém výpisu při startu.
+obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `src/Config.h`.
+
+---
+
+## [0.6.0]
+
+Konfigurace se přesunula do prohlížeče, přibyly dvě obrazovky a meteoradar
+funguje i mimo ČR.
+
+### Přidáno
+
+- **Webové nastavení** na `http://meteoplaneradar.local/`, dostupné trvale.
+  Poloha (i vyhledáním města), obrazovky, zdroj radaru, jazyk, jas, filtry
+  letadel, stavová stránka, export/import nastavení, heslo.
+- **Přístupový bod vydrží, dokud nezadáte WiFi.** Vlastní captive portál,
+  česky i anglicky.
+- **Obrazovka hodin** — čas, datum, počasí, vteřinový prstenec. Bez Home
+  Assistantu.
+- **Obrazovka předpovědi** — 6 hodin a 3 dny z Open-Meteo, kvalita ovzduší a pyl.
+- **RainViewer** jako alternativa k ČHMÚ — meteoradar funguje i v zahraničí.
+- **Volitelné obrazovky** a jejich automatické střídání.
+- **Noční režim** podle východu a západu slunce, denní a noční jas zvlášť.
+- **Angličtina** na displeji, webu i v portálu.
+- **Nouzové squawky** 7500/7600/7700, filtry letadel a sledovaný callsign.
+- **Dálkové ovládání z webu** — přepínání obrazovek a změna rozsahu bez
+  dotyku displeje.
+- **Sdílený layout** — obrazovky si rezervují místo dřív, než se kreslí mapa,
+  takže se popisky měst ani callsigny nepřekrývají.
+
+### Změněno
+
+- **OTA je na `/update`** běžné adresy zařízení. Zvláštní přístupový bod zmizel.
+- **WiFiManager odstraněn** — nešel přeložit a blokoval hlavní smyčku.
+- **Obrazovka Nastavení je kratší**, zbytek je v prohlížeči.
+- **Dotyk reaguje i během stahování.**
+
+### Poznámky k aktualizaci
+
+- Nastavení z 0.5.5 zůstává, **uloženou WiFi je nutné zadat znovu** (dřív ji
+  držel WiFiManager).
+- Rozdělení paměti se nemění, OTA z 0.5.x funguje.
+- Číslování se rozchází s forkem ok1cdj — stejné číslo neznamená stejný firmware.
 
 ---
 
