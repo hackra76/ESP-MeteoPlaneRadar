@@ -6,6 +6,8 @@ se z prohlížeče.
 
 > Vyvíjí **[chiptron.cz](https://chiptron.cz)** a Claude AI.
 
+> Velké díky patří [ok1cdj/MeteoPlaneRadar](https://github.com/ok1cdj/MeteoPlaneRadar) a [CooLajz/waveshare-hodiny](https://github.com/CooLajz/waveshare-hodiny). Oba projekty byly velkou inspirací pro update z 0.5.5 na 0.6.0
+
 ---
 
 ## Co to umí
@@ -101,10 +103,7 @@ připojte desku do konektoru **USB** a nahrajte na
 [esp32flasher.chiptron.cz](https://esp32flasher.chiptron.cz) v Chrome nebo Edge.
 
 **Přes WiFi**: stáhněte `*.ino.bin` (bez `merged`) a nahrajte na
-`http://meteoplaneradar.local/update`. Displej během zápisu zhasne — RGB panel
-čte obraz z PSRAM a zápis do flash mu data odřezává. Po dokončení se rozsvítí.
-
-Podrobnosti v [OTA_NAVOD.md](OTA_NAVOD.md).
+`http://meteoplaneradar.local/update`. Displej během zápisu zhasne. Po dokončení se rozsvítí.
 
 ---
 
