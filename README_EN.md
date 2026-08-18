@@ -47,6 +47,8 @@ it is about to rain.
 
 It is not a phone and does not try to be one.
 
+**Do you like this project? You may support me by [buymeacoffee.com/chiptroncz](buymeacoffee.com/chiptroncz)**
+
 ## What it does
 
 | Screen | Shows | Source |
@@ -283,7 +285,6 @@ condition.
 
 ## Built on
 
-- [petus/MeteoPlaneRadar](https://github.com/petus/MeteoPlaneRadar) — this project
 - [ok1cdj/MeteoPlaneRadar](https://github.com/ok1cdj/MeteoPlaneRadar) — Ondra OK1CDJ's fork; the source of the RainViewer, forecast screen, screen toggles and auto-cycling ideas. His version also has an APRS screen and PlatformIO support
 - [CooLajz/waveshare-hodiny](https://github.com/CooLajz/waveshare-hodiny) — a Home Assistant dashboard on the same board; inspiration for the clock, seconds ring, night mode and web configuration
 - [MatixYo/ESP32-Plane-Radar](https://github.com/MatixYo/ESP32-Plane-Radar) — the original aircraft radar and the adsb.fi source
