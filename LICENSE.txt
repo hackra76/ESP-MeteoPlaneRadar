@@ -25,8 +25,9 @@ SOFTWARE.
 A KIND REQUEST (not a legal condition)
 
 The MIT license above gives you full freedom, including commercial use.
+
 Beyond what the license requires, I would be genuinely glad if you kept the
-"chiptron.cz" credit visible on the settings screen — in the same size and
+"chiptron.cz" credit visible on the settings screen - in the same size and
 color as in the original.
 
 It costs you nothing and it means a lot to me. But it is a request, not an
@@ -37,13 +38,44 @@ it: https://chiptron.cz
 
 ---
 
-THIRD-PARTY COMPONENTS
+BUNDLED THIRD-PARTY CODE
 
 This project includes the QRCode library by Richard Moore (ricmoo),
 licensed under the MIT License:
 https://github.com/ricmoo/QRCode
 
-Map data (src/EuMapData.h) is derived from:
+---
+
+LIBRARIES USED BUT NOT REDISTRIBUTED
+
+These are installed from the Arduino Library Manager and are not part of this
+repository. They keep their own licenses, which apply to any binary you build
+and distribute.
+
+- GFX Library for Arduino (moononournation)
+- PNGdec (bitbank2)
+- ArduinoJson (bblanchon) - MIT
+- ElegantOTA (ayushsharma82) - AGPL-3.0 (open-source edition)
+
+  IMPORTANT: ElegantOTA's open-source edition is licensed under the GNU Affero
+  General Public License v3.0, which is a strong copyleft license. Its author
+  offers a separately licensed commercial edition (ElegantOTA Pro) for
+  commercial projects: https://elegantota.pro
+
+  If you distribute a compiled binary of this firmware, the AGPL-3.0 terms of
+  that library apply to what you distribute. The MIT license above covers the
+  code in THIS repository; it cannot and does not relicense a third-party
+  dependency. Anyone shipping this firmware - especially commercially - should
+  review the AGPL-3.0 obligations, or replace the OTA library.
+
+  This note is a factual pointer, not legal advice.
+
+---
+
+MAP DATA
+
+Map data (MeteoPlaneRadar/EuMapData.h and MeteoPlaneRadar/CzCitiesData.h) is
+derived from:
 
 - Natural Earth (https://www.naturalearthdata.com/) - country borders, 1:10m.
   Public domain. Obtained via the world-atlas TopoJSON redistribution
@@ -52,13 +84,45 @@ Map data (src/EuMapData.h) is derived from:
 - GeoNames (https://www.geonames.org/) - city locations and population.
   Licensed under Creative Commons Attribution 4.0 (CC BY 4.0):
   https://creativecommons.org/licenses/by/4.0/
+
   ATTRIBUTION REQUIRED: if you redistribute this project or a derivative,
   you must credit GeoNames. The notice above satisfies this.
 
-Data sources used by this software have their own terms:
-- adsb.fi (https://adsb.fi/) - personal, non-commercial use only
-- ip-api.com (https://ip-api.com/)
+---
 
-Please review their terms before commercial deployment. In particular,
-adsb.fi's free API is intended for personal use — commercial products
-should arrange appropriate data access.
+DATA SOURCES USED AT RUNTIME
+
+The software fetches data from the following services. None of them are
+redistributed with this repository, but each has its own terms, and several
+require attribution. Please review them before any commercial deployment.
+
+- adsb.fi (https://adsb.fi/) - aircraft positions.
+  Free, no API key. Intended for personal, non-commercial use.
+  Commercial products should arrange appropriate data access.
+
+- adsbdb.com (https://www.adsbdb.com/) - flight route, registration and
+  aircraft type. Free, no registration.
+
+- CHMI / Cesky hydrometeorologicky ustav (https://opendata.chmi.cz/) -
+  precipitation radar composite for the Czech Republic.
+  ATTRIBUTION REQUIRED: the source must be credited when the data is used.
+
+- RainViewer (https://www.rainviewer.com/) - international precipitation radar.
+  Free, no API key, for personal, educational and small-scale community use.
+  ATTRIBUTION REQUIRED: RainViewer requires visible credit with a link back to
+  https://www.rainviewer.com/. Commercial use is arranged case by case.
+
+- Open-Meteo (https://open-meteo.com/) - current weather, forecast, sunrise and
+  sunset, air quality, pollen and city geocoding.
+  The free API is for NON-COMMERCIAL USE ONLY and the data is provided under
+  CC BY 4.0, so ATTRIBUTION IS REQUIRED. Rate limits apply (10,000 calls per
+  day, 5,000 per hour, 600 per minute). Commercial use requires a paid plan:
+  https://open-meteo.com/en/pricing
+
+- ip-api.com (https://ip-api.com/) - approximate location from the IP address.
+  The free endpoint is for non-commercial use.
+
+Note on attribution: the settings screen and this file credit the sources
+above. If you build a derivative with a different user interface, make sure the
+required credits (GeoNames, CHMI, RainViewer, Open-Meteo) remain visible
+somewhere the user can find them.
