@@ -4,10 +4,33 @@ Všechny podstatné změny v projektu **MeteoPlaneRadar**.
 Formát vychází z [Keep a Changelog](https://keepachangelog.com/cs/1.1.0/),
 verzování je [semantické](https://semver.org/lang/cs/).
 
-Verze je v jediném místě: `src/Version.h` (`FW_VERSION`). Zobrazuje se na
+Verze je v jediném místě: `MeteoPlaneRadar/Version.h` (`FW_VERSION`). Zobrazuje se na
 obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
-pohromadě v `src/Config.h`.
+pohromadě v `MeteoPlaneRadar/Config.h`.
+
+---
+
+## [0.6.1]
+
+### Opraveno
+
+- Obrazovka s QR kódem se překreslila datovou obrazovkou — při prvním spuštění
+  i po továrním resetu. Dokud běží přístupový bod, patří displej jemu.
+- V detailu letadla se místo typu ukazovalo `adsb_icao` (typ zprávy místo typu
+  letounu).
+- WiFi šlo změnit jen od displeje. Karta WiFi je teď na webu i po připojení.
+- Změna jazyka se neukládala na záložce Ovládání.
+- Nabídka nalezených měst zůstávala viset, když další hledání nic nenašlo.
+
+### Změněno
+
+- Automatické střídání se nastavuje v sekundách, ne v minutách (0 až 3600).
+  Hodnota z dřívějších verzí se jednorázově převede.
+- Většina nastavení se ukládá hned po změně. Tlačítko Uložit zůstává jen pro
+  polohu, výběr obrazovek a zdroj radaru — ty vyžadují restart.
+- Klepnutí už nepozastaví střídání obrazovek. Pozastaví ho jen swipe, dlouhý
+  stisk nebo zásah z prohlížeče; otevřený detail letadla ho drží.
 
 ---
 
@@ -76,7 +99,7 @@ funguje i mimo ČR.
 - **Meteoradar kreslí stejnou evropskou mapu jako radar letadel.** Dosud měl
   vlastní obrys ČR s padesáti body; nově používá `EuMapData` s 30 894 body
   hranic a 1 100 městy, tedy stejná data i stejnou podrobnost jako letadla.
-  Na rozsahu „cela CR" jsou díky tomu vidět i obrysy sousedních států, takže
+  Na rozsahu „cela CR“ jsou díky tomu vidět i obrysy sousedních států, takže
   republika nevisí v prázdnu. Soubory `CzBorder.*` a `CzBorderData.h` odpadly.
 - **Čas a venkovní teplota** na jednom řádku pod tečkami výběru obrazovky, na
   radaru letadel i na meteoradaru. Dokud se čas nenačte, zůstává řádek prázdný.
@@ -86,7 +109,7 @@ funguje i mimo ČR.
   stahujeme tak jako tak. Neprochází portem 123, takže ho poskytovatel
   internetu nemá jak zablokovat, nečeká se při startu a nepřibylo žádné
   spojení navíc.
-- **Rozsah „cela CR" na meteoradaru.** Pátý rozsah za 200 km ukazuje celou
+- **Rozsah „cela CR“ na meteoradaru.** Pátý rozsah za 200 km ukazuje celou
   republiku nezávisle na tom, kde uživatel je.
 - **Odkud a kam letadlo letí.** V detailu letadla přibyly dva řádky `Z:`
   a `Do:` s výchozím a cílovým městem z adsbdb.com, k tomu registrace a typ
@@ -98,7 +121,7 @@ funguje i mimo ČR.
 
 ### Opraveno
 - **Meteoradar při načítání nezčerná.** Dosud se každých pět minut na několik
-  sekund objevila černá obrazovka s nápisem „Nacitam animaci...". Nově zůstane
+  sekund objevila černá obrazovka s nápisem „Nacitam animaci...“. Nově zůstane
   poslední platná animace na displeji a pod indikátorem snímku se objeví jen
   malá žlutá poznámka. Když stahování selže — výpadek spojení, nedostupný
   server — snímky se **nezahodí**, zůstane starší sada a v poznámce se objeví
@@ -124,7 +147,7 @@ funguje i mimo ČR.
   vykreslí černě a křížek se kreslí na skutečnou polohu.
 - **Dotykový řadič se čte, jen když má co říct.** CST820 hlásí připravená data
   signálem INT, který jsme dosud vůbec nesledovali — četlo se každých pár
-  milisekund bez ohledu na stav čipu. Odtud pocházela ta „vadná čtení" a samé
+  milisekund bez ohledu na stav čipu. Odtud pocházela ta „vadná čtení“ a samé
   `0xFF`, které jsme od 0.5.1 zahazovali. Nově se čte na přerušení, během
   doteku průběžně, plus záchranné čtení jednou za `TOUCH_IDLE_POLL_MS`.
   Neúspěšné čtení se už nepočítá jako chyba — spící čip prostě neodpovídá.
@@ -184,7 +207,7 @@ funguje i mimo ČR.
   v roce 1970, tedy v lednu, takže se použil CET místo CEST. Nově se posun
   odvozuje z data *toho snímku* (název souboru nese `YYYYMMDDHHMM` v UTC), takže
   vychází správně nezávisle na hodinách — včetně nocí, kdy se přechází mezi
-  letním a zimním časem. Popisek „nyni / −X min" se počítá z pořadí snímku
+  letním a zimním časem. Popisek „nyni / −X min“ se počítá z pořadí snímku
   a nebyl ovlivněn nikdy.
 - **Jas se zapisoval do flash při každém pohybu slideru.** Přetažení přes celou
   šířku znamenalo desítky zápisů do NVS. Nově prochází stejným odloženým
@@ -210,10 +233,10 @@ funguje i mimo ČR.
 
 ### Odebráno
 - **NTP klient a systémový čas.** Po opravě časů výše je nepotřebuje nic:
-  popisek HH:MM se odvozuje z názvu snímku, „nyni / −X min" z jeho pořadí
+  popisek HH:MM se odvozuje z názvu snímku, „nyni / −X min“ z jeho pořadí
   v animaci a všechna HTTPS spojení jedou přes `setInsecure()`, takže se
   neověřuje ani platnost certifikátů. Zmizelo čekání při startu i varování
-  „NTP neodpovedel". Kdyby na displeji někdy přibyly hodiny, vrátí se
+  „NTP neodpovedel“. Kdyby na displeji někdy přibyly hodiny, vrátí se
   `configTzTime()` zpátky nad `setup()`.
 - Konstanty `NTP_SERVER`, `NTP_WAIT_MS` a `NTP_RETRY_MS` z `Config.h`.
 
@@ -228,7 +251,7 @@ funguje i mimo ČR.
 ### Změněno
 - **Otočení mapy se nastavuje srozumitelněji.** Řádek v Nastavení se jmenuje
   `Nahore` a udává, **který světový směr je nahoře na displeji** — tedy směr,
-  kterým se díváte z okna. Dřív se zadávalo „o kolik mapu otočit", což je něco
+  kterým se díváte z okna. Dřív se zadávalo „o kolik mapu otočit“, což je něco
   jiného: pro výhled na východ bylo potřeba nastavit 270°, a při špatné hodnotě
   mapa působila zrcadlově. Nově se zadává rovnou `V`.
   Hodnota se zobrazuje jako zkratka světové strany (`S`, `SV`, `V`, `JV`, `J`,
@@ -243,7 +266,7 @@ funguje i mimo ČR.
 - **Detail letadla se zavíral sám od sebe.** Skutečnou příčinou nebyla data
   z adsb.fi, ale **vadná čtení z dotykového řadiče**. Když I2C přenos selže na
   úrovni dat, CST820 vrátí samé `0xFF` — a to se dekódovalo jako „15 bodů na
-  souřadnicích (4095, 4095)", tedy jako platné klepnutí mimo panel, které
+  souřadnicích (4095, 4095)“, tedy jako platné klepnutí mimo panel, které
   detail zavřelo. Ve výpisu uživatele tomu odpovídá **každé** samovolné
   zavření. Nově se surová data ověřují: zahodí se samé `0xFF`, nesmyslný počet
   bodů (CST820 je jednodotykový) i souřadnice mimo displej. Počet zahozených
@@ -269,8 +292,8 @@ funguje i mimo ČR.
 
 ### Změněno
 - **Uživatelské rozhraní je celé česky** (bez diakritiky — vestavěný font umí
-  jen ASCII). Například „Letadel: 12", „Nastaveni", „Jas", „Poloha",
-  „Aktualizace FW", v detailu letadla „Vyska", „Rychlost", „Kurz", „Stoupani".
+  jen ASCII). Například „Letadel: 12“, „Nastaveni“, „Jas“, „Poloha“,
+  „Aktualizace FW“, v detailu letadla „Vyska“, „Rychlost“, „Kurz“, „Stoupani“.
 - Rozvržení obrazovky Nastavení zhuštěno, aby se vešel řádek s otočením.
 
 ### Opraveno
@@ -286,7 +309,7 @@ funguje i mimo ČR.
   vynechá a v dalším ho zase pošle; dřív stačil jeden takový výpadek a panel se
   zavřel. Nově se tolerují **dvě po sobě jdoucí chybějící stažení**
   (`DETAIL_GRACE_POLLS` v `Config.h`), během nichž panel zůstane otevřený
-  s posledními známými hodnotami a poznámkou „signal ztracen".
+  s posledními známými hodnotami a poznámkou „signal ztracen“.
 
 ### Diagnostika
 - Volitelné **měření doby překreslení** (`FLUSH_DEBUG` v `Config.h`) — jednou
@@ -309,21 +332,21 @@ funguje i mimo ČR.
 
 ### Přidáno
 - **OTA aktualizace firmware přes WiFi** (ElegantOTA). V Nastavení přibylo
-  tlačítko „Firmware update": deska vytvoří AP `MeteoPlaneRadar`, na displeji
+  tlačítko „Firmware update“: deska vytvoří AP `MeteoPlaneRadar`, na displeji
   ukáže QR kód a firmware se nahraje z prohlížeče na `192.168.4.1/update`.
   Vyžaduje OTA rozdělení flash (`src/partitions.csv`, dva app sloty).
 - **Zapamatování stavu UI** — poslední rozsah (zvlášť pro letadla a meteoradar)
   a naposledy zobrazená obrazovka se ukládají do NVS a obnoví se po restartu.
   Zápis je odložený (~2 s po poslední změně), aby swipování nezatěžovalo flash.
 - **Zobrazení verze firmwaru** na obrazovce Nastavení (pod titulkem), na OTA
-  obrazovce a v sériovém výpisu. Nová sdílená hlavička `src/Version.h`.
-- **Sjednocení nastavení** do `src/Config.h` — časová zóna, výchozí poloha,
+  obrazovce a v sériovém výpisu. Nová sdílená hlavička `MeteoPlaneRadar/Version.h`.
+- **Sjednocení nastavení** do `MeteoPlaneRadar/Config.h` — časová zóna, výchozí poloha,
   rozsahy, intervaly stahování, název AP a limity na jednom místě.
 - **CI build na GitHubu** — každý push se automaticky zkusí přeložit.
 - Tento `CHANGELOG.md`, `.gitignore`, `sketch.yaml` a `LICENSE` v kořeni.
 
 ### Změněno
-- Během OTA se na displeji ukáže jen „Probiha aktualizace…" a **podsvícení se
+- Během OTA se na displeji ukáže jen „Probiha aktualizace…“ a **podsvícení se
   vypne** po dobu zápisu. Průběh v procentech se nevykresluje: RGB panel čte
   obraz z PSRAM průběžně a zápis do flash mu data odřezává, takže by obraz
   poskakoval. Procenta jsou vidět v prohlížeči.
@@ -339,7 +362,7 @@ funguje i mimo ČR.
 - **Robustní stahování ADS-B.** Celé HTTP tělo se načte do znovupoužitelného
   PSRAM bufferu a parsuje se až kompletní (kontrola utnutí proti
   `Content-Length` + jeden retry), místo parsování přímo z TLS streamu. Tím
-  zmizely občasné chyby stahování „IncompleteInput".
+  zmizely občasné chyby stahování „IncompleteInput“.
 - Parsování používá **ArduinoJson filtr** (nechá jen pole, která se používají),
   takže dokument zůstává malý bez ohledu na objem dat.
 - Pozemní letadla se zahazují už při parsování.

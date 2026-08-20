@@ -28,8 +28,8 @@ across restarts.
 1. Open `http://meteoplaneradar.local/` (the address is also printed on the
    Settings screen).
 2. Top right there is a language selector — choose **English**.
-3. **Press `Uložit nastavení` / `Save settings`** at the bottom. The page
-   switches instantly, but the device only follows once you save.
+
+The page and the device both switch immediately; there is nothing to save.
 
 The same selector appears in the setup portal during first-time WiFi
 configuration, so you can switch before anything else.
@@ -46,8 +46,6 @@ next to your monitor and a glance tells you what is flying overhead and whether
 it is about to rain.
 
 It is not a phone and does not try to be one.
-
-**Do you like this project? You may support me by [buymeacoffee.com/chiptroncz](buymeacoffee.com/chiptroncz)**
 
 ## What it does
 
@@ -168,6 +166,10 @@ sun-driven night mode, seconds ring, colours), **Aircraft** (filters, squawks,
 watched callsign, map orientation, units) and **System** (password, firmware
 update, settings backup, restart, factory reset).
 
+Most settings are **saved the moment you change them**. The Save button is only
+needed for the location, the set of screens and the radar source, because those
+restart the device.
+
 The status page reports IP, signal strength, uptime, free memory, the reason for
 the last restart and the outcome of the last fetch from each source — diagnostics
 without a serial cable.
@@ -285,6 +287,7 @@ condition.
 
 ## Built on
 
+- [petus/MeteoPlaneRadar](https://github.com/petus/MeteoPlaneRadar) — this project
 - [ok1cdj/MeteoPlaneRadar](https://github.com/ok1cdj/MeteoPlaneRadar) — Ondra OK1CDJ's fork; the source of the RainViewer, forecast screen, screen toggles and auto-cycling ideas. His version also has an APRS screen and PlatformIO support
 - [CooLajz/waveshare-hodiny](https://github.com/CooLajz/waveshare-hodiny) — a Home Assistant dashboard on the same board; inspiration for the clock, seconds ring, night mode and web configuration
 - [MatixYo/ESP32-Plane-Radar](https://github.com/MatixYo/ESP32-Plane-Radar) — the original aircraft radar and the adsb.fi source

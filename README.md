@@ -5,8 +5,7 @@ dotykovém displeji.** Běží na desce Waveshare ESP32-S3-Touch-LCD-2.1 a nasta
 se z prohlížeče.
 
 > Vyvíjí **[chiptron.cz](https://chiptron.cz)** a Claude AI.
-
-> Velké díky patří [ok1cdj/MeteoPlaneRadar](https://github.com/ok1cdj/MeteoPlaneRadar) a [CooLajz/waveshare-hodiny](https://github.com/CooLajz/waveshare-hodiny). Oba projekty byly velkou inspirací pro update z 0.5.5 na 0.6.0
+> English version: **[README_EN.md](README_EN.md)**
 
 ---
 
@@ -48,6 +47,9 @@ zobrazovat a jestli se mají střídat, zdroj meteoradaru, jazyk, denní a nočn
 jas, vzhled hodin, filtry letadel a upozornění na nouzové squawky. Je tam i
 dálkové ovládání (přepínání obrazovek a rozsahu bez dotyku displeje), stavová
 stránka, export a import nastavení a aktualizace firmwaru.
+
+Většina položek se **ukládá hned po změně**. Tlačítko Uložit zůstává jen pro
+polohu, výběr obrazovek a zdroj meteoradaru — ty vyžadují restart zařízení.
 
 ### Heslo
 
@@ -103,7 +105,10 @@ připojte desku do konektoru **USB** a nahrajte na
 [esp32flasher.chiptron.cz](https://esp32flasher.chiptron.cz) v Chrome nebo Edge.
 
 **Přes WiFi**: stáhněte `*.ino.bin` (bez `merged`) a nahrajte na
-`http://meteoplaneradar.local/update`. Displej během zápisu zhasne. Po dokončení se rozsvítí.
+`http://meteoplaneradar.local/update`. Displej během zápisu zhasne — RGB panel
+čte obraz z PSRAM a zápis do flash mu data odřezává. Po dokončení se rozsvítí.
+
+Podrobnosti v [OTA_NAVOD.md](OTA_NAVOD.md).
 
 ---
 
@@ -163,8 +168,13 @@ Jen pro osobní nekomerční použití — respektujte podmínky poskytovatelů.
 
 ## Licence
 
-MIT (viz `LICENSE`). Kód smíte volně používat, upravovat i komerčně nasazovat —
-komerční využití používaných API si ale musíte zařídit sami. Nad rámec licence
+MIT (viz `LICENSE.txt`) — vztahuje se na kód v tomhle repozitáři.
+
+**Než to nasadíte komerčně, přečtěte si `LICENSE.txt` celý.** Dvě věci tam stojí
+za pozornost: knihovna **ElegantOTA** je pod **AGPL-3.0**, což je silná copyleft
+licence a MIT nad ní nemá moc, a několik zdrojů dat (**GeoNames**, **ČHMÚ**,
+**RainViewer**, **Open-Meteo**) vyžaduje **uvedení zdroje**. Open-Meteo a adsb.fi
+mají navíc bezplatné API určené jen pro nekomerční použití. Nad rámec licence
 budeme rádi, když na obrazovce nastavení ponecháte řádek **chiptron.cz**.
 
 Historie změn: [CHANGELOG.md](CHANGELOG.md). Verze: `MeteoPlaneRadar/Version.h`.
