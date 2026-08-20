@@ -173,11 +173,7 @@ Jen pro osobní nekomerční použití — respektujte podmínky poskytovatelů.
 **Zkompilovaná binárka ale MIT není.** Slinkuje se do ní **ElegantOTA**, která je
 pod **AGPL-3.0** — a spojením vznikne odvozené dílo, takže binárka, kterou pošlete
 dál (release, nebo zařízení prodané s už nahraným firmwarem), se řídí AGPL, ne
-MIT. Pro vlastní použití to nic nemění a prodávat AGPL nezakazuje; vyžaduje ale,
-aby se příjemce dostal ke kompletnímu zdrojáku pod stejnou licencí — a protože
-zařízení servíruje webové rozhraní po síti, platí to i pro toho, kdo ho používá
-vzdáleně (§13). Kdo chce build, který je opravdu celý MIT, může ElegantOTA
-nahradit knihovnou `Update` z ESP32 core.
+MIT.
 
 **Na data se MIT nevztahuje.** **GeoNames**, **ČHMÚ**, **RainViewer** a
 **Open-Meteo** vyžadují **uvedení zdroje**; Open-Meteo a adsb.fi mají bezplatné
