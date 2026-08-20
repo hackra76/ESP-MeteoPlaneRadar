@@ -275,11 +275,22 @@ these require credit** — see [LICENSE.txt](LICENSE.txt) for the details.
 
 ## Licence
 
-MIT — see [LICENSE.txt](LICENSE.txt). It covers the code in this repository.
+The **source code** in this repository is **MIT** — see [LICENSE.txt](LICENSE.txt).
 
-**Read LICENSE.txt in full before any commercial deployment.** Two things matter:
-the **ElegantOTA** library is **AGPL-3.0**, a strong copyleft licence that MIT
-cannot override, and several data sources require visible attribution.
+**A compiled binary is not.** The build links against **ElegantOTA**, which is
+**AGPL-3.0**, and linking makes the result a combined work — so a binary you pass
+on (a release asset, or a device sold with the firmware already flashed) carries
+the AGPL terms rather than MIT. Personal use is unaffected, and AGPL does not
+forbid selling anything; it does require that the recipient can obtain the
+complete corresponding source under the same licence, and — because the firmware
+serves a web interface over the network — that people using it remotely are
+offered that source too (section 13). For a build that really is MIT only,
+replace ElegantOTA with the `Update` library from the ESP32 core.
+
+**MIT does not cover the data.** **GeoNames**, **CHMI**, **RainViewer** and
+**Open-Meteo** all require visible attribution, and the free Open-Meteo and
+adsb.fi APIs are for non-commercial use only. LICENSE.txt has the details —
+**read it in full before any commercial deployment.**
 
 Beyond what the licence requires: if you build on this, I would be glad if you
 kept the **chiptron.cz** credit on the settings screen. A request, not a

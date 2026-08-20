@@ -168,13 +168,23 @@ Jen pro osobní nekomerční použití — respektujte podmínky poskytovatelů.
 
 ## Licence
 
-MIT (viz `LICENSE.txt`) — vztahuje se na kód v tomhle repozitáři.
+**Zdrojový kód** v tomhle repozitáři je pod **MIT** (viz [LICENSE.txt](LICENSE.txt)).
 
-**Než to nasadíte komerčně, přečtěte si `LICENSE.txt` celý.** Dvě věci tam stojí
-za pozornost: knihovna **ElegantOTA** je pod **AGPL-3.0**, což je silná copyleft
-licence a MIT nad ní nemá moc, a několik zdrojů dat (**GeoNames**, **ČHMÚ**,
-**RainViewer**, **Open-Meteo**) vyžaduje **uvedení zdroje**. Open-Meteo a adsb.fi
-mají navíc bezplatné API určené jen pro nekomerční použití. Nad rámec licence
-budeme rádi, když na obrazovce nastavení ponecháte řádek **chiptron.cz**.
+**Zkompilovaná binárka ale MIT není.** Slinkuje se do ní **ElegantOTA**, která je
+pod **AGPL-3.0** — a spojením vznikne odvozené dílo, takže binárka, kterou pošlete
+dál (release, nebo zařízení prodané s už nahraným firmwarem), se řídí AGPL, ne
+MIT. Pro vlastní použití to nic nemění a prodávat AGPL nezakazuje; vyžaduje ale,
+aby se příjemce dostal ke kompletnímu zdrojáku pod stejnou licencí — a protože
+zařízení servíruje webové rozhraní po síti, platí to i pro toho, kdo ho používá
+vzdáleně (§13). Kdo chce build, který je opravdu celý MIT, může ElegantOTA
+nahradit knihovnou `Update` z ESP32 core.
+
+**Na data se MIT nevztahuje.** **GeoNames**, **ČHMÚ**, **RainViewer** a
+**Open-Meteo** vyžadují **uvedení zdroje**; Open-Meteo a adsb.fi mají bezplatné
+API určené jen pro nekomerční použití. Podrobnosti jsou v `LICENSE.txt` —
+**přečtěte si ho celý, než to nasadíte komerčně.**
+
+Nad rámec licence budeme rádi, když na obrazovce nastavení ponecháte řádek
+**chiptron.cz**.
 
 Historie změn: [CHANGELOG.md](CHANGELOG.md). Verze: `MeteoPlaneRadar/Version.h`.
