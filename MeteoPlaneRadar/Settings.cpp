@@ -38,7 +38,7 @@ static uint8_t s_lang   = LANG_CZ;
 // and the new screens are discovered rather than sprung on the user.
 static uint8_t s_scrMask = (1 << SCREEN_CLOCK_I) | (1 << SCREEN_PLANES_I) |
                            (1 << SCREEN_METEO_I) | (1 << SCREEN_FORECAST_I);
-static uint8_t s_autoRot = 0;
+static uint16_t s_autoRot = 0;
 static uint8_t s_radarSrc = RADAR_SRC_CHMU;
 
 // --- Clock appearance ---
@@ -82,6 +82,7 @@ static void putStr(const char* k, const char* v) {
 }
 
 void Settings_Begin() {
+  bool migrateRotate = false;
   if (prefs.begin(NS, true)) {
     s_lat    = prefs.getDouble("lat", DEFAULT_LAT);
     s_lon    = prefs.getDouble("lon", DEFAULT_LON);
@@ -95,7 +96,14 @@ void Settings_Begin() {
     s_metric = prefs.getBool("metric", false);
     s_lang   = prefs.getUChar("lang", LANG_CZ);
     s_scrMask = prefs.getUChar("scrM", s_scrMask);
-    s_autoRot = prefs.getUChar("autoR", 0);
+    // Cycling interval moved from minutes to seconds - see Settings.h. The old
+    // key is converted exactly once, so an updated device keeps its setting.
+    if (prefs.isKey("autoRS")) {
+      s_autoRot = prefs.getUShort("autoRS", 0);
+    } else {
+      s_autoRot = (uint16_t)prefs.getUChar("autoR", 0) * 60;
+      migrateRotate = true;          // written below, the handle is read-only here
+    }
     s_radarSrc = prefs.getUChar("radSrc", RADAR_SRC_CHMU);
     s_secStyle = prefs.getUChar("secSt", SEC_STYLE_DOTS);
     s_clockCol = prefs.getUShort("clkC", 0xFFFF);
@@ -115,6 +123,13 @@ void Settings_Begin() {
     prefs.end();
   }
   if (s_altMax == 0) s_altMax = 60000;
+  if (s_autoRot > 3600) s_autoRot = 3600;
+  if (migrateRotate && prefs.begin(NS, false)) {
+    prefs.putUShort("autoRS", s_autoRot);
+    prefs.remove("autoR");           // the old key would only confuse later
+    prefs.end();
+    if (s_autoRot) Serial.printf("Nastaveni: stridani prevedeno na %u s\n", s_autoRot);
+  }
   Lang_Set(s_lang);
 }
 
@@ -213,8 +228,12 @@ uint8_t Settings_EnabledCount() {
   return n;
 }
 
-uint8_t Settings_AutoRotateMin() { return s_autoRot; }
-void    Settings_SetAutoRotateMin(uint8_t m) { if (m > 9) m = 9; s_autoRot = m; putU8("autoR", m); }
+uint16_t Settings_AutoRotateSec() { return s_autoRot; }
+void     Settings_SetAutoRotateSec(uint16_t s) {
+  if (s > 3600) s = 3600;
+  s_autoRot = s;
+  putU16("autoRS", s);
+}
 
 // --- Weather radar ----------------------------------------------------------
 uint8_t Settings_RadarSource() { return s_radarSrc; }
@@ -310,7 +329,7 @@ void Settings_ToJson(JsonObject o) {
   o["nightAuto"] = s_nightAuto;
   o["nightOffset"] = s_nightOff;
   o["radarSrc"] = s_radarSrc;
-  o["autoRotate"] = s_autoRot;
+  o["autoRotate"] = s_autoRot;   // seconds
   o["topBearing"] = s_top;
   o["secStyle"] = s_secStyle;
   o["clockColor"] = s_clockCol;
@@ -351,7 +370,7 @@ bool Settings_FromJson(JsonObjectConst in) {
   setIf("nightAuto",    [](JsonVariantConst v){ Settings_SetNightAuto(v.as<bool>()); });
   setIf("nightOffset",  [](JsonVariantConst v){ Settings_SetNightOffsetMin(v.as<int8_t>()); });
   setIf("radarSrc",     [](JsonVariantConst v){ Settings_SetRadarSource(v.as<uint8_t>()); });
-  setIf("autoRotate",   [](JsonVariantConst v){ Settings_SetAutoRotateMin(v.as<uint8_t>()); });
+  setIf("autoRotate",   [](JsonVariantConst v){ Settings_SetAutoRotateSec(v.as<uint16_t>()); });
   setIf("topBearing",   [](JsonVariantConst v){ Settings_SetTopBearing(v.as<uint16_t>()); });
   setIf("secStyle",     [](JsonVariantConst v){ Settings_SetSecondsStyle(v.as<uint8_t>()); });
   setIf("clockColor",   [](JsonVariantConst v){ Settings_SetClockColor(v.as<uint16_t>()); });

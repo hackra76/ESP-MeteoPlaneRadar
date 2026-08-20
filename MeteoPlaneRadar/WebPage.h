@@ -95,11 +95,12 @@ td:first-child{color:var(--mut);width:50%}
 <section id="tCtl" class="tab">
   <div class="card hide" id="cardWifi">
     <h2 data-i18n="wifi">WiFi</h2>
+    <p class="hint" id="wifiNow"></p>
     <div class="row"><label data-i18n="network">Síť</label>
       <select id="ssid" style="flex:2 1 220px"></select>
       <button class="sec" onclick="scan()" data-i18n="scan">Vyhledat</button></div>
     <div class="row"><label data-i18n="password">Heslo</label><input type="password" id="wpass" style="flex:2 1 220px"></div>
-    <p class="hint" data-i18n="wifiHint">Po uložení se zařízení připojí a přístupový bod zmizí.</p>
+    <p class="hint" id="wifiHintTxt"></p>
     <button onclick="saveWifi()" data-i18n="connect">Připojit</button>
   </div>
 
@@ -150,8 +151,10 @@ td:first-child{color:var(--mut);width:50%}
       <label class="chk"><input type="checkbox" id="sForecast"><span data-i18n="scrForecast">Předpověď</span></label>
     </div>
     <p class="hint" data-i18n="scrHint">Vypnuté obrazovky se přeskakují. Nastavení je dostupné vždy.</p>
-    <div class="row"><label data-i18n="autoRotate">Automatické střídání (min, 0 = vypnuto)</label>
-      <input type="number" id="autoRotate" min="0" max="9"></div>
+    <p class="hint" data-i18n="restartHint">Změna obrazovek, zdroje radaru nebo polohy potřebuje restart, takže se ukládá až tlačítkem dole.</p>
+    <div class="row"><label data-i18n="autoRotate">Automatické střídání (sekundy, 0 = vypnuto)</label>
+      <input type="number" id="autoRotate" min="0" max="3600" step="5"></div>
+    <p class="hint" data-i18n="rotHint">Střídání pozastaví přejetí prstem nebo dlouhý stisk, ne obyčejné klepnutí. Otevřený detail letadla ho drží, dokud ho nezavřete.</p>
   </div>
 
   <div class="card">
@@ -173,6 +176,7 @@ td:first-child{color:var(--mut);width:50%}
     <div class="row"><label data-i18n="briNight">Noční jas</label><input type="range" id="briNight" min="5" max="100"><span id="briNightV"></span></div>
     <div class="row"><label class="chk"><input type="checkbox" id="nightAuto"><span data-i18n="nightAuto">Přepínat automaticky podle slunce</span></label></div>
     <div class="row"><label data-i18n="nightOffset">Posun proti východu/západu (min)</label><input type="number" id="nightOffset" min="-120" max="120"></div>
+    <p class="hint" data-i18n="liveHint">Změny na této záložce se ukládají hned, tlačítko Uložit tu nepotřebujete.</p>
   </div>
 
   <div class="card">
@@ -199,6 +203,7 @@ td:first-child{color:var(--mut);width:50%}
     <div class="row"><label class="chk"><input type="checkbox" id="squawkAlert"><span data-i18n="sqAlert">Upozornit na nouzové squawky (7500/7600/7700)</span></label></div>
     <div class="row"><label data-i18n="watch">Sledovaný callsign nebo ICAO</label><input type="text" id="watch" maxlength="9" placeholder="CSA1234"></div>
     <p class="hint" data-i18n="planesHint">Filtry se týkají jen kreslení. Nouzový squawk ani sledované letadlo neschovají.</p>
+    <p class="hint" data-i18n="liveHint">Změny na této záložce se ukládají hned, tlačítko Uložit tu nepotřebujete.</p>
   </div>
 
   <div class="card">
@@ -241,12 +246,18 @@ const D={
  cs:{tabCtl:"Ovládání",tabLoc:"Poloha",tabScr:"Obrazovky",tabLook:"Vzhled",tabPlanes:"Letadla",tabSys:"Systém",
   wifi:"WiFi",network:"Síť",password:"Heslo",scan:"Vyhledat",connect:"Připojit",
   wifiHint:"Po uložení se zařízení připojí a přístupový bod zmizí.",
+  wifiHintSta:"Změna sítě přeruší spojení s touto stránkou. Když se připojení nepovede, zařízení vytvoří vlastní síť MeteoPlaneRadar a zadáte ji znovu.",
+  wifiNow:"Připojeno k síti",
+  autoSaved:"Uloženo",
+  liveHint:"Změny na této záložce se ukládají hned, tlačítko Uložit tu nepotřebujete.",
+  restartHint:"Změna obrazovek, zdroje radaru nebo polohy potřebuje restart, takže se ukládá až tlačítkem dole.",
   remote:"Dálkové ovládání",rangeLbl:"Rozsah",statusHdr:"Stav zařízení",
   remoteHint:"Rozsah se mění jen na obrazovkách Letadla a Meteoradar. Zásah pozastaví automatické střídání.",
   location:"Poloha",findCity:"Najít město",search:"Hledat",found:"Nalezeno",lat:"Zeměpisná šířka",lon:"Zeměpisná délka",
   locHint:"Změna polohy vyžaduje restart, o který se zařízení postará samo.",
   screens:"Obrazovky",scrClock:"Hodiny",scrPlanes:"Letadla",scrMeteo:"Meteoradar",scrForecast:"Předpověď",
-  scrHint:"Vypnuté obrazovky se přeskakují. Nastavení je dostupné vždy.",autoRotate:"Automatické střídání (min, 0 = vypnuto)",
+  scrHint:"Vypnuté obrazovky se přeskakují. Nastavení je dostupné vždy.",autoRotate:"Automatické střídání (sekundy, 0 = vypnuto)",
+  rotHint:"Střídání pozastaví přejetí prstem nebo dlouhý stisk, ne obyčejné klepnutí. Otevřený detail letadla ho drží, dokud ho nezavřete.",
   radar:"Meteoradar",radarSrc:"Zdroj dat",srcChmu:"ČHMÚ (ostřejší, jen ČR)",srcRv:"RainViewer (Evropa i svět)",
   radarHint:"Mimo ČR nemá ČHMÚ data a obrazovka zůstane prázdná — použijte RainViewer.",
   brightness:"Jas",clockHdr:"Hodiny",
@@ -270,12 +281,18 @@ const D={
  en:{tabCtl:"Control",tabLoc:"Location",tabScr:"Screens",tabLook:"Appearance",tabPlanes:"Aircraft",tabSys:"System",
   wifi:"WiFi",network:"Network",password:"Password",scan:"Scan",connect:"Connect",
   wifiHint:"After saving the device connects and the access point disappears.",
+  wifiHintSta:"Changing the network drops this page. If the connection fails, the device brings up its own MeteoPlaneRadar network and you enter it again.",
+  wifiNow:"Connected to",
+  autoSaved:"Saved",
+  liveHint:"Changes on this tab are saved immediately - no need for the Save button.",
+  restartHint:"Changing the screens, the radar source or the location needs a restart, so those are saved with the button below.",
   remote:"Remote control",rangeLbl:"Range",statusHdr:"Device status",
   remoteHint:"The range only applies to the Aircraft and Weather screens. Using this pauses the automatic cycling.",
   location:"Location",findCity:"Find a town",search:"Search",found:"Found",lat:"Latitude",lon:"Longitude",
   locHint:"Changing the location needs a restart, which the device does by itself.",
   screens:"Screens",scrClock:"Clock",scrPlanes:"Aircraft",scrMeteo:"Weather radar",scrForecast:"Forecast",
-  scrHint:"Disabled screens are skipped. Settings is always reachable.",autoRotate:"Auto cycling (min, 0 = off)",
+  scrHint:"Disabled screens are skipped. Settings is always reachable.",autoRotate:"Auto cycling (seconds, 0 = off)",
+  rotHint:"Cycling is paused by a swipe or a long press, not by a plain tap. An open aircraft detail holds it until you close it.",
   radar:"Weather radar",radarSrc:"Data source",srcChmu:"CHMU (sharper, Czechia only)",srcRv:"RainViewer (Europe and beyond)",
   radarHint:"Outside Czechia CHMU has no data and the screen stays blank — use RainViewer.",
   brightness:"Brightness",clockHdr:"Clock",
@@ -338,11 +355,60 @@ function goScreen(i){post("/api/screen",{index:i});}
 function stepScreen(d){post("/api/screen",{step:d});}
 function stepRange(d){post("/api/range",{step:d});}
 
+// --- Okamzite ukladani ------------------------------------------------------
+// The API applies only the keys it actually receives, so a single field can be
+// sent on its own without disturbing anything else.
+//
+// Deliberately NOT every field: the location, the set of screens and the radar
+// source make the device restart, and auto-saving those while someone is still
+// typing coordinates would reboot it mid-keystroke. Those keep the Save button.
+let saveTimer = {};
+function autoSave(key, val){
+ clearTimeout(saveTimer[key]);
+ saveTimer[key] = setTimeout(async () => {
+  const o = {}; o[key] = val;
+  try{
+   const r = await fetch("/api/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(o)});
+   msg(r.ok ? D[L].autoSaved : D[L].failed, r.ok ? "ok" : "err");
+  }catch(e){ msg(D[L].failed,"err"); }
+ }, 350);
+}
+
+// [id, event, JSON key, how to read the value]
+const AUTO = [
+ ["uiLang","change","lang",e=>+e.value],
+ ["metric","change","metric",e=>e.checked],
+ ["topBearing","change","topBearing",e=>+e.value],
+ ["briDay","input","briDay",e=>+e.value],
+ ["briNight","input","briNight",e=>+e.value],
+ ["nightAuto","change","nightAuto",e=>e.checked],
+ ["nightOffset","change","nightOffset",e=>+e.value],
+ ["secStyle","change","secStyle",e=>+e.value],
+ ["clockColor","change","clockColor",e=>hexToRgb565(e.value)],
+ ["secColor","change","secColor",e=>hexToRgb565(e.value)],
+ ["altMin","change","altMin",e=>+e.value],
+ ["altMax","change","altMax",e=>+e.value],
+ ["onlyCallsign","change","onlyCallsign",e=>e.checked],
+ ["squawkAlert","change","squawkAlert",e=>e.checked],
+ ["watch","change","watch",e=>e.value],
+ ["autoRotate","change","autoRotate",e=>+e.value],
+];
+function wireAutoSave(){
+ AUTO.forEach(([id,ev,key,get])=>{
+  const el=$(id); if(!el) return;
+  el.addEventListener(ev,()=>autoSave(key,get(el)));
+ });
+}
+
 async function load(){
  const r=await fetch("/api/config");CFG=await r.json();
  setLang(CFG.lang);
  $("ver").textContent="v"+CFG.version;
- if(CFG.apMode){$("cardWifi").classList.remove("hide");$("cardRemote").classList.add("hide");scan();}
+ // The WiFi card is shown in BOTH modes. Hiding it once connected meant that
+ // swapping a router forced you back to the touchscreen, or to a factory reset.
+ $("cardWifi").classList.remove("hide");
+ if(CFG.apMode){$("cardRemote").classList.add("hide");scan();}
+ $("wifiHintTxt").textContent=CFG.apMode?D[L].wifiHint:D[L].wifiHintSta;
  $("lat").value=CFG.lat.toFixed(4);$("lon").value=CFG.lon.toFixed(4);
  $("sClock").checked=CFG.screens.clock;$("sPlanes").checked=CFG.screens.planes;
  $("sMeteo").checked=CFG.screens.meteo;$("sForecast").checked=CFG.screens.forecast;
@@ -354,7 +420,7 @@ async function load(){
  $("altMin").value=CFG.altMin;$("altMax").value=CFG.altMax;
  pwState();
  $("onlyCallsign").checked=CFG.onlyCallsign;$("squawkAlert").checked=CFG.squawkAlert;$("watch").value=CFG.watch||"";
- bri();status();
+ bri();wireAutoSave();status();
 }
 // Says whether a password is actually set - more use than a static sentence,
 // and it is the first thing to check when /update stops asking for one.
@@ -370,6 +436,7 @@ $("briDay").addEventListener("input",bri);$("briNight").addEventListener("input"
 async function status(){
  try{const s=await(await fetch("/api/status")).json();
  drawScrBtns(s.screen,s.enabled);
+ if(!CFG.apMode&&$("wifiNow")) $("wifiNow").textContent=D[L].wifiNow+" "+s.ssid+".";
  const hasR=(s.range&&s.range.length>0);
  $("rangeNow").textContent=hasR?s.range:"–";
  $("rMinus").disabled=!hasR;$("rPlus").disabled=!hasR;
@@ -408,11 +475,12 @@ async function saveWifi(){
 }
 async function geo(){
  const q=$("q").value.trim();if(!q)return;msg(D[L].searching);
+ $("geoRow").classList.add("hide");$("geoSel").innerHTML="";
  try{const l=await(await fetch("/api/geocode?q="+encodeURIComponent(q))).json();
- if(!l.length){msg(D[L].nothing,"warn");return;}
+ if(!l.length){$("geoRow").classList.add("hide");$("geoSel").innerHTML="";msg(D[L].nothing,"warn");return;}
  $("geoRow").classList.remove("hide");
  $("geoSel").innerHTML=l.map(c=>"<option value='"+c.lat+","+c.lon+"'>"+c.name+(c.country?", "+c.country:"")+"</option>").join("");
- pickCity();msg("");}catch(e){msg(D[L].failed,"err")}
+ pickCity();msg("");}catch(e){$("geoRow").classList.add("hide");msg(D[L].failed,"err")}
 }
 function pickCity(){const v=$("geoSel").value.split(",");$("lat").value=(+v[0]).toFixed(4);$("lon").value=(+v[1]).toFixed(4);}
 function exportCfg(){location="/api/export";}

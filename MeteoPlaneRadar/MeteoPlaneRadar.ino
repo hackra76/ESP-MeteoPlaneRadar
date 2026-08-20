@@ -154,7 +154,10 @@ static void touchPump() {
     }
     s_lastX = t.x; s_lastY = t.y;
     s_lastSeenMs = now;
-    s_touchPauseUntil = now + AUTO_ROTATE_PAUSE_MS;   // stop cycling
+    // Deliberately NOT pausing the cycling here. Merely putting a finger on the
+    // glass - to pick an aircraft - is not a request to stop; only the gestures
+    // that mean "I am driving this myself" are, and those are handled in
+    // dispatchTouch() once the gesture is actually recognised.
     return;
   }
 
@@ -347,12 +350,15 @@ static void dispatchTouch() {
       // re-scale the map behind the panel.
       if (activeModalOpen()) { ScreenPlanes_CloseDetail(); drawActive(); }
       else                   { activeChangeRange(a); drawActive(); }
+      s_touchPauseUntil = millis() + AUTO_ROTATE_PAUSE_MS;
       break;
     case PEND_LONG:
       if (activeModalOpen()) { ScreenPlanes_CloseDetail(); drawActive(); }
       else switchScreen(a < LCD_WIDTH / 2 ? -1 : +1);
+      s_touchPauseUntil = millis() + AUTO_ROTATE_PAUSE_MS;
       break;
     case PEND_TAP:
+      // A tap does not pause the cycling - see touchPump().
       if (activeTap(a, b)) drawActive();
       break;
     default:
@@ -361,17 +367,27 @@ static void dispatchTouch() {
 }
 
 // --- Automatic cycling ------------------------------------------------------
-// Any touch pauses it, because being switched away mid-sentence while you are
-// reading something is worse than never cycling at all.
+// Paused by the gestures that mean the user is driving - a swipe or a long
+// press - and held while an aircraft detail is open. A plain tap does not stop
+// it; being switched away mid-sentence is annoying, but so is a device that
+// stops cycling because someone brushed the glass.
 static unsigned long s_lastRotate = 0;
 
 static void autoRotateTick() {
-  const uint8_t mins = Settings_AutoRotateMin();
-  if (mins == 0) return;
+  const uint16_t secs = Settings_AutoRotateSec();
+  if (secs == 0) return;
   if (s_screen == SCREEN_SETTINGS_I) return;      // never cycle away from settings
+
   unsigned long now = millis();
+
+  // An open aircraft detail holds the cycling: the user is reading it. The
+  // timer is kept fresh rather than stopped, so when the panel closes - by a
+  // tap, or because the aircraft dropped out of the data - cycling resumes with
+  // a full interval instead of switching away immediately.
+  if (activeModalOpen()) { s_lastRotate = now; return; }
+
   if (now < s_touchPauseUntil) return;
-  if (now - s_lastRotate < (unsigned long)mins * 60000UL) return;
+  if (now - s_lastRotate < (unsigned long)secs * 1000UL) return;
   s_lastRotate = now;
 
   // Step to the next visible DATA screen, skipping settings.
@@ -480,7 +496,11 @@ void setup() {
     s_screen = SCREEN_SETTINGS_I;
     for (int i = 0; i < SCREEN_N; i++) if (screenVisible(i)) { s_screen = i; break; }
   }
-  enterActive();
+  // In access-point mode the QR screen owns the display and must stay up until a
+  // network is entered. Drawing a data screen here would paint straight over it
+  // - which is what happened on a first run and after a factory reset. The
+  // screen is still chosen above, so it is ready the moment WiFi comes up.
+  if (!WiFi_IsAP()) enterActive();
 
   Watchdog_Begin();   // hardware watchdog for 24/7 operation
   Serial.println("Setup done");
@@ -541,6 +561,51 @@ void loop() {
   // Touch: sample and act. During a download the sampling also happens inside
   // netPoll(), so by the time we get back here the gesture is already waiting.
   touchPump();
+
+  // --- Access point: the portal owns the display ----------------------------
+  // Until a network is entered there is no data to put on the screens anyway,
+  // and the QR code is the only thing standing between the user and a working
+  // device. So nothing below this block may draw, and no gesture may switch
+  // away from it. The web server and the WiFi state machine keep running.
+  static bool s_apOwnsScreen = false;
+  static uint8_t s_apLang = 0xFF;
+  if (WiFi_IsAP()) {
+    s_pendKind = PEND_NONE;              // a stray swipe must not take the QR away
+    if (!s_apOwnsScreen || s_apLang != (uint8_t)Lang_Get()) {
+      // Redrawn on a language change too: the portal has its own selector, and
+      // the instructions under the QR code should follow it.
+      s_apLang = (uint8_t)Lang_Get();
+      s_apOwnsScreen = true;
+      WiFi_DrawApScreen();
+    }
+    WiFi_Loop();                         // may accept credentials and leave AP mode
+    WebConfig_Loop();
+    if (WebConfig_WantsRestart()) {
+      Serial.println("Nastaveni zmeneno, restartuji");
+      Serial.flush();
+      delay(400);
+      ESP.restart();
+    }
+    // No Outside_Tick/Forecast_Tick here - there is no route to the internet and
+    // every attempt would just burn the loop on timeouts.
+    displayWatchdog();
+    NightMode_Tick();
+    Settings_Tick();
+    Watchdog_Feed();
+    delay(5);
+    return;
+  }
+  if (s_apOwnsScreen) {
+    // A network was accepted: take the display back and start the cycling clock
+    // from now, so the first switch comes a full interval after setup ends.
+    s_apOwnsScreen = false;
+    s_apLang = 0xFF;
+    s_lastRotate = millis();
+    s_touchPauseUntil = 0;
+    s_pendKind = PEND_NONE;
+    enterActive();
+  }
+
   dispatchTouch();
 
   // The same actions, asked for from the web instead of the glass. They are

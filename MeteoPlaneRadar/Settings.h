@@ -65,8 +65,13 @@ void    Settings_SetLanguage(uint8_t l);
 bool    Settings_ScreenEnabled(uint8_t idx);
 void    Settings_SetScreenEnabled(uint8_t idx, bool on);
 uint8_t Settings_EnabledCount();           // data screens currently on
-uint8_t Settings_AutoRotateMin();          // 0 = off
-void    Settings_SetAutoRotateMin(uint8_t m);
+// Automatic screen cycling, in SECONDS. 0 = off.
+//
+// This was minutes up to 0.6.0 and is stored under a NEW key, because
+// reinterpreting the old one would silently turn "every 3 minutes" into "every
+// 3 seconds" on update. Settings_Begin() converts the old value once.
+uint16_t Settings_AutoRotateSec();
+void     Settings_SetAutoRotateSec(uint16_t s);
 
 // --- Weather radar ----------------------------------------------------------
 uint8_t Settings_RadarSource();            // RADAR_SRC_CHMU / RADAR_SRC_RAINVIEWER

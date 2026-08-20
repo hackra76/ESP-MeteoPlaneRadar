@@ -157,7 +157,6 @@ static void buildFilter(JsonDocument& filter) {
   o["gs"]           = true;
   o["baro_rate"]    = true;
   o["t"]            = true;
-  o["type"]         = true;
   o["squawk"]       = true;
 }
 
@@ -294,8 +293,12 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
       s_tmp[n].altFt    = readFloat(plane, "alt_baro", &f) ? f : 0;
       s_tmp[n].gsKt     = readFloat(plane, "gs", &f) ? f : 0;
       s_tmp[n].baroRate = readFloat(plane, "baro_rate", &f) ? f : 0;
-      // Aircraft type (the key varies by source).
-      const char* ty = plane["t"] | (plane["type"] | "");
+      // Aircraft type. ONLY "t" - that is the airframe type code ("A320").
+      // "type" is the MESSAGE source ("adsb_icao", "mlat", "tisb_icao"), and
+      // using it as a fallback is why aircraft missing from the database showed
+      // "adsb_icao" in their detail panel. Left empty, the type is filled in
+      // from adsbdb.com instead, which is what that lookup is for.
+      const char* ty = plane["t"] | "";
       strncpy(s_tmp[n].type, ty, sizeof(s_tmp[n].type) - 1);
       s_tmp[n].type[sizeof(s_tmp[n].type) - 1] = '\0';
       // Squawk. adsb.fi sends it as a string; some feeds send a number, in
