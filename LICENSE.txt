@@ -22,29 +22,17 @@ SOFTWARE.
 
 ---
 
-WHAT THE MIT LICENSE ABOVE COVERS - AND WHAT IT DOES NOT
+WHAT THE MIT LICENSE ABOVE COVERS
 
-It covers the source code in this repository.
+The source code in this repository, and binaries built from it.
 
-It does NOT cover a COMPILED BINARY of this firmware. The build links against
-ElegantOTA, which is licensed under AGPL-3.0 (details further down). Linking
-makes the result a combined work, so a binary you pass on - a release asset, or
-a device sold with the firmware already flashed - carries the AGPL-3.0 terms
-rather than MIT. Put plainly: the source in this repository is MIT, a binary
-built from it is effectively AGPL-3.0.
+Up to version 0.6.1 that was not the whole story: the firmware linked against
+ElegantOTA, an AGPL-3.0 library, which made every compiled binary AGPL-3.0
+rather than MIT. Version 0.6.2 removed it. The /update page is now built on the
+Update class from the ESP32 core, so there is no copyleft dependency left and
+MIT applies to the whole thing.
 
-For personal use this changes nothing, and AGPL-3.0 does not forbid selling
-anything. What it does require of anyone distributing a binary:
-
-- The recipient must be able to obtain the complete corresponding source under
-  AGPL-3.0 - everything needed to rebuild that exact binary.
-- Because this firmware serves a web interface over the network, people who use
-  it over a network must be offered that source as well (AGPL-3.0 section 13).
-- Modified versions must stay under AGPL-3.0.
-
-If you want a build that really is MIT and nothing else, replace ElegantOTA
-with the Update library from the ESP32 core. The project already runs its own
-web server, so it is a small change.
+The data is a separate matter - see below.
 
 ---
 
@@ -81,23 +69,17 @@ and distribute.
 - GFX Library for Arduino (moononournation)
 - PNGdec (bitbank2)
 - ArduinoJson (bblanchon) - MIT
-- ElegantOTA (ayushsharma82) - AGPL-3.0 (open-source edition)
 
-  IMPORTANT: ElegantOTA's open-source edition is licensed under the GNU Affero
-  General Public License v3.0, a strong copyleft license. This is the library
-  that makes a compiled binary of this firmware AGPL-3.0 rather than MIT - see
-  the section "What the MIT license above covers" near the top of this file for
-  what that means in practice.
+All three are permissively licensed, so they place no conditions on what you do
+with a binary beyond keeping their own notices.
 
-  The MIT license above covers the code in THIS repository. It cannot and does
-  not relicense a third-party dependency.
+REMOVED IN 0.6.2: ElegantOTA (ayushsharma82). Its open-source edition is
+AGPL-3.0, a strong copyleft license, and the MIT license above could not
+override it - every binary built from this project was therefore AGPL-3.0. The
+/update page is now our own, built on the core's Update class. If you re-add
+ElegantOTA to a fork, the copyleft obligations come back with it.
 
-  The author of ElegantOTA offers a separately licensed commercial edition,
-  ElegantOTA Pro, under the SOFTT Commercial License 1.2: https://elegantota.pro
-  Buying it is not permission to sell - AGPL-3.0 already allows that - it is a
-  way to avoid the copyleft obligations.
-
-  This note is a factual pointer, not legal advice.
+This note is a factual pointer, not legal advice.
 
 ---
 
