@@ -15,4 +15,5 @@
 //  Web:     https://chiptron.cz
 // =============================================================================
 #pragma once
-// See WebConfig.h - ElegantOTA is registered on the main web server there.
+// See WebConfig.cpp - /update is served by the main web server there, on top of
+// the Update class from the ESP32 core.

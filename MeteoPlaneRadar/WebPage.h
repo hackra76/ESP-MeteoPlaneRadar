@@ -154,7 +154,7 @@ td:first-child{color:var(--mut);width:50%}
     <p class="hint" data-i18n="restartHint">Změna obrazovek, zdroje radaru nebo polohy potřebuje restart, takže se ukládá až tlačítkem dole.</p>
     <div class="row"><label data-i18n="autoRotate">Automatické střídání (sekundy, 0 = vypnuto)</label>
       <input type="number" id="autoRotate" min="0" max="3600" step="5"></div>
-    <p class="hint" data-i18n="rotHint">Střídání pozastaví přejetí prstem nebo dlouhý stisk, ne obyčejné klepnutí. Otevřený detail letadla ho drží, dokud ho nezavřete.</p>
+    <p class="hint" data-i18n="rotHint">Střídání pozastaví přejetí prstem, dlouhý stisk nebo přepnutí z prohlížeče — na trojnásobek intervalu, pak pokračuje samo. Obyčejné klepnutí ho nezastaví, otevřený detail letadla ho drží. Na obrazovce Nastavení se nestřídá.</p>
   </div>
 
   <div class="card">
@@ -257,7 +257,7 @@ const D={
   locHint:"Změna polohy vyžaduje restart, o který se zařízení postará samo.",
   screens:"Obrazovky",scrClock:"Hodiny",scrPlanes:"Letadla",scrMeteo:"Meteoradar",scrForecast:"Předpověď",
   scrHint:"Vypnuté obrazovky se přeskakují. Nastavení je dostupné vždy.",autoRotate:"Automatické střídání (sekundy, 0 = vypnuto)",
-  rotHint:"Střídání pozastaví přejetí prstem nebo dlouhý stisk, ne obyčejné klepnutí. Otevřený detail letadla ho drží, dokud ho nezavřete.",
+  rotHint:"Střídání pozastaví přejetí prstem, dlouhý stisk nebo přepnutí z prohlížeče — na trojnásobek intervalu, pak pokračuje samo. Obyčejné klepnutí ho nezastaví, otevřený detail letadla ho drží. Na obrazovce Nastavení se nestřídá.",
   radar:"Meteoradar",radarSrc:"Zdroj dat",srcChmu:"ČHMÚ (ostřejší, jen ČR)",srcRv:"RainViewer (Evropa i svět)",
   radarHint:"Mimo ČR nemá ČHMÚ data a obrazovka zůstane prázdná — použijte RainViewer.",
   brightness:"Jas",clockHdr:"Hodiny",
@@ -292,7 +292,7 @@ const D={
   locHint:"Changing the location needs a restart, which the device does by itself.",
   screens:"Screens",scrClock:"Clock",scrPlanes:"Aircraft",scrMeteo:"Weather radar",scrForecast:"Forecast",
   scrHint:"Disabled screens are skipped. Settings is always reachable.",autoRotate:"Auto cycling (seconds, 0 = off)",
-  rotHint:"Cycling is paused by a swipe or a long press, not by a plain tap. An open aircraft detail holds it until you close it.",
+  rotHint:"Cycling is paused by a swipe, a long press or a switch from the browser - for three times the interval, then it resumes on its own. A plain tap does not stop it; an open aircraft detail holds it. It does not run on the Settings screen.",
   radar:"Weather radar",radarSrc:"Data source",srcChmu:"CHMU (sharper, Czechia only)",srcRv:"RainViewer (Europe and beyond)",
   radarHint:"Outside Czechia CHMU has no data and the screen stays blank — use RainViewer.",
   brightness:"Brightness",clockHdr:"Clock",

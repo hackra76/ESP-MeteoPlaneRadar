@@ -25,7 +25,7 @@
 #include <DNSServer.h>
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
-#include <ElegantOTA.h>
+#include <Update.h>
 #include <esp_heap_caps.h>
 #include <esp_system.h>
 #include <math.h>
@@ -110,11 +110,8 @@ static void handlePostConfig() {
     if (p && *p) {
       if (!authed(doc)) return;                 // sends 403 and explains itself
       Settings_SetAdminPassword(p);
-      // The update page's HTTP Basic credentials are handed to ElegantOTA once,
-      // when its handler is registered. Re-registering mid-request would mean
-      // tearing down the server that is still writing this reply, so the new
-      // password takes effect on the restart below instead.
-      s_wantRestart = true;
+      // The update page checks the password on every request, so a new one is
+      // live immediately - no restart needed.
     }
   }
 
@@ -362,27 +359,173 @@ static void handleNotFound() {
 // the drawing code can do about it, so the backlight goes off for the duration
 // and the browser shows the real progress bar.
 static void otaStart() {
+  const bool en = (Lang_Get() == LANG_EN);
   s_updating = true;
   gfx->fillScreen(C_BLACK);
-  UI_TextCentered("Probiha aktualizace...", LCD_HEIGHT / 2 - 10, C_WHITE, 2);
-  UI_TextCentered("Neodpojuj napajeni", LCD_HEIGHT / 2 + 20, C_GRAY, 1);
+  UI_TextCentered(en ? "Updating firmware..." : "Probiha aktualizace...",
+                  LCD_HEIGHT / 2 - 10, C_WHITE, 2);
+  UI_TextCentered(en ? "Do not disconnect power" : "Neodpojuj napajeni",
+                  LCD_HEIGHT / 2 + 20, C_GRAY, 1);
   gfx->flush();
   delay(700);
   Set_Backlight(0);
 }
 
-static void otaProgress(size_t cur, size_t total) {
-  (void)cur; (void)total;
-  Watchdog_Feed();
-}
-
 static void otaEnd(bool ok) {
+  const bool en = (Lang_Get() == LANG_EN);
   Set_Backlight(Settings_Backlight());
   gfx->fillScreen(C_BLACK);
-  UI_TextCentered(ok ? "Hotovo, restartuji..." : "Aktualizace selhala",
+  UI_TextCentered(ok ? (en ? "Done, restarting..." : "Hotovo, restartuji...")
+                     : (en ? "Update failed"       : "Aktualizace selhala"),
                   LCD_HEIGHT / 2, ok ? C_GREEN : C_RED, 2);
   gfx->flush();
   s_updating = false;
+}
+
+// --- Firmware update --------------------------------------------------------
+// This replaces the ElegantOTA library. That library is AGPL-3.0, which would
+// have made every binary built from this project AGPL too; the Update class
+// ships with the ESP32 core and the web server was already here, so the page
+// below was the only piece actually missing.
+
+static bool   s_updOk = false;
+static String s_updErr;          // empty = no failure yet
+
+// HTTP Basic, and only when a password is set - the open default is documented
+// in Settings.h and in the README.
+static bool updateAuthed() {
+  if (!Settings_HasAdminPassword()) return true;
+  return s_srv.authenticate(WEB_ADMIN_USER, Settings_AdminPassword());
+}
+
+static const char UPDATE_HTML[] PROGMEM = R"rawliteral(<!DOCTYPE html>
+<html lang="{{LANG}}"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{TITLE}}</title><style>
+body{background:#111;color:#eee;font:16px system-ui,sans-serif;margin:0;padding:24px;
+ max-width:520px;margin-inline:auto}
+h1{font-size:20px;margin:0 0 4px}
+p{color:#aaa;line-height:1.5}
+input[type=file]{width:100%;padding:12px;background:#1c1c1c;border:1px solid #333;
+ border-radius:8px;color:#eee;box-sizing:border-box}
+button{width:100%;padding:14px;margin-top:12px;font-size:16px;border:0;border-radius:8px;
+ background:#2d7;color:#000;font-weight:600;cursor:pointer}
+button:disabled{background:#444;color:#888;cursor:default}
+progress{width:100%;height:10px;margin-top:16px}
+#s{margin-top:10px;min-height:1.4em;font-weight:600}
+a{color:#5bf}
+</style></head><body>
+<h1>{{TITLE}}</h1>
+<p>{{HINT}}</p>
+<input type="file" id="f" accept=".bin">
+<button id="b">{{SEND}}</button>
+<progress id="p" value="0" max="100"></progress>
+<div id="s"></div>
+<p><a href="/">{{BACK}}</a></p>
+<script>
+var f=document.getElementById('f'),b=document.getElementById('b'),
+    p=document.getElementById('p'),s=document.getElementById('s');
+b.onclick=function(){
+ if(!f.files.length){s.textContent='{{PICK}}';return;}
+ var fd=new FormData();fd.append('update',f.files[0]);
+ var x=new XMLHttpRequest();x.open('POST','/update');
+ x.upload.onprogress=function(e){if(e.lengthComputable){
+   var v=Math.round(e.loaded/e.total*100);p.value=v;s.textContent=v+' %';}};
+ x.onload=function(){b.disabled=false;f.disabled=false;
+   if(x.status==200){p.value=100;s.textContent='{{OK}}';}
+   else{s.textContent='{{FAIL}}: '+(x.responseText||x.status);}};
+ x.onerror=function(){b.disabled=false;f.disabled=false;s.textContent='{{FAIL}}';};
+ b.disabled=true;f.disabled=true;s.textContent='0 %';
+ x.send(fd);};
+</script></body></html>)rawliteral";
+
+static void handleUpdatePage() {
+  if (!updateAuthed()) { s_srv.requestAuthentication(); return; }
+  const bool en = (Lang_Get() == LANG_EN);
+  String p = FPSTR(UPDATE_HTML);
+  p.replace("{{LANG}}",  en ? "en" : "cs");
+  p.replace("{{TITLE}}", en ? "Firmware update" : "Aktualizace firmwaru");
+  p.replace("{{HINT}}",  en ? "Pick the <b>.ino.bin</b> file (the one without "
+                              "<i>merged</i>). The display goes dark while the "
+                              "flash is written and comes back on when it is done."
+                            : "Vyberte soubor <b>.ino.bin</b> (ten bez <i>merged</i>). "
+                              "Displej po dobu zapisu zhasne a po dokonceni se "
+                              "sam rozsviti.");
+  p.replace("{{SEND}}",  en ? "Upload"           : "Nahrat");
+  p.replace("{{BACK}}",  en ? "Back to settings" : "Zpet na nastaveni");
+  p.replace("{{PICK}}",  en ? "Pick a file first." : "Nejdriv vyberte soubor.");
+  p.replace("{{OK}}",    en ? "Done. The device is restarting."
+                            : "Hotovo. Zarizeni se restartuje.");
+  p.replace("{{FAIL}}",  en ? "Update failed"    : "Aktualizace selhala");
+  s_srv.sendHeader("Cache-Control", "no-store");
+  s_srv.send(200, "text/html; charset=utf-8", p);
+}
+
+// Called repeatedly by WebServer as the body arrives. The whole transfer runs
+// inside one handleClient(), so nothing else can be drawing meanwhile - but the
+// watchdog still has to be fed by hand.
+static void handleUpdateUpload() {
+  HTTPUpload& up = s_srv.upload();
+
+  switch (up.status) {
+    case UPLOAD_FILE_START:
+      s_updOk = false;
+      s_updErr = "";
+      if (!updateAuthed()) { s_updErr = "auth"; return; }
+      Serial.printf("OTA: %s\n", up.filename.c_str());
+      otaStart();
+      // The browser does not announce the image size up front, so let Update
+      // take the whole free OTA slot.
+      if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
+        s_updErr = Update.errorString();
+        otaEnd(false);
+      }
+      break;
+
+    case UPLOAD_FILE_WRITE:
+      if (s_updErr.length()) return;              // already failed, drain the body
+      if (Update.write(up.buf, up.currentSize) != up.currentSize) {
+        s_updErr = Update.errorString();
+        Update.abort();
+        otaEnd(false);
+        return;
+      }
+      Watchdog_Feed();
+      break;
+
+    case UPLOAD_FILE_END:
+      if (s_updErr.length()) return;
+      if (Update.end(true)) {
+        s_updOk = true;
+        Serial.printf("OTA: hotovo, %u B\n", (unsigned)up.totalSize);
+        otaEnd(true);
+      } else {
+        s_updErr = Update.errorString();
+        otaEnd(false);
+      }
+      break;
+
+    case UPLOAD_FILE_ABORTED:
+      if (s_updErr == "auth") return;             // never started, keep the 401
+      if (Update.isRunning()) Update.abort();
+      if (s_updating) otaEnd(false);              // only if the screen was taken over
+      s_updErr = "aborted";
+      break;
+  }
+}
+
+// Runs once the body has been consumed, so this is where the verdict is sent.
+static void handleUpdateDone() {
+  if (s_updErr == "auth") { s_updErr = ""; s_srv.requestAuthentication(); return; }
+  s_srv.sendHeader("Connection", "close");
+  if (s_updOk) {
+    s_srv.send(200, "text/plain", "OK");
+    delay(400);
+    ESP.restart();
+    return;
+  }
+  s_srv.send(500, "text/plain", s_updErr.length() ? s_updErr : String("update failed"));
+  s_updErr = "";
 }
 
 // --- Lifecycle --------------------------------------------------------------
@@ -393,7 +536,7 @@ void WebConfig_Begin(bool apMode) {
   // is called at least twice in a normal boot - first for the access point,
   // then again after joining the home network - and WebServer::on() appends to
   // a list rather than replacing, so registering again would leave a duplicate
-  // of every route (and a second ElegantOTA instance) behind.
+  // of every route behind.
   if (s_running) {
     // Only the role-specific parts change.
     if (apMode) {
@@ -421,18 +564,11 @@ void WebConfig_Begin(bool apMode) {
   s_srv.on("/api/import", HTTP_POST, handleImport);
   s_srv.on("/api/reboot", HTTP_POST, handleReboot);
   s_srv.on("/api/reset", HTTP_POST, handleReset);
-  s_srv.onNotFound(handleNotFound);
-
   // The update page authenticates with HTTP Basic when a password is set. See
   // the note in Settings.h about why the password is stored in the clear.
-  if (Settings_HasAdminPassword())
-    ElegantOTA.begin(&s_srv, WEB_ADMIN_USER, Settings_AdminPassword());
-  else
-    ElegantOTA.begin(&s_srv);
-  ElegantOTA.setAutoReboot(true);
-  ElegantOTA.onStart(otaStart);
-  ElegantOTA.onProgress(otaProgress);
-  ElegantOTA.onEnd(otaEnd);
+  s_srv.on("/update", HTTP_GET, handleUpdatePage);
+  s_srv.on("/update", HTTP_POST, handleUpdateDone, handleUpdateUpload);
+  s_srv.onNotFound(handleNotFound);
 
   s_srv.begin();
   s_running = true;
@@ -457,5 +593,4 @@ void WebConfig_Loop() {
   if (!s_running) return;
   if (s_apMode) s_dns.processNextRequest();
   s_srv.handleClient();
-  ElegantOTA.loop();
 }

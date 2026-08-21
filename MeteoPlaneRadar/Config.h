@@ -233,10 +233,17 @@
 #define SCREEN_SETTINGS_I 4
 #define SCREEN_N          5
 
-// Automatic screen cycling: 0 = off, otherwise minutes between switches.
-// Any touch pauses the cycling for this long, so you are never fighting the
-// device while reading something.
-#define AUTO_ROTATE_PAUSE_MS 600000UL
+// Automatic screen cycling: 0 = off, otherwise SECONDS between switches (it was
+// minutes up to 0.6.0 - see Settings.h).
+//
+// A deliberate gesture - a swipe, a long press, or a command from the browser -
+// pauses the cycling so you are not fought while reading something. The pause is
+// derived from the interval rather than fixed: back when the interval was in
+// minutes a flat ten minutes was proportionate, but for a 15-second cycle it
+// meant the device stopped cycling the first time anyone touched it.
+#define AUTO_ROTATE_PAUSE_FACTOR 3        // pause = 3x the cycling interval
+#define AUTO_ROTATE_PAUSE_MIN_MS  30000UL // ...but at least half a minute
+#define AUTO_ROTATE_PAUSE_MAX_MS 600000UL // ...and at most ten minutes
 
 // ---------------------------------------------------------------------------
 //  Weather radar source

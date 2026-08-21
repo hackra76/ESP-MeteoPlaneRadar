@@ -38,12 +38,12 @@
 //    - GFX Library for Arduino (moononournation) - drawing
 //    - PNGdec (bitbank2)                          - CHMU frames, RainViewer tiles
 //    - ArduinoJson (bblanchon, v7)                - all the JSON
-//    - ElegantOTA (ayushsharma82)                 - the /update page
 //    - QRCode (ricmoo)                            - QR code (bundled)
-//    - WebServer, DNSServer, ESPmDNS, Preferences, Wire, HTTPClient, esp_lcd
-//                                                 - part of the ESP32 core
+//    - WebServer, DNSServer, ESPmDNS, Preferences, Wire, HTTPClient, Update,
+//      esp_lcd                                    - part of the ESP32 core
 //
-//  WiFiManager is no longer used - see the note at the top of WiFiPortal.h.
+//  Neither WiFiManager nor ElegantOTA is used any more - see the note at the
+//  top of WiFiPortal.h and the /update section of WebConfig.cpp.
 //
 //  Data sources (attribution required, personal non-commercial use only):
 //    - Aircraft:    adsb.fi, https://adsb.fi
@@ -55,7 +55,7 @@
 //    - Map:         Natural Earth (public domain), GeoNames (CC BY 4.0)
 //    - Clock:       the "Date" header of the responses above. No NTP client.
 //
-//  Licence: MIT (see LICENSE). Version: Version.h. History: CHANGELOG.md.
+//  Licence: MIT (see LICENSE.txt). Version: Version.h. History: CHANGELOG.md.
 // =============================================================================
 
 #include <Arduino_GFX_Library.h>
@@ -119,6 +119,18 @@ static PendKind s_pendKind = PEND_NONE;
 static int      s_pendA = 0, s_pendB = 0;
 
 static unsigned long s_touchPauseUntil = 0;   // auto-cycling paused until this
+
+// How long a deliberate gesture holds the cycling off. Scaled to the cycling
+// interval and clamped at both ends - see the note in Config.h. Defined up here
+// because dispatchTouch() below needs it.
+static unsigned long autoRotatePauseMs() {
+  const uint16_t secs = Settings_AutoRotateSec();
+  if (secs == 0) return 0;
+  unsigned long p = (unsigned long)secs * 1000UL * AUTO_ROTATE_PAUSE_FACTOR;
+  if (p < AUTO_ROTATE_PAUSE_MIN_MS) p = AUTO_ROTATE_PAUSE_MIN_MS;
+  if (p > AUTO_ROTATE_PAUSE_MAX_MS) p = AUTO_ROTATE_PAUSE_MAX_MS;
+  return p;
+}
 
 // Gesture state. File scope rather than static locals in loop(), because
 // touchPump() now runs from two places.
@@ -350,12 +362,12 @@ static void dispatchTouch() {
       // re-scale the map behind the panel.
       if (activeModalOpen()) { ScreenPlanes_CloseDetail(); drawActive(); }
       else                   { activeChangeRange(a); drawActive(); }
-      s_touchPauseUntil = millis() + AUTO_ROTATE_PAUSE_MS;
+      s_touchPauseUntil = millis() + autoRotatePauseMs();
       break;
     case PEND_LONG:
       if (activeModalOpen()) { ScreenPlanes_CloseDetail(); drawActive(); }
       else switchScreen(a < LCD_WIDTH / 2 ? -1 : +1);
-      s_touchPauseUntil = millis() + AUTO_ROTATE_PAUSE_MS;
+      s_touchPauseUntil = millis() + autoRotatePauseMs();
       break;
     case PEND_TAP:
       // A tap does not pause the cycling - see touchPump().
@@ -616,19 +628,19 @@ void loop() {
     if (scr >= 0) {
       if (activeModalOpen()) ScreenPlanes_CloseDetail();
       gotoScreen(scr);
-      s_touchPauseUntil = millis() + AUTO_ROTATE_PAUSE_MS;
+      s_touchPauseUntil = millis() + autoRotatePauseMs();
     }
     const int step = WebConfig_TakeScreenStep();
     if (step) {
       if (activeModalOpen()) ScreenPlanes_CloseDetail();
       switchScreen(step);
-      s_touchPauseUntil = millis() + AUTO_ROTATE_PAUSE_MS;
+      s_touchPauseUntil = millis() + autoRotatePauseMs();
     }
     const int rng = WebConfig_TakeRangeStep();
     if (rng) {
       activeChangeRange(rng);
       drawActive();
-      s_touchPauseUntil = millis() + AUTO_ROTATE_PAUSE_MS;
+      s_touchPauseUntil = millis() + autoRotatePauseMs();
     }
   }
 
