@@ -115,9 +115,9 @@ Podrobnosti v [OTA_NAVOD.md](OTA_NAVOD.md).
 ## Pro vývojáře
 
 Arduino IDE, **ESP32 core 3.x**, knihovny: **GFX Library for Arduino**,
-**PNGdec**, **ArduinoJson v7**, **ElegantOTA**, QRCode (přibalen).
-`WebServer`, `DNSServer`, `ESPmDNS` a `Preferences` jsou v core.
-WiFiManager se od 0.6.0 nepoužívá.
+**PNGdec**, **ArduinoJson v7**, QRCode (přibalen).
+`WebServer`, `DNSServer`, `ESPmDNS`, `Update` a `Preferences` jsou v core.
+WiFiManager se nepoužívá od 0.6.0, ElegantOTA od 0.6.2.
 
 Nastavení IDE: ESP32S3 Dev Module, **PSRAM: OPI**, Flash 16 MB QIO,
 **Partition Scheme: Custom** (`partitions.csv`, dvě aplikační oblasti pro OTA),
@@ -168,12 +168,8 @@ Jen pro osobní nekomerční použití — respektujte podmínky poskytovatelů.
 
 ## Licence
 
-**Zdrojový kód** v tomhle repozitáři je pod **MIT** (viz [LICENSE.txt](LICENSE.txt)).
-
-**Zkompilovaná binárka ale MIT není.** Slinkuje se do ní **ElegantOTA**, která je
-pod **AGPL-3.0** — a spojením vznikne odvozené dílo, takže binárka, kterou pošlete
-dál (release, nebo zařízení prodané s už nahraným firmwarem), se řídí AGPL, ne
-MIT.
+**MIT** — viz [LICENSE.txt](LICENSE.txt). Vztahuje se na zdrojový kód i na
+binárky z něj přeložené. Od 0.6.2 v projektu není žádná copyleftová závislost.
 
 **Na data se MIT nevztahuje.** **GeoNames**, **ČHMÚ**, **RainViewer** a
 **Open-Meteo** vyžadují **uvedení zdroje**; Open-Meteo a adsb.fi mají bezplatné

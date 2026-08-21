@@ -11,6 +11,24 @@ pohromadě v `MeteoPlaneRadar/Config.h`.
 
 ---
 
+## [0.6.2]
+
+### Opraveno
+
+- Automatické střídání se po prvním doteku zastavilo a už se nerozjelo. Pauza po
+  gestu byla pevných deset minut — což dávalo smysl, dokud se interval zadával
+  v minutách. Nově je to trojnásobek intervalu, nejméně 30 s a nejvýš 10 minut.
+
+### Změněno
+
+- Aktualizace firmwaru už nepoužívá knihovnu **ElegantOTA**. Byla pod AGPL-3.0,
+  což by dělalo z každé přeložené binárky AGPL dílo, i když je zdroják pod MIT.
+  Stránku `/update` teď obsluhuje projekt sám nad třídou `Update` z ESP32 core.
+  Ovládá se stejně, jen umí i anglicky. **Projekt je nově celý MIT.**
+- Změna hesla se projeví hned, bez restartu.
+
+---
+
 ## [0.6.1]
 
 ### Opraveno

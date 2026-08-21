@@ -227,8 +227,9 @@ orientation are kept.
 ## For developers
 
 Arduino IDE with **ESP32 core 3.x**. Libraries: **GFX Library for Arduino**,
-**PNGdec**, **ArduinoJson v7**, **ElegantOTA**; QRCode is bundled.
-`WebServer`, `DNSServer`, `ESPmDNS` and `Preferences` come with the core.
+**PNGdec**, **ArduinoJson v7**; QRCode is bundled. `WebServer`, `DNSServer`,
+`ESPmDNS`, `Update` and `Preferences` come with the core. WiFiManager was
+dropped in 0.6.0, ElegantOTA in 0.6.2.
 
 Board settings: ESP32S3 Dev Module, **PSRAM: OPI** (without this the display
 stays black), Flash 16 MB QIO, **Partition Scheme: Custom** (`partitions.csv`,
@@ -275,12 +276,8 @@ these require credit** — see [LICENSE.txt](LICENSE.txt) for the details.
 
 ## Licence
 
-The **source code** in this repository is **MIT** — see [LICENSE.txt](LICENSE.txt).
-
-**A compiled binary is not.** The build links against **ElegantOTA**, which is
-**AGPL-3.0**, and linking makes the result a combined work — so a binary you pass
-on (a release asset, or a device sold with the firmware already flashed) carries
-the AGPL terms rather than MIT.
+**MIT** — see [LICENSE.txt](LICENSE.txt). It covers the source code and the
+binaries built from it. Since 0.6.2 the project has no copyleft dependency.
 
 **MIT does not cover the data.** **GeoNames**, **CHMI**, **RainViewer** and
 **Open-Meteo** all require visible attribution, and the free Open-Meteo and
