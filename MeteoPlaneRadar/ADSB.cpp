@@ -73,14 +73,21 @@ static void copyHex(Aircraft* a, JsonObjectConst plane) {
   a->hex[sizeof(a->hex) - 1] = '\0';
 }
 
+// The callsign, and ONLY the callsign. There used to be a fallback to the hex
+// address here, so that an aircraft which broadcasts no callsign (TIS-B, MLAT,
+// private and military traffic) still showed something. That was wrong: the
+// callsign is what gets sent to the route API, and a hex address normalises
+// into a perfectly valid IATA flight number - "a31234" becomes "A31234", which
+// is Aegean Airlines 1234, so an aircraft over Prague was shown as flying
+// Athens - Istanbul. When there is no callsign, this stays empty and nothing
+// asks about a route; whoever needs something to draw picks the fallback
+// themselves (ScreenPlanes prints the hex under the icon).
 static void copyCallsign(Aircraft* a, JsonObjectConst plane) {
-  const char* flight = plane["flight"] | "";
-  const char* hex = plane["hex"] | "";
-  const char* src = (flight[0] != '\0') ? flight : hex;
-  while (*src == ' ') src++;   // skip leading spaces
+  const char* src = plane["flight"] | "";
+  while (*src == ' ' || *src == '\t') src++;   // adsb.fi pads to eight chars
   int i = 0;
   while (src[i] && i < (int)sizeof(a->callsign) - 1) { a->callsign[i] = src[i]; i++; }
-  while (i > 0 && a->callsign[i-1] == ' ') i--;   // trim trailing spaces
+  while (i > 0 && (a->callsign[i-1] == ' ' || a->callsign[i-1] == '\t')) i--;
   a->callsign[i] = '\0';
 }
 
@@ -157,6 +164,7 @@ static void buildFilter(JsonDocument& filter) {
   o["gs"]           = true;
   o["baro_rate"]    = true;
   o["t"]            = true;
+  o["r"]            = true;   // registration - free, in the same answer
   o["squawk"]       = true;
 }
 
@@ -209,8 +217,13 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
     // comes from, so ask HTTPClient to keep it (see Outside.h).
     static const char* WANTED[] = { "Date" };
     http.collectHeaders(WANTED, 1);
-    // Identify ourselves - adsb.fi's free API asks callers to be polite.
-    http.addHeader("User-Agent", "MeteoPlaneRadar/1.0 (+https://chiptron.cz)");
+    // Identify ourselves - adsb.fi's free API asks callers to be polite, and
+    // adsb.lol flatly refuses a User-Agent without contact info (see Config.h).
+    // One string for both, so there is one place to change.
+    // It MUST go through setUserAgent(): addHeader() silently drops User-Agent
+    // (along with Connection, Host and Accept-Encoding), so this used to send
+    // the default "ESP32HTTPClient" no matter what was passed here.
+    http.setUserAgent(HTTP_USER_AGENT);
     http.addHeader("Accept", "application/json");
 
     int code = http.GET();
@@ -296,11 +309,16 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
       // Aircraft type. ONLY "t" - that is the airframe type code ("A320").
       // "type" is the MESSAGE source ("adsb_icao", "mlat", "tisb_icao"), and
       // using it as a fallback is why aircraft missing from the database showed
-      // "adsb_icao" in their detail panel. Left empty, the type is filled in
-      // from adsbdb.com instead, which is what that lookup is for.
+      // "adsb_icao" in their detail panel. Left empty when adsb.fi does not
+      // know the airframe; the detail panel then simply omits the row.
       const char* ty = plane["t"] | "";
       strncpy(s_tmp[n].type, ty, sizeof(s_tmp[n].type) - 1);
       s_tmp[n].type[sizeof(s_tmp[n].type) - 1] = '\0';
+      // Registration, same deal - "r" is carried in this very answer, so no
+      // second API is needed to put "OK-TVU" next to the type.
+      const char* rg = plane["r"] | "";
+      strncpy(s_tmp[n].reg, rg, sizeof(s_tmp[n].reg) - 1);
+      s_tmp[n].reg[sizeof(s_tmp[n].reg) - 1] = '\0';
       // Squawk. adsb.fi sends it as a string; some feeds send a number, in
       // which case a leading zero would already be lost - pad it back so the
       // comparison against "7700" still works.

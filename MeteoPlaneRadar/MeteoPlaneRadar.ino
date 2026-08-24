@@ -47,7 +47,8 @@
 //
 //  Data sources (attribution required, personal non-commercial use only):
 //    - Aircraft:    adsb.fi, https://adsb.fi
-//    - Route:       adsbdb.com, https://www.adsbdb.com
+//    - Route:       adsb.lol, https://adsb.lol
+//                   (route data by https://github.com/vradarserver/standing-data)
 //    - Precip. CZ:  CHMU, https://opendata.chmi.cz
 //    - Precip. EU:  RainViewer, https://www.rainviewer.com
 //    - Weather:     Open-Meteo, https://open-meteo.com

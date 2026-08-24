@@ -13,6 +13,7 @@
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)
 // =============================================================================
 #pragma once
+#include "Version.h"   // FW_VERSION - jde do hlavicky User-Agent nize
 
 // ---------------------------------------------------------------------------
 //  Board pins / bus
@@ -103,11 +104,14 @@
 #endif
 
 // ---------------------------------------------------------------------------
-//  Flight route lookup (adsbdb.com) - free, no key, no registration.
+//  Flight route lookup (adsb.lol) - free, no key, no registration.
 //  Asked only when an aircraft's detail is opened, one aircraft at a time.
+//  The full path is BASE/{callsign}/{lat}/{lon} - the position goes with the
+//  request so the server can say whether the route fits where the aircraft
+//  actually is (see Route.h).
 // ---------------------------------------------------------------------------
-#define ROUTE_API_BASE "https://api.adsbdb.com"
-#define ROUTE_CACHE_N  8     // remembered answers (callsign or hex)
+#define ROUTE_API_BASE "https://api.adsb.lol/api/0/route"
+#define ROUTE_CACHE_N  8     // remembered answers (keyed on the callsign)
 
 // ---------------------------------------------------------------------------
 //  OTA (firmware update over WiFi)
@@ -180,6 +184,15 @@
 // than this free fails deep inside mbedTLS and surfaces as a bare "HTTP -1",
 // so skip the poll instead and try again later.
 #define NET_MIN_HEAP 60000
+
+// Hlavicka User-Agent pro VSECHNY odchozi dotazy. Neni to jen zdvorilost:
+// adsb.lol odpovi 403 s telem "User-Agent too generic; include valid contact
+// info", kdyz v ni zadny kontakt nevidi - a presne to delala vychozi
+// "ESP32HTTPClient", ktera odchazela, dokud se hlavicka omylem nastavovala
+// pres addHeader() (to ji tise zahazuje, viz ADSB.cpp). Odkaz na web projektu
+// jako kontakt staci. Kdyz projekt forknete, dejte sem SVUJ - jinak pujdou
+// pripadne stiznosti na cizi adresu.
+#define HTTP_USER_AGENT "MeteoPlaneRadar/" FW_VERSION " (+https://chiptron.cz)"
 
 // The WiFi portal blocks the whole sketch and the watchdog is suspended while
 // it runs, so this timeout is what keeps it from blocking forever.

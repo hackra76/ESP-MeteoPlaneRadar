@@ -29,6 +29,12 @@ struct Aircraft {
   // giving 7 characters plus the terminator.
   char  hex[8] = "";
   char  type[10] = "";        // aircraft type (e.g. A320), if available
+  // Registration ("OK-TVU"), from the "r" field of the same adsb.fi answer.
+  // It rides along for free in data we download anyway, which is why the
+  // separate airframe lookup - a second request per aircraft, and a second API
+  // to depend on - could be dropped entirely. The longest real registrations
+  // are ten characters, so eleven plus the terminator is plenty.
+  char  reg[12] = "";
   // Transponder code as four octal digits. Kept as text, not a number: 7700 is
   // an octal code, and "0021" must not turn into 21.
   char  squawk[6] = "";

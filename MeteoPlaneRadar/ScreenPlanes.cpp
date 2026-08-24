@@ -246,6 +246,12 @@ void ScreenPlanes_Enter() {
 bool ScreenPlanes_Tick() {
   if (WiFi.status() != WL_CONNECTED) { s_status = T(S_WIFI_WAIT); return false; }
 
+  // Odpoved na trasu prijde nezavisle na stahovani letadel, obvykle do vteriny
+  // po klepnuti. Bez tohohle by se dokreslila az s pristim pollem, takze u
+  // stredniho dosahu az o deset sekund pozdeji, a panel by mezitim zbytecne
+  // ukazoval "zjistuji trasu". Ctenim priznak zhasne, takze to prekresli jednou.
+  bool routeChanged = Route_TakeChanged();
+
   if (millis() >= s_nextFetch) {
     s_status = T(S_DOWNLOADING);
     s_dataOk = ADSB_Fetch(Settings_Lat(), Settings_Lon(), currentRange());
@@ -272,7 +278,7 @@ bool ScreenPlanes_Tick() {
     }
     return true;   // new data -> redraw
   }
-  return false;    // otherwise skip the redraw (keeps swiping responsive)
+  return routeChanged;   // jinak kreslit jen kdyz dorazila trasa
 }
 
 // Short tap: with the detail open any tap closes it (the units toggle that used
@@ -431,18 +437,25 @@ void ScreenPlanes_Draw() {
     while (screenTrack < 0.0f) screenTrack += 360.0f;
     drawPlane(sx, sy, screenTrack, list[i].hasTrack,
               altColor(list[i].altFt, altKnown));
-    if (list[i].callsign[0]) {
-      // Callsign below the icon, centred (the icon has a radius of ~14 px).
-      // It has to claim its space: two aircraft close together used to print
-      // their callsigns straight through each other, and near the rim one could
-      // land on the legend or the range readout.
-      int tw = Layout_TextW(list[i].callsign, 2);
+    // Label under the icon: the callsign, or the ICAO address when the aircraft
+    // broadcasts none. The fallback lives HERE and nowhere else - Aircraft::
+    // callsign is deliberately left empty in that case, because it is what gets
+    // sent to the route API and a hex address there reads as a flight number
+    // (see copyCallsign in ADSB.cpp). Drawing it is harmless; asking about it
+    // is not.
+    const char* label = list[i].callsign[0] ? list[i].callsign : list[i].hex;
+    if (label[0]) {
+      // Centred below the icon (radius ~14 px). It has to claim its space: two
+      // aircraft close together used to print their labels straight through
+      // each other, and near the rim one could land on the legend or the range
+      // readout.
+      int tw = Layout_TextW(label, 2);
       int tx = sx - tw / 2, ty = sy + 22;
       if (Layout_Claim(tx - 2, ty - 2, tw + 4, 20)) {
         gfx->setTextSize(2);
         gfx->setTextColor(em ? C_RED : (watched ? C_GREEN : C_WHITE));
         gfx->setCursor(tx, ty);
-        gfx->print(list[i].callsign);
+        gfx->print(label);
       }
     }
     shown++;
@@ -572,7 +585,10 @@ void ScreenPlanes_Draw() {
     // Callsign (heading).
     gfx->setTextSize(3); gfx->setTextColor(C_YELLOW);
     gfx->setCursor(px + 18, py + 16);
-    gfx->print(ac.callsign[0] ? ac.callsign : "?");
+    // Same fallback as the map label: no callsign broadcast -> show the ICAO
+    // address, which is at least something the user can look up. It is only
+    // ever a caption; the route lookup below gets the callsign or nothing.
+    gfx->print(ac.callsign[0] ? ac.callsign : (ac.hex[0] ? ac.hex : "?"));
 
     // Data rows (font 2). Units converted according to the setting.
     char line[44];
@@ -601,22 +617,23 @@ void ScreenPlanes_Draw() {
     else        snprintf(line, sizeof(line), "%s: %.0f ft/m %s", T(S_CLIMB), ac.baroRate, ar);
     gfx->setCursor(px + 18, ty); gfx->print(line); ty += 26;
 
-    // Ask adsbdb where this flight is going. Idempotent - a repeated call with
-    // the same aircraft does nothing, and the answer is cached.
-    Route_Select(ac.callsign, ac.hex);
+    // Ask where this flight is going. The position goes with the request: the
+    // server uses it to reject a route that does not fit where the aircraft
+    // actually is, which is what used to put Athens - Istanbul on an aircraft
+    // over Prague. Idempotent - a repeated call with the same aircraft does
+    // nothing, and the answer is cached.
+    Route_Select(ac.callsign, ac.lat, ac.lon);
     const RouteInfo* rt = Route_Get();
 
     // Type and registration share a row - the route below needs two lines and
-    // this is where they come from. Type prefers what adsb.fi sent and falls
-    // back to the airframe database.
-    // Both sources give the short ICAO type code - "A320", "B738". adsb.fi
-    // reports it only sometimes, so adsbdb fills the gaps.
-    const char* typ = ac.type[0] ? ac.type : ((rt && rt->type[0]) ? rt->type : nullptr);
-    if (typ || (rt && rt->reg[0])) {
+    // this is where they come from. Both come straight from adsb.fi ("t" and
+    // "r"), so neither costs an extra request; either can be missing.
+    const char* typ = ac.type[0] ? ac.type : nullptr;
+    if (typ || ac.reg[0]) {
       snprintf(line, sizeof(line), "%s: %s%s%s", T(S_TYPE),
                typ ? typ : "?",
-               (rt && rt->reg[0]) ? "  " : "",
-               (rt && rt->reg[0]) ? rt->reg : "");
+               ac.reg[0] ? "  " : "",
+               ac.reg[0] ? ac.reg : "");
       // The label plus a long type plus a registration can outgrow the panel.
       int maxCh = (pw - 36) / 12;
       if ((int)strlen(line) > maxCh) { line[maxCh - 1] = '.'; line[maxCh] = '\0'; }
