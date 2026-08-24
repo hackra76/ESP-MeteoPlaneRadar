@@ -107,12 +107,17 @@ The software fetches data from the following services. None of them are
 redistributed with this repository, but each has its own terms, and several
 require attribution. Please review them before any commercial deployment.
 
-- adsb.fi (https://adsb.fi/) - aircraft positions.
+- adsb.fi (https://adsb.fi/) - aircraft positions, registration and type.
   Free, no API key. Intended for personal, non-commercial use.
   Commercial products should arrange appropriate data access.
 
-- adsbdb.com (https://www.adsbdb.com/) - flight route, registration and
-  aircraft type. Free, no registration.
+- adsb.lol (https://adsb.lol/) - flight route for a callsign, together with a
+  plausibility check against the aircraft's position. Free, no registration.
+  The underlying route database is vradarserver/standing-data
+  (https://github.com/vradarserver/standing-data).
+  The API requires a User-Agent that identifies the caller and carries contact
+  information; see HTTP_USER_AGENT in MeteoPlaneRadar/Config.h and put your own
+  there if you fork this project.
 
 - CHMI / Cesky hydrometeorologicky ustav (https://opendata.chmi.cz/) -
   precipitation radar composite for the Czech Republic.

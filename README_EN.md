@@ -52,7 +52,7 @@ It is not a phone and does not try to be one.
 | Screen | Shows | Source |
 | --- | --- | --- |
 | **Clock** | time, date, current weather, seconds ring | Open-Meteo |
-| **Aircraft** | aircraft around you, tap for details and route | adsb.fi, adsbdb.com |
+| **Aircraft** | aircraft around you, tap for details and route | adsb.fi, adsb.lol |
 | **Weather radar** | animated precipitation | CHMI or RainViewer |
 | **Forecast** | next 6 hours and 3 days, air quality and pollen | Open-Meteo |
 | **Settings** | brightness, map orientation, units, language | — |
@@ -266,8 +266,8 @@ these require credit** — see [LICENSE.txt](LICENSE.txt) for the details.
 
 | Data | Source | Note |
 | --- | --- | --- |
-| Aircraft | [adsb.fi](https://adsb.fi) | Free, no key, personal use |
-| Route, registration, type | [adsbdb.com](https://www.adsbdb.com) | Free, no registration |
+| Aircraft, registration, type | [adsb.fi](https://adsb.fi) | Free, no key, personal use |
+| Route | [adsb.lol](https://adsb.lol) | Free, no key; route data by [vradarserver/standing-data](https://github.com/vradarserver/standing-data) |
 | Precipitation (CZ) | [CHMI](https://opendata.chmi.cz) | Attribution required |
 | Precipitation (world) | [RainViewer](https://www.rainviewer.com) | Attribution required |
 | Weather, forecast, sun, air quality, geocoding | [Open-Meteo](https://open-meteo.com) | CC BY 4.0, attribution required, free tier non-commercial |

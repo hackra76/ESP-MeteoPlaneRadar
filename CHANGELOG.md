@@ -11,6 +11,37 @@ pohromadě v `MeteoPlaneRadar/Config.h`.
 
 ---
 
+## [0.6.3]
+
+### Opraveno
+
+- **V detailu letadla se ukazovala trasa, která neodpovídala skutečnosti** —
+  třeba Atény → Istanbul u letadla nad Prahou. Sešly se tři příčiny:
+  letadlo bez callsignu poslalo do dotazu svou ICAO adresu (`a31234` se
+  normalizuje na `A31234`, což je platné číslo letu Aegean Airlines 1234),
+  zdroj tras neověřoval polohu, a u letů s mezipřistáním se ukazoval první
+  odlet a poslední přílet, i když letadlo letělo prostřední úsek.
+- **Hlavička `User-Agent` se neposílala vůbec.** `HTTPClient::addHeader()` ji
+  mlčky zahazuje, takže odcházelo výchozí `ESP32HTTPClient`. Týkalo se to
+  i dotazů na adsb.fi ve starších verzích.
+- **Trasa se dokreslila až s dalším stažením letadel**, tedy podle dosahu
+  o 5 až 15 sekund později, než dorazila. Nově se objeví hned.
+- **Keš tras si odpověď pamatovala až do restartu.** Callsigny se recyklují
+  a výsledek platí k poloze, se kterou se ptalo, takže po mezipřistání
+  ukazoval pořád první úsek. Záznam teď platí 20 minut (1 minutu, když
+  trasa nebyla nalezena).
+
+### Změněno
+
+- **Trasy nově z adsb.lol** místo adsbdb.com. Spolu s callsignem se posílá
+  i poloha letadla a server vrátí, jestli k ní trasa vůbec sedí — co neprojde,
+  se nezobrazí. U letů s mezipřistáním se vybere ten úsek, ke kterému je
+  letadlo nejblíž. Letadlo, které callsign nevysílá, se na trasu neptá vůbec.
+- **Registrace a typ letadla se berou z adsb.fi** (pole `r` a `t`) ze stejné
+  odpovědi, která se stahuje kvůli polohám. Odpadl tím dotaz na druhé API.
+
+---
+
 ## [0.6.2]
 
 ### Opraveno

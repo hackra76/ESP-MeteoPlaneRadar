@@ -14,7 +14,7 @@ se z prohlížeče.
 | Obrazovka | Co ukazuje | Zdroj |
 | --- | --- | --- |
 | **Hodiny** | čas, datum, počasí, vteřinový prstenec | Open-Meteo |
-| **Letadla** | letadla v okolí, detail letu včetně trasy | adsb.fi, adsbdb.com |
+| **Letadla** | letadla v okolí, detail letu včetně trasy | adsb.fi, adsb.lol |
 | **Meteoradar** | animovaná srážková situace | ČHMÚ nebo RainViewer |
 | **Předpověď** | 6 hodin a 3 dny, ovzduší a pyl | Open-Meteo |
 | **Nastavení** | jas, orientace mapy, jednotky, jazyk | — |
@@ -150,7 +150,7 @@ stránce webu.
 
 Jen pro osobní nekomerční použití — respektujte podmínky poskytovatelů.
 
-**Letadla:** [adsb.fi](https://adsb.fi) · **trasy:** [adsbdb.com](https://www.adsbdb.com) ·
+**Letadla, registrace a typ:** [adsb.fi](https://adsb.fi) · **trasy:** [adsb.lol](https://adsb.lol) ·
 **srážky ČR:** [ČHMÚ](https://opendata.chmi.cz) ·
 **srážky svět:** [RainViewer](https://www.rainviewer.com) ·
 **počasí, ovzduší, geokódování:** [Open-Meteo](https://open-meteo.com) ·

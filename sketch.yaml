@@ -2,12 +2,13 @@
 # is reproducible (locally and in CI).
 #   arduino-cli compile --profile default MeteoPlaneRadar
 #
-# Two libraries were dropped and nothing replaced them, because WebServer,
-# DNSServer, ESPmDNS and Update all come with the ESP32 core:
-#   0.6.0 - WiFiManager. The configuration portal is served by the project's own
-#           web server, which speaks both languages and does not block the loop.
-#   0.6.2 - ElegantOTA. It is AGPL-3.0, which would have made every binary built
-#           from this project AGPL too. /update is now our own page.
+# The list below is the whole set of external dependencies - WebServer,
+# DNSServer, ESPmDNS and Update all come with the ESP32 core, so the config
+# portal and /update are served by the project itself. Neither WiFiManager nor
+# ElegantOTA is used any more; ElegantOTA is AGPL-3.0 and would have made every
+# binary built from this project AGPL too, so the whole project stays MIT.
+# Route lookups go to adsb.lol over plain HTTPClient - no extra library.
+# The firmware version lives in MeteoPlaneRadar/Version.h, not here.
 profiles:
   default:
     fqbn: esp32:esp32:esp32s3:PSRAM=opi,FlashSize=16M,PartitionScheme=custom,CDCOnBoot=cdc,FlashMode=qio
