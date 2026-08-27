@@ -11,6 +11,49 @@ pohromadě v `MeteoPlaneRadar/Config.h`.
 
 ---
 
+## [0.6.4]
+
+### Opraveno
+
+- **Radar letadel zůstával prázdný.** adsb.fi začalo odpovídat chunked a
+  hexadecimální hlavičky bloků zůstávaly v těle, takže se JSON rozpadl, aniž by
+  to kdokoli ohlásil. Týkalo se i tras z adsb.lol.
+- **Meteoradar se přestal aktualizovat.** Výpis adresáře ČHMÚ přerostl
+  vyhrazených 256 kB. Nově se prohledává průběžně a na jeho velikosti nezáleží.
+- **Po neúspěchu se výpis ČHMÚ stahoval každou vteřinu**, u RainVieweru se
+  naopak nezkusil znovu vůbec. Oba zdroje se teď zkusí po minutě.
+- **Filtr odpovědi adsb.fi mohl vyjít prázdný** a zahodit tím všechna pole.
+- **Letadlo na zemi se počítalo jako v nulové výšce** (`alt_baro` nese `ground`).
+- **Zařízení se mohlo restartovat během TLS handshake.** Ten má vlastní limit
+  120 s, tedy šestinásobek watchdogu; nově 8 s.
+- **Stažení trasy mohlo restartovat zařízení**, protože se během něj
+  neresetoval watchdog.
+- **Poškozený snímek meteoradaru se mohl vykreslit**, nově se kontroluje PNG
+  signatura.
+
+### Změněno
+
+- Všechna textová stahování vedou přes `Net_GetString()`, včetně polohy podle IP
+  a venkovní teploty, které měly vlastní `HTTPClient`. Nově zvládne i `http://`.
+- Textové odpovědi mají strop `NET_MAX_TEXT` a čtou se do PSRAM.
+- Kontrola volné paměti před TLS je na jednom místě (`Net_HeapOk()`); do teď ji
+  mělo pět souborů okopírovanou.
+- Velké buffery se alokují výhradně v PSRAM.
+- Kromě pole `ac` se přijímá i `aircraft` (servery odvozené z ADSBexchange).
+- Sériový výpis říká velikost indexu ČHMÚ a důvod nečekané odpovědi z adsb.fi.
+
+### Odebráno
+
+- Jednosnímkové API meteoradaru (`CHMU_FetchLatest()` a spol.) — obrazovka jede
+  na animaci a tuhle cestu nevolal nikdo.
+- Třídy sinku z `NetSink.h` do `.cpp`; hlavička ze 139 řádků na 54.
+- Prázdné soubory `OTA.cpp` a `OTA.h`, zbytek po ElegantOTA.
+- `Watchdog_Suspend()` a `Watchdog_Resume()`, konstanty `OTA_IDLE_MS`,
+  `PORTAL_TIMEOUT_S`, `RV_MAX_TILES` a několik nevolaných funkcí v `Layout`,
+  `UI`, `WxIcon` a `Forecast`.
+
+---
+
 ## [0.6.3]
 
 ### Opraveno
