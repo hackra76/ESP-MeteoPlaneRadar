@@ -70,6 +70,12 @@
 // CZ_VIEW_* box below). Keep it last - it is the widest of them all.
 #define METEO_RANGES_KM { 25.0f, 50.0f, 100.0f, 200.0f, 0.0f }
 
+// Prodleva mezi pokusy o data meteoradaru, kdyz zadna nejsou. Plati pro oba
+// zdroje: u CHMU bez ni slo prvni nacteni znovu pri kazdem pruchodu smyckou,
+// tedy cely vypis kazdou vterinu; u RainVieweru se naopak po neuspechu nezkusilo
+// nic a radar zustal prazdny az do zmeny dosahu nebo restartu.
+#define RADAR_RETRY_MS 60000UL
+
 // The fixed "whole country" view: centre of the republic and a radius wide
 // enough to hold it. Expressed as centre + radius rather than a bounding box on
 // purpose - the CHMU image has a different pixel-per-degree scale on each axis,
@@ -112,11 +118,6 @@
 // ---------------------------------------------------------------------------
 #define ROUTE_API_BASE "https://api.adsb.lol/api/0/route"
 #define ROUTE_CACHE_N  8     // remembered answers (keyed on the callsign)
-
-// ---------------------------------------------------------------------------
-//  OTA (firmware update over WiFi)
-// ---------------------------------------------------------------------------
-#define OTA_IDLE_MS 300000UL   // leave OTA mode after this long with no upload
 
 // ---------------------------------------------------------------------------
 //  Map orientation
@@ -185,6 +186,24 @@
 // so skip the poll instead and try again later.
 #define NET_MIN_HEAP 60000
 
+// WiFiClientSecure defaults the mbedTLS handshake to 120 s, six times
+// WDT_TIMEOUT_S. setConnectTimeout() does NOT cover it - that only bounds the
+// TCP connect (and without it the connect itself defaults to 30 s, also over
+// the watchdog). The handshake loop in ssl_client.cpp has its own limit and
+// runs inside http.GET(), where nothing feeds the watchdog. Seconds, not ms.
+#define NET_TLS_HANDSHAKE_S 8
+
+// Wall-clock ceiling for receiving one body. HTTPClient::writeToStreamDataBlock
+// spins on delay(1) with no timeout of its own, so a server that stops sending
+// while holding the socket open would hang until the hardware watchdog fires.
+// The sink enforces this instead and the previous data stays on screen.
+#define NET_BODY_BUDGET_MS 15000UL
+
+// Strop pro textove odpovedi ctene pres Net_GetString(). Nejvetsi z nich (index
+// RainVieweru) ma nizke desitky kB. Strop je tu proto, aby rostouci odpoved dala
+// o sobe vedet radkem v logu, misto aby tise ujidala pamet.
+#define NET_MAX_TEXT (128 * 1024)
+
 // Hlavicka User-Agent pro VSECHNY odchozi dotazy. Neni to jen zdvorilost:
 // adsb.lol odpovi 403 s telem "User-Agent too generic; include valid contact
 // info", kdyz v ni zadny kontakt nevidi - a presne to delala vychozi
@@ -193,10 +212,6 @@
 // jako kontakt staci. Kdyz projekt forknete, dejte sem SVUJ - jinak pujdou
 // pripadne stiznosti na cizi adresu.
 #define HTTP_USER_AGENT "MeteoPlaneRadar/" FW_VERSION " (+https://chiptron.cz)"
-
-// The WiFi portal blocks the whole sketch and the watchdog is suspended while
-// it runs, so this timeout is what keeps it from blocking forever.
-#define PORTAL_TIMEOUT_S 180
 
 // ---------------------------------------------------------------------------
 //  Aircraft detail
@@ -283,8 +298,6 @@
 // the tile up by a power of two, which also means far fewer tiles per frame.
 #define RV_MAX_ZOOM  7
 #define RV_MAX_SCALE 8          // 1, 2, 4 or 8 display pixels per tile pixel
-
-#define RV_MAX_TILES 12         // tiles fetched per frame (3x4 worst case)
 
 // A tile that fails is retried before the frame gives up on it. Without this a
 // single dropped connection leaves a permanent black square in the picture.

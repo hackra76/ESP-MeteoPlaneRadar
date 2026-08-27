@@ -6,6 +6,7 @@
 // =============================================================================
 #include "Route.h"
 #include "Config.h"
+#include "NetSink.h"
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
@@ -14,6 +15,9 @@
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
+
+static void (*s_poll)() = nullptr;
+void Route_SetPollFn(void (*fn)()) { s_poll = fn; }
 
 // --- Text sanitising --------------------------------------------------------
 // adsb.lol vraci nazvy mest v Unicode - Izmir prijde jako U+0130 ("I" s teckou,
@@ -213,6 +217,7 @@ static void airportLabel(char* dst, size_t cap, JsonVariantConst ap) {
 // pri uspechu 200 a rozparsovanym dokumentem.
 static int getJson(const char* url, JsonDocument& filter, JsonDocument& doc) {
   WiFiClientSecure client; client.setInsecure();
+  client.setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
   HTTPClient http;
   http.setConnectTimeout(6000);
   http.setTimeout(8000);
@@ -227,9 +232,23 @@ static int getJson(const char* url, JsonDocument& filter, JsonDocument& doc) {
   http.addHeader("Accept", "application/json");
   int code = http.GET();
   if (code != HTTP_CODE_OK) { http.end(); return code; }
-  DeserializationError err = deserializeJson(doc, http.getStream(),
-                                             DeserializationOption::Filter(filter));
+  // Buffer the body first. http.getStream() is the RAW socket and does not
+  // strip chunked encoding, so parsing straight off it would read the hex
+  // block size as a value and report Ok on an empty document - the same
+  // failure that silently blanked the aircraft radar.
+  static uint8_t* s_buf = nullptr;
+  static const size_t ROUTE_MAX = 8192;
+  if (!s_buf) {
+    s_buf = (uint8_t*)heap_caps_malloc(ROUTE_MAX, MALLOC_CAP_SPIRAM);
+    if (!s_buf) s_buf = (uint8_t*)malloc(ROUTE_MAX);
+    if (!s_buf) { http.end(); return -1002; }
+  }
+  long len = Net_ReadBody(http, s_buf, ROUTE_MAX, "ROUTE", s_poll);
   http.end();
+  if (len <= 0) return -1001;
+
+  DeserializationError err = deserializeJson(doc, s_buf, (size_t)len,
+                                             DeserializationOption::Filter(filter));
   return err ? -1001 : HTTP_CODE_OK;
 }
 
@@ -237,10 +256,7 @@ void Route_Tick() {
   if (!s_pending) return;
   if (WiFi.status() != WL_CONNECTED) return;
 
-  // Stejne pravidlo jako vsude jinde: TLS handshake si bere zhruba 45 kB
-  // INTERNI RAM a bez mista na nej se stahovani nezacina.
-  size_t freeInt = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-  if (freeInt < NET_MIN_HEAP) return;    // zkusi se znovu pristi kolo
+  if (!Net_HeapOk("ROUTE")) return;    // zkusi se znovu pristi kolo
 
   s_pending = false;
   Entry* e = find(s_wantKey);

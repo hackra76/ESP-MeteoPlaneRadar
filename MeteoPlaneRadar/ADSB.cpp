@@ -14,10 +14,12 @@
 #include <ArduinoJson.h>
 #include <math.h>
 #include <string.h>   // strcmp / strncpy for the hex identity handling
+#include <stdlib.h>   // strtof
 #include "esp_heap_caps.h"   // PSRAM body buffer
 #include "Outside.h"         // clock is seeded from the response header
 #include "Status.h"          // one-line health note for the web status page
 #include "Config.h"          // SQUAWK_*
+#include "NetSink.h"        // chunked-safe body reader
 
 static const float KM_PER_NM = 1.852f;
 
@@ -57,8 +59,17 @@ static bool readFloat(JsonObjectConst o, const char* key, float* out) {
   JsonVariantConst v = o[key];
   if (v.is<float>() || v.is<double>() || v.is<int>()) { *out = v.as<float>(); return true; }
   if (v.is<const char*>()) {
-    const char* s = v.as<const char*>();
-    if (s && *s) { *out = (float)atof(s); return true; }
+    // ArduinoJson converts numeric strings itself, but that cannot tell a
+    // missing value from a non-numeric one - atof("ground") used to return 0.0
+    // and report success. strtof's end pointer makes the difference visible, so
+    // an unexpected literal is rejected instead of becoming an altitude of 0.
+    const char* str = v.as<const char*>();
+    if (!str || !*str) return false;
+    char* end = nullptr;
+    float f = strtof(str, &end);
+    if (end == str) return false;
+    *out = f;
+    return true;
   }
   return false;
 }
@@ -101,59 +112,51 @@ static void copyCallsign(Aircraft* a, JsonObjectConst plane) {
 static char*  s_body    = nullptr;
 static size_t s_bodyCap = 0;
 static const size_t ADSB_MAX_BODY = 1024 * 1024;   // 1 MB hard cap
+// Reserved when the server sends no Content-Length (chunked). Below the hard
+// cap, above anything adsb.fi realistically returns.
+static const size_t ADSB_UNKNOWN_BODY = 384 * 1024;
 
 static bool bodyReserve(size_t need) {
   if (need <= s_bodyCap) return true;
   size_t cap = need + 2048;
+  // PSRAM only. Hundreds of kB out of the internal heap would either fail
+  // anyway or succeed and starve the ~45 kB every TLS handshake needs after it.
   char* nb = (char*)heap_caps_realloc(s_body, cap, MALLOC_CAP_SPIRAM);
-  if (!nb) nb = (char*)heap_caps_realloc(s_body, cap, MALLOC_CAP_DEFAULT);
   if (!nb) return false;
   s_body = nb; s_bodyCap = cap;
   return true;
 }
 
-// Read the whole HTTP body into s_body. Returns the byte count (>= 0) or -1 on a
-// hard error (alloc / no stream). *complete is set false when the server
-// declared a Content-Length we did not fully receive (a cut-off download).
-static long readBody(HTTPClient& http, bool* complete) {
-  *complete = true;
-  int declared = http.getSize();              // -1 when unknown / chunked
-  if (declared > (int)ADSB_MAX_BODY) return -1;
-  WiFiClient* stream = http.getStreamPtr();
-  if (!stream) return -1;
+// Read the whole HTTP body into s_body. Returns the byte count (>= 0), or -1 on
+// a hard error: allocation, overflow, a stall, or a transfer that ended short of
+// the declared length.
+static long readBody(HTTPClient& http) {
+  // writeToStream() decodes chunked encoding; the old hand-rolled loop over
+  // getStreamPtr() did not, which is what left chunk size headers in the body.
+  // Overflow and stalls are failures now, not silent truncation, so the old
+  // "complete" out-param had no reachable false branch left and is gone.
 
-  size_t want = (declared > 0) ? (size_t)declared : 8192;
-  if (!bodyReserve(want + 1)) return -1;
-
-  size_t total = 0;
-  unsigned long last = millis();
-  while (http.connected() && (declared < 0 || total < (size_t)declared)) {
-    poll();                                    // yield + feed watchdog
-    size_t avail = stream->available();
-    if (avail) {
-      if (total + avail + 1 > s_bodyCap) {
-        if (total + avail + 1 > ADSB_MAX_BODY) { *complete = false; break; }
-        if (!bodyReserve(total + avail + 1)) return -1;
-      }
-      int r = stream->readBytes(s_body + total, avail);
-      if (r <= 0) break;
-      total += r;
-      last = millis();
-    } else {
-      if (millis() - last > 8000) break;       // stalled mid-transfer
-      delay(2);
-    }
+  int declared = http.getSize();               // -1 when chunked / unknown
+  if (declared > (int)ADSB_MAX_BODY) {
+    Serial.printf("ADSB: hlaseno %d B, strop je %u B\n",
+                  declared, (unsigned)ADSB_MAX_BODY);
+    return -1;
   }
-  if (s_body) s_body[total] = '\0';
-  if (declared > 0 && total < (size_t)declared) *complete = false;
-  return (long)total;
+  // The sink writes into a fixed buffer and cannot grow mid-transfer, so a
+  // chunked response (no Content-Length) has to be given room up front. The
+  // widest range offered is 100 km, where the answer runs to tens of kB; the
+  // buffer sits in PSRAM and is reused across polls, so the reserve is free.
+  size_t want = (declared > 0) ? (size_t)declared + 1 : ADSB_UNKNOWN_BODY;
+  if (!bodyReserve(want)) return -1;
+
+  return Net_ReadBody(http, (uint8_t*)s_body, s_bodyCap, "ADSB", s_poll);
 }
 
 // Filter document: only the keys we actually use are kept, so the parsed
 // JsonDocument stays small no matter how much adsb.fi sends. alt_baro MUST stay
 // - it carries the literal "ground" used to detect aircraft on the ground.
-static void buildFilter(JsonDocument& filter) {
-  JsonObject o = filter["ac"].add<JsonObject>();   // ArduinoJson 7 idiom
+static void fillFields(JsonObject o) {
+  if (o.isNull()) return;
   o["hex"]          = true;
   o["flight"]       = true;
   o["lat"]          = true;
@@ -168,16 +171,23 @@ static void buildFilter(JsonDocument& filter) {
   o["squawk"]       = true;
 }
 
-// A TLS handshake allocates roughly 45 kB of INTERNAL RAM (PSRAM cannot be used
-// for it). When that allocation fails, mbedTLS reports it as a plain "HTTP -1"
-// with no hint of the real cause. Checking first turns a mystery into a log
-// line, and skipping the poll leaves the previous data on screen.
-static bool netHeapOk(const char* what) {
-  size_t freeInt = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-  if (freeInt >= NET_MIN_HEAP) return true;
-  Serial.printf("%s: malo volne pameti (%u B < %u B), stahovani preskoceno\n",
-                what, (unsigned)freeInt, (unsigned)NET_MIN_HEAP);
-  return false;
+static void buildFilter(JsonDocument& filter) {
+  // Fill each object through a fresh reference. Copying one filter entry into
+  // the other with set() looked tidier but silently produced an empty filter,
+  // because adding the second key can invalidate the JsonObject handle taken
+  // for the first - and an empty filter drops EVERY key, which deserializeJson
+  // still reports as Ok.
+  fillFields(filter["ac"].add<JsonObject>());
+
+  // The other name this family of APIs uses for the same array. adsb.fi's v3
+  // endpoint sends "ac"; ADSBexchange-derived servers send "aircraft". Taking
+  // both means a rename upstream costs nothing instead of blanking the radar.
+  fillFields(filter["aircraft"].add<JsonObject>());
+
+  // Not payload - diagnostics. adsb.fi puts its status text in "msg" ("No
+  // error" on success). The filter used to drop it, so when the shape was
+  // wrong the firmware could only say "no ac array" and nothing about why.
+  filter["msg"] = true;
 }
 
 bool ADSB_Fetch(double lat, double lon, float radiusKm) {
@@ -187,7 +197,7 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
     Status_Set(ST_ADSB, "bez WiFi");
     return false;
   }
-  if (!netHeapOk("ADSB")) { Status_Set(ST_ADSB, "malo pameti"); return false; }
+  if (!Net_HeapOk("ADSB")) { Status_Set(ST_ADSB, "malo pameti"); return false; }
 
   float distNm = radiusKm / KM_PER_NM;
   char url[128];
@@ -203,9 +213,10 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
     poll();
     WiFiClientSecure client;
     client.setInsecure();
+    client.setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
 
     HTTPClient http;
-    http.setConnectTimeout(8000);   // ms - TCP + TLS handshake
+    http.setConnectTimeout(8000);   // ms - TCP connect only, NOT the handshake
     http.setTimeout(12000);         // ms - per-read timeout
     http.setReuse(false);           // clean close, do not pool the socket
     if (!http.begin(client, url)) {
@@ -237,8 +248,7 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
     }
 
     // Read the WHOLE body first (into PSRAM), then parse - no live-stream parse.
-    bool complete = true;
-    long len = readBody(http, &complete);
+    long len = readBody(http);
     http.end();
 
     if (len < 0) {
@@ -246,14 +256,20 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
       if (attempt < MAX_ATTEMPTS) { delay(200); continue; }
       return false;
     }
-    if (!complete) {
-      Serial.printf("ADSB: truncated body (attempt %d)\n", attempt);
-      if (attempt < MAX_ATTEMPTS) { delay(200); continue; }
-      return false;
-    }
     if (len < 8) {   // empty / nonsense
       Serial.printf("ADSB: short body %ld (attempt %d)\n", len, attempt);
       if (attempt < MAX_ATTEMPTS) { delay(200); continue; }
+      return false;
+    }
+
+    // Cheap shape check before the parser sees it. Catches a proxy error page,
+    // a gzipped body, or chunk residue - all of which would otherwise reach
+    // ArduinoJson and come back as something unhelpful.
+    const char* head = s_body;
+    while (*head == ' ' || *head == '\r' || *head == '\n' || *head == '\t') head++;
+    if (*head != '{') {
+      Serial.printf("ADSB: odpoved nezacina JSON objektem, telo[0..120]: %.120s\n", s_body);
+      Status_Set(ST_ADSB, "neocekavana odpoved");
       return false;
     }
 
@@ -270,13 +286,26 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
       return false;
     }
 
-    if (!doc["ac"].is<JsonArray>()) {
-      Serial.println("ADSB: no 'ac' array - keeping last data");
+    // "ac" is what the v3 endpoint sends; "aircraft" is the same array under
+    // the name the upstream format uses. Take whichever is actually there.
+    // NOTE: convert straight to JsonArrayConst. Going via a JsonVariantConst
+    // local reads back as null when the document is non-const, which would
+    // reject every good response.
+    JsonArrayConst ac = doc["ac"].as<JsonArrayConst>();
+    if (ac.isNull()) ac = doc["aircraft"].as<JsonArrayConst>();
+
+    if (ac.isNull()) {
+      // Say WHAT came back, not just that it was wrong. "msg" is the server's
+      // own status text; the prefix catches responses that were never the
+      // shape we expected in the first place.
+      const char* msg = doc["msg"] | "(zadne msg)";
+      Serial.printf("ADSB: chybi pole letadel - msg: %s\n", msg);
+      Serial.printf("ADSB: telo[0..200]: %.200s\n", s_body);
+      Status_Set(ST_ADSB, "neocekavana odpoved");
       return false;   // valid JSON but wrong shape; a retry would not help
     }
 
     // Parse into the SCRATCH list; commit to the live list only on success.
-    JsonArrayConst ac = doc["ac"].as<JsonArrayConst>();
     int n = 0;
     for (JsonObjectConst plane : ac) {
       float plat, plon;

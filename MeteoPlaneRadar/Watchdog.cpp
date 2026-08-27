@@ -29,14 +29,3 @@ void Watchdog_Begin() {
 void Watchdog_Feed() {
   if (s_subscribed) esp_task_wdt_reset();
 }
-
-void Watchdog_Suspend() {
-  if (s_subscribed) { esp_task_wdt_delete(NULL); s_subscribed = false; }
-}
-
-void Watchdog_Resume() {
-  if (!s_subscribed && esp_task_wdt_add(NULL) == ESP_OK) {
-    s_subscribed = true;
-    esp_task_wdt_reset();
-  }
-}

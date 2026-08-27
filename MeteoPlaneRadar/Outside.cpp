@@ -10,10 +10,7 @@
 #include "Net.h"
 #include "Settings.h"
 #include <WiFi.h>
-#include <WiFiClientSecure.h>
-#include <HTTPClient.h>
 #include <ArduinoJson.h>
-#include <esp_heap_caps.h>
 #include <time.h>
 #include <sys/time.h>
 #include <string.h>
@@ -77,34 +74,16 @@ void Outside_NoteTemp(float degC) {
 
 static bool fetchTemp() {
   if (WiFi.status() != WL_CONNECTED) return false;
-  // Same guard as the other endpoints: a TLS handshake wants ~45 kB of internal
-  // RAM and fails as a bare "HTTP -1" when it cannot get it.
-  size_t freeInt = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-  if (freeInt < NET_MIN_HEAP) {
-    Serial.printf("TEPLOTA: malo volne pameti (%u B), preskoceno\n", (unsigned)freeInt);
-    return false;
-  }
 
   char url[160];
   snprintf(url, sizeof(url),
            "%s?latitude=%.4f&longitude=%.4f&current=temperature_2m",
            OUTSIDE_TEMP_URL, Settings_Lat(), Settings_Lon());
 
-  WiFiClientSecure client; client.setInsecure();
-  HTTPClient http;
-  http.setConnectTimeout(6000);
-  http.setTimeout(8000);
-  http.setReuse(false);
-  if (!http.begin(client, url)) return false;
-  int code = http.GET();
-  if (code != HTTP_CODE_OK) { http.end(); Serial.printf("TEPLOTA: HTTP %d\n", code); return false; }
-
-  // The whole answer is a few hundred bytes, so take it as one string rather
-  // than parsing off the stream - a chunked transfer could otherwise cut the
-  // parser short halfway through.
-  String body = http.getString();
-  http.end();
-  if (body.length() == 0) { Serial.println("TEPLOTA: prazdna odpoved"); return false; }
+  // Same path as every other text response: heap guard, handshake timeout,
+  // chunked decoding and the body cap all live in Net_GetString().
+  String body;
+  if (!Net_GetString(url, body, "TEPLOTA")) return false;
 
   JsonDocument filter;
   filter["current"]["temperature_2m"] = true;

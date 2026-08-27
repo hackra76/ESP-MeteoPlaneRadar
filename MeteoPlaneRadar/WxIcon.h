@@ -20,7 +20,6 @@ enum WxKind : uint8_t {
   WX_DRIZZLE, WX_RAIN, WX_SNOW, WX_SHOWER, WX_STORM
 };
 
-WxKind WxIcon_Kind(int wmoCode);
 
 // Draw centred on (cx, cy) fitting inside a box of 2*r. night = draw a moon
 // instead of a sun where the icon has one.

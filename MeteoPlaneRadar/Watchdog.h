@@ -13,5 +13,3 @@
 
 void Watchdog_Begin();
 void Watchdog_Feed();
-void Watchdog_Suspend();   // before a blocking operation (WiFi portal)
-void Watchdog_Resume();

@@ -8,7 +8,7 @@
 #include "UI.h"
 #include <math.h>
 
-WxKind WxIcon_Kind(int c) {
+static WxKind WxIcon_Kind(int c) {
   switch (c) {
     case 0:               return WX_CLEAR;
     case 1: case 2:       return WX_PARTLY;

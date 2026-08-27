@@ -19,7 +19,6 @@ static Box s_box[LAYOUT_MAX];
 static int s_n = 0;
 
 void Layout_Begin() { s_n = 0; }
-int  Layout_Count() { return s_n; }
 
 static inline bool overlaps(const Box& a, const Box& b) {
   return a.x0 <= b.x1 && a.x1 >= b.x0 && a.y0 <= b.y1 && a.y1 >= b.y0;
@@ -34,7 +33,7 @@ static Box makeBox(int x, int y, int w, int h) {
   return b;
 }
 
-bool Layout_IsFree(int x, int y, int w, int h) {
+static bool Layout_IsFree(int x, int y, int w, int h) {
   if (w <= 0 || h <= 0) return true;
   Box b = makeBox(x, y, w, h);
   for (int i = 0; i < s_n; i++) if (overlaps(b, s_box[i])) return false;
@@ -81,23 +80,6 @@ void Layout_ReserveTextCentered(const char* s, uint8_t size, int cx, int y) {
   int w = Layout_TextW(s, size);
   if (w <= 0) return;
   Layout_Reserve(cx - w / 2 - 4, y - 2, w + 8, LY_CHAR_H(size) + 4);
-}
-
-bool Layout_InCircle(int x, int y, int w, int h) {
-  const long R = LCD_WIDTH / 2 - 2;
-  const long R2 = R * R;
-  const long cx = LCD_WIDTH / 2, cy = LCD_HEIGHT / 2;
-  // All four corners have to be inside - a rectangle whose centre is in the
-  // circle can still poke out at a corner near the rim.
-  const long xs[2] = { x, x + w - 1 };
-  const long ys[2] = { y, y + h - 1 };
-  for (int i = 0; i < 2; i++) {
-    for (int j = 0; j < 2; j++) {
-      long dx = xs[i] - cx, dy = ys[j] - cy;
-      if (dx * dx + dy * dy > R2) return false;
-    }
-  }
-  return true;
 }
 
 // --- Self-test --------------------------------------------------------------

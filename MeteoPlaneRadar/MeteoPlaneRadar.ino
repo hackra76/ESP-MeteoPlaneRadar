@@ -493,6 +493,7 @@ void setup() {
   CHMU_SetPollFn(netPoll);
   Net_SetPollFn(netPoll);
   RainViewer_SetPollFn(netPoll);
+  Route_SetPollFn(netPoll);
 
   // Connects with the stored credentials, or brings up the access point and
   // leaves it up. Either way the web server is running when this returns.

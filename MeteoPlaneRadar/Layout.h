@@ -66,9 +66,6 @@ void Layout_ReserveTextCentered(const char* s, uint8_t size, int cx, int y);
 // Returns false when it is not - the caller then draws nothing at all.
 bool Layout_Claim(int x, int y, int w, int h);
 
-// Test without taking it.
-bool Layout_IsFree(int x, int y, int w, int h);
-
 // Width of a string in the built-in font.
 int  Layout_TextW(const char* s, uint8_t size);
 
@@ -76,12 +73,6 @@ int  Layout_TextW(const char* s, uint8_t size);
 // text actually has there. On a round panel the usable width shrinks fast
 // towards the rim, so this has to be measured, not assumed.
 int  Layout_ChordHalf(int y);
-
-// Does the whole rectangle fit inside the display circle?
-bool Layout_InCircle(int x, int y, int w, int h);
-
-// How many rectangles are currently held (diagnostics).
-int  Layout_Count();
 
 // Walk the fixed bands and report any overlap on the serial line. Called once
 // at boot when LAYOUT_DEBUG is on - catches a mistyped constant before it turns

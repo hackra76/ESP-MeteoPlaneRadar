@@ -69,7 +69,6 @@ bool Forecast_SunTimes(time_t* rise, time_t* set);
 bool  AirQuality_Valid();
 int   AirQuality_Aqi();        // European AQI, -1 when unknown
 float AirQuality_Pm25();
-float AirQuality_Pm10();
 // Highest of the three pollen counts (grains/m3), or -1 outside Europe / out of
 // season, where the API simply returns nothing.
 float AirQuality_PollenMax();

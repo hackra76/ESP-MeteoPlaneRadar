@@ -9,12 +9,15 @@
 // =============================================================================
 #include "GeoIP.h"
 #include "Settings.h"
+#include "Net.h"
 
 #include <WiFi.h>
-#include <HTTPClient.h>
 #include <ArduinoJson.h>
 
 // Free IP geolocation, no API key. Returns lat/lon based on the public IP.
+// Plain HTTP on purpose - ip-api.com serves TLS to paying users only. The
+// request still goes through Net_GetString(), so it gets the same timeouts,
+// watchdog feeding and body cap as every other download.
 #define GEOIP_URL "http://ip-api.com/json/?fields=status,lat,lon,city"
 
 bool GeoIP_DetectIfNeeded() {
@@ -22,14 +25,8 @@ bool GeoIP_DetectIfNeeded() {
   if (Settings_HasLocation()) return false;
   if (WiFi.status() != WL_CONNECTED) return false;
 
-  HTTPClient http;
-  http.setTimeout(6000);
-  if (!http.begin(GEOIP_URL)) return false;
-  int code = http.GET();
-  if (code != HTTP_CODE_OK) { http.end(); Serial.printf("GeoIP: HTTP %d\n", code); return false; }
-
-  String payload = http.getString();
-  http.end();
+  String payload;
+  if (!Net_GetString(GEOIP_URL, payload, "GeoIP")) return false;
 
   JsonDocument doc;
   if (deserializeJson(doc, payload)) { Serial.println("GeoIP: JSON error"); return false; }

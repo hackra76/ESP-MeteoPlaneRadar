@@ -231,7 +231,6 @@ static bool fetchAirQuality() {
 bool  AirQuality_Valid()  { return s_aqOk; }
 int   AirQuality_Aqi()    { return s_aqi; }
 float AirQuality_Pm25()   { return s_pm25; }
-float AirQuality_Pm10()   { return s_pm10; }
 float AirQuality_PollenMax() { return s_pollen; }
 const char* AirQuality_PollenWorst() { return s_pollenWorst; }
 

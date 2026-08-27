@@ -4,7 +4,7 @@
 //
 //  Why a header and not the .ino: Arduino compiles every .cpp as its own
 //  translation unit, so a #define living in the .ino is invisible to
-//  ScreenSettings.cpp / OTA.cpp. Putting it here lets every module show the
+//  ScreenSettings.cpp / WebConfig.cpp. Putting it here lets every module show the
 //  same string.
 //
 //  Project: MeteoPlaneRadar - live aircraft radar on a round touchscreen
@@ -16,4 +16,4 @@
 // Bump this on every release (shown on the Settings screen, the web UI and in
 // the serial banner). Describe the change in CHANGELOG.md (repo root) - that
 // file is the single source of truth for the version history.
-#define FW_VERSION "0.6.3"
+#define FW_VERSION "0.6.4"

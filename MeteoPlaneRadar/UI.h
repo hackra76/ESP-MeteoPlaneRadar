@@ -39,7 +39,6 @@ void UI_TextCenteredIn(const char* text, int x, int w, int cy,
 // Half the width of the display circle at height y - i.e. how much room a line
 // of text actually has there. On a round panel the usable width shrinks fast
 // towards the top, so anything near the edge has to be measured, not assumed.
-int  UI_ChordHalfWidth(int y);
 
 // The clock + outside temperature line, centred under the screen dots. Draws
 // nothing when neither is known yet, and refuses to draw text that would not

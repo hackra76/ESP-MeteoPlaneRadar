@@ -26,13 +26,6 @@
 
 void        CHMU_SetPollFn(void (*fn)());
 
-// --- Jeden (nejnovejsi) snimek ---
-bool        CHMU_FetchLatest();
-uint8_t*    CHMU_Data();
-size_t      CHMU_DataSize();
-bool        CHMU_HasSnapshot();
-String      CHMU_SnapshotTimeText();
-
 // --- Animace: nejnovejsich wantN ramcu (5 min krok) ---
 // Vraci pocet stazenych ramcu. Ramce jsou serazene 0 = nejstarsi ... N-1 = nyni.
 int         CHMU_FetchAnim(int wantN);

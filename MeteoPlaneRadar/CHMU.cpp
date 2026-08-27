@@ -10,11 +10,12 @@
 #include "Config.h"
 #include "TimeUtil.h"
 #include "Outside.h"
+#include "NetSink.h"
+#include <string.h>      // strstr / memcmp
 
 static const char* NAME_PREFIX = "pacz2gmaps3.z_max3d.";
 
 static void (*s_poll)() = nullptr;
-static void poll() { if (s_poll) s_poll(); }
 void CHMU_SetPollFn(void (*fn)()) { s_poll = fn; }
 
 // -----------------------------------------------------------------------------
@@ -57,103 +58,35 @@ static String timeTextFromName(const String& name) {
   return String(out);
 }
 
-// A TLS handshake allocates roughly 45 kB of INTERNAL RAM (PSRAM cannot be used
-// for it). When that allocation fails, mbedTLS reports it as a plain "HTTP -1"
-// with no hint of the real cause. Checking first turns a mystery into a log
-// line, and skipping the poll leaves the previous data on screen.
-static bool netHeapOk(const char* what) {
-  size_t freeInt = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-  if (freeInt >= NET_MIN_HEAP) return true;
-  Serial.printf("%s: malo volne pameti (%u B < %u B), stahovani preskoceno\n",
-                what, (unsigned)freeInt, (unsigned)NET_MIN_HEAP);
-  return false;
-}
-
 // Stahne dany PNG do zadaneho bufferu. Vraci true a naplni *outSize.
 static bool downloadNameTo(const String& name, uint8_t* buf, size_t cap, size_t* outSize) {
   *outSize = 0;
   if (!buf) return false;
-  if (!netHeapOk("CHMU")) return false;
+  if (!Net_HeapOk("CHMU")) return false;
   String url = String(CHMU_INDEX_URL) + name;
   WiFiClientSecure client; client.setInsecure();
-  HTTPClient http; http.setTimeout(15000);
+  client.setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
+  HTTPClient http;
+  http.setConnectTimeout(6000);   // TCP connect only, NOT the TLS handshake
+  http.setTimeout(15000);
   if (!http.begin(client, url)) return false;
   if (http.GET() != HTTP_CODE_OK) { http.end(); return false; }
   int total = http.getSize();
   if (total > (int)cap) { http.end(); return false; }
-  WiFiClient* stream = http.getStreamPtr();
-  size_t written = 0; unsigned long last = millis();
-  while (http.connected() && (total < 0 || written < (size_t)total)) {
-    poll();
-    size_t avail = stream->available();
-    if (avail) {
-      size_t space = cap - written;
-      size_t toRead = avail < space ? avail : space;
-      int n = stream->readBytes(buf + written, toRead);
-      if (n <= 0) break;
-      written += n; last = millis();
-      if (written >= cap) break;
-    } else { if (millis() - last > 10000) break; delay(1); }
-  }
+  long got = Net_ReadBody(http, buf, cap, "CHMU", s_poll);
   http.end();
-  *outSize = written;
-  return written > 100;
-}
+  if (got < 0) return false;
 
-// -----------------------------------------------------------------------------
-//  Jeden (nejnovejsi) snimek - puvodni API
-// -----------------------------------------------------------------------------
-static String   s_lastName;
-static bool     s_hasSnapshot = false;
-static uint8_t* s_pngBuf = nullptr;
-static size_t   s_pngSize = 0;
-
-bool     CHMU_HasSnapshot() { return s_hasSnapshot; }
-uint8_t* CHMU_Data() { return s_pngBuf; }
-size_t   CHMU_DataSize() { return s_pngSize; }
-
-static void scanChunkLatest(const String& text, String& newestTs, String& latestName) {
-  int pos = 0;
-  while (true) {
-    int idx = text.indexOf(NAME_PREFIX, pos); if (idx < 0) break;
-    int end = text.indexOf(".png", idx); if (end < 0) break;
-    String name = text.substring(idx, end + 4);
-    String ts = extractTimestamp(name);
-    if (ts.length() && ts > newestTs) { newestTs = ts; latestName = name; }
-    pos = end + 4;
+  // A PNG that is not a PNG means we were handed an error page or something
+  // re-encoded in transit. Checking the signature here stops the decoder from
+  // being fed rubbish and drawing a corrupt frame over a good radar image.
+  if (got < 8 || memcmp(buf, "\x89PNG\r\n\x1a\n", 8) != 0) {
+    Serial.printf("CHMU: %s neni PNG (%ld B)\n", name.c_str(), got);
+    return false;
   }
+  *outSize = (size_t)got;
+  return true;
 }
-
-bool CHMU_FetchLatest() {
-  if (WiFi.status() != WL_CONNECTED) return s_hasSnapshot;
-  if (!netHeapOk("CHMU")) return s_hasSnapshot;
-  WiFiClientSecure client; client.setInsecure();
-  HTTPClient http; http.setTimeout(15000);
-  if (!http.begin(client, CHMU_INDEX_URL)) return s_hasSnapshot;
-  if (http.GET() != HTTP_CODE_OK) { http.end(); return s_hasSnapshot; }
-  WiFiClient* stream = http.getStreamPtr();
-  String window, newestTs, latest; uint8_t buf[512]; unsigned long last = millis();
-  while (http.connected()) {
-    poll();
-    size_t avail = stream->available();
-    if (avail) { int n = stream->readBytes(buf, avail < sizeof(buf) ? avail : sizeof(buf)); if (n <= 0) break;
-      window.concat((const char*)buf, n); scanChunkLatest(window, newestTs, latest);
-      if (window.length() > 400) window = window.substring(window.length() - 250); last = millis(); }
-    else { if (millis() - last > 10000) break; delay(1); }
-  }
-  scanChunkLatest(window, newestTs, latest);
-  http.end();
-  if (latest.isEmpty()) return s_hasSnapshot;
-  if (latest == s_lastName && s_hasSnapshot) return true;
-  if (!s_pngBuf) {
-    s_pngBuf = (uint8_t*)heap_caps_malloc(CHMU_MAX_PNG, MALLOC_CAP_SPIRAM);
-    if (!s_pngBuf) s_pngBuf = (uint8_t*)malloc(CHMU_MAX_PNG);
-  }
-  if (downloadNameTo(latest, s_pngBuf, CHMU_MAX_PNG, &s_pngSize)) { s_lastName = latest; s_hasSnapshot = true; return true; }
-  return s_hasSnapshot;
-}
-
-String CHMU_SnapshotTimeText() { return timeTextFromName(s_lastName); }
 
 // -----------------------------------------------------------------------------
 //  Animace - nejnovejsich N ramcu
@@ -186,12 +119,25 @@ static void topInsert(const String& name, const String& ts) {
   }
 }
 
-static void scanChunkTop(const String& text) {
-  int pos = 0;
+// -----------------------------------------------------------------------------
+//  Index directory listing
+//
+//  Scanned as it arrives, never stored. Reading it into a buffer first put a
+//  ceiling on it, and the radar stopped updating the day the listing grew past
+//  that. NetScanSink keeps the chunked decoding of writeToStream() and hands
+//  the scan a sliding window, so nothing here grows with the listing. Windows
+//  overlap, so the scan below has to tolerate seeing a name twice.
+// -----------------------------------------------------------------------------
+
+// topInsert() drops a timestamp it already holds, so a name seen twice at a
+// window boundary does not take two slots.
+static void scanTop(const char* text, void* user) {
+  (void)user;
+  const char* pos = text;
   while (true) {
-    int idx = text.indexOf(NAME_PREFIX, pos); if (idx < 0) break;
-    int end = text.indexOf(".png", idx); if (end < 0) break;
-    String name = text.substring(idx, end + 4);
+    const char* idx = strstr(pos, NAME_PREFIX); if (!idx) break;
+    const char* end = strstr(idx, ".png");      if (!end) break;
+    String name; name.concat(idx, (size_t)(end + 4 - idx));
     String ts = extractTimestamp(name);
     if (ts.length()) topInsert(name, ts);
     pos = end + 4;
@@ -200,8 +146,7 @@ static void scanChunkTop(const String& text) {
 
 static bool ensureAnimBuffer(int i) {
   if (s_animBuf[i]) return true;
-  s_animBuf[i] = (uint8_t*)heap_caps_malloc(CHMU_MAX_PNG, MALLOC_CAP_SPIRAM);
-  if (!s_animBuf[i]) s_animBuf[i] = (uint8_t*)malloc(CHMU_MAX_PNG);
+  s_animBuf[i] = (uint8_t*)heap_caps_malloc(CHMU_MAX_PNG, MALLOC_CAP_SPIRAM);   // PSRAM only, viz vyse
   return s_animBuf[i] != nullptr;
 }
 
@@ -211,28 +156,23 @@ int CHMU_FetchAnim(int wantN) {
   if (wantN < 1) wantN = 1;
 
   // 1) projdi index a najdi N nejnovejsich nazvu
-  if (!netHeapOk("CHMU")) return s_animCount;
+  if (!Net_HeapOk("CHMU")) return s_animCount;
   s_topCount = 0;
   WiFiClientSecure client; client.setInsecure();
-  HTTPClient http; http.setTimeout(15000);
+  client.setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
+  HTTPClient http;
+  http.setConnectTimeout(6000);   // TCP connect only, NOT the TLS handshake
+  http.setTimeout(15000);
   static const char* WANTED[] = { "Date" };
   http.collectHeaders(WANTED, 1);
   if (!http.begin(client, CHMU_INDEX_URL)) return s_animCount;
   int code = http.GET();
   if (http.hasHeader("Date")) Outside_NoteHttpDate(http.header("Date").c_str());
   if (code != HTTP_CODE_OK) { http.end(); return s_animCount; }
-  WiFiClient* stream = http.getStreamPtr();
-  String window; uint8_t buf[512]; unsigned long last = millis();
-  while (http.connected()) {
-    poll();
-    size_t avail = stream->available();
-    if (avail) { int n = stream->readBytes(buf, avail < sizeof(buf) ? avail : sizeof(buf)); if (n <= 0) break;
-      window.concat((const char*)buf, n); scanChunkTop(window);
-      if (window.length() > 400) window = window.substring(window.length() - 250); last = millis(); }
-    else { if (millis() - last > 10000) break; delay(1); }
-  }
-  scanChunkTop(window);
+  long ilen = Net_ScanBody(http, scanTop, nullptr, "CHMU", s_poll);
   http.end();
+  if (ilen <= 0) return s_animCount;
+  Serial.printf("CHMU: index %ld B, nalezeno %d nazvu\n", ilen, s_topCount);
   if (s_topCount == 0) return s_animCount;
 
   // 2) stahni N nejnovejsich (top pole je vzestupne, bereme konec)
