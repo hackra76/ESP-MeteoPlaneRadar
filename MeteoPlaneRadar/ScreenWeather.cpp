@@ -551,7 +551,8 @@ static bool tickRainViewer() {
 
   // Refresh only during the pause at the end of a cycle, so the animation never
   // changes under itself halfway through.
-  if (s_gap && (now - s_lastFetch >= 300000UL)) {
+  // Poll every 60 s so newly published 5-minute frames appear without lag (Issue #6).
+  if (s_gap && (now - s_lastFetch >= 60000UL)) {
     RainViewer_Refresh();
     s_loading = true;
     return true;
@@ -592,7 +593,8 @@ bool ScreenWeather_Tick() {
   }
 
   // Periodic refresh - only during the pause (last frame shown).
-  if (s_gap && (now - s_lastFetch >= 300000UL)) {
+  // Poll every 60 s so newly published 5-minute frames appear without lag (Issue #6).
+  if (s_gap && (now - s_lastFetch >= 60000UL)) {
     loadAndBuild();
     s_lastFetch = now; s_curFrame = 0; s_gap = false; s_lastStep = now;
     return true;

@@ -37,6 +37,7 @@ static float currentRange() { return RANGES_KM[s_rangeIdx]; }
 static bool  isWholeCountry() { return currentRange() <= 0.0f; }
 
 static unsigned long s_nextFetch = 0;
+static unsigned long s_lastRadarFetch = 0;
 static bool  s_dataOk = false;
 static String s_status = "...";
 
@@ -391,6 +392,7 @@ void ScreenTactical_Draw() {
 void ScreenTactical_Enter() {
   selectNone("enter");
   s_nextFetch = 0;
+  s_lastRadarFetch = millis();
   if (rvMode()) {
     double clat = Settings_Lat(), clon = Settings_Lon();
     float crng = currentRange();
@@ -418,6 +420,7 @@ void ScreenTactical_ChangeRange(int dir) {
   if (ScreenTactical_DetailOpen()) return;
   s_rangeIdx = (s_rangeIdx + dir + RANGE_COUNT) % RANGE_COUNT;
   selectNone("range_change");
+  s_lastRadarFetch = millis();
   if (rvMode()) {
     double clat = Settings_Lat(), clon = Settings_Lon();
     float crng = currentRange();
@@ -436,8 +439,13 @@ bool ScreenTactical_Tick() {
   unsigned long now = millis();
 
   // Tick RainViewer background
-  if (rvMode() && RainViewer_Busy()) {
-    RainViewer_Step();
+  if (rvMode()) {
+    if (RainViewer_Busy()) {
+      RainViewer_Step();
+    } else if (now - s_lastRadarFetch >= 60000UL) {
+      s_lastRadarFetch = now;
+      RainViewer_Refresh();
+    }
   }
 
   Route_Tick();
