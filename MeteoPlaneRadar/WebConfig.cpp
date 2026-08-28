@@ -8,6 +8,7 @@
 #include "WebPage.h"
 #include "ScreenPlanes.h"
 #include "ScreenWeather.h"
+#include "ScreenTactical.h"
 #include "Settings.h"
 #include "Status.h"
 #include "Version.h"
@@ -120,7 +121,8 @@ static void handlePostConfig() {
   const uint8_t oldMask = (Settings_ScreenEnabled(SCREEN_CLOCK_I) << 0) |
                           (Settings_ScreenEnabled(SCREEN_PLANES_I) << 1) |
                           (Settings_ScreenEnabled(SCREEN_METEO_I) << 2) |
-                          (Settings_ScreenEnabled(SCREEN_FORECAST_I) << 3);
+                          (Settings_ScreenEnabled(SCREEN_TACTICAL_I) << 3) |
+                          (Settings_ScreenEnabled(SCREEN_FORECAST_I) << 4);
 
   Settings_FromJson(doc.as<JsonObjectConst>());
 
@@ -131,7 +133,8 @@ static void handlePostConfig() {
   const uint8_t newMask = (Settings_ScreenEnabled(SCREEN_CLOCK_I) << 0) |
                           (Settings_ScreenEnabled(SCREEN_PLANES_I) << 1) |
                           (Settings_ScreenEnabled(SCREEN_METEO_I) << 2) |
-                          (Settings_ScreenEnabled(SCREEN_FORECAST_I) << 3);
+                          (Settings_ScreenEnabled(SCREEN_TACTICAL_I) << 3) |
+                          (Settings_ScreenEnabled(SCREEN_FORECAST_I) << 4);
   const bool moved = (fabs(oldLat - Settings_Lat()) > 1e-6) ||
                      (fabs(oldLon - Settings_Lon()) > 1e-6);
   if (moved) Forecast_Invalidate();
@@ -218,8 +221,9 @@ static void handleStatus() {
   const uint8_t scr = Settings_Screen();
   doc["screen"] = scr;
   char rb[24] = "";
-  if      (scr == SCREEN_PLANES_I) ScreenPlanes_RangeText(rb, sizeof(rb));
-  else if (scr == SCREEN_METEO_I)  ScreenWeather_RangeText(rb, sizeof(rb));
+  if      (scr == SCREEN_PLANES_I)   ScreenPlanes_RangeText(rb, sizeof(rb));
+  else if (scr == SCREEN_METEO_I)    ScreenWeather_RangeText(rb, sizeof(rb));
+  else if (scr == SCREEN_TACTICAL_I) ScreenTactical_RangeText(rb, sizeof(rb));
   doc["range"] = rb;                       // empty on screens without one
 
   JsonArray en = doc["enabled"].to<JsonArray>();
@@ -272,8 +276,10 @@ static void handleGeocode() {
   }
 
   char url[220];
+  const uint8_t curLang = Lang_Get();
+  const char* langCode = (curLang == LANG_EN) ? "en" : ((curLang == LANG_SK) ? "sk" : "cs");
   snprintf(url, sizeof(url), "%s?name=%s&count=8&language=%s&format=json",
-           GEOCODE_URL, enc.c_str(), Lang_Get() == LANG_EN ? "en" : "cs");
+           GEOCODE_URL, enc.c_str(), langCode);
 
   String body;
   if (!Net_GetString(url, body, "GEOKOD")) { s_srv.send(502, "application/json", "[]"); return; }
@@ -359,25 +365,29 @@ static void handleNotFound() {
 // the drawing code can do about it, so the backlight goes off for the duration
 // and the browser shows the real progress bar.
 static void otaStart() {
-  const bool en = (Lang_Get() == LANG_EN);
+  const uint8_t lang = Lang_Get();
   s_updating = true;
   gfx->fillScreen(C_BLACK);
-  UI_TextCentered(en ? "Updating firmware..." : "Probiha aktualizace...",
-                  LCD_HEIGHT / 2 - 10, C_WHITE, 2);
-  UI_TextCentered(en ? "Do not disconnect power" : "Neodpojuj napajeni",
-                  LCD_HEIGHT / 2 + 20, C_GRAY, 1);
+  const char* upTxt = (lang == LANG_EN) ? "Updating firmware..."
+                    : ((lang == LANG_SK) ? "Prebieha aktualizacia..." : "Probiha aktualizace...");
+  const char* pwrTxt = (lang == LANG_EN) ? "Do not disconnect power"
+                     : ((lang == LANG_SK) ? "Neodpajaj napajanie" : "Neodpojuj napajeni");
+  UI_TextCentered(upTxt, LCD_HEIGHT / 2 - 10, C_WHITE, 2);
+  UI_TextCentered(pwrTxt, LCD_HEIGHT / 2 + 20, C_GRAY, 1);
   gfx->flush();
   delay(700);
   Set_Backlight(0);
 }
 
 static void otaEnd(bool ok) {
-  const bool en = (Lang_Get() == LANG_EN);
+  const uint8_t lang = Lang_Get();
   Set_Backlight(Settings_Backlight());
   gfx->fillScreen(C_BLACK);
-  UI_TextCentered(ok ? (en ? "Done, restarting..." : "Hotovo, restartuji...")
-                     : (en ? "Update failed"       : "Aktualizace selhala"),
-                  LCD_HEIGHT / 2, ok ? C_GREEN : C_RED, 2);
+  const char* doneTxt = ok ? ((lang == LANG_EN) ? "Done, restarting..."
+                             : ((lang == LANG_SK) ? "Hotovo, restartujem..." : "Hotovo, restartuji..."))
+                           : ((lang == LANG_EN) ? "Update failed"
+                             : ((lang == LANG_SK) ? "Aktualizacia zlyhala" : "Aktualizace selhala"));
+  UI_TextCentered(doneTxt, LCD_HEIGHT / 2, ok ? C_GREEN : C_RED, 2);
   gfx->flush();
   s_updating = false;
 }
@@ -441,22 +451,26 @@ b.onclick=function(){
 
 static void handleUpdatePage() {
   if (!updateAuthed()) { s_srv.requestAuthentication(); return; }
-  const bool en = (Lang_Get() == LANG_EN);
+  const uint8_t lang = Lang_Get();
   String p = FPSTR(UPDATE_HTML);
-  p.replace("{{LANG}}",  en ? "en" : "cs");
-  p.replace("{{TITLE}}", en ? "Firmware update" : "Aktualizace firmwaru");
-  p.replace("{{HINT}}",  en ? "Pick the <b>.ino.bin</b> file (the one without "
-                              "<i>merged</i>). The display goes dark while the "
+  p.replace("{{LANG}}",  (lang == LANG_EN) ? "en" : ((lang == LANG_SK) ? "sk" : "cs"));
+  p.replace("{{TITLE}}", (lang == LANG_EN) ? "Firmware update"
+                       : ((lang == LANG_SK) ? "Aktualizácia firmvéru" : "Aktualizace firmwaru"));
+  p.replace("{{HINT}}",  (lang == LANG_EN) ? "Pick the <b>.ino.bin</b> or <b>firmware.bin</b> file (the one without "
+                              "<i>merged</i> / <i>factory</i>). The display goes dark while the "
                               "flash is written and comes back on when it is done."
-                            : "Vyberte soubor <b>.ino.bin</b> (ten bez <i>merged</i>). "
+                       : ((lang == LANG_SK) ? "Vyberte súbor <b>.ino.bin</b> alebo <b>firmware.bin</b> (ten bez <i>merged</i> / <i>factory</i>). "
+                              "Displej počas zápisu zhasne a po dokončení sa "
+                              "sám rozsvieti."
+                       : "Vyberte soubor <b>.ino.bin</b> (ten bez <i>merged</i>). "
                               "Displej po dobu zapisu zhasne a po dokonceni se "
-                              "sam rozsviti.");
-  p.replace("{{SEND}}",  en ? "Upload"           : "Nahrat");
-  p.replace("{{BACK}}",  en ? "Back to settings" : "Zpet na nastaveni");
-  p.replace("{{PICK}}",  en ? "Pick a file first." : "Nejdriv vyberte soubor.");
-  p.replace("{{OK}}",    en ? "Done. The device is restarting."
-                            : "Hotovo. Zarizeni se restartuje.");
-  p.replace("{{FAIL}}",  en ? "Update failed"    : "Aktualizace selhala");
+                              "sam rozsviti."));
+  p.replace("{{SEND}}",  (lang == LANG_EN) ? "Upload"           : ((lang == LANG_SK) ? "Nahrať" : "Nahrát"));
+  p.replace("{{BACK}}",  (lang == LANG_EN) ? "Back to settings" : ((lang == LANG_SK) ? "Späť na nastavenia" : "Zpět na nastavení"));
+  p.replace("{{PICK}}",  (lang == LANG_EN) ? "Pick a file first." : ((lang == LANG_SK) ? "Najskôr vyberte súbor." : "Nejdřív vyberte soubor."));
+  p.replace("{{OK}}",    (lang == LANG_EN) ? "Done. The device is restarting."
+                       : ((lang == LANG_SK) ? "Hotovo. Zariadenie sa reštartuje." : "Hotovo. Zařízení se restartuje."));
+  p.replace("{{FAIL}}",  (lang == LANG_EN) ? "Update failed"    : ((lang == LANG_SK) ? "Aktualizácia zlyhala" : "Aktualizace selhala"));
   s_srv.sendHeader("Cache-Control", "no-store");
   s_srv.send(200, "text/html; charset=utf-8", p);
 }

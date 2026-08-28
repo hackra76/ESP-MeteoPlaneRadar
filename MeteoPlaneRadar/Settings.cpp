@@ -33,11 +33,10 @@ static bool    s_isNight   = false;
 static bool    s_metric = false;
 static uint8_t s_lang   = LANG_CZ;
 
-// Bit per data screen (bit 0 = clock ... bit 3 = forecast). Default: everything
-// on except the forecast, so an existing device looks familiar after the update
-// and the new screens are discovered rather than sprung on the user.
+// Bit per data screen (bit 0 = clock ... bit 4 = forecast).
 static uint8_t s_scrMask = (1 << SCREEN_CLOCK_I) | (1 << SCREEN_PLANES_I) |
-                           (1 << SCREEN_METEO_I) | (1 << SCREEN_FORECAST_I);
+                           (1 << SCREEN_METEO_I) | (1 << SCREEN_TACTICAL_I) |
+                           (1 << SCREEN_FORECAST_I);
 static uint16_t s_autoRot = 0;
 static uint8_t s_radarSrc = RADAR_SRC_CHMU;
 
@@ -199,7 +198,7 @@ bool Settings_MetricUnits() { return s_metric; }
 void Settings_SetMetricUnits(bool metric) { s_metric = metric; putBool("metric", metric); }
 uint8_t Settings_Language() { return s_lang; }
 void    Settings_SetLanguage(uint8_t l) {
-  s_lang = (l == LANG_EN) ? LANG_EN : LANG_CZ;
+  s_lang = (l == LANG_EN || l == LANG_SK) ? l : LANG_CZ;
   Lang_Set(s_lang);
   putU8("lang", s_lang);
 }
@@ -344,6 +343,7 @@ void Settings_ToJson(JsonObject o) {
   scr["clock"]    = Settings_ScreenEnabled(SCREEN_CLOCK_I);
   scr["planes"]   = Settings_ScreenEnabled(SCREEN_PLANES_I);
   scr["meteo"]    = Settings_ScreenEnabled(SCREEN_METEO_I);
+  scr["tactical"] = Settings_ScreenEnabled(SCREEN_TACTICAL_I);
   scr["forecast"] = Settings_ScreenEnabled(SCREEN_FORECAST_I);
 }
 
@@ -392,6 +392,7 @@ bool Settings_FromJson(JsonObjectConst in) {
       { "clock",    SCREEN_CLOCK_I },
       { "planes",   SCREEN_PLANES_I },
       { "meteo",    SCREEN_METEO_I },
+      { "tactical", SCREEN_TACTICAL_I },
       { "forecast", SCREEN_FORECAST_I },
     };
     for (auto& m : M) {
@@ -424,7 +425,7 @@ void Settings_ClearAll() {
   s_briDay = 80; s_briNight = 25; s_nightAuto = true; s_nightOff = 0; s_isNight = false;
   s_metric = false; s_lang = LANG_CZ; Lang_Set(s_lang);
   s_scrMask = (1 << SCREEN_CLOCK_I) | (1 << SCREEN_PLANES_I) |
-              (1 << SCREEN_METEO_I) | (1 << SCREEN_FORECAST_I);
+              (1 << SCREEN_METEO_I) | (1 << SCREEN_TACTICAL_I) | (1 << SCREEN_FORECAST_I);
   s_autoRot = 0; s_radarSrc = RADAR_SRC_CHMU;
   s_secStyle = SEC_STYLE_DOTS; s_clockCol = 0xFFFF; s_secCol = 0x05FF;
   s_altMin = 0; s_altMax = 60000; s_onlyCs = false; s_sqAlert = true; s_watch[0] = '\0';

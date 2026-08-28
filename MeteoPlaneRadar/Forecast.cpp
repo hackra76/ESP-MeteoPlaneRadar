@@ -208,10 +208,10 @@ static bool fetchAirQuality() {
   // show nothing at all rather than a confident zero.
   s_pollen = -1;
   s_pollenWorst = "";
-  struct { const char* key; const char* cz; const char* en; } P[] = {
-    { "alder_pollen", "olse",  "alder" },
-    { "birch_pollen", "briza", "birch" },
-    { "grass_pollen", "travy", "grass" },
+  struct { const char* key; const char* cz; const char* sk; const char* en; } P[] = {
+    { "alder_pollen", "olse",  "jelsa",  "alder" },
+    { "birch_pollen", "briza", "breza",  "birch" },
+    { "grass_pollen", "travy", "travy",  "grass" },
   };
   for (auto& p : P) {
     JsonVariantConst v = cur[p.key];
@@ -219,7 +219,7 @@ static bool fetchAirQuality() {
     float f = v.as<float>();
     if (f > s_pollen) {
       s_pollen = f;
-      s_pollenWorst = (Lang_Get() == LANG_EN) ? p.en : p.cz;
+      s_pollenWorst = (Lang_Get() == LANG_EN) ? p.en : ((Lang_Get() == LANG_SK) ? p.sk : p.cz);
     }
   }
 
@@ -234,25 +234,29 @@ float AirQuality_Pm25()   { return s_pm25; }
 float AirQuality_PollenMax() { return s_pollen; }
 const char* AirQuality_PollenWorst() { return s_pollenWorst; }
 
-// -----------------------------------------------------------------------------
 void Forecast_Tick() {
-  // No link: do not start the timer either. An attempt made while the WiFi was
-  // still coming up would otherwise count as "tried" and push the next one half
-  // an hour out - which is exactly why the temperature used to look broken.
+  // No link: do not start the timer either.
   if (WiFi.status() != WL_CONNECTED) return;
+
+  bool needsForecast = Settings_ScreenEnabled(SCREEN_FORECAST_I) ||
+                       Settings_ScreenEnabled(SCREEN_CLOCK_I) ||
+                       Settings_NightAuto();
+  bool needsAirQuality = Settings_ScreenEnabled(SCREEN_FORECAST_I);
+
+  if (!needsForecast && !needsAirQuality) return;
 
   unsigned long now = millis();
 
   if (s_forceNext) { s_everTried = false; s_aqEverTried = false; s_forceNext = false; }
 
-  if (!s_everTried || now - s_lastTry >= (s_valid ? FORECAST_PERIOD_MS : FORECAST_RETRY_MS)) {
+  if (needsForecast && (!s_everTried || now - s_lastTry >= (s_valid ? FORECAST_PERIOD_MS : FORECAST_RETRY_MS))) {
     s_everTried = true;
     s_lastTry = now;
     fetchForecast();
     return;                    // one request per tick - never two back to back
   }
 
-  if (!s_aqEverTried || now - s_aqLastTry >= (s_aqOk ? AQ_PERIOD_MS : AQ_RETRY_MS)) {
+  if (needsAirQuality && (!s_aqEverTried || now - s_aqLastTry >= (s_aqOk ? AQ_PERIOD_MS : AQ_RETRY_MS))) {
     s_aqEverTried = true;
     s_aqLastTry = now;
     fetchAirQuality();

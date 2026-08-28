@@ -10,6 +10,7 @@
 #include "EuBorder.h"
 #include "EuMapData.h"
 #include "CzCitiesData.h"   // Czech cities - they replace the European ones
+#include "SkCitiesData.h"   // Slovak cities - they replace the European ones
 #include "UI.h"
 #include "Layout.h"
 #include <string.h>
@@ -72,11 +73,6 @@ void EuBorder_Draw(ProjectFn project, uint16_t color,
   }
 }
 
-// Do we have this place in our own Czech list? Matched on POSITION, not on the
-// name: our list writes some of them differently ("Usti n. L." against the
-// European "Usti nad Labem") and a name comparison would let those through
-// twice. Verified against the real data - all 21 overlaps pair up one to one,
-// and no two distinct towns fall within the tolerance of each other.
 static bool haveCzechCity(float lat, float lon) {
   const float TOL = 0.05f;                 // about 5 km
   for (int i = 0; i < CZ_CITY_COUNT; i++) {
@@ -86,23 +82,16 @@ static bool haveCzechCity(float lat, float lon) {
   return false;
 }
 
-// --- Label collision ---------------------------------------------------------
-// At the widest ranges the labels start sitting on top of each other and the
-// map turns into mush. Every label that gets drawn claims a rectangle; a later
-// one that would overlap it is dropped entirely, dot and all - half a name
-// under another name is worse than no name.
-//
-// Since 0.6.0 the rectangles are held by the shared Layout module rather than
-// by a private array here. That is what stops a city label from landing on the
-// clock or the altitude legend: the screen reserves its chrome before the map
-// is drawn, so those rectangles are already taken by the time the first city
-// asks for space.
-//
-// Cities are drawn tier by tier, so the bigger place always wins the spot and
-// it is the small town next to it that disappears.
+static bool haveSlovakCity(float lat, float lon) {
+  const float TOL = 0.05f;                 // about 5 km
+  for (int i = 0; i < SK_CITY_COUNT; i++) {
+    if (fabsf(SK_CITIES[i].lat - lat) <= TOL &&
+        fabsf(SK_CITIES[i].lon - lon) <= TOL) return true;
+  }
+  return false;
+}
 
-// One city. Split out of the loop below so the European set and the Czech
-// list can share it.
+// --- Label collision ---------------------------------------------------------
 static void drawOneCity(const EuCity& c, ProjectFn project, int cx, int cy,
                         long r2, uint16_t dotColor, uint16_t textColor,
                         bool showFull, uint8_t tier,
@@ -118,18 +107,20 @@ void EuBorder_DrawCities(ProjectFn project, int cx, int cy, int radius,
   for (uint8_t tier = 1; tier <= maxTier; tier++) {
     for (int i = 0; i < EU_CITY_COUNT; i++) {
       const EuCity& c = EU_CITIES[i];
-      // Czech cities come from our own list instead - same places, but with the
-      // abbreviations people actually recognise (PHA, not PRAH). Only places we
-      // really do have are skipped, so Dresden or Wroclaw, which fall inside the
-      // same rectangle, still get drawn from the European data.
       if (c.lat >= CZ_BOX_LAT0 && c.lat <= CZ_BOX_LAT1 &&
           c.lon >= CZ_BOX_LON0 && c.lon <= CZ_BOX_LON1 &&
           haveCzechCity(c.lat, c.lon)) continue;
+      if (c.lat >= SK_BOX_LAT0 && c.lat <= SK_BOX_LAT1 &&
+          c.lon >= SK_BOX_LON0 && c.lon <= SK_BOX_LON1 &&
+          haveSlovakCity(c.lat, c.lon)) continue;
       drawOneCity(c, project, cx, cy, r2, dotColor, textColor,
                   showFull, tier, lat0, lat1, lon0, lon1);
     }
     for (int i = 0; i < CZ_CITY_COUNT; i++)
       drawOneCity(CZ_CITIES[i], project, cx, cy, r2, dotColor, textColor,
+                  showFull, tier, lat0, lat1, lon0, lon1);
+    for (int i = 0; i < SK_CITY_COUNT; i++)
+      drawOneCity(SK_CITIES[i], project, cx, cy, r2, dotColor, textColor,
                   showFull, tier, lat0, lat1, lon0, lon1);
   }
 }

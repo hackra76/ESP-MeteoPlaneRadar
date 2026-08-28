@@ -77,7 +77,7 @@ td:first-child{color:var(--mut);width:50%}
 <header>
   <h1>MeteoPlaneRadar</h1><span class="ver" id="ver"></span>
   <span style="flex:1"></span>
-  <select id="uiLang" onchange="setLang(this.value)"><option value="0">Čeština</option><option value="1">English</option></select>
+  <select id="uiLang" onchange="setLang(this.value)"><option value="0">Čeština</option><option value="2">Slovenčina</option><option value="1">English</option></select>
 </header>
 
 <nav class="tabs" id="tabs">
@@ -148,6 +148,7 @@ td:first-child{color:var(--mut);width:50%}
       <label class="chk"><input type="checkbox" id="sClock"><span data-i18n="scrClock">Hodiny</span></label>
       <label class="chk"><input type="checkbox" id="sPlanes"><span data-i18n="scrPlanes">Letadla</span></label>
       <label class="chk"><input type="checkbox" id="sMeteo"><span data-i18n="scrMeteo">Meteoradar</span></label>
+      <label class="chk"><input type="checkbox" id="sTactical"><span data-i18n="scrTactical">Taktický radar</span></label>
       <label class="chk"><input type="checkbox" id="sForecast"><span data-i18n="scrForecast">Předpověď</span></label>
     </div>
     <p class="hint" data-i18n="scrHint">Vypnuté obrazovky se přeskakují. Nastavení je dostupné vždy.</p>
@@ -255,7 +256,7 @@ const D={
   remoteHint:"Rozsah se mění jen na obrazovkách Letadla a Meteoradar. Zásah pozastaví automatické střídání.",
   location:"Poloha",findCity:"Najít město",search:"Hledat",found:"Nalezeno",lat:"Zeměpisná šířka",lon:"Zeměpisná délka",
   locHint:"Změna polohy vyžaduje restart, o který se zařízení postará samo.",
-  screens:"Obrazovky",scrClock:"Hodiny",scrPlanes:"Letadla",scrMeteo:"Meteoradar",scrForecast:"Předpověď",
+  screens:"Obrazovky",scrClock:"Hodiny",scrPlanes:"Letadla",scrMeteo:"Meteoradar",scrTactical:"Taktický radar",scrForecast:"Předpověď",
   scrHint:"Vypnuté obrazovky se přeskakují. Nastavení je dostupné vždy.",autoRotate:"Automatické střídání (sekundy, 0 = vypnuto)",
   rotHint:"Střídání pozastaví přejetí prstem, dlouhý stisk nebo přepnutí z prohlížeče — na trojnásobek intervalu, pak pokračuje samo. Obyčejné klepnutí ho nezastaví, otevřený detail letadla ho drží. Na obrazovce Nastavení se nestřídá.",
   radar:"Meteoradar",radarSrc:"Zdroj dat",srcChmu:"ČHMÚ (ostřejší, jen ČR)",srcRv:"RainViewer (Evropa i svět)",
@@ -278,6 +279,41 @@ const D={
   settings:"Nastavení",
   saved:"Uloženo",failed:"Nepovedlo se",searching:"Hledám…",nothing:"Nic nenalezeno",
   disabled:"Obrazovka je vypnutá",confirmReset:"Opravdu smazat všechna nastavení včetně WiFi?"},
+ sk:{tabCtl:"Ovládanie",tabLoc:"Poloha",tabScr:"Obrazovky",tabLook:"Vzhľad",tabPlanes:"Lietadlá",tabSys:"Systém",
+  wifi:"WiFi",network:"Sieť",password:"Heslo",scan:"Vyhľadať",connect:"Pripojiť",
+  wifiHint:"Po uložení sa zariadenie pripojí a prístupový bod zmizne.",
+  wifiHintSta:"Zmena siete preruší spojenie s touto stránkou. Ak sa pripojenie nepodarí, zariadenie vytvorí vlastnú sieť MeteoPlaneRadar a zadáte ju znova.",
+  wifiNow:"Pripojené k sieti",
+  autoSaved:"Uložené",
+  liveHint:"Zmeny na tejto záložke sa ukladajú hneď, tlačidlo Uložiť tu nepotrebujete.",
+  restartHint:"Zmena obrazoviek, zdroja radaru alebo polohy vyžaduje reštart, takže sa ukladá až tlačidlom dole.",
+  remote:"Diaľkové ovládanie",rangeLbl:"Rozsah",statusHdr:"Stav zariadenia",
+  remoteHint:"Rozsah sa mení len na obrazovkách Lietadlá a Meteoradar. Zásah pozastaví automatické striedanie.",
+  location:"Poloha",findCity:"Nájsť mesto",search:"Hľadať",found:"Nájdené",lat:"Zemepisná šírka",lon:"Zemepisná dĺžka",
+  locHint:"Zmena polohy vyžaduje reštart, o ktorý sa zariadenie postará samo.",
+  screens:"Obrazovky",scrClock:"Hodiny",scrPlanes:"Lietadlá",scrMeteo:"Meteoradar",scrTactical:"Taktický radar",scrForecast:"Predpoveď",
+  scrHint:"Vypnuté obrazovky sa preskakujú. Nastavenia sú dostupné vždy.",autoRotate:"Automatické striedanie (sekundy, 0 = vypnuté)",
+  rotHint:"Striedanie pozastaví potiahnutie prstom, dlhé stlačenie alebo prepnutie z prehliadača — na trojnásobok intervalu, potom pokračuje samo. Obyčajné klepnutie ho nezastaví, otvorený detail lietadla ho drží. Na obrazovke Nastavenia sa nestrieda.",
+  radar:"Meteoradar",radarSrc:"Zdroj dát",srcChmu:"ČHMÚ (ostrejší, len ČR)",srcRv:"RainViewer (Európa a svet)",
+  radarHint:"Mimo ČR nemá ČHMÚ dáta a obrazovka zostane prázdna — použite RainViewer.",
+  brightness:"Jas",clockHdr:"Hodiny",
+  briDay:"Denný jas",briNight:"Nočný jas",nightAuto:"Prepínať automaticky podľa slnka",
+  nightOffset:"Posun voči východu/západu (min)",secStyle:"Sekundový prstenec",secOff:"vypnuté",secDots:"bodky",secLine:"čiara",secComet:"kométa",
+  clockColor:"Farba hodín",secColor:"Farba sekúnd",metric:"Metrické jednotky (m, km/h)",topBearing:"Hore na radare lietadiel",
+  planes:"Lietadlá",altMin:"Najnižšia výška (ft)",altMax:"Najvyššia výška (ft)",onlyCs:"Len lietadlá s volacím znakom",
+  sqAlert:"Upozorniť na núdzové squawky (7500/7600/7700)",watch:"Sledovaný callsign alebo ICAO",
+  planesHint:"Filtre sa týkajú len vykresľovania. Núdzový squawk ani sledované lietadlo neschovajú.",
+  planesView:"Zobrazenie radaru",
+  planesViewHint:"Nastavte smer, ktorým sa dívate z okna. Meteoradar sa zámerne neotáča. Jednotky platia pre detail lietadla.",
+  pwNone:"Zatiaľ nie je nastavené žiadne heslo — aktualizácia, import a reset sú otvorené.",
+  pwSet:"Heslo je nastavené.",
+  passNote:"Poznámka: predvolený stav je bez hesla — aktualizácia, import aj reset sú prístupné komukoľvek v sieti. Heslo sa ukladá v čitateľnej podobe, pretože aktualizačná stránka používa HTTP Basic, kde odtlačok nie je možné použiť; chráni teda pred domácnosťou, nie pred útočníkom. Zabudnuté heslo je možné zrušiť jedine podržaním tlačidla BOOT pri štarte (~3 s), čo vymaže aj WiFi a všetky ostatné nastavenia.",
+  system:"Systém",adminPass:"Súčasné heslo",newPass:"Nové heslo",
+  passHint:"Súčasné heslo je potrebné pre aktualizáciu, import, reset aj pre zmenu hesla. Prázdne nové heslo nič nemení; jedna medzera ochranu zruší.",
+  fwUpdate:"Aktualizácia firmvéru",export:"Export nastavení",import:"Import",reboot:"Reštart",factory:"Továrenský reset",save:"Uložiť nastavenia",
+  settings:"Nastavenia",
+  saved:"Uložené",failed:"Nepodarilo sa",searching:"Hľadám…",nothing:"Nič sa nenašlo",
+  disabled:"Obrazovka je vypnutá",confirmReset:"Naozaj vymazať všetky nastavenia vrátane WiFi?"},
  en:{tabCtl:"Control",tabLoc:"Location",tabScr:"Screens",tabLook:"Appearance",tabPlanes:"Aircraft",tabSys:"System",
   wifi:"WiFi",network:"Network",password:"Password",scan:"Scan",connect:"Connect",
   wifiHint:"After saving the device connects and the access point disappears.",
@@ -290,7 +326,7 @@ const D={
   remoteHint:"The range only applies to the Aircraft and Weather screens. Using this pauses the automatic cycling.",
   location:"Location",findCity:"Find a town",search:"Search",found:"Found",lat:"Latitude",lon:"Longitude",
   locHint:"Changing the location needs a restart, which the device does by itself.",
-  screens:"Screens",scrClock:"Clock",scrPlanes:"Aircraft",scrMeteo:"Weather radar",scrForecast:"Forecast",
+  screens:"Screens",scrClock:"Clock",scrPlanes:"Aircraft",scrMeteo:"Weather radar",scrTactical:"Tactical radar",scrForecast:"Forecast",
   scrHint:"Disabled screens are skipped. Settings is always reachable.",autoRotate:"Auto cycling (seconds, 0 = off)",
   rotHint:"Cycling is paused by a swipe, a long press or a switch from the browser - for three times the interval, then it resumes on its own. A plain tap does not stop it; an open aircraft detail holds it. It does not run on the Settings screen.",
   radar:"Weather radar",radarSrc:"Data source",srcChmu:"CHMU (sharper, Czechia only)",srcRv:"RainViewer (Europe and beyond)",
@@ -316,10 +352,13 @@ const D={
 let L="cs", CFG={}, TAB="tCtl";
 const $=id=>document.getElementById(id);
 
-function setLang(v){L=(v==1||v=="en")?"en":"cs";$("uiLang").value=(L=="en")?"1":"0";
+function setLang(v){
+ L=(v==1||v=="en")?"en":((v==2||v=="sk")?"sk":"cs");
+ $("uiLang").value=(L=="en")?"1":((L=="sk")?"2":"0");
  document.documentElement.lang=L;
  document.querySelectorAll("[data-i18n]").forEach(e=>{const t=D[L][e.dataset.i18n];if(t)e.textContent=t;});
- pwState();status();}
+ pwState();status();
+}
 
 // Tabs. The Save bar is hidden on Control - nothing there is saved, it is sent
 // straight away - so the button cannot look like it applies to the buttons.
@@ -338,7 +377,7 @@ function rgb565ToHex(v){const r=(v>>11&31)*255/31|0,g=(v>>5&63)*255/63|0,b=(v&31
 function hexToRgb565(h){const r=parseInt(h.substr(1,2),16),g=parseInt(h.substr(3,2),16),b=parseInt(h.substr(5,2),16);
  return ((r>>3)<<11)|((g>>2)<<5)|(b>>3);}
 
-const SCR=[["scrClock",0],["scrPlanes",1],["scrMeteo",2],["scrForecast",3],["settings",4]];
+const SCR=[["scrClock",0],["scrPlanes",1],["scrMeteo",2],["scrTactical",3],["scrForecast",4],["settings",5]];
 function drawScrBtns(cur,enabled){
  $("scrBtns").innerHTML=SCR.map(([k,i])=>{
   const on=enabled?enabled[i]:true;
@@ -411,7 +450,7 @@ async function load(){
  $("wifiHintTxt").textContent=CFG.apMode?D[L].wifiHint:D[L].wifiHintSta;
  $("lat").value=CFG.lat.toFixed(4);$("lon").value=CFG.lon.toFixed(4);
  $("sClock").checked=CFG.screens.clock;$("sPlanes").checked=CFG.screens.planes;
- $("sMeteo").checked=CFG.screens.meteo;$("sForecast").checked=CFG.screens.forecast;
+ $("sMeteo").checked=CFG.screens.meteo;$("sTactical").checked=CFG.screens.tactical;$("sForecast").checked=CFG.screens.forecast;
  $("autoRotate").value=CFG.autoRotate;$("radarSrc").value=CFG.radarSrc;
  $("briDay").value=CFG.briDay;$("briNight").value=CFG.briNight;
  $("nightAuto").checked=CFG.nightAuto;$("nightOffset").value=CFG.nightOffset;
@@ -457,7 +496,7 @@ function body(){return{lat:parseFloat($("lat").value),lon:parseFloat($("lon").va
  altMin:+$("altMin").value,altMax:+$("altMax").value,onlyCallsign:$("onlyCallsign").checked,
  squawkAlert:$("squawkAlert").checked,watch:$("watch").value,
  password:$("adminPass").value,newPassword:$("newPass").value,
- screens:{clock:$("sClock").checked,planes:$("sPlanes").checked,meteo:$("sMeteo").checked,forecast:$("sForecast").checked}};}
+ screens:{clock:$("sClock").checked,planes:$("sPlanes").checked,meteo:$("sMeteo").checked,tactical:$("sTactical").checked,forecast:$("sForecast").checked}};}
 
 async function save(){
  const r=await fetch("/api/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body())});

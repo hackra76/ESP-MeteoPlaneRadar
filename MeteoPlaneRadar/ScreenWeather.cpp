@@ -127,8 +127,43 @@ static float yToLat(int y) {
 // Round display -> isotropic (square) crop.
 static const float ASPECT = (float)LCD_WIDTH / (float)LCD_HEIGHT;   // 1.0
 
-// Range 0 = the whole country: a fixed window that ignores the user's position.
-static bool isWholeCz() { return currentRange() <= 0.0f; }
+// Range 0 = the whole country: a fixed window that covers the country/region.
+static bool isWholeCountry() { return currentRange() <= 0.0f; }
+
+static bool isLocSK(double lat, double lon) {
+  return (lat >= 47.5 && lat <= 49.9 && lon >= 16.6 && lon <= 22.8);
+}
+static bool isLocCZ(double lat, double lon) {
+  return (lat >= 48.3 && lat <= 51.3 && lon >= 11.8 && lon <= 19.1);
+}
+
+static void getWholeCountryView(double* lat, double* lon, float* radiusKm, StrId* strId) {
+  double ulat = Settings_Lat(), ulon = Settings_Lon();
+  if (rvMode()) {
+    if (isLocSK(ulat, ulon) || (!isLocCZ(ulat, ulon) && Lang_Get() == LANG_SK)) {
+      if (lat) *lat = SK_VIEW_LAT;
+      if (lon) *lon = SK_VIEW_LON;
+      if (radiusKm) *radiusKm = SK_VIEW_RADIUS_KM;
+      if (strId) *strId = S_WHOLE_SK;
+    } else if (isLocCZ(ulat, ulon) || Lang_Get() == LANG_CZ) {
+      if (lat) *lat = CZ_VIEW_LAT;
+      if (lon) *lon = CZ_VIEW_LON;
+      if (radiusKm) *radiusKm = CZ_VIEW_RADIUS_KM;
+      if (strId) *strId = S_WHOLE_CZ;
+    } else {
+      if (lat) *lat = ulat;
+      if (lon) *lon = ulon;
+      if (radiusKm) *radiusKm = 250.0f;
+      if (strId) *strId = S_WHOLE_COUNTRY;
+    }
+  } else {
+    // CHMU only covers Czech Republic
+    if (lat) *lat = CZ_VIEW_LAT;
+    if (lon) *lon = CZ_VIEW_LON;
+    if (radiusKm) *radiusKm = CZ_VIEW_RADIUS_KM;
+    if (strId) *strId = S_WHOLE_CZ;
+  }
+}
 
 // IMPORTANT: the crop is deliberately NOT clamped to the image.
 //
@@ -142,9 +177,7 @@ static void makeCrop(double lat, double lon, float radiusKm) {
   int x1, y1, x2, y2;
 
   if (radiusKm <= 0.0f) {          // whole country: fixed centre, fixed radius
-    lat = CZ_VIEW_LAT;
-    lon = CZ_VIEW_LON;
-    radiusKm = CZ_VIEW_RADIUS_KM;
+    getWholeCountryView(&lat, &lon, &radiusKm, nullptr);
   }
 
   float degLat = radiusKm / 111.32f;
@@ -406,12 +439,16 @@ static void drawOverlay() {
   }
 
   // Range + indicator dots (bottom centre) with a backing.
-  char rbuf[16];
-  if (isWholeCz())      snprintf(rbuf, sizeof(rbuf), "%s", T(S_WHOLE_CZ));
+  char rbuf[24];
+  if (isWholeCountry()) {
+    StrId s = S_WHOLE_CZ;
+    getWholeCountryView(nullptr, nullptr, nullptr, &s);
+    snprintf(rbuf, sizeof(rbuf), "%s", T(s));
+  }
   else if (rvMode())    snprintf(rbuf, sizeof(rbuf), "%.0f %s",
                                  RainViewer_EffectiveRadiusKm(), T(S_KM));
   else                  snprintf(rbuf, sizeof(rbuf), "%.0f %s", currentRange(), T(S_KM));
-  gfx->fillRect(CX - 56, LY_RANGE - 4, 112, 24, C_BLACK);
+  gfx->fillRect(CX - 70, LY_RANGE - 4, 140, 24, C_BLACK);
   UI_TextCenteredIn(rbuf, 0, LCD_WIDTH, LY_RANGE, C_YELLOW, 2);
   int dotGap = 16, dotY = LY_RANGE_DOTS, totalW = (RANGE_COUNT - 1) * dotGap;
   int startX = CX - totalW / 2;
@@ -424,7 +461,11 @@ static void drawOverlay() {
 
 void ScreenWeather_RangeText(char* out, size_t cap) {
   if (!out || !cap) return;
-  if (isWholeCz())   snprintf(out, cap, "%s", T(S_WHOLE_CZ));
+  if (isWholeCountry()) {
+    StrId s = S_WHOLE_CZ;
+    getWholeCountryView(nullptr, nullptr, nullptr, &s);
+    snprintf(out, cap, "%s", T(s));
+  }
   else if (rvMode()) snprintf(out, cap, "%.0f %s", RainViewer_EffectiveRadiusKm(), T(S_KM));
   else               snprintf(out, cap, "%.0f %s", currentRange(), T(S_KM));
 }
@@ -454,7 +495,14 @@ void ScreenWeather_ChangeRange(int dir) {
     // again. Begin() notices the change and restarts the incremental fetch.
     s_curFrame = 0;
     s_gap = false;
-    RainViewer_Begin(Settings_Lat(), Settings_Lon(), currentRange(), CHMU_ANIM_MAX);
+    double vlat = Settings_Lat(), vlon = Settings_Lon();
+    float vrng = currentRange();
+    if (vrng <= 0.0f) {
+      getWholeCountryView(&vlat, &vlon, &vrng, nullptr);
+      RainViewer_Begin(vlat, vlon, -vrng, CHMU_ANIM_MAX);
+    } else {
+      RainViewer_Begin(vlat, vlon, vrng, CHMU_ANIM_MAX);
+    }
   }
 }
 
@@ -464,8 +512,13 @@ void ScreenWeather_ChangeRange(int dir) {
 static bool tickRainViewer() {
   unsigned long now = millis();
   float rng = currentRange();
-
-  RainViewer_Begin(Settings_Lat(), Settings_Lon(), rng, CHMU_ANIM_MAX);
+  double vlat = Settings_Lat(), vlon = Settings_Lon();
+  if (rng <= 0.0f) {
+    getWholeCountryView(&vlat, &vlon, &rng, nullptr);
+    RainViewer_Begin(vlat, vlon, -rng, CHMU_ANIM_MAX);
+  } else {
+    RainViewer_Begin(vlat, vlon, rng, CHMU_ANIM_MAX);
+  }
 
   if (RainViewer_Busy()) {
     s_loading = true;
@@ -618,14 +671,14 @@ void ScreenWeather_Draw() {
     float rng = rvMode() ? RainViewer_EffectiveRadiusKm() : currentRange();
     // Careful: range 0 means the WHOLE COUNTRY, not a tiny one - comparing it
     // numerically would light up every village on the widest view of all.
-    bool    showFull = !isWholeCz() && (rng <= 50.0f);
+    bool    showFull = !isWholeCountry() && (rng <= 50.0f);
     uint8_t maxTier;
     // Tier 3 pulls in the Czech district towns, which is what makes the map
     // over the republic look like it used to. Wider views drop back to tier 2,
     // otherwise the country turns into a wall of labels.
-    if      (isWholeCz())   maxTier = 2;
-    else if (rng <= 100.0f) maxTier = 3;
-    else                    maxTier = 2;
+    if      (isWholeCountry()) maxTier = 2;
+    else if (rng <= 100.0f)    maxTier = 3;
+    else                       maxTier = 2;
     EuBorder_DrawCities(borderProject, CX, CY, DISP_R, C_WHITE, C_CYAN,
                         showFull, maxTier, lat0, lat1, lon0, lon1);
   }

@@ -288,11 +288,12 @@ static bool fetchIndex(int wantFrames) {
 static void computeGrid() {
   double wx, wy;
   double lat = s_lat, lon = s_lon;
-  float  rad = s_reqRadius;
-  if (rad <= 0.0f) { lat = CZ_VIEW_LAT; lon = CZ_VIEW_LON; rad = CZ_VIEW_RADIUS_KM; }
+  float  rad = fabsf(s_reqRadius);
+  const bool isWhole = (s_reqRadius <= 0.0f);
+  if (rad < 0.01f) rad = 250.0f;
 
   // The whole-country view must not come back narrower than the country.
-  chooseZoomAndScale(lat, rad, s_reqRadius <= 0.0f);
+  chooseZoomAndScale(lat, rad, isWhole);
   lonLatToWorld(lat, lon, s_zoom, &wx, &wy);
   s_originX = wx - viewWorldW() / 2.0;
   s_originY = wy - viewWorldH() / 2.0;

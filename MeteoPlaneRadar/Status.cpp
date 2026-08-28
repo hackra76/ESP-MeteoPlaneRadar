@@ -30,8 +30,11 @@ void Status_Text(StatusSlot slot, char* out, size_t cap) {
   if (!s_at[slot]) { snprintf(out, cap, "-"); return; }
 
   unsigned long age = (millis() - s_at[slot]) / 1000UL;
-  const bool en = (Lang_Get() == LANG_EN);
-  if (age < 90)          snprintf(out, cap, "%s (%lu %s)", s_txt[slot], age, en ? "s ago" : "s zpet");
-  else if (age < 5400)   snprintf(out, cap, "%s (%lu %s)", s_txt[slot], age / 60, en ? "min ago" : "min zpet");
-  else                   snprintf(out, cap, "%s (%lu %s)", s_txt[slot], age / 3600, en ? "h ago" : "h zpet");
+  const uint8_t lang = Lang_Get();
+  const char* agoS = (lang == LANG_EN) ? "s ago" : ((lang == LANG_SK) ? "s dozadu" : "s zpet");
+  const char* agoM = (lang == LANG_EN) ? "min ago" : ((lang == LANG_SK) ? "min dozadu" : "min zpet");
+  const char* agoH = (lang == LANG_EN) ? "h ago" : ((lang == LANG_SK) ? "h dozadu" : "h zpet");
+  if (age < 90)          snprintf(out, cap, "%s (%lu %s)", s_txt[slot], age, agoS);
+  else if (age < 5400)   snprintf(out, cap, "%s (%lu %s)", s_txt[slot], age / 60, agoM);
+  else                   snprintf(out, cap, "%s (%lu %s)", s_txt[slot], age / 3600, agoH);
 }

@@ -57,7 +57,7 @@ void    Settings_SetNight(bool night);
 // --- Units, language --------------------------------------------------------
 bool    Settings_MetricUnits();
 void    Settings_SetMetricUnits(bool metric);
-uint8_t Settings_Language();               // LANG_CZ / LANG_EN
+uint8_t Settings_Language();               // LANG_CZ / LANG_EN / LANG_SK
 void    Settings_SetLanguage(uint8_t l);
 
 // --- Screens ----------------------------------------------------------------

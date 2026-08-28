@@ -85,6 +85,7 @@
 #include "CHMU.h"
 #include "RainViewer.h"
 #include "ScreenWeather.h"
+#include "ScreenTactical.h"
 #include "ScreenClock.h"
 #include "ScreenForecast.h"
 #include "ScreenSettings.h"
@@ -270,6 +271,7 @@ static void drawActive() {
     case SCREEN_CLOCK_I:    ScreenClock_Draw();    break;
     case SCREEN_PLANES_I:   ScreenPlanes_Draw();   break;
     case SCREEN_METEO_I:    ScreenWeather_Draw();  break;
+    case SCREEN_TACTICAL_I: ScreenTactical_Draw(); break;
     case SCREEN_FORECAST_I: ScreenForecast_Draw(); break;
     case SCREEN_SETTINGS_I: ScreenSettings_Draw(); break;
   }
@@ -282,6 +284,7 @@ static void enterActive() {
     case SCREEN_CLOCK_I:    ScreenClock_Enter();    break;
     case SCREEN_PLANES_I:   ScreenPlanes_Enter();   break;
     case SCREEN_METEO_I:    ScreenWeather_Enter();  break;
+    case SCREEN_TACTICAL_I: ScreenTactical_Enter(); break;
     case SCREEN_FORECAST_I: ScreenForecast_Enter(); break;
     case SCREEN_SETTINGS_I: ScreenSettings_Enter(); break;
   }
@@ -320,6 +323,7 @@ static bool activeTick() {
     case SCREEN_CLOCK_I:    return ScreenClock_Tick();
     case SCREEN_PLANES_I:   return ScreenPlanes_Tick();
     case SCREEN_METEO_I:    return ScreenWeather_Tick();
+    case SCREEN_TACTICAL_I: return ScreenTactical_Tick();
     case SCREEN_FORECAST_I: return ScreenForecast_Tick();
     case SCREEN_SETTINGS_I: return ScreenSettings_Tick();
   }
@@ -328,8 +332,9 @@ static bool activeTick() {
 
 static void activeChangeRange(int dir) {
   switch (s_screen) {
-    case SCREEN_PLANES_I: ScreenPlanes_ChangeRange(dir);  break;
-    case SCREEN_METEO_I:  ScreenWeather_ChangeRange(dir); break;
+    case SCREEN_PLANES_I:   ScreenPlanes_ChangeRange(dir);   break;
+    case SCREEN_METEO_I:    ScreenWeather_ChangeRange(dir);  break;
+    case SCREEN_TACTICAL_I: ScreenTactical_ChangeRange(dir); break;
     default: break;   // the other screens have no range
   }
 }
@@ -338,6 +343,7 @@ static bool activeTap(int x, int y) {
   switch (s_screen) {
     case SCREEN_CLOCK_I:    return ScreenClock_HandleTap(x, y);
     case SCREEN_PLANES_I:   return ScreenPlanes_HandleTap(x, y);
+    case SCREEN_TACTICAL_I: return ScreenTactical_HandleTap(x, y);
     case SCREEN_SETTINGS_I: return ScreenSettings_HandleTap(x, y);
     default: return false;
   }
@@ -346,7 +352,14 @@ static bool activeTap(int x, int y) {
 // Is a modal (the aircraft detail) open? Then swipe/long-press are captured to
 // close it rather than change range / switch screen.
 static bool activeModalOpen() {
-  return (s_screen == SCREEN_PLANES_I) && ScreenPlanes_DetailOpen();
+  if (s_screen == SCREEN_PLANES_I)   return ScreenPlanes_DetailOpen();
+  if (s_screen == SCREEN_TACTICAL_I) return ScreenTactical_DetailOpen();
+  return false;
+}
+
+static void closeModal() {
+  if (s_screen == SCREEN_PLANES_I)        ScreenPlanes_CloseDetail();
+  else if (s_screen == SCREEN_TACTICAL_I) ScreenTactical_CloseDetail();
 }
 
 // Act on a gesture captured earlier (possibly during a download). Called only
@@ -361,12 +374,12 @@ static void dispatchTouch() {
     case PEND_SWIPE:
       // With the detail open a swipe just closes it, so you cannot accidentally
       // re-scale the map behind the panel.
-      if (activeModalOpen()) { ScreenPlanes_CloseDetail(); drawActive(); }
+      if (activeModalOpen()) { closeModal(); drawActive(); }
       else                   { activeChangeRange(a); drawActive(); }
       s_touchPauseUntil = millis() + autoRotatePauseMs();
       break;
     case PEND_LONG:
-      if (activeModalOpen()) { ScreenPlanes_CloseDetail(); drawActive(); }
+      if (activeModalOpen()) { closeModal(); drawActive(); }
       else switchScreen(a < LCD_WIDTH / 2 ? -1 : +1);
       s_touchPauseUntil = millis() + autoRotatePauseMs();
       break;

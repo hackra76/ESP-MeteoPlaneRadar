@@ -51,7 +51,7 @@
 #define ADSB_MAX 100       // max aircraft held/drawn (airborne only)
 
 // Selectable ranges in km. Keep them ascending; the count is derived.
-#define PLANE_RANGES_KM { 10.0f, 25.0f, 50.0f, 100.0f }
+#define PLANE_RANGES_KM { 10.0f, 25.0f, 50.0f, 100.0f, 200.0f }
 
 // Poll interval by range - larger areas return more data and are less
 // time-critical, so they are polled less often (easier on the free API).
@@ -63,12 +63,12 @@
 #define ADSB_MID_KM  50.0f
 
 // ---------------------------------------------------------------------------
-//  Weather radar (CHMU)
+//  Weather radar (CHMU) & Tactical radar
 // ---------------------------------------------------------------------------
 // Radius in km around the user's position. The value 0 is special: it means
-// "the whole country", a fixed view that ignores where the user is (see the
-// CZ_VIEW_* box below). Keep it last - it is the widest of them all.
-#define METEO_RANGES_KM { 25.0f, 50.0f, 100.0f, 200.0f, 0.0f }
+// "the whole country", a fixed view that ignores where the user is.
+#define METEO_RANGES_KM    { 25.0f, 50.0f, 100.0f, 200.0f, 0.0f }
+#define TACTICAL_RANGES_KM { 25.0f, 50.0f, 100.0f, 200.0f, 0.0f }
 
 // Prodleva mezi pokusy o data meteoradaru, kdyz zadna nejsou. Plati pro oba
 // zdroje: u CHMU bez ni slo prvni nacteni znovu pri kazdem pruchodu smyckou,
@@ -89,6 +89,12 @@
 #define CZ_VIEW_LAT       49.805f
 #define CZ_VIEW_LON       15.475f
 #define CZ_VIEW_RADIUS_KM 260.0f
+
+// Whole Slovakia view: centered around middle of SVK extent (48.70 N, 19.70 E)
+// 250 km radius covers Slovakia from Zahorie to Nova Sedlica with safe margin.
+#define SK_VIEW_LAT       48.700f
+#define SK_VIEW_LON       19.700f
+#define SK_VIEW_RADIUS_KM 250.0f
 
 // ---------------------------------------------------------------------------
 //  Clock and outside temperature (the line under the screen dots)
@@ -257,9 +263,10 @@
 #define SCREEN_CLOCK_I    0
 #define SCREEN_PLANES_I   1
 #define SCREEN_METEO_I    2
-#define SCREEN_FORECAST_I 3
-#define SCREEN_SETTINGS_I 4
-#define SCREEN_N          5
+#define SCREEN_TACTICAL_I 3
+#define SCREEN_FORECAST_I 4
+#define SCREEN_SETTINGS_I 5
+#define SCREEN_N          6
 
 // Automatic screen cycling: 0 = off, otherwise SECONDS between switches (it was
 // minutes up to 0.6.0 - see Settings.h).

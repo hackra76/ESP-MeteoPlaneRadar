@@ -1,182 +1,128 @@
-# MeteoPlaneRadar
+# MeteoPlaneRadar (Slovenská verzia s Taktickým radarom)
 
-**Hodiny, radar letadel, srážkový meteoradar a předpověď počasí na kulatém
-dotykovém displeji.** Běží na desce Waveshare ESP32-S3-Touch-LCD-2.1 a nastavuje
-se z prohlížeče.
+**Hodiny, radar lietadiel, zrážkový meteoradar, kombinovaný taktický radar a predpoveď počasia na okrúhlom dotykovom displeji.**  
+Funguje na vývojovej doske **Waveshare ESP32-S3-Touch-LCD-2.1** a konfiguruje sa jednoducho cez webový prehliadač.
 
-> Vyvíjí **[chiptron.cz](https://chiptron.cz)** a Claude AI.
-> English version: **[README_EN.md](README_EN.md)**
+> 🇸🇰 Tento projekt je rozšíreným forkom pôvodného projektu **[petus/MeteoPlaneRadar](https://github.com/petus/MeteoPlaneRadar)** od **[chiptron.cz](https://chiptron.cz)**.  
+> 🇬🇧 English version: **[README_EN.md](README_EN.md)**
 
 ---
 
-## Co to umí
+## 🌟 Hlavné vylepšenia v tomto forku
 
-| Obrazovka | Co ukazuje | Zdroj |
+* 🇸🇰 **Plná podpora slovenského jazyka (`LANG_SK`)** – kompletná diakritika na displeji, v captive portáli, OTA rozhraní aj vo webovej administrácii (prepínač `Slovenčina` / `Čeština` / `English`).
+* 🛰️ **Nová obrazovka Taktického radaru (`ScreenTactical`)** – kombinovaný pohľad v reálnom čase, ktorý spája zrážkový meteoradar (podklad) a živú letovú prevádzku ADS-B (popredie) na jednom displeji vrátane kurzu, výšky, volacích znakov a interaktívneho detailu lietadla po klepnutí.
+* 🔍 **Zosúladenie 5 úrovní priblíženia naprieč obrazovkami** – `10/25 km`, `50 km`, `100 km`, `200 km` a `Celé Slovensko / Celá ČR` (`0 km`).
+* 🇸🇰 **Zobrazenie celej krajiny podľa polohy** – pri maximálnom oddialení meteoradaru a taktického radaru sa na základe polohy automaticky vycentruje a zobrazí celé územie Slovenska (polomer 250 km, Zoom 6) alebo ČR.
+* 🏙️ **Optimalizovaná databáza slovenských miest (`SkCitiesData.h`)** – 17 vybraných a prehľadne rozmiestnených centier s 2-písmenovými skratkami a hierarchiou zobrazenia, ktorá zabraňuje prekrývaniu textu.
+* ⚡ **Optimalizácia sieťových požiadaviek v pozadí** – lietadlá, zrážkový radar a peľové správy sa sťahujú výhradne pre aktívne/povolené obrazovky, čo šetrí pamäť aj procesor.
+* 🛠️ **Kompletná integrácia s PlatformIO (`platformio.ini`)** – jednoduchá kompilácia a nahrávanie do ESP32-S3 jedným klikom/príkazom.
+
+---
+
+## 📱 Obrazovky
+
+| Obrazovka | Popis | Zdroj dát |
 | --- | --- | --- |
-| **Hodiny** | čas, datum, počasí, vteřinový prstenec | Open-Meteo |
-| **Letadla** | letadla v okolí, detail letu včetně trasy | adsb.fi, adsb.lol |
-| **Meteoradar** | animovaná srážková situace | ČHMÚ nebo RainViewer |
-| **Předpověď** | 6 hodin a 3 dny, ovzduší a pyl | Open-Meteo |
-| **Nastavení** | jas, orientace mapy, jednotky, jazyk | — |
+| **Hodiny** | Aktuálny čas, dátum, vonkajšia teplota, ikona počasia a sekundový prstenec | Open-Meteo |
+| **Lietadlá** | Živá letová prevádzka v okolí, kurzy, výšky, núdzové squawky, detail letu s trasou | adsb.fi, adsb.lol |
+| **Meteoradar** | Animovaný zrážkový radar | ČHMÚ alebo RainViewer |
+| **Taktický radar** | **Kombinovaný pohľad:** Zrážky + lietadlá v reálnom čase na jednej obrazovke | RainViewer / ČHMÚ + adsb.fi |
+| **Předpoveď** | Hodinová predpoveď (6 h), denný výhľad (3 dni), kvalita ovzdušia (AQI, PM2.5) a peľová situácia | Open-Meteo |
+| **Nastavenia** | Prehľad stavu, IP adresa, jas, orientácia mapy, jazyk a WiFi | — |
 
-První čtyři jdou vypnout, Nastavení je dostupné vždy. Rozhraní je česky nebo
-anglicky.
-
-## Hardware
-
-**Waveshare ESP32-S3-Touch-LCD-2.1** — ESP32-S3R8 (8 MB PSRAM, 16 MB flash),
-kulatý displej 480×480 s řadičem ST7701, dotyk CST820, expandér TCA9554.
-Stačí deska a USB-C kabel, nic se nepájí.
+Všetky dátové obrazovky sa dajú vo webovom rozhraní zapnúť/vypnúť podľa preferencií; obrazovka Nastavenia je dostupná vždy.
 
 ---
 
-## První zapnutí
+## 🔧 Hardware
 
-1. Nahrajte firmware (viz níže) a zapněte desku.
-2. Připojte se k otevřené síti **`MeteoPlaneRadar`** — na displeji je QR kód.
-3. Otevřete `http://192.168.4.1/`, vyberte svou WiFi a uložte.
+Projekt je pripravený pre dosku **[Waveshare ESP32-S3-Touch-LCD-2.1](https://www.waveshare.com/esp32-s3-touch-lcd-2.1.htm)**:
+- **MCU:** ESP32-S3R8 (Dual-Core 240 MHz, 8 MB Octal PSRAM, 16 MB Flash)
+- **Displej:** Okrúhly 2.1" IPS dotykový displej (480×480 px, ST7701 RGB interface)
+- **Dotyk:** CST820 (kapacitný, I2C)
+- **I/O expandér:** TCA9554 (napájanie a reset LCD)
+- **Pripojenie:** USB-C (nie je potrebné nič spájkovať).
 
-Přístupový bod zůstane aktivní, dokud síť nezadáte. Potom najdete nastavení na
-**`http://meteoplaneradar.local/`** nebo na IP adrese, která je vypsaná na
-obrazovce Nastavení.
+---
 
-## Nastavení v prohlížeči
+## 🚀 Prvé spustenie a konfigurácia
 
-Web běží trvale. Nastavíte v něm polohu (i vyhledáním města), které obrazovky
-zobrazovat a jestli se mají střídat, zdroj meteoradaru, jazyk, denní a noční
-jas, vzhled hodin, filtry letadel a upozornění na nouzové squawky. Je tam i
-dálkové ovládání (přepínání obrazovek a rozsahu bez dotyku displeje), stavová
-stránka, export a import nastavení a aktualizace firmwaru.
+1. Nahrajte firmvér do dosky (cez USB alebo PlatformIO).
+2. Po zapnutí doska vytvorí otvorenú WiFi sieť **`MeteoPlaneRadar`** (na displeji sa zobrazí QR kód).
+3. Pripojte sa k nej smartfónom alebo počítačom a otvorte adresu **`http://192.168.4.1/`**.
+4. Vyberte vašu domácu WiFi sieť, zadajte heslo a uložte.
+5. Po pripojení nájdete webové rozhranie na adrese:
+   - **`http://meteoplaneradar.local/`** (alebo na IP adrese zobrazenej na obrazovke Nastavenia).
 
-Většina položek se **ukládá hned po změně**. Tlačítko Uložit zůstává jen pro
-polohu, výběr obrazovek a zdroj meteoradaru — ty vyžadují restart zařízení.
+### Webové rozhranie
+Web beží trvalo na pozadí a umožňuje:
+- Nastavenie polohy (vrátane vyhľadania mesta).
+- Výber aktívnych obrazoviek a automatického striedania (interval v sekundách).
+- Výber zdroja zrážok (ČHMÚ pre ČR / RainViewer pre Európu a svet).
+- Denný a nočný jas (manuálne alebo automaticky podľa východu/západu slnka).
+- Filtre letovej hladiny, sledovanie konkrétneho volacieho znaku a núdzových squawkov.
+- Diaľkové ovládanie prepínania obrazoviek a zmeny priblíženia bez dotyku displeja.
+- Export a import nastavení, OTA aktualizáciu firmvéru.
 
-### Heslo
+---
 
-Heslo je **nepovinné a ve výchozím stavu žádné není** — aktualizace firmwaru,
-import nastavení i tovární reset jsou hned po nahrání přístupné komukoli, kdo se
-dostane na adresu zařízení. Nastavíte ho v záložce Systém: pole *Současné heslo*
-necháte poprvé prázdné a vyplníte jen *Nové heslo*. Jedna mezera v Novém hesle
-ochranu zase zruší. Uživatelské jméno na stránce `/update` je `admin`.
+## 🖐️ Dotykové ovládanie
 
-Heslo se **ukládá v čitelné podobě**. Aktualizační stránka používá HTTP Basic a
-knihovně se musí předat skutečné heslo, takže otisk tam použít nelze — hashovat
-kopii v NVS, když vedle leží totéž otevřeně, by bylo jen divadlo. Chrání to před
-domácností, ne před někým, kdo si přečte flash nebo odposlouchává síť.
-
-**Zapomenuté heslo** jde zrušit jedině podržením tlačítka **BOOT při startu
-(~3 s)**. To provede tovární reset, takže smaže i WiFi a všechna ostatní
-nastavení.
-
-## Ovládání
-
-| Gesto | Akce |
+| Gesto / Akcia | Funkcia |
 | --- | --- |
-| **Přejetí prstem** | změna rozsahu (letadla, meteoradar) |
-| **Krátké klepnutí** | výběr letadla / přepnutí den–noc na hodinách |
-| **Dlouhý stisk vlevo / vpravo** | předchozí / následující obrazovka |
-| **BOOT při startu (~3 s)** | tovární reset |
-
-Na obrazovce Nastavení se řádkem `Nahore` volí, **který světový směr je nahoře**
-na radaru letadel — tedy směr, kterým se díváte z okna. Meteoradar se záměrně
-neotáčí.
-
-## Meteoradar: ČHMÚ nebo RainViewer
-
-**ČHMÚ** je ostřejší, ale pokrývá jen ČR a okolí — s polohou v zahraničí zůstane
-obrazovka prázdná. **RainViewer** pokrývá Evropu i svět. Jeho dlaždice končí na
-zoomu 7, takže bližší rozsahy se skládají ze zoomu 7 zvětšeného mocninou dvojky;
-obraz je hrubší, ale víc detailu RainViewer nemá. Stahuje se postupně — nejdřív
-nejnovější snímek, animace se dotáhne na pozadí. Legenda se přepíná spolu se
-zdrojem, protože každý má vlastní paletu.
-
-## Hodiny bez NTP
-
-Čas se bere z hlavičky `Date` odpovědí, které zařízení stahuje tak jako tak.
-Neprochází UDP portem 123, nedá se zvlášť zablokovat a nečeká se na něj při
-startu. Časové pásmo je v `TZ_INFO` v `Config.h`.
+| **Potiahnutie doľava / doprava (Swipe)** | Zmena priblíženia (rozsahu) radaru (10/25, 50, 100, 200 km, Celá krajina) |
+| **Klepnutie na lietadlo (Tap)** | Otvorenie / zatvorenie detailu vybraného lietadla s trasou |
+| **Klepnutie na spodok displeja** | Cyklovanie úrovní priblíženia radaru |
+| **Dlhý stisk vľavo / vpravo** | Prepnutie na predchádzajúcu / nasledujúcu obrazovku |
+| **Podržanie tlačidla BOOT pri štarte (~3 s)** | Továrenský reset (vymazanie nastavení a WiFi) |
 
 ---
 
-## Nahrání firmwaru
+## 💻 Kompilácia a nahrávanie (PlatformIO)
 
-**Přes USB** (první nahrání a záchrana): stáhněte `*.merged.bin` z Releases,
-připojte desku do konektoru **USB** a nahrajte na
-[esp32flasher.chiptron.cz](https://esp32flasher.chiptron.cz) v Chrome nebo Edge.
+Projekt obsahuje kompletnú konfiguráciu `platformio.ini`:
 
-**Přes WiFi**: stáhněte `*.ino.bin` (bez `merged`) a nahrajte na
-`http://meteoplaneradar.local/update`. Displej během zápisu zhasne — RGB panel
-čte obraz z PSRAM a zápis do flash mu data odřezává. Po dokončení se rozsvítí.
+1. Otvorte projekt vo **Visual Studio Code** s rozšírením **PlatformIO IDE**.
+2. Pripojte dosku cez USB-C (port `USB`).
+3. Spustite zostavenie a nahrávanie:
+   ```powershell
+   # Kompilácia
+   pio run
 
-Podrobnosti v [OTA_NAVOD.md](OTA_NAVOD.md).
+   # Nahrávanie do dosky cez USB
+   pio run -t upload --upload-port COM9
+   ```
 
----
-
-## Pro vývojáře
-
-Arduino IDE, **ESP32 core 3.x**, knihovny: **GFX Library for Arduino**,
-**PNGdec**, **ArduinoJson v7**, QRCode (přibalen).
-`WebServer`, `DNSServer`, `ESPmDNS`, `Update` a `Preferences` jsou v core.
-WiFiManager se nepoužívá od 0.6.0, ElegantOTA od 0.6.2.
-
-Nastavení IDE: ESP32S3 Dev Module, **PSRAM: OPI**, Flash 16 MB QIO,
-**Partition Scheme: Custom** (`partitions.csv`, dvě aplikační oblasti pro OTA),
-USB CDC On Boot: Enabled. Nebo `arduino-cli compile --profile default MeteoPlaneRadar`.
-
-```
-MeteoPlaneRadar.ino   správce obrazovek, dotyk, hlavní smyčka
-Config.h              laditelné konstanty
-Settings.*            nastavení v NVS + JSON pro web
-Lang.*                české a anglické řetězce
-Layout.*              pásy obrazovky a hlídání kolizí
-WebConfig.* WebPage.h webový server, API, portál, OTA
-Net.*                 sdílené HTTPS stahování
-Forecast.*            Open-Meteo: předpověď, slunce, ovzduší
-RainViewer.*          dlaždicový radar
-Screen*.{h,cpp}       jednotlivé obrazovky
-```
-
-**Proč se prvky nepřekrývají:** obrazovka si své pásy zabere dřív, než se kreslí
-mapa. Cokoli umístěného podle dat (popisky měst, callsigny) si pak musí místo
-vyžádat, a když je zabrané, nekreslí se vůbec. Konstanty `LY_*` v `Layout.h`
-drží stejné prvky na stejných řádcích napříč obrazovkami.
-
-Sériový výpis 115200 Bd přes konektor **USB**. Totéž bez kabelu je na stavové
-stránce webu.
+### OTA aktualizácia cez WiFi
+V prehliadači otvorte **`http://meteoplaneradar.local/update`** a nahrajte súbor `.pio/build/esp32-s3-touch-lcd-21/firmware.bin`.
 
 ---
 
-## Zdroje dat
+## 🌐 Zdroje dát
 
-Jen pro osobní nekomerční použití — respektujte podmínky poskytovatelů.
+Projekt využíva bezplatné verejné rozhrania (určené len na osobné nekomerčné použitie):
+- **Lietadlá, registrácie a typy:** [adsb.fi](https://adsb.fi)
+- **Trasy letov:** [adsb.lol](https://adsb.lol)
+- **Srážkový radar SR a svet:** [RainViewer](https://www.rainviewer.com)
+- **Srážkový radar ČR:** [ČHMÚ](https://opendata.chmi.cz)
+- **Počasie, predpoveď a kvalita ovzdušia:** [Open-Meteo](https://open-meteo.com)
+- **Geokódovanie a poloha:** [ip-api.com](http://ip-api.com) a Open-Meteo Geocoding
+- **Vektorová mapa:** Hranice Natural Earth (public domain), mestá GeoNames (CC BY 4.0).
 
-**Letadla, registrace a typ:** [adsb.fi](https://adsb.fi) · **trasy:** [adsb.lol](https://adsb.lol) ·
-**srážky ČR:** [ČHMÚ](https://opendata.chmi.cz) ·
-**srážky svět:** [RainViewer](https://www.rainviewer.com) ·
-**počasí, ovzduší, geokódování:** [Open-Meteo](https://open-meteo.com) ·
-**poloha podle IP:** [ip-api.com](http://ip-api.com) ·
-**mapa:** hranice Natural Earth (public domain), města [GeoNames](https://www.geonames.org) (CC BY 4.0) ·
-**čas:** hlavička `Date` (bez NTP)
+---
 
-## Z čeho projekt vychází
+## 📄 Pôvodný projekt a poďakovanie
 
-- [ok1cdj/MeteoPlaneRadar](https://github.com/ok1cdj/MeteoPlaneRadar) — fork Ondry OK1CDJ; odtud pochází nápad na RainViewer, obrazovku předpovědi, volitelné obrazovky a jejich střídání
-- [CooLajz/waveshare-hodiny](https://github.com/CooLajz/waveshare-hodiny) — Home Assistant dashboard na stejné desce; inspirace pro hodiny, vteřinový prstenec, noční režim a webovou konfiguraci
-- [MatixYo/ESP32-Plane-Radar](https://github.com/MatixYo/ESP32-Plane-Radar) — původní radar letadel a zdroj adsb.fi
-- [Selbyl/ESP32-S30Touch-LCD-2.1_Plane-Radar](https://github.com/Selbyl/ESP32-S30Touch-LCD-2.1_Plane-Radar) — port na Waveshare 480×480
-- [mylms/ESP-MeteoRadar](https://github.com/mylms/ESP-MeteoRadar) — srážkový meteoradar ČHMÚ
+Tento projekt je forkom a rozšírením práce komunity:
+- **Pôvodný repozitár:** [petus/MeteoPlaneRadar](https://github.com/petus/MeteoPlaneRadar) (Petr / [chiptron.cz](https://chiptron.cz))
+- **Článok a popis hardware:** [chiptron.cz: Meteoradar a radar letadel na kulatém displeji](https://chiptron.cz/meteoradar-a-radar-letadel-na-jednom-kulatem-displeji/)
+- [ok1cdj/MeteoPlaneRadar](https://github.com/ok1cdj/MeteoPlaneRadar) – Ondra OK1CDJ (RainViewer a predpoveď)
+- [CooLajz/waveshare-hodiny](https://github.com/CooLajz/waveshare-hodiny) (inšpirácia pre hodiny, nočný režim a UI)
+- [MatixYo/ESP32-Plane-Radar](https://github.com/MatixYo/ESP32-Plane-Radar) a [Selbyl](https://github.com/Selbyl/ESP32-S30Touch-LCD-2.1_Plane-Radar)
 
-## Licence
+---
 
-**MIT** — viz [LICENSE.txt](LICENSE.txt). Vztahuje se na zdrojový kód i na
-binárky z něj přeložené. Od 0.6.2 v projektu není žádná copyleftová závislost.
+## 📜 Licencia
 
-**Na data se MIT nevztahuje.** **GeoNames**, **ČHMÚ**, **RainViewer** a
-**Open-Meteo** vyžadují **uvedení zdroje**; Open-Meteo a adsb.fi mají bezplatné
-API určené jen pro nekomerční použití. Podrobnosti jsou v `LICENSE.txt` —
-**přečtěte si ho celý, než to nasadíte komerčně.**
-
-Nad rámec licence budeme rádi, když na obrazovce nastavení ponecháte řádek
-**chiptron.cz**.
-
-Historie změn: [CHANGELOG.md](CHANGELOG.md). Verze: `MeteoPlaneRadar/Version.h`.
+Projekt je zverejnený pod licenciou **MIT** – viď [LICENSE.txt](LICENSE.txt).
