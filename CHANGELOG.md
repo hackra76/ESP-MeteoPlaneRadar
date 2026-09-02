@@ -11,6 +11,37 @@ pohromadě v `MeteoPlaneRadar/Config.h`.
 
 ---
 
+## [1.2.0] - 2026-09-02
+
+### Pridané / Added
+- **7 unikátnych dizajnových štýlov ciferníka (Clock Styles):**
+  - Classic Digital (digitálny klasický s počasím a fázou mesiaca)
+  - Aviator Cockpit Analog (letecký analóg s 2 sub-ciferníkmi)
+  - Orbital Gauges (3 sústredné sci-fi oblúky minút, hodín a sekúnd)
+  - Fighter HUD (stíhací priehľadový displej s umelým horizontom, boresight krížom a uzamknutým časom)
+  - Régulateur Chrono (vysokohodinársky trojosový regulátor s veľkou centrálnou minútovou ručičkou)
+  - Stacked Bold Typography (moderná smartwatch typografia Pixel/Nothing)
+  - Nordic Minimal (čistý masívny minimalistický čas)
+- **7 štýlov sekundového prstenca (Seconds Styles):** Vypnuté, Bodka, Plynulý oblúk, Pulz, Radarový lúč (Sweep s fosforovým doznievaním), Švajčiarske indexy (Ticks), Satelit na orbite (Orbit).
+- **Gesto dvojkliku (Double-Tap na 6-osové IMU QMI8658):** Prepínanie ciferníkov na obrazovke hodín a prepínanie čistého režimu (skrytie legiend) na radaroch.
+- **Vojenské lety a automatické zameranie núdzových squawkov (7500, 7600, 7700):** Červená ikona stíhačky s delta krídlami a automatické zamknutie na lietadlo v núdzi so stavovou telemetriou.
+- **Hardvér RTC čip (PCF85063):** Automatická synchronizácia s NTP, uchovanie času pri výpadku napájania/WiFi, podpora 3.3V superkondenzátora, diagnostika a web tlačidlá pre manuálnu synchronizáciu.
+- **Granulárne prepínače widgetov vo webe:** Samostatné prepínanie dátumu, počasia, vetra, mesiaca, letových chvostov, vektora k najbližšiemu lietadlu a kružníc.
+- **Nočný režim hodín (`nightClockOnly`):** Zastavenie rotácie obrazoviek v noci s trvalým zobrazením stlmených hodín.
+- **I2C Bus Scanner vo webovom rozhraní:** Živá detekcia pripojených čipov na zbernici.
+
+### Zmenené a Opravené / Changed & Fixed
+- **FreeRTOS Dual-Core stabilizácia:**
+  - Izolácia dotykového panelu CST820 výhradne na Jadro 1.
+  - Ochrana I2C zbernice rekurzívnym mutexom s časovým limitom 150 ms.
+  - Uvoľnenie mutexu radaru počas sieťových HTTPS prenosov (`fetchIndex` a `fetchOneTile`) na Jadre 0.
+  - Časový limit 200 ms na všetkých dátových mutexoch zamedzujúci akémukoľvek watchdog reštartu.
+  - Presná kalibrácia mbedTLS buffer guardu na 18 000 B podľa RFC špecifikácie.
+- **Zarovnanie grafiky:** Odstránenie prekrytia teploty a hodín, vycentrované zobrazenie komplikácií vo všetkých ciferníkoch.
+- **Kompletná trojjazyčná lokalizácia (SK, CS, EN):** Plná diakritika na displeji, v captive portáli, OTA rozhraní aj vo webovom dashboarde.
+
+---
+
 ## [0.6.4]
 
 ### Opraveno

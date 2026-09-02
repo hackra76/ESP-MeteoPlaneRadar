@@ -806,7 +806,7 @@ function drawVectorPreview(d) {
   ctx.fillStyle = "#22c55e"; ctx.font = "bold 14px monospace";
   ctx.fillText("H4CKR4", CX, 215);
   ctx.fillStyle = "#64748b"; ctx.font = "10px system-ui";
-  ctx.fillText("MeteoPlaneRadar v1.0.1", CX, 235);
+  ctx.fillText("MeteoPlaneRadar v1.2.0", CX, 235);
  }
 }
 
