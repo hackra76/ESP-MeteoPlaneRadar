@@ -226,8 +226,8 @@ long Net_ScanBody(HTTPClient& http, NetScanFn cb, void* user, const char* tag,
 bool Net_HeapOk(const char* tag) {
   size_t freeInt = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   size_t maxBlock = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-  if (freeInt >= NET_MIN_HEAP && maxBlock >= 17000) return true;
-  Serial.printf("%s: malo volne pameti (free %u B, max block %u B < 17000 B), stahovani odlozeno\n",
+  if (freeInt >= NET_MIN_HEAP && maxBlock >= 18000) return true;
+  Serial.printf("%s: malo volne pameti (free %u B, max block %u B < 18000 B), stahovani odlozeno\n",
                 tag, (unsigned)freeInt, (unsigned)maxBlock);
   return false;
 }
