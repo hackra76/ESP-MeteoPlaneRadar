@@ -15,6 +15,20 @@ Designed specifically for the **Waveshare ESP32-S3-Touch-LCD-2.1** development b
 
 ---
 
+## 📸 Live Device Demo
+
+<p align="center">
+  <img src="docs/media/tactical_radar_live.gif" width="31%" alt="Tactical Radar (Planes + Rain)" />
+  <img src="docs/media/weather_radar_chmu.gif" width="31%" alt="Animated Rain Radar loop" />
+  <img src="docs/media/clock_stacked_bold.gif" width="31%" alt="Stacked Bold Watch Face" />
+</p>
+
+<p align="center">
+  <em>From left to right: <b>Tactical Radar</b> (live aircraft tracking over precipitation map), <b>Weather Radar</b> (smooth radar loop), <b>Stacked Bold Watch Face</b>.</em>
+</p>
+
+---
+
 ## 🌟 Key Features & Innovations
 
 ### 🕒 1. Rich Collection of 7 Unique Clock Faces

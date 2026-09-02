@@ -14,6 +14,20 @@ Vyvinuté pre hardvérovú dosku **Waveshare ESP32-S3-Touch-LCD-2.1** s kompletn
 
 ---
 
+## 📸 Ukážka zariadenia v akcii (Live Demo)
+
+<p align="center">
+  <img src="docs/media/tactical_radar_live.gif" width="31%" alt="Taktický radar (Lietadlá + Zrážky)" />
+  <img src="docs/media/weather_radar_chmu.gif" width="31%" alt="Animovaný meteoradar ČHMÚ" />
+  <img src="docs/media/clock_stacked_bold.gif" width="31%" alt="Ciferník Stacked Bold" />
+</p>
+
+<p align="center">
+  <em>Zľava doprava: <b>Taktický radar</b> (live lietadlá nad zrážkovou mapou), <b>Zrážkový meteoradar</b> (slučka búrkovej oblačnosti), <b>Moderný ciferník Stacked Bold</b>.</em>
+</p>
+
+---
+
 ## 🌟 Kľúčové funkcie a inovácie v tomto forku
 
 ### 🕒 1. Bohatá kolekcia unikátnych ciferníkov hodín
