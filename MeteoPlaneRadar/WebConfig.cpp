@@ -524,10 +524,17 @@ static void handleLive() {
 }
 
 static void handleToggleLegends() {
-  Settings_ToggleLegends();
+  if (Settings_Screen() == SCREEN_CLOCK_I) {
+    uint8_t nextStyle = (Settings_ClockStyle() + 1) % (CLOCK_STYLE_MAX + 1);
+    Settings_SetClockStyle(nextStyle);
+    s_reqRedraw = true;
+  } else {
+    Settings_ToggleLegends();
+  }
   JsonDocument res;
   res["ok"] = true;
   res["legends"] = Settings_ShowLegends();
+  res["clockStyle"] = Settings_ClockStyle();
   sendJson(200, res);
 }
 
@@ -536,7 +543,13 @@ static void handleInput() {
   if (!readBody(doc)) { s_srv.send(400, "application/json", "{\"error\":\"json\"}"); return; }
   const char* cmd = doc["cmd"] | "";
   if (strcmp(cmd, "toggle_legends") == 0 || strcmp(cmd, "dbl_tap") == 0) {
-    Settings_ToggleLegends();
+    if (Settings_Screen() == SCREEN_CLOCK_I) {
+      uint8_t nextStyle = (Settings_ClockStyle() + 1) % (CLOCK_STYLE_MAX + 1);
+      Settings_SetClockStyle(nextStyle);
+      s_reqRedraw = true;
+    } else {
+      Settings_ToggleLegends();
+    }
   } else if (strcmp(cmd, "swipe_left") == 0 || strcmp(cmd, "range_plus") == 0) {
     s_reqRangeStep = +1;
   } else if (strcmp(cmd, "swipe_right") == 0 || strcmp(cmd, "range_minus") == 0) {
@@ -548,6 +561,7 @@ static void handleInput() {
   }
   JsonDocument res; res["ok"] = true;
   res["legends"] = Settings_ShowLegends();
+  res["clockStyle"] = Settings_ClockStyle();
   sendJson(200, res);
 }
 

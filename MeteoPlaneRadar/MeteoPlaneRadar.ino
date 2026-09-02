@@ -519,9 +519,16 @@ void setup() {
   // 6-Axis IMU (accelerometer / gyroscope for gestures and tilt)
   if (QMI8658_Init()) {
     QMI8658_OnDoubleTap([]() {
-      Settings_ToggleLegends();
-      drawActive();
-      Serial.printf("IMU Gesture: Double-tap detected -> ShowLegends = %d\n", Settings_ShowLegends());
+      if (s_screen == SCREEN_CLOCK_I) {
+        uint8_t nextStyle = (Settings_ClockStyle() + 1) % (CLOCK_STYLE_MAX + 1);
+        Settings_SetClockStyle(nextStyle);
+        drawActive();
+        Serial.printf("IMU Gesture: Double-tap on Clock -> ClockStyle = %d\n", nextStyle);
+      } else {
+        Settings_ToggleLegends();
+        drawActive();
+        Serial.printf("IMU Gesture: Double-tap detected -> ShowLegends = %d\n", Settings_ShowLegends());
+      }
     });
   }
 
