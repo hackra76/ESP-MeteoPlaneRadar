@@ -11,15 +11,25 @@
 #include "TCA9554.h"
 #include "Display_ST7701.h"   // LCD_WIDTH / LCD_HEIGHT
 #include "Config.h"           // TOUCH_DEBUG
+#include "AsyncCore.h"
 #include <Wire.h>
 
 static bool readRegs(uint8_t reg, uint8_t* buf, size_t len) {
+  Async_LockI2C();
   Wire.beginTransmission(CST820_ADDR);
   Wire.write(reg);
-  if (Wire.endTransmission(false) != 0) return false;
+  if (Wire.endTransmission(false) != 0) {
+    Async_UnlockI2C();
+    return false;
+  }
   uint8_t got = Wire.requestFrom((int)CST820_ADDR, (int)len);
-  if (got != len) { while (Wire.available()) Wire.read(); return false; }
+  if (got != len) {
+    while (Wire.available()) Wire.read();
+    Async_UnlockI2C();
+    return false;
+  }
   for (size_t i = 0; i < len; i++) buf[i] = Wire.read();
+  Async_UnlockI2C();
   return true;
 }
 

@@ -8,28 +8,44 @@
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)
 // =============================================================================
 #include "TCA9554.h"
+#include "AsyncCore.h"
 
 // Shadow copy of the output register (we flip individual bits).
 static uint8_t s_output = 0xFF;
 
 static bool writeReg(uint8_t reg, uint8_t val) {
+  Async_LockI2C();
   Wire.beginTransmission(TCA9554_ADDR);
   Wire.write(reg);
   Wire.write(val);
-  return Wire.endTransmission() == 0;
+  bool ok = (Wire.endTransmission() == 0);
+  Async_UnlockI2C();
+  return ok;
 }
 
 // ok = false means the expander did not answer; the value is then meaningless
 // (a failed read used to come back as 0xFF, which looks like a valid register).
 static uint8_t readReg(uint8_t reg, bool* ok = nullptr) {
   if (ok) *ok = false;
+  Async_LockI2C();
   Wire.beginTransmission(TCA9554_ADDR);
   Wire.write(reg);
-  if (Wire.endTransmission() != 0) return 0xFF;
-  if (Wire.requestFrom((int)TCA9554_ADDR, 1) != 1) return 0xFF;
-  if (!Wire.available()) return 0xFF;
+  if (Wire.endTransmission() != 0) {
+    Async_UnlockI2C();
+    return 0xFF;
+  }
+  if (Wire.requestFrom((int)TCA9554_ADDR, 1) != 1) {
+    Async_UnlockI2C();
+    return 0xFF;
+  }
+  if (!Wire.available()) {
+    Async_UnlockI2C();
+    return 0xFF;
+  }
   if (ok) *ok = true;
-  return Wire.read();
+  uint8_t val = Wire.read();
+  Async_UnlockI2C();
+  return val;
 }
 
 void TCA9554_Init() {

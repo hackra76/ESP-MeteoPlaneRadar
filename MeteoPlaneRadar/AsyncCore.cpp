@@ -63,6 +63,10 @@ void Async_UnlockForecast(){ if (s_mtxForecast) xSemaphoreGive(s_mtxForecast); }
 void Async_LockRoute()     { if (s_mtxRoute) xSemaphoreTake(s_mtxRoute, portMAX_DELAY); }
 void Async_UnlockRoute()   { if (s_mtxRoute) xSemaphoreGive(s_mtxRoute); }
 
+static SemaphoreHandle_t s_mtxI2c = NULL;
+void Async_LockI2C()       { if (!s_mtxI2c) s_mtxI2c = xSemaphoreCreateMutex(); if (s_mtxI2c) xSemaphoreTake(s_mtxI2c, portMAX_DELAY); }
+void Async_UnlockI2C()     { if (s_mtxI2c) xSemaphoreGive(s_mtxI2c); }
+
 void Async_Pause()         { s_paused = true; }
 void Async_Resume()        { s_paused = false; }
 bool Async_IsPaused()      { return s_paused; }

@@ -53,3 +53,6 @@ void Async_UnlockForecast();
 
 void Async_LockRoute();
 void Async_UnlockRoute();
+
+void Async_LockI2C();
+void Async_UnlockI2C();

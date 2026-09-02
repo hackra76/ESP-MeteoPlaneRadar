@@ -37,35 +37,55 @@ static unsigned long s_lockoutUntil = 0;
 static uint8_t s_tapCount = 0;
 
 // Tap detection parameters
+#include "AsyncCore.h"
+
 #define TAP_THRESHOLD_DIFF  0.42f   // Peak jerk difference in g
 #define TAP_MIN_INTERVAL_MS 70      // Min time between tap 1 and tap 2 (debounces initial vibration)
 #define TAP_MAX_INTERVAL_MS 480     // Max window for second tap
 #define DOUBLE_TAP_LOCKOUT  550     // Lockout window after double-tap trigger
 
 static bool writeReg(uint8_t reg, uint8_t val) {
+  Async_LockI2C();
   Wire.beginTransmission(s_i2cAddr);
   Wire.write(reg);
   Wire.write(val);
-  return (Wire.endTransmission() == 0);
+  bool ok = (Wire.endTransmission() == 0);
+  Async_UnlockI2C();
+  return ok;
 }
 
 static uint8_t readReg(uint8_t reg) {
+  Async_LockI2C();
   Wire.beginTransmission(s_i2cAddr);
   Wire.write(reg);
-  if (Wire.endTransmission(false) != 0) return 0;
+  if (Wire.endTransmission(false) != 0) {
+    Async_UnlockI2C();
+    return 0;
+  }
   Wire.requestFrom((int)s_i2cAddr, 1);
-  return Wire.available() ? Wire.read() : 0;
+  uint8_t val = Wire.available() ? Wire.read() : 0;
+  Async_UnlockI2C();
+  return val;
 }
 
 static bool readBurst(uint8_t startReg, uint8_t* buf, size_t len) {
+  Async_LockI2C();
   Wire.beginTransmission(s_i2cAddr);
   Wire.write(startReg);
-  if (Wire.endTransmission(false) != 0) return false;
-  Wire.requestFrom((int)s_i2cAddr, (int)len);
+  if (Wire.endTransmission(false) != 0) {
+    Async_UnlockI2C();
+    return false;
+  }
+  uint8_t got = Wire.requestFrom((int)s_i2cAddr, (int)len);
+  if (got != len) {
+    while (Wire.available()) Wire.read();
+    Async_UnlockI2C();
+    return false;
+  }
   for (size_t i = 0; i < len; i++) {
-    if (!Wire.available()) return false;
     buf[i] = Wire.read();
   }
+  Async_UnlockI2C();
   return true;
 }
 

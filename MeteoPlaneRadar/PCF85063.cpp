@@ -3,6 +3,7 @@
 //  PCF85063 Real-Time Clock driver (I2C address 0x51).
 // =============================================================================
 #include "PCF85063.h"
+#include "AsyncCore.h"
 #include <Wire.h>
 
 #define PCF85063_REG_CTRL1 0x00
@@ -24,10 +25,12 @@ bool PCF85063_IsDetected() { return s_detected; }
 bool PCF85063_IsOscillatorStopped() { return s_oscStopped; }
 
 bool PCF85063_Init() {
+  Async_LockI2C();
   Wire.beginTransmission(PCF85063_ADDR);
   byte err = Wire.endTransmission();
   if (err != 0) {
     s_detected = false;
+    Async_UnlockI2C();
     Serial.println("RTC: PCF85063 nenalezen na I2C (0x51)");
     return false;
   }
@@ -41,16 +44,24 @@ bool PCF85063_Init() {
     uint8_t sec = Wire.read();
     s_oscStopped = (sec & 0x80) != 0;
   }
+  Async_UnlockI2C();
   return true;
 }
 
 bool PCF85063_ReadTime(struct tm* out) {
   if (!out) return false;
+  Async_LockI2C();
   Wire.beginTransmission(PCF85063_ADDR);
   Wire.write(PCF85063_REG_SEC);
-  if (Wire.endTransmission() != 0) return false;
+  if (Wire.endTransmission() != 0) {
+    Async_UnlockI2C();
+    return false;
+  }
 
-  if (Wire.requestFrom((int)PCF85063_ADDR, 7) != 7) return false;
+  if (Wire.requestFrom((int)PCF85063_ADDR, 7) != 7) {
+    Async_UnlockI2C();
+    return false;
+  }
 
   uint8_t sec   = Wire.read();
   uint8_t min   = Wire.read();
@@ -59,10 +70,11 @@ bool PCF85063_ReadTime(struct tm* out) {
   uint8_t wday  = Wire.read();
   uint8_t mon   = Wire.read();
   uint8_t year  = Wire.read();
+  Async_UnlockI2C();
 
   // Bit 7 of seconds register is OS (Oscillator Stop flag)
   if (sec & 0x80) {
-    Serial.println("RTC: PCF85063 oscilator byl zastaven (ztrata napajeni)");
+    s_oscStopped = true;
     return false;
   }
 
@@ -92,6 +104,7 @@ bool PCF85063_SetTime(time_t epochUtc) {
   struct tm tm;
   gmtime_r(&epochUtc, &tm);
 
+  Async_LockI2C();
   Wire.beginTransmission(PCF85063_ADDR);
   Wire.write(PCF85063_REG_SEC);
   Wire.write(dec2bcd(tm.tm_sec)); // OS bit 7 is 0 (oscillator running)
@@ -101,5 +114,8 @@ bool PCF85063_SetTime(time_t epochUtc) {
   Wire.write(tm.tm_wday & 0x07);
   Wire.write(dec2bcd(tm.tm_mon + 1));
   Wire.write(dec2bcd(tm.tm_year % 100));
-  return Wire.endTransmission() == 0;
+  bool ok = (Wire.endTransmission() == 0);
+  if (ok) s_oscStopped = false;
+  Async_UnlockI2C();
+  return ok;
 }

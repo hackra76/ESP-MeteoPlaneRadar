@@ -23,6 +23,7 @@
 #include "Watchdog.h"
 #include "QMI8658.h"
 #include "Astro.h"
+#include "AsyncCore.h"
 #include "PCF85063.h"
 #include "Outside.h"
 #include <Wire.h>
@@ -306,22 +307,29 @@ static void handleHardware() {
     doc["rtcTime"] = "-";
   }
 
-  // Active I2C Bus Devices scan
+  // Active I2C Bus Devices scan (Targeted scan with I2C bus lock)
+  struct I2CTarget { uint8_t addr; const char* name; };
+  static const I2CTarget targets[] = {
+    { 0x15, "Dotykový kontrolér (Touch CST820)" },
+    { 0x38, "Dotykový kontrolér (Touch CHSC6540)" },
+    { 0x20, "I/O Expandér (TCA9554)" },
+    { 0x43, "I/O Expandér (TCA9554 alt)" },
+    { 0x51, "Hardware RTC (PCF85063)" },
+    { 0x6B, "6-osové IMU (QMI8658)" },
+  };
+
+  Async_LockI2C();
   JsonArray i2cArr = doc["i2cBus"].to<JsonArray>();
-  for (uint8_t a = 0x08; a <= 0x77; a++) {
-    Wire.beginTransmission(a);
+  for (size_t i = 0; i < sizeof(targets) / sizeof(targets[0]); i++) {
+    Wire.beginTransmission(targets[i].addr);
     if (Wire.endTransmission() == 0) {
       JsonObject dev = i2cArr.add<JsonObject>();
-      char hexBuf[8]; snprintf(hexBuf, sizeof(hexBuf), "0x%02X", a);
+      char hexBuf[8]; snprintf(hexBuf, sizeof(hexBuf), "0x%02X", targets[i].addr);
       dev["addr"] = hexBuf;
-      const char* name = "Iné zariadenie";
-      if (a == 0x38 || a == 0x15) name = "Dotykový kontrolér (Touch)";
-      else if (a == 0x20 || a == 0x43) name = "I/O Expandér (TCA9554)";
-      else if (a == 0x51) name = "Hardware RTC (PCF85063)";
-      else if (a == 0x6B) name = "6-osové IMU (QMI8658)";
-      dev["name"] = name;
+      dev["name"] = targets[i].name;
     }
   }
+  Async_UnlockI2C();
 
   unsigned long up = millis() / 1000UL;
   char ub[32];
