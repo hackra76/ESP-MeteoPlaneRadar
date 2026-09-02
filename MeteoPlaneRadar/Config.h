@@ -20,7 +20,9 @@
 // ---------------------------------------------------------------------------
 #define I2C_SDA   15
 #define I2C_SCL   7
+#ifndef BOOT_PIN
 #define BOOT_PIN  0        // hold at power-up (~3 s) = factory reset
+#endif
 
 // ---------------------------------------------------------------------------
 //  Time zone (POSIX TZ string)
@@ -105,12 +107,11 @@
 #define OUTSIDE_TEMP_PERIOD_MS 600000UL   // 10 min - it is a model value
 #define OUTSIDE_TEMP_RETRY_MS   60000UL   // sooner while we have nothing yet
 
-// Degree symbol. The built-in font is 7-bit ASCII, so a real "°" may come out
-// as a random glyph; "degC" is the safe spelling. Flip to 1 only after checking
-// on the actual display that the character renders.
-#define OUTSIDE_DEG_SYMBOL 0
+// Degree symbol. The built-in CP437 font renders character 0xF8 (\xF8) as
+// the true degree circle "°".
+#define OUTSIDE_DEG_SYMBOL 1
 #if OUTSIDE_DEG_SYMBOL
-  #define OUTSIDE_DEG_TEXT "\xB0C"
+  #define OUTSIDE_DEG_TEXT "\xF8" "C"
 #else
   #define OUTSIDE_DEG_TEXT "degC"
 #endif
@@ -123,7 +124,7 @@
 //  actually is (see Route.h).
 // ---------------------------------------------------------------------------
 #define ROUTE_API_BASE "https://api.adsb.lol/api/0/route"
-#define ROUTE_CACHE_N  8     // remembered answers (keyed on the callsign)
+#define ROUTE_CACHE_N  24    // remembered answers (keyed on the callsign)
 
 // ---------------------------------------------------------------------------
 //  Map orientation
@@ -187,10 +188,8 @@
 // ---------------------------------------------------------------------------
 //  Network
 // ---------------------------------------------------------------------------
-// A TLS handshake needs roughly 45 kB of internal RAM. Starting one with less
-// than this free fails deep inside mbedTLS and surfaces as a bare "HTTP -1",
-// so skip the poll instead and try again later.
-#define NET_MIN_HEAP 60000
+// A TLS handshake needs roughly 25-30 kB of internal RAM on ESP32-S3.
+#define NET_MIN_HEAP 30000
 
 // WiFiClientSecure defaults the mbedTLS handshake to 120 s, six times
 // WDT_TIMEOUT_S. setConnectTimeout() does NOT cover it - that only bounds the

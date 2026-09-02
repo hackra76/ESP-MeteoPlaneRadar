@@ -8,6 +8,8 @@
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)
 // =============================================================================
 #include "ADSB.h"
+#include "AsyncCore.h"
+#include "PlaneTrail.h"
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
@@ -169,6 +171,7 @@ static void fillFields(JsonObject o) {
   o["t"]            = true;
   o["r"]            = true;   // registration - free, in the same answer
   o["squawk"]       = true;
+  o["dbFlags"]      = true;   // bit 0 = military
 }
 
 static void buildFilter(JsonDocument& filter) {
@@ -243,6 +246,7 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
     if (code != HTTP_CODE_OK) {
       Serial.printf("ADSB: HTTP %d (attempt %d)\n", code, attempt);
       http.end();
+      client.stop();
       if (attempt < MAX_ATTEMPTS) { delay(200); continue; }
       return false;   // keep last good data
     }
@@ -250,6 +254,7 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
     // Read the WHOLE body first (into PSRAM), then parse - no live-stream parse.
     long len = readBody(http);
     http.end();
+    client.stop();
 
     if (len < 0) {
       Serial.println("ADSB: body read failed");
@@ -364,12 +369,16 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
       }
       copyHex(&s_tmp[n], plane);
       copyCallsign(&s_tmp[n], plane);
+      s_tmp[n].isMilitary = ((plane["dbFlags"] | 0) & 1) != 0;
       n++;
     }
 
-    // Commit the scratch snapshot to the live list in one go.
+    // Commit the scratch snapshot to the live list in one go under mutex lock.
+    Async_LockAdsb();
     for (int i = 0; i < n; i++) s_list[i] = s_tmp[i];
     s_count = n;
+    PlaneTrail_Update(s_list, s_count);
+    Async_UnlockAdsb();
     Serial.printf("ADSB: %d aircraft (%ld bytes)\n", n, len);
     Status_Set(ST_ADSB, "OK, %d", n);
     return true;

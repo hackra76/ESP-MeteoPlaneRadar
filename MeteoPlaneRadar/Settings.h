@@ -105,6 +105,9 @@ uint8_t Settings_Screen();
 void    Settings_SetScreen(uint8_t idx);
 uint16_t Settings_TopBearing();
 void     Settings_SetTopBearing(uint16_t deg);
+bool     Settings_ShowLegends();
+void     Settings_SetShowLegends(bool show);
+void     Settings_ToggleLegends();
 
 // --- Admin password (protects OTA, factory reset and config import) ---------
 //

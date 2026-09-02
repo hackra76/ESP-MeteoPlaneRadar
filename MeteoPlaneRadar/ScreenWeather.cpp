@@ -17,6 +17,7 @@
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)
 // =============================================================================
 #include "ScreenWeather.h"
+#include "AsyncCore.h"
 #include "CHMU.h"
 #include "Settings.h"
 #include "Config.h"
@@ -376,7 +377,7 @@ static void drawOverlay() {
   // scheme their API offers, from their published dBZ table; the mm/h column is
   // the Marshall-Palmer conversion (Z = 200 R^1.6) that the CHMU scale also
   // uses, so both read alike.
-  {
+  if (Settings_ShowLegends()) {
     static const uint16_t COL_CHMU[6] = { 0xA000, 0xF800, 0xFC20, 0xE6E0, 0x05E0, 0x001F };
     static const char*    LBL_CHMU[6] = { ">56 / >100", "52 / 65", "46 / 27",
                                           "40 / 12", "32 / 3.6", "20 / <1" };
@@ -439,23 +440,25 @@ static void drawOverlay() {
   }
 
   // Range + indicator dots (bottom centre) with a backing.
-  char rbuf[24];
-  if (isWholeCountry()) {
-    StrId s = S_WHOLE_CZ;
-    getWholeCountryView(nullptr, nullptr, nullptr, &s);
-    snprintf(rbuf, sizeof(rbuf), "%s", T(s));
-  }
-  else if (rvMode())    snprintf(rbuf, sizeof(rbuf), "%.0f %s",
-                                 RainViewer_EffectiveRadiusKm(), T(S_KM));
-  else                  snprintf(rbuf, sizeof(rbuf), "%.0f %s", currentRange(), T(S_KM));
-  gfx->fillRect(CX - 70, LY_RANGE - 4, 140, 24, C_BLACK);
-  UI_TextCenteredIn(rbuf, 0, LCD_WIDTH, LY_RANGE, C_YELLOW, 2);
-  int dotGap = 16, dotY = LY_RANGE_DOTS, totalW = (RANGE_COUNT - 1) * dotGap;
-  int startX = CX - totalW / 2;
-  for (int i = 0; i < RANGE_COUNT; i++) {
-    int x = startX + i * dotGap;
-    if (i == s_rangeIdx) gfx->fillCircle(x, dotY, 3, C_YELLOW);
-    else                 gfx->drawCircle(x, dotY, 3, C_GRAY);
+  if (Settings_ShowLegends()) {
+    char rbuf[24] = "";
+    if (isWholeCountry()) {
+      // Uzivatel si nepraje zobrazovat text "cele Slovensko" na displeji (ponechame cisty radar s bodkami dole)
+    }
+    else if (rvMode())    snprintf(rbuf, sizeof(rbuf), "%.0f %s",
+                                   RainViewer_EffectiveRadiusKm(), T(S_KM));
+    else                  snprintf(rbuf, sizeof(rbuf), "%.0f %s", currentRange(), T(S_KM));
+    if (rbuf[0]) {
+      gfx->fillRect(CX - 70, LY_RANGE - 4, 140, 24, C_BLACK);
+      UI_TextCenteredIn(rbuf, 0, LCD_WIDTH, LY_RANGE, C_YELLOW, 2);
+    }
+    int dotGap = 16, dotY = LY_RANGE_DOTS, totalW = (RANGE_COUNT - 1) * dotGap;
+    int startX = CX - totalW / 2;
+    for (int i = 0; i < RANGE_COUNT; i++) {
+      int x = startX + i * dotGap;
+      if (i == s_rangeIdx) gfx->fillCircle(x, dotY, 3, C_YELLOW);
+      else                 gfx->drawCircle(x, dotY, 3, C_GRAY);
+    }
   }
 }
 
@@ -471,6 +474,7 @@ void ScreenWeather_RangeText(char* out, size_t cap) {
 }
 
 void ScreenWeather_Enter() {
+  Async_SetActiveScreen(SCREEN_METEO_I);
   // Restore the last range. Do NOT force a rebuild here: a range change already
   // sets s_needRebuild in ScreenWeather_ChangeRange(), and the very first load
   // is handled by the s_frameCount == 0 branch in Tick(). Forcing it would
@@ -522,7 +526,7 @@ static bool tickRainViewer() {
 
   if (RainViewer_Busy()) {
     s_loading = true;
-    return RainViewer_Step();
+    return Async_TakeRadarUpdated();
   }
   if (s_loading) {
     s_loading = false;
@@ -624,39 +628,28 @@ void ScreenWeather_Draw() {
   Layout_ReserveBand(LY_SUB, 22);            // frame dots
   Layout_ReserveBand(LY_LEGEND - 2, 12);     // frame time label
   Layout_ReserveBand(LY_NOTE - 2, 12);       // loading / stale note
-  Layout_ReserveBand(LY_RANGE - 4, 24);
+  if (!isWholeCountry()) {
+    Layout_ReserveBand(LY_RANGE - 4, 24);
+  }
   Layout_ReserveBand(LY_RANGE_DOTS - 6, 12);
   // The precipitation legend down the left-hand side.
-  Layout_Reserve(28, 140, 100, 22 + 6 * 13 + 6);
-
-  const int have = srcCount();
-  if (have == 0) {
-    // Nothing to show yet - the very first load, or every attempt so far has
-    // failed. Once there is a frame we never come back here.
-    UI_TextCentered(T(S_METEORADAR), LCD_HEIGHT / 2 - 20, C_WHITE, 2);
-    const char* msg = (s_loading || RainViewer_Busy()) ? T(S_LOADING)
-                    : s_wide ? T(S_FRAME_WIDE)
-                             : s_status.c_str();
-    UI_TextCentered(msg, LCD_HEIGHT / 2 + 6, C_YELLOW, 2);
-    return;
+  if (Settings_ShowLegends()) {
+    Layout_Reserve(28, 140, 100, 22 + 6 * 13 + 6);
   }
 
-  int f = clampI(s_curFrame, 0, have - 1);
-  if (rvMode()) {
-    blitRainViewer(RainViewer_Frame(f));
-  } else {
-    s_crop565 = s_frame565[f];
-    blitCrop();
+  const int have = srcCount();
+  if (have > 0) {
+    int f = clampI(s_curFrame, 0, have - 1);
+    if (rvMode()) {
+      blitRainViewer(RainViewer_Frame(f));
+    } else {
+      s_crop565 = s_frame565[f];
+      blitCrop();
+    }
   }
 
   // Same map data as the aircraft radar: European outlines and cities, drawn
-  // through this screen's projection. The weather screen used to have its own
-  // Czech-only outline, which was both redundant (the European set contains the
-  // Czech border at the same fidelity) and misleading - at the widest range the
-  // country hung in an empty void with no neighbours around it.
-  //
-  // EuBorder culls against a lat/lon window, so hand it the crop converted back
-  // into degrees, with a small margin for lines that only clip the edge.
+  // through this screen's projection.
   {
     float lat0, lat1, lon0, lon1;
     if (rvMode()) {
@@ -671,22 +664,29 @@ void ScreenWeather_Draw() {
     EuBorder_Draw(borderProject, C_GRAY, lat0, lat1, lon0, lon1);
 
     float rng = rvMode() ? RainViewer_EffectiveRadiusKm() : currentRange();
-    // Careful: range 0 means the WHOLE COUNTRY, not a tiny one - comparing it
-    // numerically would light up every village on the widest view of all.
     bool    showFull = !isWholeCountry() && (rng <= 50.0f);
     uint8_t maxTier;
-    // Tier 3 pulls in the Czech district towns, which is what makes the map
-    // over the republic look like it used to. Wider views drop back to tier 2,
-    // otherwise the country turns into a wall of labels.
-    if      (isWholeCountry()) maxTier = 2;
-    else if (rng <= 100.0f)    maxTier = 3;
-    else                       maxTier = 2;
+    if      (isWholeCountry() || rng > 180.0f) maxTier = 1;  // cele Slovensko / najvacsi zoom: iba krajske mesta (Tier 1)
+    else if (rng <= 80.0f)                     maxTier = 3;  // velky detail: vsetky mesta (Tier 1-3)
+    else                                       maxTier = 2;  // stredny zoom: krajske + regionalne centra (Tier 1-2)
     EuBorder_DrawCities(borderProject, CX, CY, DISP_R, C_WHITE, C_CYAN,
                         showFull, maxTier, lat0, lat1, lon0, lon1);
   }
 
   // Thin ring marking the edge of the round display.
   gfx->drawCircle(CX, CY, DISP_R, C_DKGRAY);
+
+  // If no radar frames are ready yet, show an overlay badge rather than a black screen
+  if (have == 0) {
+    const int bw = 260, bh = 54;
+    gfx->fillRoundRect(CX - bw / 2, CY - bh / 2, bw, bh, 12, C_DKGRAY);
+    gfx->drawRoundRect(CX - bw / 2, CY - bh / 2, bw, bh, 12, C_CYAN);
+    UI_TextCentered(T(S_METEORADAR), CY - 16, C_WHITE, 1);
+    const char* msg = (s_loading || RainViewer_Busy()) ? T(S_LOADING)
+                    : s_wide ? T(S_FRAME_WIDE)
+                             : s_status.c_str();
+    UI_TextCentered(msg, CY + 2, C_YELLOW, 2);
+  }
 
   drawOverlay();
 }

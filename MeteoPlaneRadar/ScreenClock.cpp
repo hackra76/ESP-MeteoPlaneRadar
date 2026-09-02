@@ -9,6 +9,7 @@
 #include "Settings.h"
 #include "Outside.h"
 #include "Forecast.h"
+#include "Astro.h"
 #include "WxIcon.h"
 #include "NightMode.h"
 #include "Layout.h"
@@ -27,11 +28,13 @@
 // Vertical stack, read top to bottom: date, time, conditions, wind. The date
 // goes above the clock so the 64 px glyphs sit in the widest part of the
 // circle. Rows are evenly spaced and the block is centred on the panel.
-#define DATE_Y     118     // weekday + date                     (size 2, 16 px)
-#define CLK_Y      168     // top of the HH:MM glyphs             (size 8, 64 px)
-#define WX_Y       292     // CENTRE of the weather icon row      (icon + temp + rain)
-#define WX_ICON_R   26
-#define WIND_Y     352     // wind speed on its own line          (size 2)
+#define DATE_Y      108     // weekday + date                     (size 2, 16 px)
+#define CLK_Y       152     // top of the HH:MM glyphs             (size 8, 64 px)
+#define WX_Y        256     // CENTRE of the weather icon row      (icon + temp + rain)
+#define WX_ICON_R    20
+#define WIND_Y      296     // wind speed on its own line          (size 2)
+#define MOON_ICON_Y 344     // CENTRE of large Moon Icon           (R=16, 32 px diameter)
+#define MOON_TEXT_Y 376     // Moon name + illumination            (size 2)
 
 static int s_lastMin = -1;
 static int s_lastSec = -1;
@@ -133,9 +136,8 @@ void ScreenClock_Draw() {
   gfx->fillScreen(C_BLACK);
   Layout_Begin();
 
-  // The screen dots at the top belong to the screen manager - reserve their
-  // band so nothing here can land on them.
-  Layout_ReserveBand(LY_DOTS - 6, 12);
+  // The screen dots at the top belong to the screen manager - on clock screen they sit at y=58
+  Layout_ReserveBand(58 - 6, 12);
 
   if (!Outside_TimeValid()) {
     UI_TextCentered(T(S_WIFI_WAIT), CY - 8, C_YELLOW, 2);
@@ -147,6 +149,11 @@ void ScreenClock_Draw() {
 
   // --- Seconds ring (outermost, drawn first) ---
   drawSecondsRing(lt.tm_sec);
+
+  // --- 24h Solar Twilight Arc (day/golden hour/twilight/night ring) ---
+  if (Settings_HasLocation()) {
+    Astro_DrawSolarArc(CX, CY, 216, 3, Settings_Lat(), Settings_Lon(), now);
+  }
 
   // --- Weekday and date (above the clock) ---
   char date[40];
@@ -177,14 +184,9 @@ void ScreenClock_Draw() {
   // until the first one lands.
   if (Forecast_CurrentValid()) {
     char tbuf[16], pbuf[16];
-    // Space before the unit, as everywhere else in the project: the built-in
-    // font is ASCII, so the unit spells out as "degC" and "18degC" reads as one
-    // word. It stays correct if OUTSIDE_DEG_SYMBOL is ever switched on.
-    snprintf(tbuf, sizeof(tbuf), "%d %s", (int)lroundf(Forecast_CurrentTemp()),
-             OUTSIDE_DEG_TEXT);
+    snprintf(tbuf, sizeof(tbuf), "%d°C", (int)lroundf(Forecast_CurrentTemp()));
 
-    // Precipitation shares the temperature's row: most of the time there is
-    // none, and an empty row would pull the stack off centre.
+    // Precipitation shares the temperature's row
     const float p = Forecast_CurrentPrecip();
     const bool hasRain = (p >= 0.05f);
     if (hasRain) snprintf(pbuf, sizeof(pbuf), "%.1f mm", p);
@@ -198,17 +200,16 @@ void ScreenClock_Draw() {
     const int x0 = CX - totalW / 2;
 
     if (Layout_Claim(x0 - 6, WX_Y - WX_ICON_R - 3, totalW + 12, 2 * WX_ICON_R + 6)) {
+      // 1. Draw weather icon centered vertically at WX_Y
       WxIcon_Draw(x0 + WX_ICON_R, WX_Y, WX_ICON_R,
                   Forecast_CurrentCode(), Settings_IsNight());
-      gfx->setTextSize(3);
-      gfx->setTextColor(C_WHITE);
-      gfx->setCursor(x0 + iconW + gap, WX_Y - 12);
-      gfx->print(tbuf);
+
+      // 2. Draw temperature text vertically centered with the icon at WX_Y
+      UI_Text(tbuf, x0 + iconW + gap, WX_Y - 7, C_WHITE, 3);
+
+      // 3. Draw precipitation text vertically centered at WX_Y if raining
       if (hasRain) {
-        gfx->setTextSize(2);
-        gfx->setTextColor(C_CYAN);
-        gfx->setCursor(x0 + iconW + gap + tw + pgap, WX_Y - 8);
-        gfx->print(pbuf);
+        UI_Text(pbuf, x0 + iconW + gap + tw + pgap, WX_Y - 5, C_CYAN, 2);
       }
     }
 
@@ -221,6 +222,19 @@ void ScreenClock_Draw() {
         UI_TextCentered(wbuf, WIND_Y, C_GRAY, 2);
       }
     }
+  }
+
+  // --- Moon Phase & Illumination Widget (2 lines: Icon above, Name + % below) ---
+  {
+    MoonInfo moon = Astro_GetMoon(now);
+    const int mr = 16;
+    Astro_DrawMoonIcon(CX, MOON_ICON_Y, mr, moon.phase);
+
+    char mbuf[40];
+    snprintf(mbuf, sizeof(mbuf), "%s  %.0f%%", moon.name, moon.illumination);
+    uint8_t msize = 2;
+    if (Layout_TextW(mbuf, 2) > 340) msize = 1;
+    UI_TextCentered(mbuf, MOON_TEXT_Y, C_LTGRAY, msize);
   }
 
   // A quiet hint that a tap switches the look, but only when a tap actually

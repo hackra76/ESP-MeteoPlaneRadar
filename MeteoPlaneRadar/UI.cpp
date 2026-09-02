@@ -16,16 +16,15 @@
 
 void UI_TextCenteredIn(const char* text, int x, int w, int cy,
                        uint16_t color, uint8_t size) {
-  int16_t x1, y1; uint16_t tw, th;
-  gfx->setTextSize(size);
-  gfx->getTextBounds(text, 0, 0, &x1, &y1, &tw, &th);
-  gfx->setTextColor(color);
-  gfx->setCursor(x + (w - (int)tw) / 2, cy);
-  gfx->print(text);
+  Font_DrawCenteredIn(text, x, w, cy, color, size);
 }
 
 void UI_TextCentered(const char* text, int cy, uint16_t color, uint8_t size) {
-  UI_TextCenteredIn(text, 0, LCD_WIDTH, cy, color, size);
+  Font_DrawCentered(text, LCD_WIDTH / 2, cy, color, size);
+}
+
+void UI_Text(const char* text, int x, int y, uint16_t color, uint8_t size) {
+  Font_Draw(text, x, y, color, size);
 }
 
 static int UI_ChordHalfWidth(int y) {
@@ -41,20 +40,14 @@ void UI_DrawStatusLine(int cy) {
   Outside_StatusText(txt, sizeof(txt));
   if (!txt[0]) return;                      // nothing known yet - leave it empty
 
-  // Measure against the circle at the LOWER edge of the text, which is the
-  // narrower end. The longest string this can produce is "23:59   -12 degC"
-  // (~192 px at size 2) and the chord here is around 265 px, so it fits - but
-  // check anyway: a wider font or a lower line would silently overflow.
-  int16_t x1, y1; uint16_t tw, th;
-  gfx->setTextSize(2);
-  gfx->getTextBounds(txt, 0, 0, &x1, &y1, &tw, &th);
+  int16_t tw = Font_TextWidth(txt, 2);
   int room = 2 * UI_ChordHalfWidth(cy + 16) - 8;
-  if ((int)tw > room) return;
+  if (tw > room) return;
 
   // Dark backing - on the weather screen this sits straight on top of the radar
   // image, where white on yellow rain would be unreadable.
-  gfx->fillRect(LCD_WIDTH / 2 - (int)tw / 2 - 6, cy - 3, (int)tw + 12, 22, C_BLACK);
-  UI_TextCentered(txt, cy, C_WHITE, 2);
+  gfx->fillRect(LCD_WIDTH / 2 - tw / 2 - 6, cy - 3, tw + 12, 22, C_BLACK);
+  Font_DrawCentered(txt, LCD_WIDTH / 2, cy, C_WHITE, 2);
 }
 
 void UI_DrawWifiQR(const char* ssid, const char* password, bool open,

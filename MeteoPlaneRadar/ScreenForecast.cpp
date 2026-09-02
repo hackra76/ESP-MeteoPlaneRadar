@@ -6,6 +6,7 @@
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)
 // =============================================================================
 #include "ScreenForecast.h"
+#include "AsyncCore.h"
 #include "Forecast.h"
 #include "Settings.h"
 #include "WxIcon.h"
@@ -28,12 +29,12 @@
 // would force the numbers down to an unreadable size, and bare numbers at the
 // end of a row mean nothing to the reader.
 #define HOUR_Y0    58
-#define HOUR_H     27
-#define SEP_Y      (HOUR_Y0 + FORECAST_HOURS * HOUR_H + 6)
-#define DAY_Y0     (SEP_Y + 8)
-#define DAY_H      37
-#define AQ_Y0      (DAY_Y0 + FORECAST_DAYS * DAY_H + 10)
-#define AQ_H       24     // line spacing in the air-quality block
+#define HOUR_H     26
+#define SEP_Y      (HOUR_Y0 + FORECAST_HOURS * HOUR_H + 4)
+#define DAY_Y0     (SEP_Y + 7)
+#define DAY_H      34
+#define AQ_Y0      (DAY_Y0 + FORECAST_DAYS * DAY_H + 8)
+#define AQ_H       22     // line spacing in the air-quality block
 
 // Columns, measured from the centre. The narrowest row is the top one, where
 // the chord is about 320 px, so everything has to live inside +/-160.
@@ -50,20 +51,19 @@
 static unsigned long s_lastSeen = 0;
 
 void ScreenForecast_Enter() {
-  // Nudge the fetcher: entering the screen is exactly when a stale forecast is
-  // most annoying. Forecast_Tick() decides whether anything actually happens.
+  Async_SetActiveScreen(SCREEN_FORECAST_I);
+  Async_RequestForecast();
   s_lastSeen = 0;
 }
 
 bool ScreenForecast_Tick() {
-  // The data itself is fetched centrally (Forecast_Tick in the main loop), so
-  // all this has to do is notice when it changed and ask for a redraw.
+  bool forecastUpdated = Async_TakeForecastUpdated();
   static bool lastValid = false;
   static int  lastHour  = -1;
   bool valid = Forecast_Valid();
   time_t now = time(nullptr);
   struct tm lt; localtime_r(&now, &lt);
-  if (valid != lastValid || lt.tm_hour != lastHour) {
+  if (forecastUpdated || valid != lastValid || lt.tm_hour != lastHour) {
     lastValid = valid;
     lastHour = lt.tm_hour;
     return true;
@@ -77,10 +77,7 @@ static void field(const char* s, int x, int y, uint8_t size, uint16_t col) {
   if (!s || !*s) return;
   int w = Layout_TextW(s, size);
   if (!Layout_Claim(x - 2, y - 2, w + 4, LY_CHAR_H(size) + 4)) return;
-  gfx->setTextSize(size);
-  gfx->setTextColor(col);
-  gfx->setCursor(x, y);
-  gfx->print(s);
+  UI_Text(s, x, y, col, size);
 }
 
 // A number with its unit beside it. The pair claims its space together, so a
@@ -95,16 +92,10 @@ static void valueWithUnit(const char* val, const char* unit,
 
   if (!Layout_Claim(x - 2, y - 2, tot + 4, LY_CHAR_H(2) + 4)) return;
 
-  gfx->setTextSize(2);
-  gfx->setTextColor(col);
-  gfx->setCursor(x, y);
-  gfx->print(val);
+  UI_Text(val, x, y, col, 2);
 
   if (uw) {
-    gfx->setTextSize(1);
-    gfx->setTextColor(C_GRAY);
-    gfx->setCursor(x + vw + gap, y + 8);   // sits on the baseline of the digits
-    gfx->print(unit);
+    UI_Text(unit, x + vw + gap, y + 4, C_GRAY, 1);
   }
 }
 
@@ -196,13 +187,8 @@ static void aqRow(int y, const char* label, const char* value, uint16_t valCol) 
 
   if (!Layout_Claim(x0 - 4, y - 3, total + 8, LY_CHAR_H(2) + 6)) return;
 
-  gfx->setTextSize(2);
-  gfx->setTextColor(C_GRAY);
-  gfx->setCursor(x0, y);
-  gfx->print(label);
-  gfx->setTextColor(valCol);
-  gfx->setCursor(x0 + lw + gap, y);
-  gfx->print(value);
+  UI_Text(label, x0, y, C_GRAY, 2);
+  UI_Text(value, x0 + lw + gap, y, valCol, 2);
 }
 
 void ScreenForecast_Draw() {

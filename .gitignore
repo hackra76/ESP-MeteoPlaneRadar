@@ -5,5 +5,5 @@
 .clangd
 compile_commands.json
 release/
-
-
+__pycache__/
+*.pyc

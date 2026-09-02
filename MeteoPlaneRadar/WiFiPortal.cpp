@@ -30,7 +30,7 @@ void WiFi_DrawApScreen() {
   gfx->fillScreen(C_BLACK);
 
   UI_TextCentered("MeteoPlaneRadar", 34, C_CYAN, 2);
-  UI_TextCentered("chiptron.cz", 58, C_GRAY, 1);
+  UI_TextCentered("H4CKR4", 58, C_GRAY, 1);
   const char* scanTxt = (lang == LANG_EN) ? "Scan with your phone:"
                       : ((lang == LANG_SK) ? "Naskenuj mobilom:" : "Naskenuj mobilem:");
   UI_TextCentered(scanTxt, 78, C_GRAY, 1);

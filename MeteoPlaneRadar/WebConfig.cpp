@@ -9,6 +9,7 @@
 #include "ScreenPlanes.h"
 #include "ScreenWeather.h"
 #include "ScreenTactical.h"
+#include "ADSB.h"
 #include "Settings.h"
 #include "Status.h"
 #include "Version.h"
@@ -20,6 +21,8 @@
 #include "UI.h"
 #include "Display_ST7701.h"
 #include "Watchdog.h"
+#include "QMI8658.h"
+#include "Astro.h"
 
 #include <WiFi.h>
 #include <WebServer.h>
@@ -43,15 +46,18 @@ static volatile bool s_updating = false;
 static int s_reqScreen     = -1;
 static int s_reqScreenStep = 0;
 static int s_reqRangeStep  = 0;
+static bool s_reqRedraw    = false;
 
 bool WebConfig_UpdateBusy()        { return s_updating; }
 bool WebConfig_WantsWifiConnect()  { return s_wantConnect; }
 void WebConfig_ClearWifiConnect()  { s_wantConnect = false; }
 bool WebConfig_WantsRestart()      { return s_wantRestart; }
 
-int WebConfig_TakeScreen()     { int v = s_reqScreen;     s_reqScreen = -1;    return v; }
-int WebConfig_TakeScreenStep() { int v = s_reqScreenStep; s_reqScreenStep = 0; return v; }
-int WebConfig_TakeRangeStep()  { int v = s_reqRangeStep;  s_reqRangeStep = 0;  return v; }
+int  WebConfig_TakeScreen()     { int v = s_reqScreen;     s_reqScreen = -1;    return v; }
+int  WebConfig_TakeScreenStep() { int v = s_reqScreenStep; s_reqScreenStep = 0; return v; }
+int  WebConfig_TakeRangeStep()  { int v = s_reqRangeStep;  s_reqRangeStep = 0;  return v; }
+bool WebConfig_TakeRedraw()     { bool r = s_reqRedraw;    s_reqRedraw = false; return r; }
+void WebConfig_RequestRedraw()  { s_reqRedraw = true; }
 
 // --- Helpers ----------------------------------------------------------------
 static void sendJson(int code, JsonDocument& doc) {
@@ -125,6 +131,7 @@ static void handlePostConfig() {
                           (Settings_ScreenEnabled(SCREEN_FORECAST_I) << 4);
 
   Settings_FromJson(doc.as<JsonObjectConst>());
+  s_reqRedraw = true;
 
   // Applied straight away - these are the ones you want to see change while
   // you are still looking at the slider.
@@ -236,6 +243,75 @@ static void handleStatus() {
   sendJson(200, doc);
 }
 
+static void handleHardware() {
+  JsonDocument doc;
+  doc["cpuFreq"] = getCpuFrequencyMhz();
+  doc["cpuModel"] = ESP.getChipModel();
+  doc["cpuRev"] = ESP.getChipRevision();
+  doc["cpuCores"] = ESP.getChipCores();
+  doc["cpuTemp"] = (int)round(temperatureRead());
+
+  uint32_t heapFree = (uint32_t)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  uint32_t heapTotal = (uint32_t)heap_caps_get_total_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  uint32_t psramFree = (uint32_t)heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+  uint32_t psramTotal = ESP.getPsramSize();
+  doc["heapFree"] = heapFree;
+  doc["heapTotal"] = heapTotal;
+  doc["psramFree"] = psramFree;
+  doc["psramTotal"] = psramTotal;
+  doc["flashSize"] = (uint32_t)ESP.getFlashChipSize();
+  doc["flashSpeed"] = (uint32_t)ESP.getFlashChipSpeed();
+
+  doc["ssid"] = s_apMode ? String(AP_SSID) : WiFi.SSID();
+  doc["rssi"] = s_apMode ? 0 : WiFi.RSSI();
+  doc["bssid"] = s_apMode ? String("-") : WiFi.BSSIDstr();
+  doc["ip"] = s_apMode ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
+  doc["gw"] = s_apMode ? String("-") : WiFi.gatewayIP().toString();
+  doc["mask"] = s_apMode ? String("-") : WiFi.subnetMask().toString();
+  doc["dns"] = s_apMode ? String("-") : WiFi.dnsIP().toString();
+  doc["mac"] = WiFi.macAddress();
+
+  doc["imuOk"] = QMI8658_Available();
+  if (QMI8658_Available()) {
+    QMI_Data d;
+    QMI8658_GetData(&d);
+    doc["ax"] = (int)round(d.ax * 100) / 100.0;
+    doc["ay"] = (int)round(d.ay * 100) / 100.0;
+    doc["az"] = (int)round(d.az * 100) / 100.0;
+    doc["gx"] = (int)round(d.gx);
+    doc["gy"] = (int)round(d.gy);
+    doc["gz"] = (int)round(d.gz);
+    doc["pitch"] = (int)round(d.pitch);
+    doc["roll"] = (int)round(d.roll);
+  }
+
+  doc["dispDriver"] = "ST7701 (480x480 RGB 16-bit)";
+  doc["touchDriver"] = "CST820 (I2C 0x15)";
+  doc["expander"] = "TCA9554 (I2C 0x20)";
+
+  unsigned long up = millis() / 1000UL;
+  char ub[32];
+  snprintf(ub, sizeof(ub), "%lud %02lu:%02lu:%02lu",
+           up / 86400UL, (up / 3600UL) % 24UL, (up / 60UL) % 60UL, up % 60UL);
+  doc["uptime"] = ub;
+
+  const char* rr = "?";
+  switch (esp_reset_reason()) {
+    case ESP_RST_POWERON:  rr = "power on"; break;
+    case ESP_RST_SW:       rr = "software"; break;
+    case ESP_RST_PANIC:    rr = "PANIC"; break;
+    case ESP_RST_INT_WDT:
+    case ESP_RST_TASK_WDT:
+    case ESP_RST_WDT:      rr = "WATCHDOG"; break;
+    case ESP_RST_BROWNOUT: rr = "BROWNOUT"; break;
+    case ESP_RST_EXT:      rr = "reset pin"; break;
+    default: break;
+  }
+  doc["resetReason"] = rr;
+
+  sendJson(200, doc);
+}
+
 static void handleScan() {
   JsonDocument doc;
   JsonArray arr = doc.to<JsonArray>();
@@ -303,6 +379,116 @@ static void handleGeocode() {
     o["lon"] = r["longitude"];
   }
   sendJson(200, out);
+}
+
+static void handleLive() {
+  JsonDocument doc;
+  const uint8_t scr = Settings_Screen();
+  doc["screen"] = scr;
+  doc["lat"] = Settings_Lat();
+  doc["lon"] = Settings_Lon();
+  doc["legends"] = Settings_ShowLegends();
+  doc["topBearing"] = Settings_TopBearing();
+  doc["metric"] = Settings_MetricUnits();
+  doc["secStyle"] = Settings_SecondsStyle();
+
+  char rb[24] = "";
+  if      (scr == SCREEN_PLANES_I)   ScreenPlanes_RangeText(rb, sizeof(rb));
+  else if (scr == SCREEN_METEO_I)    ScreenWeather_RangeText(rb, sizeof(rb));
+  else if (scr == SCREEN_TACTICAL_I) ScreenTactical_RangeText(rb, sizeof(rb));
+  doc["range"] = rb;
+
+  // Time & Calendar
+  time_t now = time(nullptr);
+  struct tm lt; localtime_r(&now, &lt);
+  char timeBuf[16];
+  snprintf(timeBuf, sizeof(timeBuf), "%02d:%02d:%02d", lt.tm_hour, lt.tm_min, lt.tm_sec);
+  doc["time"] = timeBuf;
+  doc["hour"] = lt.tm_hour;
+  doc["min"]  = lt.tm_min;
+  doc["sec"]  = lt.tm_sec;
+  doc["wday"] = lt.tm_wday;
+  doc["mday"] = lt.tm_mday;
+  doc["mon"]  = lt.tm_mon + 1;
+
+  if (Forecast_CurrentValid()) {
+    doc["temp"] = (int)roundf(Forecast_CurrentTemp() * 10.0f) / 10.0f;
+    doc["precip"] = Forecast_CurrentPrecip();
+    doc["code"] = Forecast_CurrentCode();
+  }
+  if (AirQuality_Valid()) {
+    doc["aqi"] = AirQuality_Aqi();
+  }
+
+  // Moon Phase & Illumination
+  MoonInfo moon = Astro_GetMoon(now);
+  doc["moonName"] = moon.name;
+  doc["moonIllum"] = (int)roundf(moon.illumination);
+  doc["moonPhase"] = (int)moon.phaseEnum;
+
+  // Aircraft list for radar rendering
+  const Aircraft* list = ADSB_List();
+  int n = ADSB_Count();
+  JsonArray acList = doc["aircraft"].to<JsonArray>();
+  for (int i = 0; i < n && i < 35; i++) {
+    if (list[i].onGround) continue;
+    JsonObject a = acList.add<JsonObject>();
+    a["call"] = list[i].callsign[0] ? list[i].callsign : list[i].hex;
+    a["hex"]  = list[i].hex;
+    a["lat"]  = list[i].lat;
+    a["lon"]  = list[i].lon;
+    a["alt"]  = (int)list[i].altFt;
+    a["trk"]  = (int)list[i].track;
+    a["spd"]  = (int)list[i].gsKt;
+    a["climb"]= (int)list[i].baroRate;
+    const char* em = ADSB_EmergencyCode(list[i]);
+    if (em) a["em"] = em;
+  }
+
+  // Hourly forecast for forecast preview screen
+  if (Forecast_Valid() && scr == SCREEN_FORECAST_I) {
+    JsonArray fcArr = doc["hours"].to<JsonArray>();
+    const FcHour* hours = Forecast_Hours();
+    int hCount = min(Forecast_HourCount(), 6);
+    for (int i = 0; i < hCount; i++) {
+      JsonObject h = fcArr.add<JsonObject>();
+      struct tm hlt; localtime_r(&hours[i].t, &hlt);
+      h["h"] = hlt.tm_hour;
+      h["temp"] = (int)roundf(hours[i].temp);
+      h["precip"] = hours[i].precip;
+      h["code"] = hours[i].code;
+    }
+  }
+
+  sendJson(200, doc);
+}
+
+static void handleToggleLegends() {
+  Settings_ToggleLegends();
+  JsonDocument res;
+  res["ok"] = true;
+  res["legends"] = Settings_ShowLegends();
+  sendJson(200, res);
+}
+
+static void handleInput() {
+  JsonDocument doc;
+  if (!readBody(doc)) { s_srv.send(400, "application/json", "{\"error\":\"json\"}"); return; }
+  const char* cmd = doc["cmd"] | "";
+  if (strcmp(cmd, "toggle_legends") == 0 || strcmp(cmd, "dbl_tap") == 0) {
+    Settings_ToggleLegends();
+  } else if (strcmp(cmd, "swipe_left") == 0 || strcmp(cmd, "range_plus") == 0) {
+    s_reqRangeStep = +1;
+  } else if (strcmp(cmd, "swipe_right") == 0 || strcmp(cmd, "range_minus") == 0) {
+    s_reqRangeStep = -1;
+  } else if (strcmp(cmd, "next_screen") == 0) {
+    s_reqScreenStep = +1;
+  } else if (strcmp(cmd, "prev_screen") == 0) {
+    s_reqScreenStep = -1;
+  }
+  JsonDocument res; res["ok"] = true;
+  res["legends"] = Settings_ShowLegends();
+  sendJson(200, res);
 }
 
 static void handleExport() {
@@ -569,6 +755,10 @@ void WebConfig_Begin(bool apMode) {
   s_srv.on("/api/config", HTTP_GET, handleGetConfig);
   s_srv.on("/api/config", HTTP_POST, handlePostConfig);
   s_srv.on("/api/status", HTTP_GET, handleStatus);
+  s_srv.on("/api/hardware", HTTP_GET, handleHardware);
+  s_srv.on("/api/live", HTTP_GET, handleLive);
+  s_srv.on("/api/toggle-legends", HTTP_POST, handleToggleLegends);
+  s_srv.on("/api/input", HTTP_POST, handleInput);
   s_srv.on("/api/screen", HTTP_POST, handleScreen);
   s_srv.on("/api/range", HTTP_POST, handleRange);
   s_srv.on("/api/scan", HTTP_GET, handleScan);

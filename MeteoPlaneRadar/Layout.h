@@ -31,9 +31,9 @@
 // other.
 #define LY_DOTS        18    // screen selector dots (this one is a CENTRE y)
 #define LY_STATUS      30    // clock + outside temperature      (size 2)
-#define LY_SUB         52    // aircraft count / frame dots      (size 1)
-#define LY_LEGEND      74    // altitude legend / frame time     (size 1)
-#define LY_NOTE        86    // small note under the legend      (size 1)
+#define LY_SUB         50    // aircraft count / frame dots      (size 1)
+#define LY_LEGEND      70    // altitude legend / frame time     (size 1)
+#define LY_NOTE        90    // small note under the legend      (size 1)
 
 // Bottom stack, from the rim up.
 #define LY_RANGE       (LCD_HEIGHT - 76)   // range readout       (size 2)
@@ -41,7 +41,7 @@
 #define LY_FOOTER      418                 // signature           (size 2)
 
 // The seconds ring on the clock screen lives outside everything else.
-#define LY_SEC_RING_R  232
+#define LY_SEC_RING_R  234
 
 // Text metrics for the built-in GFX font.
 #define LY_CHAR_W(size) (6 * (size))

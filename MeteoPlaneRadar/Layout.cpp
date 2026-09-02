@@ -71,15 +71,18 @@ void Layout_ReserveBand(int y, int h) {
   Layout_Reserve(LCD_WIDTH / 2 - half, y, 2 * half, h);
 }
 
+#include "FontEngine.h"
+
 int Layout_TextW(const char* s, uint8_t size) {
-  if (!s) return 0;
-  return (int)strlen(s) * LY_CHAR_W(size);
+  if (!s || !*s) return 0;
+  return Font_TextWidth(s, size);
 }
 
 void Layout_ReserveTextCentered(const char* s, uint8_t size, int cx, int y) {
   int w = Layout_TextW(s, size);
   if (w <= 0) return;
-  Layout_Reserve(cx - w / 2 - 4, y - 2, w + 8, LY_CHAR_H(size) + 4);
+  int h = Font_TextHeight(size);
+  Layout_Reserve(cx - w / 2 - 4, y - 2, w + 8, h + 4);
 }
 
 // --- Self-test --------------------------------------------------------------

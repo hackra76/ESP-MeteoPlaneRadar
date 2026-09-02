@@ -57,6 +57,7 @@ static uint8_t  s_rngP = 1;
 static uint8_t  s_rngM = 1;
 static uint8_t  s_scr  = SCREEN_PLANES_I;
 static uint16_t s_top  = 0;
+static bool     s_showLegends = true;
 
 // --- Admin password (see the note in Settings.h) ---
 static char s_pw[33] = "";
@@ -116,6 +117,7 @@ void Settings_Begin() {
     s_rngM   = prefs.getUChar("rngM", 1);
     s_scr    = prefs.getUChar("scr", SCREEN_PLANES_I);
     s_top    = prefs.getUShort("topb", 0);
+    s_showLegends = prefs.getBool("sLeg", true);
     prefs.getString("pw", s_pw, sizeof(s_pw));
     prefs.getString("ssid", s_ssid, sizeof(s_ssid));
     prefs.getString("wpass", s_wpass, sizeof(s_wpass));
@@ -286,6 +288,16 @@ void     Settings_SetTopBearing(uint16_t deg) {
 }
 uint8_t Settings_Screen() { return s_scr; }
 void    Settings_SetScreen(uint8_t idx) { if (idx != s_scr) { s_scr = idx; markDirty(); } }
+bool    Settings_ShowLegends() { return s_showLegends; }
+void    Settings_SetShowLegends(bool show) {
+  if (show != s_showLegends) {
+    s_showLegends = show;
+    putBool("sLeg", show);
+  }
+}
+void    Settings_ToggleLegends() {
+  Settings_SetShowLegends(!s_showLegends);
+}
 
 // --- Admin password ---------------------------------------------------------
 bool Settings_HasAdminPassword() { return s_pw[0] != '\0'; }
@@ -338,6 +350,7 @@ void Settings_ToJson(JsonObject o) {
   o["onlyCallsign"] = s_onlyCs;
   o["squawkAlert"] = s_sqAlert;
   o["watch"] = s_watch;
+  o["showLegends"] = s_showLegends;
   o["hasPassword"] = Settings_HasAdminPassword();
   JsonObject scr = o["screens"].to<JsonObject>();
   scr["clock"]    = Settings_ScreenEnabled(SCREEN_CLOCK_I);
@@ -375,6 +388,7 @@ bool Settings_FromJson(JsonObjectConst in) {
   setIf("secStyle",     [](JsonVariantConst v){ Settings_SetSecondsStyle(v.as<uint8_t>()); });
   setIf("clockColor",   [](JsonVariantConst v){ Settings_SetClockColor(v.as<uint16_t>()); });
   setIf("secColor",     [](JsonVariantConst v){ Settings_SetSecondsColor(v.as<uint16_t>()); });
+  setIf("showLegends",  [](JsonVariantConst v){ Settings_SetShowLegends(v.as<bool>()); });
   setIf("onlyCallsign", [](JsonVariantConst v){ Settings_SetOnlyWithCallsign(v.as<bool>()); });
   setIf("squawkAlert",  [](JsonVariantConst v){ Settings_SetSquawkAlert(v.as<bool>()); });
   setIf("watch",        [](JsonVariantConst v){ Settings_SetWatchCallsign(v.as<const char*>()); });

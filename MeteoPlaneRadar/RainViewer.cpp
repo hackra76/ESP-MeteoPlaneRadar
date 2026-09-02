@@ -9,6 +9,7 @@
 #include "Status.h"
 #include "Display_ST7701.h"
 #include "TimeUtil.h"
+#include "AsyncCore.h"
 #include <ArduinoJson.h>
 #include <PNGdec.h>
 #include <esp_heap_caps.h>
@@ -346,9 +347,13 @@ static bool fetchOneTile(int frameIdx, int tileIdx) {
 
 // --- Public -----------------------------------------------------------------
 void RainViewer_Begin(double lat, double lon, float radiusKm, int wantFrames) {
+  Async_LockRadar();
   bool same = (fabs(lat - s_lat) < 1e-6) && (fabs(lon - s_lon) < 1e-6) &&
               (fabsf(radiusKm - s_reqRadius) < 0.01f) && s_state != RV_IDLE;
-  if (same) return;
+  if (same) {
+    Async_UnlockRadar();
+    return;
+  }
 
   // A view change abandons whatever was in flight, connection included.
   Net_SessionEnd();
@@ -362,6 +367,7 @@ void RainViewer_Begin(double lat, double lon, float radiusKm, int wantFrames) {
     Serial.println("RAINVIEWER: nedostatek PSRAM na snimky");
     s_state = RV_DONE;
     s_failed = true;
+    Async_UnlockRadar();
     return;
   }
   // Start from black: a partially built frame must not show pixels left over
@@ -376,10 +382,15 @@ void RainViewer_Begin(double lat, double lon, float radiusKm, int wantFrames) {
   s_retryAt = 0;
   s_failed = false;
   s_state = RV_NEED_INDEX;
+  Async_UnlockRadar();
 }
 
 void RainViewer_Refresh() {
-  if (s_state == RV_IDLE) return;      // nothing configured yet
+  Async_LockRadar();
+  if (s_state == RV_IDLE) {
+    Async_UnlockRadar();
+    return;
+  }
   Net_SessionEnd();
   for (int i = 0; i < s_frameN; i++) {
     if (s_fr[i].px) memset(s_fr[i].px, 0, (size_t)FRAME_PX * 2);
@@ -393,12 +404,15 @@ void RainViewer_Refresh() {
   s_missed = 0;
   s_failed = false;
   s_state = RV_NEED_INDEX;
+  Async_UnlockRadar();
 }
 
 bool RainViewer_Step() {
+  Async_LockRadar();
   switch (s_state) {
     case RV_IDLE:
     case RV_DONE:
+      Async_UnlockRadar();
       return false;
 
     case RV_NEED_INDEX:
@@ -406,6 +420,7 @@ bool RainViewer_Step() {
         s_failed = true;
         s_state = RV_DONE;
         Net_SessionEnd();
+        Async_UnlockRadar();
         return false;
       }
       computeGrid();                 // the frame count may have shrunk
@@ -414,28 +429,34 @@ bool RainViewer_Step() {
       // the web server is running - the main reason tiles used to go missing.
       Net_SessionBegin();
       s_state = RV_TILES;
+      Async_UnlockRadar();
       return false;
 
     case RV_TILES: {
-      if (s_buildPos >= s_frameN) { s_state = RV_DONE; return false; }
+      if (s_buildPos >= s_frameN) {
+        s_state = RV_DONE;
+        Async_UnlockRadar();
+        return false;
+      }
       const int f = s_buildOrder[s_buildPos];
       const int tiles = s_txN * s_tyN;
 
       // Wait out the backoff from the previous failure.
-      if (s_retryAt && millis() < s_retryAt) return false;
-      s_retryAt = 0;
+      if (s_retryAt && millis() < s_retryAt) {
+        Async_UnlockRadar();
+        return false;
+      }
+      if (s_retryAt) {
+        s_retryAt = 0;
+        Net_SessionBegin();
+      }
 
       bool ok = fetchOneTile(f, s_tilePos);
       if (!ok && s_tileTry < RV_TILE_RETRY) {
-        // Do NOT move on: giving up on the first failure leaves a permanent
-        // black square. A dropped connection or a moment of low heap is usually
-        // over by the next attempt.
         s_tileTry++;
-        s_retryAt = millis() + RV_TILE_RETRY_MS;
-        // A failure often means the connection is gone. Drop the session so the
-        // next attempt builds a fresh one rather than writing into a dead socket.
+        s_retryAt = millis() + 1500;
         Net_SessionEnd();
-        Net_SessionBegin();
+        Async_UnlockRadar();
         return false;
       }
       if (!ok) {
@@ -468,11 +489,14 @@ bool RainViewer_Step() {
                                    s_frameN, s_missed);
           else          Status_Set(ST_RADAR, "RainViewer: %d snimku", s_frameN);
         }
+        Async_UnlockRadar();
         return true;               // a frame appeared - repaint
       }
+      Async_UnlockRadar();
       return false;
     }
   }
+  Async_UnlockRadar();
   return false;
 }
 

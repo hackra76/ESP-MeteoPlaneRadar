@@ -12,4 +12,5 @@
 #include "Config.h"   // WDT_TIMEOUT_S
 
 void Watchdog_Begin();
+void Watchdog_RegisterTask();
 void Watchdog_Feed();

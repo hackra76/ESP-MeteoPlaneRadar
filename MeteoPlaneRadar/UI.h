@@ -9,6 +9,7 @@
 // =============================================================================
 #pragma once
 #include <Arduino_GFX_Library.h>
+#include "FontEngine.h"
 
 // Colours (RGB565)
 #define C_BLACK  0x0000
@@ -18,6 +19,7 @@
 #define C_WHITE  0xFFFF
 #define C_YELLOW 0xFFE0
 #define C_GRAY   0x8410
+#define C_LTGRAY 0xC618
 #define C_DKGRAY 0x2124
 #define C_CYAN   0x05FF
 #define C_ORANGE 0xFC00   // altitude band 2-6 km
@@ -35,6 +37,20 @@ void UI_TextCentered(const char* text, int cy, uint16_t color, uint8_t size);
 // Text centred inside the rectangle [x, x+w) - used for labels above the map.
 void UI_TextCenteredIn(const char* text, int x, int w, int cy,
                        uint16_t color, uint8_t size);
+
+// Render UTF-8 text at (x, y) with top-left anchor.
+void UI_Text(const char* text, int x, int y, uint16_t color, uint8_t size = 1);
+
+// Arduino String convenience overloads
+inline void UI_TextCentered(const String& text, int cy, uint16_t color, uint8_t size) {
+  UI_TextCentered(text.c_str(), cy, color, size);
+}
+inline void UI_TextCenteredIn(const String& text, int x, int w, int cy, uint16_t color, uint8_t size) {
+  UI_TextCenteredIn(text.c_str(), x, w, cy, color, size);
+}
+inline void UI_Text(const String& text, int x, int y, uint16_t color, uint8_t size = 1) {
+  UI_Text(text.c_str(), x, y, color, size);
+}
 
 // Half the width of the display circle at height y - i.e. how much room a line
 // of text actually has there. On a round panel the usable width shrinks fast

@@ -9,6 +9,7 @@
 #include "Config.h"
 #include "Net.h"
 #include "Settings.h"
+#include "PCF85063.h"
 #include <WiFi.h>
 #include <ArduinoJson.h>
 #include <time.h>
@@ -20,6 +21,21 @@
 static bool s_timeOk = false;
 
 bool Outside_TimeValid() { return s_timeOk; }
+
+void Outside_Init() {
+  if (PCF85063_Init()) {
+    struct tm tm;
+    if (PCF85063_ReadTime(&tm)) {
+      time_t utc = TimeUtil_UtcToEpoch(tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+                                       tm.tm_hour, tm.tm_min, tm.tm_sec);
+      struct timeval tv = { .tv_sec = utc, .tv_usec = 0 };
+      settimeofday(&tv, nullptr);
+      s_timeOk = true;
+      struct tm lt; localtime_r(&utc, &lt);
+      Serial.printf("RTC: Cas nacten z PCF85063: %02d:%02d:%02d\n", lt.tm_hour, lt.tm_min, lt.tm_sec);
+    }
+  }
+}
 
 static int monthFromName(const char* m) {
   static const char* N[12] = { "Jan","Feb","Mar","Apr","May","Jun",
@@ -49,6 +65,7 @@ void Outside_NoteHttpDate(const char* date) {
     struct tm lt; localtime_r(&utc, &lt);
     Serial.printf("Cas nastaven z hlavicky Date: %02d:%02d\n", lt.tm_hour, lt.tm_min);
   }
+  PCF85063_SetTime(utc);
 }
 
 // --- Outside temperature ----------------------------------------------------
@@ -111,7 +128,6 @@ static void reseedClockIfNeeded() {
   static unsigned long lastTry = 0;
   unsigned long now = millis();
   if (lastTry && now - lastTry < CLOCK_RESEED_MS) return;
-  if (!lastTry && now < 20000UL) return;      // give the normal fetches a chance
   lastTry = now;
   Net_TouchDate(CLOCK_RESEED_URL);
 }
@@ -160,7 +176,7 @@ void Outside_StatusText(char* buf, size_t cap) {
   if (s_tempOk) {
     int deg = (int)lroundf(s_tempC);
     if (deg < -60 || deg > 60) { /* nonsense - do not show it */ }
-    else snprintf(c, sizeof(c), "%d %s", deg, OUTSIDE_DEG_TEXT);
+    else snprintf(c, sizeof(c), "%d%s", deg, OUTSIDE_DEG_TEXT);
   }
 
   if (t[0] && c[0]) snprintf(buf, cap, "%s   %s", t, c);

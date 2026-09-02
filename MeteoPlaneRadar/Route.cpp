@@ -5,6 +5,7 @@
 //  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
 // =============================================================================
 #include "Route.h"
+#include "AsyncCore.h"
 #include "Config.h"
 #include "NetSink.h"
 #include <WiFi.h>
@@ -84,6 +85,12 @@ static float s_wantLon = 0;        // priznak "plausible"
 static bool  s_pending = false;
 static bool  s_changed = false;    // dorazil vysledek, obrazovka se ma prekreslit
 
+// Background route queue (for visible aircraft on the radar)
+static char  s_queueKey[12] = "";
+static float s_queueLat = 0;
+static float s_queueLon = 0;
+static bool  s_queuePending = false;
+
 static Entry* find(const char* key) {
   if (!key || !*key) return nullptr;
   for (int i = 0; i < ROUTE_CACHE_N; i++)
@@ -142,53 +149,55 @@ void Route_Select(const char* callsign, float lat, float lon) {
   char key[12] = "";
   if (callsign) strncpy(key, callsign, sizeof(key) - 1);
   trim(key);
-  // Letadlo bez callsignu (TIS-B, MLAT, soukrome a vojenske stroje) se na
-  // trasu neptame vubec. Drive se misto nej posilal ICAO hex a ten po
-  // normalizaci vypada jako platny IATA let: "a31234" -> "A31234" je Aegean
-  // Airlines 1234, takze letadlo nad Prahou dostalo trasu Atheny -> Istanbul.
   if (!callsignSane(key)) { Route_Clear(); return; }
 
-  // Poloha se drzi cerstva i u uz vybraneho letadla - kdyby dotaz jeste cekal
-  // na volnou pamet nebo na WiFi, odejde s tou polohou, kterou ma letadlo ve
-  // chvili odeslani, ne s tou pri kliknuti.
+  Async_LockRoute();
   s_wantLat = lat;
   s_wantLon = lon;
-  if (strcmp(key, s_wantKey) == 0) return;      // uz ukazujeme prave tohle
+  if (strcmp(key, s_wantKey) == 0) { Async_UnlockRoute(); return; }
 
   strncpy(s_wantKey, key, sizeof(s_wantKey) - 1);
 
   Entry* e = find(key);
-  if (e && expired(e)) { *e = Entry(); e = nullptr; }   // stara odpoved se zahodi
+  if (e && expired(e)) { *e = Entry(); e = nullptr; }
   if (e) {
-    // Zaznam uz existuje. Kdyz je ve stavu ROUTE_WAIT, dotaz na nej se nikdy
-    // neprovedl: uzivatel vybral letadlo A, pak jeste pred Route_Tick() prepnul
-    // na B, ktere bylo v kesi, a tim se cekajici dotaz zahodil. Bez tohohle
-    // radku by A zustalo ve WAIT navzdy a pri navratu se uz nikdy nedotazalo.
     s_pending = (e->state == ROUTE_WAIT);
+    Async_UnlockRoute();
     return;
   }
   insert(key);
   s_pending = true;
+  Async_UnlockRoute();
 }
 
 void Route_Clear() {
+  Async_LockRoute();
   s_wantKey[0] = '\0';
   s_pending = false;
+  Async_UnlockRoute();
 }
 
 RouteState Route_GetState() {
+  Async_LockRoute();
   Entry* e = find(s_wantKey);
-  return e ? e->state : ROUTE_IDLE;
+  RouteState st = e ? e->state : ROUTE_IDLE;
+  Async_UnlockRoute();
+  return st;
 }
 
 const RouteInfo* Route_Get() {
+  Async_LockRoute();
   Entry* e = find(s_wantKey);
-  return (e && e->state == ROUTE_OK) ? &e->info : nullptr;
+  const RouteInfo* info = (e && e->state == ROUTE_OK) ? &e->info : nullptr;
+  Async_UnlockRoute();
+  return info;
 }
 
 bool Route_TakeChanged() {
+  Async_LockRoute();
   bool c = s_changed;
   s_changed = false;
+  Async_UnlockRoute();
   return c;
 }
 
@@ -213,6 +222,14 @@ static void airportLabel(char* dst, size_t cap, JsonVariantConst ap) {
   toAscii(dst, cap, v);     // font neumi nic nez ASCII
 }
 
+// Extract the IATA code (3 letters) from the _airports JSON entry.
+static void airportIata(char* dst, size_t cap, JsonVariantConst ap) {
+  const char* v = ap["iata"].is<const char*>() ? ap["iata"].as<const char*>() : nullptr;
+  if (!v || !*v) { dst[0] = '\0'; return; }
+  strncpy(dst, v, cap - 1);
+  dst[cap - 1] = '\0';
+}
+
 // Jeden GET s filtrem. Vraci HTTP kod (nebo zaporny kod HTTPClient),
 // pri uspechu 200 a rozparsovanym dokumentem.
 static int getJson(const char* url, JsonDocument& filter, JsonDocument& doc) {
@@ -231,7 +248,7 @@ static int getJson(const char* url, JsonDocument& filter, JsonDocument& doc) {
   http.setUserAgent(HTTP_USER_AGENT);
   http.addHeader("Accept", "application/json");
   int code = http.GET();
-  if (code != HTTP_CODE_OK) { http.end(); return code; }
+  if (code != HTTP_CODE_OK) { http.end(); client.stop(); return code; }
   // Buffer the body first. http.getStream() is the RAW socket and does not
   // strip chunked encoding, so parsing straight off it would read the hex
   // block size as a value and report Ok on an empty document - the same
@@ -241,10 +258,11 @@ static int getJson(const char* url, JsonDocument& filter, JsonDocument& doc) {
   if (!s_buf) {
     s_buf = (uint8_t*)heap_caps_malloc(ROUTE_MAX, MALLOC_CAP_SPIRAM);
     if (!s_buf) s_buf = (uint8_t*)malloc(ROUTE_MAX);
-    if (!s_buf) { http.end(); return -1002; }
+    if (!s_buf) { http.end(); client.stop(); return -1002; }
   }
   long len = Net_ReadBody(http, s_buf, ROUTE_MAX, "ROUTE", s_poll);
   http.end();
+  client.stop();
   if (len <= 0) return -1001;
 
   DeserializationError err = deserializeJson(doc, s_buf, (size_t)len,
@@ -253,12 +271,39 @@ static int getJson(const char* url, JsonDocument& filter, JsonDocument& doc) {
 }
 
 void Route_Tick() {
+  // Rate-limit route queries so rapid retries don't exhaust TLS heap
+  static uint32_t s_lastQueryMs = 0;
+  if (millis() - s_lastQueryMs < 1500) return;
+
+  // If the main slot is idle, promote a queued background lookup.
+  if (!s_pending && s_queuePending) {
+    Async_LockRoute();
+    if (!s_pending && s_queuePending) {
+      strncpy(s_wantKey, s_queueKey, sizeof(s_wantKey) - 1);
+      s_wantLat = s_queueLat;
+      s_wantLon = s_queueLon;
+      s_queuePending = false;
+      s_queueKey[0] = '\0';
+      // Check cache first
+      Entry* e = find(s_wantKey);
+      if (e && !expired(e)) {
+        s_wantKey[0] = '\0';   // already cached, nothing to do
+        Async_UnlockRoute();
+        return;
+      }
+      if (!e) insert(s_wantKey);
+      s_pending = true;
+    }
+    Async_UnlockRoute();
+  }
+
   if (!s_pending) return;
   if (WiFi.status() != WL_CONNECTED) return;
 
   if (!Net_HeapOk("ROUTE")) return;    // zkusi se znovu pristi kolo
 
   s_pending = false;
+  s_lastQueryMs = millis();
   Entry* e = find(s_wantKey);
   if (!e) return;
   // Odsud dal uz kazda cesta zaznam zmeni (vysledek, "neni", nebo zahozeni po
@@ -283,14 +328,14 @@ void Route_Tick() {
            ROUTE_API_BASE, s_wantKey, s_wantLat, s_wantLon);
   int code = getJson(url, filter, doc);
   if (code != HTTP_CODE_OK) {
-    // Neuspech se NEZAPAMATUJE: zaznam se z kese zahodi misto ulozeni jako
-    // "trasa neni". Server obcas vrati 500 u callsignu, ktery jeste nema
-    // predpocitany (napr. DLH400 mimo cas letu), a zapamatovana chyba by
-    // znamenala, ze uz se na nej do restartu nikdy nezeptame. Takhle se dotaz
-    // zopakuje, jakmile uzivatel detail otevre znovu. Panel zatim neukaze nic.
+    // Neuspech (500, timeout, TLS fail): ulozime jako ROUTE_NONE s cooldownem 60s.
+    // Nesmime zaznam jen tak smazat (*e = Entry()), protoze radar v kazdem snimku
+    // letadlo znovu zaradi do fronty a zpusobi nekonecnou smycku HTTPS dotazu,
+    // ktera vycerpa TLS pamet (-32512) a schodi i radar RainVieweru.
     char key[12]; strncpy(key, e->key, sizeof(key)); key[sizeof(key) - 1] = '\0';
-    *e = Entry();
-    Serial.printf("TRASA %s: dotaz selhal (%d)\n", key, code);
+    e->state = ROUTE_NONE;
+    e->stamp = millis();
+    Serial.printf("TRASA %s: dotaz selhal (%d), odlozeno o 1 min\n", key, code);
     return;
   }
 
@@ -332,12 +377,67 @@ void Route_Tick() {
 
   airportLabel(e->info.from, sizeof(e->info.from), aps[best]);
   airportLabel(e->info.to,   sizeof(e->info.to),   aps[best + 1]);
+  airportIata(e->info.iataFrom, sizeof(e->info.iataFrom), aps[best]);
+  airportIata(e->info.iataTo,   sizeof(e->info.iataTo),   aps[best + 1]);
 
   bool any = (e->info.from[0] || e->info.to[0]);
   e->state = any ? ROUTE_OK : ROUTE_NONE;
   e->stamp = millis();   // od ted bezi platnost, viz expired()
-  Serial.printf("TRASA %s: %s -> %s (%s, usek %d/%d)\n", e->key,
+  Serial.printf("TRASA %s: %s -> %s [%s>%s] (%s, usek %d/%d)\n", e->key,
                 e->info.from[0] ? e->info.from : "?",
                 e->info.to[0]   ? e->info.to   : "?",
+                e->info.iataFrom[0] ? e->info.iataFrom : "?",
+                e->info.iataTo[0]   ? e->info.iataTo   : "?",
                 codes, best + 1, n - 1);
+}
+
+// --- Cached route lookup (for on-map labels) --------------------------------
+const RouteInfo* Route_GetCached(const char* callsign) {
+  if (!callsign || !*callsign) return nullptr;
+  char key[12] = "";
+  strncpy(key, callsign, sizeof(key) - 1);
+  trim(key);
+  Async_LockRoute();
+  Entry* e = find(key);
+  const RouteInfo* info = (e && e->state == ROUTE_OK && !expired(e)) ? &e->info : nullptr;
+  Async_UnlockRoute();
+  return info;
+}
+
+// --- Background route queue (for visible aircraft on the radar) -------------
+// Simple single-slot queue: if Route_Select is already busy with a detail-panel
+// lookup, queued items wait. Only one background lookup is queued at a time.
+void Route_Queue(const char* callsign, float lat, float lon) {
+  if (!callsign || !*callsign) return;
+  char key[12] = "";
+  strncpy(key, callsign, sizeof(key) - 1);
+  trim(key);
+  if (!callsignSane(key)) return;
+
+  Async_LockRoute();
+  // Already cached?
+  Entry* e = find(key);
+  if (e && !expired(e)) { Async_UnlockRoute(); return; }   // already have it
+  // Don't queue if the main Select is busy with a different callsign
+  if (s_pending && s_wantKey[0]) { Async_UnlockRoute(); return; }
+  // Queue it
+  strncpy(s_queueKey, key, sizeof(s_queueKey) - 1);
+  s_queueLat = lat;
+  s_queueLon = lon;
+  s_queuePending = true;
+  Async_UnlockRoute();
+}
+
+void Route_ClearQueue() {
+  Async_LockRoute();
+  s_queuePending = false;
+  s_queueKey[0] = '\0';
+  Async_UnlockRoute();
+}
+
+bool Route_HasPending() {
+  Async_LockRoute();
+  bool p = s_pending || s_queuePending;
+  Async_UnlockRoute();
+  return p;
 }

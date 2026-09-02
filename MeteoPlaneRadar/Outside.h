@@ -16,6 +16,9 @@
 #pragma once
 #include <Arduino.h>
 
+// Initialize RTC and restore time if available
+void Outside_Init();
+
 // Feed the raw value of an HTTP "Date" header, e.g.
 // "Sun, 09 Aug 2026 20:00:56 GMT". Anything unparseable is ignored.
 // Called by ADSB.cpp and CHMU.cpp after every successful request.

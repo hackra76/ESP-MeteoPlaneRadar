@@ -53,3 +53,5 @@ bool WebConfig_WantsRestart();
 int WebConfig_TakeScreen();       // screen index, or -1 when nothing is pending
 int WebConfig_TakeScreenStep();   // -1 / +1, or 0
 int WebConfig_TakeRangeStep();    // -1 / +1, or 0
+bool WebConfig_TakeRedraw();      // true when a settings change requests screen redraw
+void WebConfig_RequestRedraw();

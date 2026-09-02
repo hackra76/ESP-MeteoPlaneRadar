@@ -120,27 +120,21 @@ void ScreenSettings_Draw() {
   Layout_ReserveBand(LY_DOTS - 6, 12);
 
   UI_TextCentered(T(S_SETTINGS), 40, C_WHITE, 3);
-  { char v[28]; snprintf(v, sizeof(v), "firmware v%s", FW_VERSION);
+  { char v[28];
+    const char* fwFmt = (Lang_Get() == LANG_EN) ? "firmware v%s" : ((Lang_Get() == LANG_SK) ? "firmvér v%s" : "firmware v%s");
+    snprintf(v, sizeof(v), fwFmt, FW_VERSION);
     UI_TextCentered(v, 68, C_GRAY, 1); }
 
   // --- Brightness ---
-  gfx->setTextSize(2); gfx->setTextColor(C_GRAY);
-  gfx->setCursor(SL_X, ROW_BRIGHT);
-  gfx->print(T(S_BRIGHTNESS));
-  // Say which of the two levels is being edited - otherwise changing it at dusk
-  // looks like it did not stick, when in fact the other level was changed.
+  UI_Text(T(S_BRIGHTNESS), SL_X, ROW_BRIGHT, C_GRAY, 2);
   if (Settings_NightAuto() || Settings_IsNight()) {
-    gfx->setTextSize(1);
-    gfx->setCursor(SL_X + 60, ROW_BRIGHT + 6);
-    const char* dn = Settings_IsNight() ? (Lang_Get() == LANG_EN ? "(night)" : (Lang_Get() == LANG_SK ? "(nocny)" : "(nocni)"))
-                                        : (Lang_Get() == LANG_EN ? "(day)"   : (Lang_Get() == LANG_SK ? "(denny)" : "(denni)"));
-    gfx->print(dn);
+    const char* dn = Settings_IsNight() ? (Lang_Get() == LANG_EN ? "(night)" : (Lang_Get() == LANG_SK ? "(nočný)" : "(noční)"))
+                                        : (Lang_Get() == LANG_EN ? "(day)"   : (Lang_Get() == LANG_SK ? "(denný)" : "(denní)"));
+    UI_Text(dn, SL_X + Layout_TextW(T(S_BRIGHTNESS), 2) + 8, ROW_BRIGHT + 4, C_GRAY, 1);
   }
   uint8_t bl = Settings_Backlight();
   char blbuf[8]; snprintf(blbuf, sizeof(blbuf), "%d%%", bl);
-  gfx->setTextSize(2); gfx->setTextColor(C_WHITE);
-  gfx->setCursor(SL_X + SL_W - Layout_TextW(blbuf, 2), ROW_BRIGHT);
-  gfx->print(blbuf);
+  UI_Text(blbuf, SL_X + SL_W - Layout_TextW(blbuf, 2), ROW_BRIGHT, C_WHITE, 2);
 
   gfx->fillRoundRect(SL_X, SL_Y, SL_W, SL_H, SL_H / 2, C_DKGRAY);
   int fillW = SL_W * bl / 100;
@@ -148,31 +142,22 @@ void ScreenSettings_Draw() {
   gfx->fillCircle(SL_X + fillW, SL_Y + SL_H / 2, 15, C_WHITE);
 
   // --- WiFi + where to configure it ---
-  gfx->setTextSize(2); gfx->setTextColor(C_GRAY);
-  gfx->setCursor(SL_X, ROW_WIFI); gfx->print("WiFi: ");
+  UI_Text("WiFi: ", SL_X, ROW_WIFI, C_GRAY, 2);
+  int wLabel = Layout_TextW("WiFi: ", 2);
   if (WiFi_IsConnected()) {
-    gfx->setTextColor(C_GREEN);
-    gfx->print(WiFi_SSID());
-    gfx->setTextColor(C_WHITE);
-    gfx->setCursor(SL_X, ROW_IP); gfx->print(WiFi_IP());
-    gfx->setTextSize(1); gfx->setTextColor(C_CYAN);
-    gfx->setCursor(SL_X, ROW_WEB);
-    gfx->print(T(S_WEB_HINT));
-    gfx->setCursor(SL_X, ROW_WEB + 10);
-    gfx->print(WEB_HOSTNAME ".local");
+    UI_Text(WiFi_SSID(), SL_X + wLabel, ROW_WIFI, C_GREEN, 2);
+    UI_Text(WiFi_IP(), SL_X, ROW_IP, C_WHITE, 2);
+    UI_Text(T(S_WEB_HINT), SL_X, ROW_WEB, C_CYAN, 1);
+    UI_Text(WEB_HOSTNAME ".local", SL_X, ROW_WEB + 12, C_CYAN, 1);
   } else if (WiFi_IsAP()) {
-    gfx->setTextColor(C_YELLOW);
-    gfx->print(AP_SSID);
-    gfx->setTextSize(1); gfx->setTextColor(C_CYAN);
-    gfx->setCursor(SL_X, ROW_WEB); gfx->print(PORTAL_IP);
+    UI_Text(AP_SSID, SL_X + wLabel, ROW_WIFI, C_YELLOW, 2);
+    UI_Text(PORTAL_IP, SL_X, ROW_WEB, C_CYAN, 1);
   } else {
-    gfx->setTextColor(C_YELLOW);
-    gfx->print(T(S_NOT_CONNECTED));
+    UI_Text(T(S_NOT_CONNECTED), SL_X + wLabel, ROW_WIFI, C_YELLOW, 1);
   }
 
   // --- Which bearing is at the top ---
-  gfx->setTextSize(2); gfx->setTextColor(C_GRAY);
-  gfx->setCursor(SL_X, ROT_Y + 12); gfx->print(T(S_TOP));
+  UI_Text(T(S_TOP), SL_X, ROT_Y + 12, C_GRAY, 2);
 
   uint16_t top = Settings_TopBearing();
   gfx->fillRoundRect(ROT_MINUS_X, ROT_Y, ROT_BTN_W, ROT_H, 8, C_DKGRAY);
@@ -206,13 +191,13 @@ void ScreenSettings_Draw() {
 
   gfx->fillRoundRect(BTN_X, BTN1_Y, BTN_W, BTN_H, 12, C_CYAN);
   const char* langBtn = (Lang_Get() == LANG_EN) ? "Language: English"
-                      : ((Lang_Get() == LANG_SK) ? "Jazyk: slovencina" : "Jazyk: cestina");
+                      : ((Lang_Get() == LANG_SK) ? "Jazyk: slovenčina" : "Jazyk: čeština");
   UI_TextCentered(langBtn, BTN1_Y + BTN_H / 2 - 8, C_BLACK, 2);
 
   gfx->fillRoundRect(BTN_X, BTN2_Y, BTN_W, BTN_H, 12, C_ORANGE);
   const char* forgetWifiBtn = (Lang_Get() == LANG_EN) ? "Forget WiFi"
-                            : ((Lang_Get() == LANG_SK) ? "Zabudnut WiFi" : "Zapomenout WiFi");
+                            : ((Lang_Get() == LANG_SK) ? "Zabudnúť WiFi" : "Zapomenout WiFi");
   UI_TextCentered(forgetWifiBtn, BTN2_Y + BTN_H / 2 - 8, C_BLACK, 2);
 
-  UI_TextCentered("chiptron.cz", LY_FOOTER, C_GREEN, 2);
+  UI_TextCentered("H4CKR4", LY_FOOTER, C_GREEN, 2);
 }

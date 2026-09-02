@@ -40,8 +40,10 @@ enum RouteState : uint8_t {
 };
 
 struct RouteInfo {
-  char from[20] = "";   // "Prague", pripadne "PRG" kdyz mesto chybi
-  char to[20]   = "";
+  char from[20]     = "";   // "Prague", pripadne "PRG" kdyz mesto chybi
+  char to[20]       = "";
+  char iataFrom[5]  = "";   // 3-letter IATA code (e.g. "PRG")
+  char iataTo[5]    = "";   // 3-letter IATA code (e.g. "LHR")
 };
 
 // Zeptej se na tuto trasu. Levne a idempotentni: opakovane volani se stejnym
@@ -71,3 +73,14 @@ const RouteInfo* Route_Get();   // platne, dokud je stav ROUTE_OK
 // tohohle by na odpoved cekala az na dalsi stahovani letadel - tedy podle
 // dosahu 5 az 15 sekund, i kdyz trasa dorazila hned.
 bool       Route_TakeChanged();
+
+// Look up a cached route by callsign without changing the "selected" aircraft.
+// Returns a pointer to cached RouteInfo if found and state is ROUTE_OK, else
+// nullptr. Used by the radar screen to show IATA route labels on the map.
+const RouteInfo* Route_GetCached(const char* callsign);
+
+// Queue a background route lookup for an aircraft visible on the radar.
+// Like Route_Select but does not change the "selected" aircraft (used by the
+void       Route_Queue(const char* callsign, float lat, float lon);
+void       Route_ClearQueue();
+bool       Route_HasPending();

@@ -13,6 +13,7 @@
 #include "SkCitiesData.h"   // Slovak cities - they replace the European ones
 #include "UI.h"
 #include "Layout.h"
+#include "Settings.h"
 #include <string.h>
 #include <math.h>
 
@@ -147,29 +148,18 @@ static void drawOneCity(const EuCity& c, ProjectFn project, int cx, int cy,
     // Where the label goes: to the right of the dot, or to the left when that
     // would spill out of the circle.
     const char* label = showFull ? c.name : c.abbr;
-    int tw = strlen(label) * 6;
+    int tw = Layout_TextW(label, 1);
+    if (tw <= 0) tw = strlen(label) * 6;
     int ty = sy - 4;
     int tx = sx + 9;
     if ((long)(tx + tw - cx) * (tx + tw - cx) + dy * dy > r2) tx = sx - 9 - tw;
 
-    // Claim the space, dot included, with two pixels of air around it. If it is
-    // taken, try the other side of the dot before giving up.
-    // Claim the space, dot included, with two pixels of air around it. If it is
-    // taken, try the other side of the dot before giving up.
-    int bx0 = (tx < sx) ? (tx - 2) : (sx - 5);
-    int bx1 = (tx < sx) ? (sx + 5) : (tx + tw + 2);
-    if (!Layout_Claim(bx0, ty - 2, bx1 - bx0 + 1, 12)) {
-      int alt = (tx > sx) ? (sx - 9 - tw) : (sx + 9);
-      int ax0 = (alt > sx) ? (sx - 5) : (alt - 2);
-      int ax1 = (alt > sx) ? (alt + tw + 2) : (sx + 5);
-      if (!Layout_Claim(ax0, ty - 2, ax1 - ax0 + 1, 12)) return;   // both sides busy
-      tx = alt;
-    }
-
     gfx->fillCircle(sx, sy, 3, dotColor);
-    gfx->setTextSize(1);
-    gfx->setTextColor(textColor);
-    gfx->setCursor(tx, ty);
-    gfx->print(label);
+    if (Settings_ShowLegends()) {
+      // Check collision: prevent city labels from colliding with each other or chrome
+      if (Layout_Claim(tx - 2, ty - 2, tw + 4, 12)) {
+        UI_Text(label, tx, ty, textColor, 1);
+      }
+    }
   }
 }

@@ -28,8 +28,10 @@ static const char* DATE_HDR[] = { "Date" };
 void Net_SessionBegin() {
   if (s_sess) return;
   s_sess = new WiFiClientSecure();
-  if (s_sess) { s_sess->setInsecure();
-                s_sess->setHandshakeTimeout(NET_TLS_HANDSHAKE_S); }
+  if (s_sess) {
+    s_sess->setInsecure();
+    s_sess->setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
+  }
 }
 
 void Net_SessionEnd() {
@@ -66,7 +68,10 @@ bool Net_GetString(const char* url, String& out, const char* tag) {
 
   WiFiClient       plain;
   WiFiClientSecure secure;
-  if (tls) { secure.setInsecure(); secure.setHandshakeTimeout(NET_TLS_HANDSHAKE_S); }
+  if (tls) {
+    secure.setInsecure();
+    secure.setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
+  }
   WiFiClient& client = tls ? static_cast<WiFiClient&>(secure)
                            : static_cast<WiFiClient&>(plain);
 
@@ -116,11 +121,15 @@ bool Net_GetBinary(const char* url, uint8_t* buf, size_t cap, size_t* outLen,
   // allocation is not about to happen and the heap guard would only get in the
   // way. Outside one it still applies.
   const bool sess = (s_sess != nullptr);
-  if (!sess && !Net_HeapOk(tag)) return false;
+  const bool connected = (sess && s_sess->connected());
+  if (!connected && !Net_HeapOk(tag)) return false;
 
   WiFiClientSecure  own;
   WiFiClientSecure& client = sess ? *s_sess : own;
-  if (!sess) { own.setInsecure(); own.setHandshakeTimeout(NET_TLS_HANDSHAKE_S); }
+  if (!sess) {
+    own.setInsecure();
+    own.setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
+  }
 
   HTTPClient http;
   http.setConnectTimeout(6000);

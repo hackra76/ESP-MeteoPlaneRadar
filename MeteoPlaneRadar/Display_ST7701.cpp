@@ -254,8 +254,16 @@ uint16_t* LCD_FrameBuffer(int idx) {
   return (uint16_t*)(idx == 0 ? fb0 : fb1);
 }
 
+static const uint16_t* s_activeFb = nullptr;
+
+const uint16_t* LCD_GetActiveBuffer() {
+  if (s_activeFb) return s_activeFb;
+  return LCD_FrameBuffer(0);
+}
+
 void LCD_Flush(const uint16_t* fb) {
   if (!panel_handle || !fb) return;   // panel init failed - nothing to draw on
+  s_activeFb = fb;
   // With two framebuffers the driver recognises one of its own buffers, skips
   // the copy entirely and only repoints the DMA (verified in the IDF source:
   // draw_bitmap sets do_copy = false when the pointer matches a framebuffer).

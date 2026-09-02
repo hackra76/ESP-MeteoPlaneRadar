@@ -94,6 +94,9 @@
 #include "Watchdog.h"
 #include "Outside.h"
 #include "Route.h"
+#include "AsyncCore.h"
+#include "QMI8658.h"
+#include "FontEngine.h"
 
 // gfx = single off-screen canvas in PSRAM. Everything is drawn here, then
 // flush() pushes the whole frame to the panel in one shot -> no flicker.
@@ -255,14 +258,14 @@ static void drawScreenDots() {
   const int n = visibleList(vis);
   if (n <= 1) return;                    // one screen - a single dot says nothing
 
-  const int gap = 20;
+  const int gap = 18;
   const int cx = LCD_WIDTH / 2;
-  const int y = LY_DOTS;
+  const int y = (s_screen == SCREEN_CLOCK_I) ? 58 : LY_DOTS;
   const int startX = cx - (n - 1) * gap / 2;
   for (int i = 0; i < n; i++) {
     int x = startX + i * gap;
-    if (vis[i] == s_screen) gfx->fillCircle(x, y, 4, C_WHITE);
-    else                    gfx->drawCircle(x, y, 4, C_GRAY);
+    if (vis[i] == s_screen) gfx->fillCircle(x, y, 3, C_WHITE);
+    else                    gfx->drawCircle(x, y, 3, (s_screen == SCREEN_CLOCK_I) ? C_GRAY : C_DKGRAY);
   }
 }
 
@@ -302,6 +305,7 @@ static void switchScreen(int dir) {
   if (next == s_screen) return;
   s_screen = next;
   Settings_SetScreen((uint8_t)s_screen);
+  Async_SetActiveScreen((uint8_t)s_screen);
   Serial.printf("Screen: %d\n", s_screen);
   enterActive();
 }
@@ -314,6 +318,7 @@ static void gotoScreen(int idx) {
   if (idx == s_screen) return;
   s_screen = idx;
   Settings_SetScreen((uint8_t)s_screen);
+  Async_SetActiveScreen((uint8_t)s_screen);
   Serial.printf("Screen: %d (web)\n", s_screen);
   enterActive();
 }
@@ -458,6 +463,7 @@ void setup() {
   Serial.printf("Duvod restartu: %s\n", resetReasonText());
   Serial.printf("Volna pamet: %u B\n", (unsigned)ESP.getFreeHeap());
 
+  Watchdog_Begin();          // initialize hardware task watchdog early
   Settings_Begin();          // also sets the interface language
   applyTimezone();
   Layout_SelfTest();         // no-op unless LAYOUT_DEBUG is on
@@ -467,6 +473,7 @@ void setup() {
   TCA9554_Init();
   TCA9554_SetPin(EXIO_LCD_PWR, false);
   delay(10);
+  Outside_Init();
 
   Backlight_Init();
   // Backlight stays off for now. The panel powers up with random memory
@@ -489,6 +496,7 @@ void setup() {
     while (true) delay(1000);
   }
   gfx = canvas;
+  Font_Init(gfx);
   gfx->setTextWrap(false);
   gfx->fillScreen(C_BLACK);
   gfx->flush();
@@ -498,6 +506,15 @@ void setup() {
     // Not fatal - the screens keep running, they just cannot be operated. Worth
     // knowing about, because from the outside it looks like a frozen board.
     Serial.println("VAROVANI: dotyk se neinicializoval, ovladani nebude fungovat");
+  }
+
+  // 6-Axis IMU (accelerometer / gyroscope for gestures and tilt)
+  if (QMI8658_Init()) {
+    QMI8658_OnDoubleTap([]() {
+      Settings_ToggleLegends();
+      drawActive();
+      Serial.printf("IMU Gesture: Double-tap detected -> ShowLegends = %d\n", Settings_ShowLegends());
+    });
   }
 
   checkBootReset();
@@ -523,13 +540,16 @@ void setup() {
     s_screen = SCREEN_SETTINGS_I;
     for (int i = 0; i < SCREEN_N; i++) if (screenVisible(i)) { s_screen = i; break; }
   }
+
+  Async_Begin();
+  Async_SetActiveScreen((uint8_t)s_screen);
+
   // In access-point mode the QR screen owns the display and must stay up until a
   // network is entered. Drawing a data screen here would paint straight over it
   // - which is what happened on a first run and after a factory reset. The
   // screen is still chosen above, so it is ready the moment WiFi comes up.
   if (!WiFi_IsAP()) enterActive();
 
-  Watchdog_Begin();   // hardware watchdog for 24/7 operation
   Serial.println("Setup done");
 }
 
@@ -580,20 +600,19 @@ void loop() {
   // from under the RGB DMA, so nothing may draw, and every spare cycle should
   // go to the transfer. The watchdog is fed by the OTA progress callback.
   if (WebConfig_UpdateBusy()) {
+    Async_Pause();
     WebConfig_Loop();
     delay(1);
     return;
   }
+  if (Async_IsPaused()) {
+    Async_Resume();
+  }
 
-  // Touch: sample and act. During a download the sampling also happens inside
-  // netPoll(), so by the time we get back here the gesture is already waiting.
+  // Touch: sample and act.
   touchPump();
 
   // --- Access point: the portal owns the display ----------------------------
-  // Until a network is entered there is no data to put on the screens anyway,
-  // and the QR code is the only thing standing between the user and a working
-  // device. So nothing below this block may draw, and no gesture may switch
-  // away from it. The web server and the WiFi state machine keep running.
   static bool s_apOwnsScreen = false;
   static uint8_t s_apLang = 0xFF;
   if (WiFi_IsAP()) {
@@ -613,8 +632,6 @@ void loop() {
       delay(400);
       ESP.restart();
     }
-    // No Outside_Tick/Forecast_Tick here - there is no route to the internet and
-    // every attempt would just burn the loop on timeouts.
     displayWatchdog();
     NightMode_Tick();
     Settings_Tick();
@@ -635,9 +652,7 @@ void loop() {
 
   dispatchTouch();
 
-  // The same actions, asked for from the web instead of the glass. They are
-  // carried out here rather than in the request handler for the same reason a
-  // gesture is - drawing must not happen from anywhere else.
+  // The same actions, asked for from the web instead of the glass.
   {
     const int scr = WebConfig_TakeScreen();
     if (scr >= 0) {
@@ -657,10 +672,10 @@ void loop() {
       drawActive();
       s_touchPauseUntil = millis() + autoRotatePauseMs();
     }
+    if (WebConfig_TakeRedraw()) {
+      drawActive();
+    }
   }
-
-  WiFi_Loop();
-  WebConfig_Loop();
 
   // The user asked to forget the network from the settings screen.
   if (ScreenSettings_WantsWifiReset()) {
@@ -669,9 +684,7 @@ void loop() {
     return;
   }
 
-  // Some settings only take effect from a clean start (which screens exist,
-  // which radar source, where we are). The web handler asks for it; doing it
-  // here means the browser has already had its reply.
+  // Some settings only take effect from a clean start
   if (WebConfig_WantsRestart()) {
     Serial.println("Nastaveni zmeneno, restartuji");
     Serial.flush();
@@ -679,10 +692,10 @@ void loop() {
     ESP.restart();
   }
 
-  // Redrawing is decoupled from reading the touch and capped at ~12 FPS.
+  // Redrawing is decoupled from reading the touch and capped at ~20 FPS.
   static unsigned long lastDraw = 0;
   bool wantDraw = activeTick();
-  if (wantDraw && millis() - lastDraw >= 80) {
+  if (wantDraw && millis() - lastDraw >= 50) {
     drawActive();
     lastDraw = millis();
   }
@@ -698,11 +711,9 @@ void loop() {
   }
 
   displayWatchdog();
-  Outside_Tick();     // outside temperature and the clock safety net
-  Forecast_Tick();    // forecast, sun times and air quality
   NightMode_Tick();   // day/night brightness
-  Route_Tick();       // pending "where is it flying from/to" lookup
+  QMI8658_Tick();     // IMU gestures (double-tap detection)
   Settings_Tick();    // debounced persist of UI state to NVS
   Watchdog_Feed();
-  delay(5);
+  delay(2);
 }

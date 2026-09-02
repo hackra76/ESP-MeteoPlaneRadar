@@ -45,8 +45,8 @@ uint8_t Lang_Get()             { return s_lang; }
 const char* T(StrId id) {
   if (id >= STR_COUNT) return "";
   if (s_lang == LANG_EN) return EN_ALL[id];
-  if (s_lang == LANG_SK) return SK_DISP[id];
-  return CZ_DISP[id];
+  if (s_lang == LANG_SK) return SK_WEB[id];
+  return CZ_WEB[id];
 }
 
 const char* TW(StrId id) {
@@ -57,16 +57,16 @@ const char* TW(StrId id) {
 }
 
 // Sunday first, to line up with struct tm's tm_wday.
-static const char* const WD_CZ[7] = { "Ne", "Po", "Ut", "St", "Ct", "Pa", "So" };
-static const char* const WD_SK[7] = { "Ne", "Po", "Ut", "St", "St", "Pi", "So" };
+static const char* const WD_CZ[7] = { "Ne", "Po", "Út", "St", "Čt", "Pá", "So" };
+static const char* const WD_SK[7] = { "Ne", "Po", "Ut", "St", "Št", "Pi", "So" };
 static const char* const WD_EN[7] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
 
-static const char* const MON_CZ[12] = { "ledna", "unora", "brezna", "dubna", "kvetna",
-                                        "cervna", "cervence", "srpna", "zari",
-                                        "rijna", "listopadu", "prosince" };
-static const char* const MON_SK[12] = { "januara", "februara", "marca", "aprila", "maja",
-                                        "juna", "jula", "augusta", "septembra",
-                                        "oktobra", "novembra", "decembra" };
+static const char* const MON_CZ[12] = { "ledna", "února", "března", "dubna", "května",
+                                        "června", "července", "srpna", "září",
+                                        "října", "listopadu", "prosince" };
+static const char* const MON_SK[12] = { "januára", "februára", "marca", "apríla", "mája",
+                                        "júna", "júla", "augusta", "septembra",
+                                        "októbra", "novembra", "decembra" };
 static const char* const MON_EN[12] = { "January", "February", "March", "April", "May",
                                         "June", "July", "August", "September",
                                         "October", "November", "December" };

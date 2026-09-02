@@ -5,6 +5,7 @@
 //  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
 // =============================================================================
 #include "Forecast.h"
+#include "AsyncCore.h"
 #include "Net.h"
 #include "Settings.h"
 #include "Outside.h"
@@ -40,22 +41,24 @@ static bool          s_aqEverTried = false;
 
 void Forecast_Invalidate() { s_forceNext = true; }
 
-bool Forecast_Valid()        { return s_valid; }
-int  Forecast_HourCount()    { return s_hourN; }
+bool Forecast_Valid()        { Async_LockForecast(); bool v = s_valid; Async_UnlockForecast(); return v; }
+int  Forecast_HourCount()    { Async_LockForecast(); int n = s_hourN; Async_UnlockForecast(); return n; }
 const FcHour* Forecast_Hours() { return s_hours; }
-int  Forecast_DayCount()     { return s_dayN; }
+int  Forecast_DayCount()     { Async_LockForecast(); int n = s_dayN; Async_UnlockForecast(); return n; }
 const FcDay*  Forecast_Days()  { return s_days; }
 
-bool  Forecast_CurrentValid() { return s_curOk; }
-float Forecast_CurrentTemp()  { return s_curTemp; }
-float Forecast_CurrentPrecip(){ return s_curPrecip; }
-float Forecast_CurrentWind()  { return s_curWind; }
-int   Forecast_CurrentCode()  { return s_curCode; }
+bool  Forecast_CurrentValid() { Async_LockForecast(); bool v = s_curOk; Async_UnlockForecast(); return v; }
+float Forecast_CurrentTemp()  { Async_LockForecast(); float t = s_curTemp; Async_UnlockForecast(); return t; }
+float Forecast_CurrentPrecip(){ Async_LockForecast(); float p = s_curPrecip; Async_UnlockForecast(); return p; }
+float Forecast_CurrentWind()  { Async_LockForecast(); float w = s_curWind; Async_UnlockForecast(); return w; }
+int   Forecast_CurrentCode()  { Async_LockForecast(); int c = s_curCode; Async_UnlockForecast(); return c; }
 
 bool Forecast_SunTimes(time_t* rise, time_t* set) {
-  if (!s_sunrise || !s_sunset) return false;
+  Async_LockForecast();
+  if (!s_sunrise || !s_sunset) { Async_UnlockForecast(); return false; }
   if (rise) *rise = s_sunrise;
   if (set)  *set  = s_sunset;
+  Async_UnlockForecast();
   return true;
 }
 
