@@ -415,8 +415,12 @@ bool RainViewer_Step() {
       Async_UnlockRadar();
       return false;
 
-    case RV_NEED_INDEX:
-      if (!fetchIndex(s_frameN)) {
+    case RV_NEED_INDEX: {
+      int frames = s_frameN;
+      Async_UnlockRadar();
+      bool indexOk = fetchIndex(frames);
+      Async_LockRadar();
+      if (!indexOk) {
         s_failed = true;
         s_state = RV_DONE;
         Net_SessionEnd();
@@ -424,13 +428,11 @@ bool RainViewer_Step() {
         return false;
       }
       computeGrid();                 // the frame count may have shrunk
-      // One TLS connection for the whole build. A handshake per tile needs
-      // ~45 kB of internal RAM, which the device does not reliably have while
-      // the web server is running - the main reason tiles used to go missing.
       Net_SessionBegin();
       s_state = RV_TILES;
       Async_UnlockRadar();
       return false;
+    }
 
     case RV_TILES: {
       if (s_buildPos >= s_frameN) {
@@ -451,7 +453,11 @@ bool RainViewer_Step() {
         Net_SessionBegin();
       }
 
-      bool ok = fetchOneTile(f, s_tilePos);
+      int curTile = s_tilePos;
+      Async_UnlockRadar();
+      bool ok = fetchOneTile(f, curTile);
+      Async_LockRadar();
+
       if (!ok && s_tileTry < RV_TILE_RETRY) {
         s_tileTry++;
         s_retryAt = millis() + 1500;

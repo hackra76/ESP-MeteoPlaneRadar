@@ -517,11 +517,18 @@ static bool tickRainViewer() {
   unsigned long now = millis();
   float rng = currentRange();
   double vlat = Settings_Lat(), vlon = Settings_Lon();
-  if (rng <= 0.0f) {
-    getWholeCountryView(&vlat, &vlon, &rng, nullptr);
-    RainViewer_Begin(vlat, vlon, -rng, CHMU_ANIM_MAX);
-  } else {
-    RainViewer_Begin(vlat, vlon, rng, CHMU_ANIM_MAX);
+
+  static float s_lastRng = -999.0f;
+  static double s_lastLat = -999.0, s_lastLon = -999.0;
+  bool viewChanged = (rng != s_lastRng) || (fabs(vlat - s_lastLat) > 1e-5) || (fabs(vlon - s_lastLon) > 1e-5);
+  if (viewChanged) {
+    s_lastRng = rng; s_lastLat = vlat; s_lastLon = vlon;
+    if (rng <= 0.0f) {
+      getWholeCountryView(&vlat, &vlon, &rng, nullptr);
+      RainViewer_Begin(vlat, vlon, -rng, CHMU_ANIM_MAX);
+    } else {
+      RainViewer_Begin(vlat, vlon, rng, CHMU_ANIM_MAX);
+    }
   }
 
   if (RainViewer_Busy()) {

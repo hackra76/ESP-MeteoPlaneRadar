@@ -48,19 +48,19 @@ static volatile bool s_reqRadar = false;
 static volatile bool s_reqForecast = false;
 
 // Mutex Helpers
-void Async_LockSettings()  { if (s_mtxSettings) xSemaphoreTake(s_mtxSettings, portMAX_DELAY); }
+void Async_LockSettings()  { if (s_mtxSettings) xSemaphoreTake(s_mtxSettings, pdMS_TO_TICKS(200)); }
 void Async_UnlockSettings(){ if (s_mtxSettings) xSemaphoreGive(s_mtxSettings); }
 
-void Async_LockAdsb()      { if (s_mtxAdsb) xSemaphoreTake(s_mtxAdsb, portMAX_DELAY); }
+void Async_LockAdsb()      { if (s_mtxAdsb) xSemaphoreTake(s_mtxAdsb, pdMS_TO_TICKS(200)); }
 void Async_UnlockAdsb()    { if (s_mtxAdsb) xSemaphoreGive(s_mtxAdsb); }
 
-void Async_LockRadar()     { if (s_mtxRadar) xSemaphoreTake(s_mtxRadar, portMAX_DELAY); }
+void Async_LockRadar()     { if (s_mtxRadar) xSemaphoreTake(s_mtxRadar, pdMS_TO_TICKS(200)); }
 void Async_UnlockRadar()   { if (s_mtxRadar) xSemaphoreGive(s_mtxRadar); }
 
-void Async_LockForecast()  { if (s_mtxForecast) xSemaphoreTake(s_mtxForecast, portMAX_DELAY); }
+void Async_LockForecast()  { if (s_mtxForecast) xSemaphoreTake(s_mtxForecast, pdMS_TO_TICKS(200)); }
 void Async_UnlockForecast(){ if (s_mtxForecast) xSemaphoreGive(s_mtxForecast); }
 
-void Async_LockRoute()     { if (s_mtxRoute) xSemaphoreTake(s_mtxRoute, portMAX_DELAY); }
+void Async_LockRoute()     { if (s_mtxRoute) xSemaphoreTake(s_mtxRoute, pdMS_TO_TICKS(200)); }
 void Async_UnlockRoute()   { if (s_mtxRoute) xSemaphoreGive(s_mtxRoute); }
 
 static SemaphoreHandle_t s_mtxI2c = NULL;
