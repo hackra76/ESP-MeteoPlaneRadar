@@ -445,10 +445,10 @@ static void drawHudClock(const struct tm* lt, time_t now) {
   }
   if (Settings_ClockShowWeather() && Forecast_CurrentValid()) {
     char tbuf[16];
-    snprintf(tbuf, sizeof(tbuf), "%d°C", (int)lroundf(Forecast_CurrentTemp()));
-    gfx->drawRect(18, CY - 14, 46, 28, hudCol);
-    UI_Text(tbuf, 24, CY - 6, hudCol, 2);
-    WxIcon_Draw(40, CY - 36, 12, Forecast_CurrentCode(), Settings_IsNight());
+    snprintf(tbuf, sizeof(tbuf), "%d°", (int)lroundf(Forecast_CurrentTemp()));
+    gfx->drawRect(16, CY - 14, 52, 28, hudCol);
+    Font_DrawCentered(tbuf, 42, CY - 7, hudCol, 2);
+    WxIcon_Draw(42, CY - 36, 12, Forecast_CurrentCode(), Settings_IsNight());
   }
 
   // Right Tape (Wind speed)
@@ -459,10 +459,10 @@ static void drawHudClock(const struct tm* lt, time_t now) {
   if (Settings_ClockShowWind() && Forecast_CurrentValid()) {
     char wbuf[16];
     snprintf(wbuf, sizeof(wbuf), "%d", (int)lroundf(Forecast_CurrentWind()));
-    gfx->drawRect(416, CY - 14, 46, 28, hudCol);
-    UI_Text(wbuf, 424, CY - 6, hudCol, 2);
-    UI_Text("WND", 422, CY - 26, dimHud, 1);
-    UI_Text("KMH", 422, CY + 18, dimHud, 1);
+    gfx->drawRect(412, CY - 14, 52, 28, hudCol);
+    Font_DrawCentered(wbuf, 438, CY - 7, hudCol, 2);
+    UI_Text("WND", 423, CY - 26, dimHud, 1);
+    UI_Text("KMH", 423, CY + 18, dimHud, 1);
   }
 
   // Tactical Bottom Info Line
@@ -537,7 +537,7 @@ static void drawRegulatorClock(const struct tm* lt, time_t now) {
     WxIcon_Draw(72, CY - 8, 14, Forecast_CurrentCode(), Settings_IsNight());
     char tbuf[16];
     snprintf(tbuf, sizeof(tbuf), "%d°C", (int)lroundf(Forecast_CurrentTemp()));
-    UI_TextCentered(tbuf, CY + 14, C_WHITE, 1);
+    Font_DrawCentered(tbuf, 72, CY + 14, C_WHITE, 1);
   }
 
   if (Settings_ClockShowMoon()) {
@@ -546,7 +546,7 @@ static void drawRegulatorClock(const struct tm* lt, time_t now) {
     Astro_DrawMoonIcon(408, CY - 8, 12, moon.phase);
     char mbuf[16];
     snprintf(mbuf, sizeof(mbuf), "%.0f%%", moon.illumination);
-    UI_TextCentered(mbuf, CY + 14, C_LTGRAY, 1);
+    Font_DrawCentered(mbuf, 408, CY + 14, C_LTGRAY, 1);
   }
 
   // Large Master Minute Hand (Pivoting at CX, CY)
@@ -593,7 +593,7 @@ static void drawStackedClock(const struct tm* lt, time_t now) {
     WxIcon_Draw(64, CY - 18, 14, Forecast_CurrentCode(), Settings_IsNight());
     char tbuf[16];
     snprintf(tbuf, sizeof(tbuf), "%d°", (int)lroundf(Forecast_CurrentTemp()));
-    UI_TextCentered(tbuf, CY + 10, C_WHITE, 2);
+    Font_DrawCentered(tbuf, 64, CY + 10, C_WHITE, 2);
   }
 
   // Right Moon Pill
@@ -604,7 +604,7 @@ static void drawStackedClock(const struct tm* lt, time_t now) {
     Astro_DrawMoonIcon(416, CY - 18, 12, moon.phase);
     char pbuf[16];
     snprintf(pbuf, sizeof(pbuf), "%.0f%%", moon.illumination);
-    UI_TextCentered(pbuf, CY + 12, C_LTGRAY, 1);
+    Font_DrawCentered(pbuf, 416, CY + 12, C_LTGRAY, 1);
   }
 
   // Bottom Wind Pill
