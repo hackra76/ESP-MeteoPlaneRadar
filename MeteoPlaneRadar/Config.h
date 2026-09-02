@@ -189,7 +189,7 @@
 //  Network
 // ---------------------------------------------------------------------------
 // A TLS handshake needs roughly 25-30 kB of internal RAM on ESP32-S3.
-#define NET_MIN_HEAP 42000
+#define NET_MIN_HEAP 35000
 
 // WiFiClientSecure defaults the mbedTLS handshake to 120 s, six times
 // WDT_TIMEOUT_S. setConnectTimeout() does NOT cover it - that only bounds the

@@ -209,10 +209,9 @@ static void touchPump() {
   }
 }
 
-// yield() during long network transfers, feed the watchdog so multi-second
-// downloads never trip it, and keep sampling the touch so a gesture made during
-// a download is still the gesture that gets acted on.
-static void netPoll() { yield(); Watchdog_Feed(); touchPump(); }
+// yield() during long network transfers and feed the watchdog.
+// Touch polling is isolated to Core 1 in loop() for multi-core safety.
+static void netPoll() { yield(); Watchdog_Feed(); }
 
 static void checkBootReset() {
   pinMode(BOOT_PIN, INPUT_PULLUP);
