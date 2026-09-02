@@ -41,9 +41,21 @@ static uint16_t s_autoRot = 0;
 static uint8_t s_radarSrc = RADAR_SRC_CHMU;
 
 // --- Clock appearance ---
-static uint8_t  s_secStyle = SEC_STYLE_DOTS;
-static uint16_t s_clockCol = 0xFFFF;   // white
-static uint16_t s_secCol   = 0x05FF;   // cyan
+static uint8_t  s_secStyle   = SEC_STYLE_DOTS;
+static uint8_t  s_clockStyle = CLOCK_STYLE_DIGITAL;
+static uint16_t s_clockCol   = 0xFFFF;   // white
+static uint16_t s_secCol     = 0x05FF;   // cyan
+static bool     s_clkShowDate= true;
+static bool     s_clkShowWx  = true;
+static bool     s_clkShowWind= true;
+static bool     s_clkShowMoon= true;
+static bool     s_clkShowAstro= true;
+static bool     s_nightClockOnly= false;
+
+static bool     s_radShowTrails  = true;
+static bool     s_radShowNearest = true;
+static bool     s_radShowAirports= true;
+static bool     s_radShowRings   = true;
 
 // --- Aircraft filters ---
 static uint16_t s_altMin = 0;
@@ -106,8 +118,19 @@ void Settings_Begin() {
     }
     s_radarSrc = prefs.getUChar("radSrc", RADAR_SRC_CHMU);
     s_secStyle = prefs.getUChar("secSt", SEC_STYLE_DOTS);
+    s_clockStyle = prefs.getUChar("clkSt", CLOCK_STYLE_DIGITAL);
     s_clockCol = prefs.getUShort("clkC", 0xFFFF);
     s_secCol   = prefs.getUShort("secC", 0x05FF);
+    s_clkShowDate = prefs.getBool("cDate", true);
+    s_clkShowWx   = prefs.getBool("cWx", true);
+    s_clkShowWind = prefs.getBool("cWnd", true);
+    s_clkShowMoon = prefs.getBool("cMoon", true);
+    s_clkShowAstro= prefs.getBool("cAstro", true);
+    s_nightClockOnly = prefs.getBool("nClkOn", false);
+    s_radShowTrails  = prefs.getBool("rTrl", true);
+    s_radShowNearest = prefs.getBool("rNear", true);
+    s_radShowAirports= prefs.getBool("rAirp", true);
+    s_radShowRings   = prefs.getBool("rRng", true);
     s_altMin = prefs.getUShort("altLo", 0);
     s_altMax = prefs.getUShort("altHi", 60000);
     s_onlyCs = prefs.getBool("onlyCs", false);
@@ -245,11 +268,37 @@ void    Settings_SetRadarSource(uint8_t s) {
 
 // --- Clock appearance -------------------------------------------------------
 uint8_t  Settings_SecondsStyle() { return s_secStyle; }
-void     Settings_SetSecondsStyle(uint8_t s) { if (s > SEC_STYLE_COMET) s = 0; s_secStyle = s; putU8("secSt", s); }
+void     Settings_SetSecondsStyle(uint8_t s) { if (s > SEC_STYLE_MAX) s = 0; s_secStyle = s; putU8("secSt", s); }
+uint8_t  Settings_ClockStyle() { return s_clockStyle; }
+void     Settings_SetClockStyle(uint8_t s) { if (s > CLOCK_STYLE_MAX) s = 0; s_clockStyle = s; putU8("clkSt", s); }
 uint16_t Settings_ClockColor() { return s_clockCol; }
 void     Settings_SetClockColor(uint16_t c) { s_clockCol = c; putU16("clkC", c); }
 uint16_t Settings_SecondsColor() { return s_secCol; }
 void     Settings_SetSecondsColor(uint16_t c) { s_secCol = c; putU16("secC", c); }
+
+// --- Clock widget toggles ---
+bool     Settings_ClockShowDate() { return s_clkShowDate; }
+void     Settings_SetClockShowDate(bool on) { s_clkShowDate = on; putBool("cDate", on); }
+bool     Settings_ClockShowWeather() { return s_clkShowWx; }
+void     Settings_SetClockShowWeather(bool on) { s_clkShowWx = on; putBool("cWx", on); }
+bool     Settings_ClockShowWind() { return s_clkShowWind; }
+void     Settings_SetClockShowWind(bool on) { s_clkShowWind = on; putBool("cWnd", on); }
+bool     Settings_ClockShowMoon() { return s_clkShowMoon; }
+void     Settings_SetClockShowMoon(bool on) { s_clkShowMoon = on; putBool("cMoon", on); }
+bool     Settings_ClockShowAstro() { return s_clkShowAstro; }
+void     Settings_SetClockShowAstro(bool on) { s_clkShowAstro = on; putBool("cAstro", on); }
+bool     Settings_NightClockOnly() { return s_nightClockOnly; }
+void     Settings_SetNightClockOnly(bool on) { s_nightClockOnly = on; putBool("nClkOn", on); }
+
+// --- Radar widget toggles ---
+bool     Settings_RadarShowTrails() { return s_radShowTrails; }
+void     Settings_SetRadarShowTrails(bool on) { s_radShowTrails = on; putBool("rTrl", on); }
+bool     Settings_RadarShowNearest() { return s_radShowNearest; }
+void     Settings_SetRadarShowNearest(bool on) { s_radShowNearest = on; putBool("rNear", on); }
+bool     Settings_RadarShowAirports() { return s_radShowAirports; }
+void     Settings_SetRadarShowAirports(bool on) { s_radShowAirports = on; putBool("rAirp", on); }
+bool     Settings_RadarShowRings() { return s_radShowRings; }
+void     Settings_SetRadarShowRings(bool on) { s_radShowRings = on; putBool("rRng", on); }
 
 // --- Aircraft filters -------------------------------------------------------
 uint16_t Settings_AltMinFt() { return s_altMin; }
@@ -343,8 +392,19 @@ void Settings_ToJson(JsonObject o) {
   o["autoRotate"] = s_autoRot;   // seconds
   o["topBearing"] = s_top;
   o["secStyle"] = s_secStyle;
+  o["clockStyle"] = s_clockStyle;
   o["clockColor"] = s_clockCol;
   o["secColor"] = s_secCol;
+  o["cDate"] = s_clkShowDate;
+  o["cWx"] = s_clkShowWx;
+  o["cWind"] = s_clkShowWind;
+  o["cMoon"] = s_clkShowMoon;
+  o["cAstro"] = s_clkShowAstro;
+  o["nightClockOnly"] = s_nightClockOnly;
+  o["rTrails"] = s_radShowTrails;
+  o["rNearest"] = s_radShowNearest;
+  o["rAirports"] = s_radShowAirports;
+  o["rRings"] = s_radShowRings;
   o["altMin"] = s_altMin;
   o["altMax"] = s_altMax;
   o["onlyCallsign"] = s_onlyCs;
@@ -386,8 +446,19 @@ bool Settings_FromJson(JsonObjectConst in) {
   setIf("autoRotate",   [](JsonVariantConst v){ Settings_SetAutoRotateSec(v.as<uint16_t>()); });
   setIf("topBearing",   [](JsonVariantConst v){ Settings_SetTopBearing(v.as<uint16_t>()); });
   setIf("secStyle",     [](JsonVariantConst v){ Settings_SetSecondsStyle(v.as<uint8_t>()); });
+  setIf("clockStyle",   [](JsonVariantConst v){ Settings_SetClockStyle(v.as<uint8_t>()); });
   setIf("clockColor",   [](JsonVariantConst v){ Settings_SetClockColor(v.as<uint16_t>()); });
   setIf("secColor",     [](JsonVariantConst v){ Settings_SetSecondsColor(v.as<uint16_t>()); });
+  setIf("cDate",        [](JsonVariantConst v){ Settings_SetClockShowDate(v.as<bool>()); });
+  setIf("cWx",          [](JsonVariantConst v){ Settings_SetClockShowWeather(v.as<bool>()); });
+  setIf("cWind",        [](JsonVariantConst v){ Settings_SetClockShowWind(v.as<bool>()); });
+  setIf("cMoon",        [](JsonVariantConst v){ Settings_SetClockShowMoon(v.as<bool>()); });
+  setIf("cAstro",       [](JsonVariantConst v){ Settings_SetClockShowAstro(v.as<bool>()); });
+  setIf("nightClockOnly",[](JsonVariantConst v){ Settings_SetNightClockOnly(v.as<bool>()); });
+  setIf("rTrails",      [](JsonVariantConst v){ Settings_SetRadarShowTrails(v.as<bool>()); });
+  setIf("rNearest",     [](JsonVariantConst v){ Settings_SetRadarShowNearest(v.as<bool>()); });
+  setIf("rAirports",    [](JsonVariantConst v){ Settings_SetRadarShowAirports(v.as<bool>()); });
+  setIf("rRings",       [](JsonVariantConst v){ Settings_SetRadarShowRings(v.as<bool>()); });
   setIf("showLegends",  [](JsonVariantConst v){ Settings_SetShowLegends(v.as<bool>()); });
   setIf("onlyCallsign", [](JsonVariantConst v){ Settings_SetOnlyWithCallsign(v.as<bool>()); });
   setIf("squawkAlert",  [](JsonVariantConst v){ Settings_SetSquawkAlert(v.as<bool>()); });

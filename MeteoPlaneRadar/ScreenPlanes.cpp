@@ -390,12 +390,16 @@ void ScreenPlanes_Draw() {
   }
 
   // Airports as underlay (below aircraft, above cities).
-  Airports_Draw(cityProject, R_CX, R_CY, LCD_WIDTH / 2 - 4, range,
-                lat0, lat1, lon0, lon1);
+  if (Settings_RadarShowAirports()) {
+    Airports_Draw(cityProject, R_CX, R_CY, LCD_WIDTH / 2 - 4, range,
+                  lat0, lat1, lon0, lon1);
+  }
 
   // Range rings and Home Base waypoint beacon
-  gfx->drawCircle(R_CX, R_CY, LCD_WIDTH / 2 - 2, C_DKGRAY);
-  gfx->drawCircle(R_CX, R_CY, LCD_WIDTH / 4, C_DKGRAY);
+  if (Settings_RadarShowRings()) {
+    gfx->drawCircle(R_CX, R_CY, LCD_WIDTH / 2 - 2, C_DKGRAY);
+    gfx->drawCircle(R_CX, R_CY, LCD_WIDTH / 4, C_DKGRAY);
+  }
   if (emergIdx < 0) {
     gfx->drawCircle(R_CX, R_CY, 8, C_CYAN);
     gfx->drawCircle(R_CX, R_CY, 4, C_YELLOW);
@@ -468,7 +472,9 @@ void ScreenPlanes_Draw() {
     uint16_t col = (em || isMil) ? C_RED : altColor(list[i].altFt, altKnown);
 
     // Draw flight trajectory breadcrumb trail
-    PlaneTrail_Draw(list[i].hex, cityProject, col, sx, sy);
+    if (Settings_RadarShowTrails()) {
+      PlaneTrail_Draw(list[i].hex, cityProject, col, sx, sy);
+    }
 
     float screenTrack = list[i].track - (float)s_topDeg;
     while (screenTrack < 0.0f) screenTrack += 360.0f;
@@ -547,7 +553,7 @@ void ScreenPlanes_Draw() {
   }
 
   // Draw Proximity Vector to the nearest overhead aircraft
-  if (closestIdx >= 0 && s_planeX[closestIdx] > -9000 && !ScreenPlanes_DetailOpen() && minDistKm <= range) {
+  if (Settings_RadarShowNearest() && closestIdx >= 0 && s_planeX[closestIdx] > -9000 && !ScreenPlanes_DetailOpen() && minDistKm <= range) {
     int cx = s_planeX[closestIdx], cy = s_planeY[closestIdx];
     int steps = 10;
     for (int s = 2; s < steps; s += 2) {

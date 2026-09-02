@@ -188,6 +188,13 @@ td:first-child{color:var(--mut);width:45%}
       </select>
     </div>
     <div class="row"><label class="chk"><input type="checkbox" id="showLegends"><span data-i18n="showLegends">Zobrazovať výškovú lištu a farebnú škálu zrážok (alebo poklepanie)</span></label></div>
+    <h3 style="margin:16px 0 8px;font-size:14px;color:#94a3b8;" data-i18n="radarWidgets">Prvky radarových máp</h3>
+    <div class="grid">
+      <label class="chk"><input type="checkbox" id="rTrails"><span data-i18n="rTrails">Trajektórie lietadiel (Trails)</span></label>
+      <label class="chk"><input type="checkbox" id="rNearest"><span data-i18n="rNearest">Vektor k najbližšiemu lietadlu</span></label>
+      <label class="chk"><input type="checkbox" id="rAirports"><span data-i18n="rAirports">Letiská (Runway ikony)</span></label>
+      <label class="chk"><input type="checkbox" id="rRings"><span data-i18n="rRings">Kilometrové kružnice dosahu</span></label>
+    </div>
     <p class="hint" data-i18n="radarHint">Mimo územia ČR použite RainViewer, inak meteoradar zostane bez odrazov.</p>
   </div>
 </section>
@@ -218,16 +225,35 @@ td:first-child{color:var(--mut);width:45%}
 
   <div class="card">
     <h2 data-i18n="clockHdr">🕒 Ciferník hodín</h2>
+    <div class="row"><label data-i18n="clockStyle">Štýl ciferníka</label>
+      <select id="clockStyle">
+        <option value="0" data-i18n="clkDigital">Digitálny klasický</option>
+        <option value="1" data-i18n="clkAnalog">Letecký kokpitový analóg (Aviator)</option>
+        <option value="2" data-i18n="clkMinimal">Minimalistický moderný (Nordic)</option>
+      </select>
+    </div>
     <div class="row"><label data-i18n="secStyle">Štýl sekundového prstenca</label>
       <select id="secStyle">
         <option value="0" data-i18n="secOff">Vypnuté</option>
         <option value="1" data-i18n="secDots">Bodky (Dots)</option>
         <option value="2" data-i18n="secLine">Plná čiara (Line)</option>
         <option value="3" data-i18n="secComet">Kométa (Comet)</option>
+        <option value="4" data-i18n="secRadar">Radarový lúč (Sweep)</option>
+        <option value="5" data-i18n="secTicks">Hodinárske indexy (Ticks)</option>
+        <option value="6" data-i18n="secOrbit">Satelit na orbite (Orbit)</option>
       </select>
     </div>
     <div class="row"><label data-i18n="clockColor">Farba číslic hodín</label><input type="color" id="clockColor"></div>
     <div class="row"><label data-i18n="secColor">Farba sekundového prstenca</label><input type="color" id="secColor"></div>
+    <h3 style="margin:16px 0 8px;font-size:14px;color:#94a3b8;" data-i18n="clockWidgets">Prvky na obrazovke hodín</h3>
+    <div class="grid">
+      <label class="chk"><input type="checkbox" id="cDate"><span data-i18n="cDate">Dátum</span></label>
+      <label class="chk"><input type="checkbox" id="cWx"><span data-i18n="cWx">Počasie & teplota</span></label>
+      <label class="chk"><input type="checkbox" id="cWind"><span data-i18n="cWind">Rýchlosť vetra</span></label>
+      <label class="chk"><input type="checkbox" id="cMoon"><span data-i18n="cMoon">Fáza mesiaca</span></label>
+      <label class="chk"><input type="checkbox" id="cAstro"><span data-i18n="cAstro">24h solárny prstenec</span></label>
+      <label class="chk"><input type="checkbox" id="nightClockOnly"><span data-i18n="nightClockOnly">V noci iba Hodiny (zastaviť radary)</span></label>
+    </div>
   </div>
 </section>
 
@@ -273,6 +299,27 @@ td:first-child{color:var(--mut);width:45%}
       <tr><td data-i18n="hwGxLbl">Gyroskop (°/s):</td><td><span class="stat-val">X: <span id="hwGx">0</span> | Y: <span id="hwGy">0</span> | Z: <span id="hwGz">0</span></span></td></tr>
       <tr><td data-i18n="hwTiltLbl">Náklon (Pitch / Roll):</td><td><span class="stat-val">Pitch: <span id="hwPitch">0</span>° | Roll: <span id="hwRoll">0</span>°</span></td></tr>
       <tr><td data-i18n="hwDblTapLbl">Gesto poklepania:</td><td><span class="pill pill-ok" data-i18n="hwDblTapOn">Double-Tap detekcia zapnutá</span></td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2 data-i18n="hwRtc">⏱️ Hardware RTC Hodiny (PCF85063)</h2>
+    <table>
+      <tr><td data-i18n="hwRtcLbl">Stav RTC čipu:</td><td><span class="pill pill-ok" id="hwRtcState">Aktívny (I2C 0x51)</span></td></tr>
+      <tr><td data-i18n="hwRtcTimeLbl">Čas v RTC čipe:</td><td><span class="stat-val" id="hwRtcTime">-</span></td></tr>
+    </table>
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="sec" onclick="syncRtcNtp()" data-i18n="btnSyncNtp">🌐 Synchronizovať s NTP</button>
+      <button class="sec" onclick="syncRtcBrowser()" data-i18n="btnSyncBrowser">💻 Odoslať čas z prehliadača</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 data-i18n="hwI2c">🔍 I2C Zbernica (Bus Inspector)</h2>
+    <table id="hwI2cTable">
+      <tr><th>Adresa</th><th>Názov komponentu</th></tr>
+      <tr><td><code>0x51</code></td><td>Hardware RTC (PCF85063)</td></tr>
+      <tr><td><code>0x6B</code></td><td>6-osové IMU (QMI8658)</td></tr>
     </table>
   </div>
 
@@ -357,7 +404,13 @@ const D={
   planesHint:"Filtry se týkají jen kreslení. Nouzový squawk ani sledované letadlo neschovají.",
   brightness:"☀️ Jas displeje",briDay:"Denní jas",briNight:"Noční jas",nightAuto:"Přepínat noční režim automaticky podle slunce",
   nightOffset:"Posun proti východu/západu (minuty)",clockHdr:"🕒 Ciferník hodin",secStyle:"Styl vteřinového prstence",
-  secOff:"Vypnuto",secDots:"Tečky (Dots)",secLine:"Plná čára (Line)",secComet:"Kometa (Comet)",clockColor:"Barva číslic hodin",secColor:"Barva vteřinového prstence",
+  secOff:"Vypnuto",secDots:"Tečky (Dots)",secLine:"Plná čára (Line)",secComet:"Kometa (Comet)",
+   secRadar:"Radarový paprsek (Sweep)",secTicks:"Hodinářské indexy (Ticks)",secOrbit:"Satelit na orbitě (Orbit)",
+   clockColor:"Barva číslic hodin",secColor:"Barva vteřinového prstence",
+   clockStyle:"Styl ciferníku",clkDigital:"Digitální klasický",clkAnalog:"Letecký kokpitový analog (Aviator)",clkMinimal:"Minimalistický moderní (Nordic)",
+   clockWidgets:"Prvky na obrazovce hodin",cDate:"Datum",cWx:"Počasí & teplota",cWind:"Rychlost větru",cMoon:"Fáze měsíce",cAstro:"24h solární prstenec",nightClockOnly:"V noci pouze Hodiny (zastavit radary)",
+   radarWidgets:"Prvky radarových map",rTrails:"Trajektorie letadel (Trails)",rNearest:"Vektor k nejbližšímu letadlu",rAirports:"Letiště (Runway ikony)",rRings:"Kilometrové kružnice dosahu",
+   hwRtc:"⏱️ Hardware RTC Hodiny (PCF85063)",hwRtcLbl:"Stav RTC čipu:",hwRtcTimeLbl:"Čas v RTC čipu:",btnSyncNtp:"🌐 Synchronizovat s NTP",btnSyncBrowser:"💻 Odeslat čas z prohlížeče",hwI2c:"🔍 I2C Sběrnice (Bus Inspector)",
   liveHint:"Změny na této záložce se ukládají okamžitě v reálném čase.",
   hwCpu:"⚡ ESP32-S3 Procesor & Teplota",hwChipModel:"Model čipu:",hwRev:"Rev",hwCores:"jádra",hwCpuFreqLbl:"Frekvence CPU:",hwCpuTempLbl:"Teplota procesoru:",hwResetLbl:"Důvod restartu:",hwUptimeLbl:"Doba běhu (Uptime):",
   hwMem:"💾 Paměť & Úložiště",hwHeapLbl:"Interní RAM (Heap):",hwPsramLbl:"Octal PSRAM (8 MB):",hwFlashLbl:"Flash paměť:",
@@ -397,7 +450,13 @@ const D={
   planesHint:"Filtre ovplyvňujú len vykresľovanie. Núdzový squawk ani sledované lietadlo filter nikdy neskryje.",
   brightness:"☀️ Jas displeja",briDay:"Denný jas",briNight:"Nočný jas",nightAuto:"Prepínať nočný režim automaticky podľa západu/východu slnka",
   nightOffset:"Posun voči východu/západu (minúty)",clockHdr:"🕒 Ciferník hodín",secStyle:"Štýl sekundového prstenca",
-  secOff:"Vypnuté",secDots:"Bodky (Dots)",secLine:"Plná čiara (Line)",secComet:"Kométa (Comet)",clockColor:"Farba číslic hodín",secColor:"Farba sekundového prstenca",
+  secOff:"Vypnuté",secDots:"Bodky (Dots)",secLine:"Plná čiara (Line)",secComet:"Kométa (Comet)",
+   secRadar:"Radarový lúč (Sweep)",secTicks:"Hodinárske indexy (Ticks)",secOrbit:"Satelit na orbite (Orbit)",
+   clockColor:"Farba číslic hodín",secColor:"Farba sekundového prstenca",
+   clockStyle:"Štýl ciferníka",clkDigital:"Digitálny klasický",clkAnalog:"Letecký kokpitový analóg (Aviator)",clkMinimal:"Minimalistický moderný (Nordic)",
+   clockWidgets:"Prvky na obrazovke hodín",cDate:"Dátum",cWx:"Počasie & teplota",cWind:"Rýchlosť vetra",cMoon:"Fáza mesiaca",cAstro:"24h solárny prstenec",nightClockOnly:"V noci iba Hodiny (zastavit radary)",
+   radarWidgets:"Prvky radarových máp",rTrails:"Trajektórie lietadiel (Trails)",rNearest:"Vektor k najbližšiemu lietadlu",rAirports:"Letiská (Runway ikony)",rRings:"Kilometrové kružnice dosahu",
+   hwRtc:"⏱️ Hardware RTC Hodiny (PCF85063)",hwRtcLbl:"Stav RTC čipu:",hwRtcTimeLbl:"Čas v RTC čipe:",btnSyncNtp:"🌐 Synchronizovať s NTP",btnSyncBrowser:"💻 Odoslať čas z prehliadača",hwI2c:"🔍 I2C Zbernica (Bus Inspector)",
   liveHint:"Zmeny na tejto záložke sa ukladajú okamžite v reálnom čase.",
   hwCpu:"⚡ ESP32-S3 Procesor & Teplota",hwChipModel:"Model čipu:",hwRev:"Rev",hwCores:"jadrá",hwCpuFreqLbl:"Frekvencia CPU:",hwCpuTempLbl:"Teplota procesora:",hwResetLbl:"Dôvod reštartu:",hwUptimeLbl:"Doba behu (Uptime):",
   hwMem:"💾 Pamäť & Úložisko",hwHeapLbl:"Interná RAM (Heap):",hwPsramLbl:"Octal PSRAM (8 MB):",hwFlashLbl:"Flash pamäť:",
@@ -437,7 +496,13 @@ const D={
   planesHint:"Filters only affect drawing. Emergencies and watched flights are never hidden.",
   brightness:"☀️ Display Brightness",briDay:"Day brightness",briNight:"Night brightness",nightAuto:"Automatic night mode with sun position",
   nightOffset:"Offset from sunset/sunrise (minutes)",clockHdr:"🕒 Clock Face",secStyle:"Seconds ring style",
-  secOff:"Off",secDots:"Dots",secLine:"Line",secComet:"Comet",clockColor:"Clock digits colour",secColor:"Seconds ring colour",
+  secOff:"Off",secDots:"Dots",secLine:"Line",secComet:"Comet",
+   secRadar:"Radar sweep",secTicks:"Swiss ticks",secOrbit:"Orbiting satellite",
+   clockColor:"Clock digits colour",secColor:"Seconds ring colour",
+   clockStyle:"Clock face style",clkDigital:"Classic Digital",clkAnalog:"Aviator Cockpit Analog",clkMinimal:"Nordic Minimal",
+   clockWidgets:"Clock screen widgets",cDate:"Date",cWx:"Weather & temp",cWind:"Wind speed",cMoon:"Moon phase",cAstro:"24h solar arc",nightClockOnly:"Night: Clock only (pause radars)",
+   radarWidgets:"Radar map widgets",rTrails:"Flight trails (breadcrumbs)",rNearest:"Vector to nearest aircraft",rAirports:"Airports (runway icons)",rRings:"Range rings",
+   hwRtc:"⏱️ Hardware RTC Clock (PCF85063)",hwRtcLbl:"RTC chip status:",hwRtcTimeLbl:"RTC hardware time:",btnSyncNtp:"🌐 Sync with NTP",btnSyncBrowser:"💻 Sync from browser",hwI2c:"🔍 I2C Bus Inspector",
   liveHint:"Changes on this tab are saved instantly.",
   hwCpu:"⚡ ESP32-S3 CPU & Temp",hwChipModel:"Chip model:",hwRev:"Rev",hwCores:"cores",hwCpuFreqLbl:"CPU frequency:",hwCpuTempLbl:"CPU temperature:",hwResetLbl:"Reset reason:",hwUptimeLbl:"Uptime:",
   hwMem:"💾 Memory & Storage",hwHeapLbl:"Internal RAM (Heap):",hwPsramLbl:"Octal PSRAM (8 MB):",hwFlashLbl:"Flash memory:",
@@ -817,7 +882,42 @@ async function updateHardware(){
    $("hwGx").textContent=h.gx;$("hwGy").textContent=h.gy;$("hwGz").textContent=h.gz;
    $("hwPitch").textContent=h.pitch;$("hwRoll").textContent=h.roll;
   }
+
+  // RTC details
+  if($("hwRtcState")){
+    const ok = !!h.rtcDetected;
+    $("hwRtcState").textContent = ok ? (h.rtcOscStopped ? "Výpadok napájania (OSF)" : "Aktívny (I2C 0x51)") : "Nenájdený";
+    $("hwRtcState").className = "pill " + (ok ? (h.rtcOscStopped ? "pill-warn" : "pill-ok") : "pill-err");
+    if($("hwRtcTime")) $("hwRtcTime").textContent = h.rtcTime || "-";
+  }
+  // I2C table
+  if($("hwI2cTable") && h.i2cBus){
+    let rows = "<tr><th>Adresa</th><th>Názov komponentu</th></tr>";
+    h.i2cBus.forEach(dev => {
+      rows += "<tr><td><code>" + dev.addr + "</code></td><td>" + dev.name + "</td></tr>";
+    });
+    $("hwI2cTable").innerHTML = rows;
+  }
  }catch(e){}
+}
+async function syncRtcNtp(){
+  try{
+    const r = await fetch("/api/rtc/sync_ntp", {method:"POST"});
+    if(r.ok) { msg("RTC synchronizované s NTP", "ok"); updateHardware(); }
+    else { const err = await r.json(); msg(err.error||"Chyba synchronizácie", "err"); }
+  }catch(e){ msg("Chyba spojenia", "err"); }
+}
+async function syncRtcBrowser(){
+  try{
+    const epoch = Math.round(Date.now() / 1000);
+    const r = await fetch("/api/rtc/sync_browser", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({epoch:epoch})
+    });
+    if(r.ok) { msg("Čas z prehliadača uložený do RTC", "ok"); updateHardware(); }
+    else { msg("Chyba zápisu", "err"); }
+  }catch(e){ msg("Chyba spojenia", "err"); }
 }
 setInterval(()=>{if(TAB=="tHw") updateHardware();},3000);
 
@@ -846,6 +946,17 @@ const AUTO = [
  ["clockColor","change","clockColor",e=>hexToRgb565(e.value)],
  ["secColor","change","secColor",e=>hexToRgb565(e.value)],
  ["showLegends","change","showLegends",e=>e.checked],
+  ["clockStyle","change","clockStyle",e=>+e.value],
+  ["cDate","change","cDate",e=>e.checked],
+  ["cWx","change","cWx",e=>e.checked],
+  ["cWind","change","cWind",e=>e.checked],
+  ["cMoon","change","cMoon",e=>e.checked],
+  ["cAstro","change","cAstro",e=>e.checked],
+  ["nightClockOnly","change","nightClockOnly",e=>e.checked],
+  ["rTrails","change","rTrails",e=>e.checked],
+  ["rNearest","change","rNearest",e=>e.checked],
+  ["rAirports","change","rAirports",e=>e.checked],
+  ["rRings","change","rRings",e=>e.checked],
 ];
 function wireAutoSave(){
  AUTO.forEach(([id,ev,key,get])=>{
@@ -866,6 +977,17 @@ async function load(){
  $("briDay").value=CFG.briDay;$("briNight").value=CFG.briNight;
  $("nightAuto").checked=CFG.nightAuto;$("nightOffset").value=CFG.nightOffset;
  $("secStyle").value=CFG.secStyle;$("metric").checked=CFG.metric;$("topBearing").value=CFG.topBearing;
+  if($("clockStyle")) $("clockStyle").value=CFG.clockStyle||0;
+  if($("cDate")) $("cDate").checked=CFG.cDate!==false;
+  if($("cWx")) $("cWx").checked=CFG.cWx!==false;
+  if($("cWind")) $("cWind").checked=CFG.cWind!==false;
+  if($("cMoon")) $("cMoon").checked=CFG.cMoon!==false;
+  if($("cAstro")) $("cAstro").checked=CFG.cAstro!==false;
+  if($("nightClockOnly")) $("nightClockOnly").checked=!!CFG.nightClockOnly;
+  if($("rTrails")) $("rTrails").checked=CFG.rTrails!==false;
+  if($("rNearest")) $("rNearest").checked=CFG.rNearest!==false;
+  if($("rAirports")) $("rAirports").checked=CFG.rAirports!==false;
+  if($("rRings")) $("rRings").checked=CFG.rRings!==false;
  $("clockColor").value=rgb565ToHex(CFG.clockColor);$("secColor").value=rgb565ToHex(CFG.secColor);
  $("altMin").value=CFG.altMin;$("altMax").value=CFG.altMax;
  pwState();
@@ -906,6 +1028,17 @@ function body(){return{
  squawkAlert:$("squawkAlert").checked,watch:$("watch").value.trim(),
  autoRotate:+$("autoRotate").value,radarSrc:+$("radarSrc").value,
  showLegends:$("showLegends")?$("showLegends").checked:true,
+  clockStyle:$("clockStyle")?+$("clockStyle").value:0,
+  cDate:$("cDate")?$("cDate").checked:true,
+  cWx:$("cWx")?$("cWx").checked:true,
+  cWind:$("cWind")?$("cWind").checked:true,
+  cMoon:$("cMoon")?$("cMoon").checked:true,
+  cAstro:$("cAstro")?$("cAstro").checked:true,
+  nightClockOnly:$("nightClockOnly")?$("nightClockOnly").checked:false,
+  rTrails:$("rTrails")?$("rTrails").checked:true,
+  rNearest:$("rNearest")?$("rNearest").checked:true,
+  rAirports:$("rAirports")?$("rAirports").checked:true,
+  rRings:$("rRings")?$("rRings").checked:true,
  screens:{clock:$("sClock").checked,planes:$("sPlanes").checked,meteo:$("sMeteo").checked,tactical:$("sTactical").checked,forecast:$("sForecast").checked}
 };}
 

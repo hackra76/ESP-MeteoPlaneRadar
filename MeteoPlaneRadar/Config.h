@@ -347,10 +347,20 @@
 #define CLOCK_RESEED_URL  "https://api.open-meteo.com/v1/forecast?latitude=0&longitude=0&current=temperature_2m"
 
 // Seconds ring styles.
-#define SEC_STYLE_OFF   0
-#define SEC_STYLE_DOTS  1
-#define SEC_STYLE_LINE  2
-#define SEC_STYLE_COMET 3
+#define SEC_STYLE_OFF    0
+#define SEC_STYLE_DOTS   1
+#define SEC_STYLE_LINE   2
+#define SEC_STYLE_COMET  3
+#define SEC_STYLE_RADAR  4
+#define SEC_STYLE_TICKS  5
+#define SEC_STYLE_ORBIT  6
+#define SEC_STYLE_MAX    6
+
+// Clock face styles.
+#define CLOCK_STYLE_DIGITAL 0
+#define CLOCK_STYLE_ANALOG  1
+#define CLOCK_STYLE_MINIMAL 2
+#define CLOCK_STYLE_MAX     2
 
 // ---------------------------------------------------------------------------
 //  Night mode

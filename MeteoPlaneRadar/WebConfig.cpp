@@ -23,6 +23,9 @@
 #include "Watchdog.h"
 #include "QMI8658.h"
 #include "Astro.h"
+#include "PCF85063.h"
+#include "Outside.h"
+#include <Wire.h>
 
 #include <WiFi.h>
 #include <WebServer.h>
@@ -286,8 +289,39 @@ static void handleHardware() {
   }
 
   doc["dispDriver"] = "ST7701 (480x480 RGB 16-bit)";
-  doc["touchDriver"] = "CST820 (I2C 0x15)";
-  doc["expander"] = "TCA9554 (I2C 0x20)";
+  doc["touchDriver"] = "CHSC6540 / CST820 (I2C)";
+  doc["expander"] = "TCA9554 (I2C 0x20 / 0x43)";
+
+  // RTC PCF85063 details
+  doc["rtcDetected"] = PCF85063_IsDetected();
+  doc["rtcOscStopped"] = PCF85063_IsOscillatorStopped();
+  struct tm rtcTm;
+  if (PCF85063_ReadTime(&rtcTm)) {
+    char rtcBuf[32];
+    snprintf(rtcBuf, sizeof(rtcBuf), "%02d:%02d:%02d (%d.%d.%04d)",
+             rtcTm.tm_hour, rtcTm.tm_min, rtcTm.tm_sec,
+             rtcTm.tm_mday, rtcTm.tm_mon + 1, rtcTm.tm_year + 1900);
+    doc["rtcTime"] = rtcBuf;
+  } else {
+    doc["rtcTime"] = "-";
+  }
+
+  // Active I2C Bus Devices scan
+  JsonArray i2cArr = doc["i2cBus"].to<JsonArray>();
+  for (uint8_t a = 0x08; a <= 0x77; a++) {
+    Wire.beginTransmission(a);
+    if (Wire.endTransmission() == 0) {
+      JsonObject dev = i2cArr.add<JsonObject>();
+      char hexBuf[8]; snprintf(hexBuf, sizeof(hexBuf), "0x%02X", a);
+      dev["addr"] = hexBuf;
+      const char* name = "Iné zariadenie";
+      if (a == 0x38 || a == 0x15) name = "Dotykový kontrolér (Touch)";
+      else if (a == 0x20 || a == 0x43) name = "I/O Expandér (TCA9554)";
+      else if (a == 0x51) name = "Hardware RTC (PCF85063)";
+      else if (a == 0x6B) name = "6-osové IMU (QMI8658)";
+      dev["name"] = name;
+    }
+  }
 
   unsigned long up = millis() / 1000UL;
   char ub[32];
@@ -310,6 +344,32 @@ static void handleHardware() {
   doc["resetReason"] = rr;
 
   sendJson(200, doc);
+}
+
+static void handleRtcSyncNtp() {
+  if (Outside_TimeValid()) {
+    time_t now = time(nullptr);
+    PCF85063_SetTime(now);
+    JsonDocument res; res["ok"] = true; res["time"] = (long)now;
+    sendJson(200, res);
+  } else {
+    s_srv.send(400, "application/json", "{\"ok\":false,\"error\":\"NTP čas nie je k dispozícii\"}");
+  }
+}
+
+static void handleRtcSyncBrowser() {
+  JsonDocument doc;
+  if (!readBody(doc)) { s_srv.send(400, "application/json", "{\"error\":\"json\"}"); return; }
+  long epoch = doc["epoch"] | 0L;
+  if (epoch > 1700000000L) {
+    struct timeval tv = { (time_t)epoch, 0 };
+    settimeofday(&tv, nullptr);
+    PCF85063_SetTime((time_t)epoch);
+    JsonDocument res; res["ok"] = true;
+    sendJson(200, res);
+  } else {
+    s_srv.send(400, "application/json", "{\"ok\":false,\"error\":\"Neplatný čas\"}");
+  }
 }
 
 static void handleScan() {
@@ -756,6 +816,8 @@ void WebConfig_Begin(bool apMode) {
   s_srv.on("/api/config", HTTP_POST, handlePostConfig);
   s_srv.on("/api/status", HTTP_GET, handleStatus);
   s_srv.on("/api/hardware", HTTP_GET, handleHardware);
+  s_srv.on("/api/rtc/sync_ntp", HTTP_POST, handleRtcSyncNtp);
+  s_srv.on("/api/rtc/sync_browser", HTTP_POST, handleRtcSyncBrowser);
   s_srv.on("/api/live", HTTP_GET, handleLive);
   s_srv.on("/api/toggle-legends", HTTP_POST, handleToggleLegends);
   s_srv.on("/api/input", HTTP_POST, handleInput);

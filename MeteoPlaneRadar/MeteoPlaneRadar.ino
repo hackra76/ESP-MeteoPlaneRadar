@@ -409,6 +409,14 @@ static void autoRotateTick() {
   if (secs == 0) return;
   if (s_screen == SCREEN_SETTINGS_I) return;      // never cycle away from settings
 
+  // Night clock-only mode: stay on clock screen all night
+  if (Settings_NightClockOnly() && Settings_IsNight()) {
+    if (s_screen != SCREEN_CLOCK_I) {
+      gotoScreen(SCREEN_CLOCK_I);
+    }
+    return;
+  }
+
   unsigned long now = millis();
 
   // An open aircraft detail holds the cycling: the user is reading it. The

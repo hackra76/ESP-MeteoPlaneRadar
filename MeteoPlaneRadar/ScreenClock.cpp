@@ -45,15 +45,14 @@ bool ScreenClock_Tick() {
   if (!Outside_TimeValid()) return false;
   time_t now = time(nullptr);
   struct tm lt; localtime_r(&now, &lt);
-  // With the ring off there is nothing on this screen that changes faster than
-  // once a minute, so do not spend a redraw per second on it.
-  if (Settings_SecondsStyle() == SEC_STYLE_OFF) {
-    if (lt.tm_min == s_lastMin) return false;
+  // In analog mode or when seconds ring is active, update every second
+  if (Settings_ClockStyle() == CLOCK_STYLE_ANALOG || Settings_SecondsStyle() != SEC_STYLE_OFF) {
+    if (lt.tm_sec == s_lastSec) return false;
+    s_lastSec = lt.tm_sec;
     s_lastMin = lt.tm_min;
     return true;
   }
-  if (lt.tm_sec == s_lastSec) return false;
-  s_lastSec = lt.tm_sec;
+  if (lt.tm_min == s_lastMin) return false;
   s_lastMin = lt.tm_min;
   return true;
 }
@@ -65,8 +64,7 @@ bool ScreenClock_HandleTap(int x, int y) {
   return true;
 }
 
-// Scale an RGB565 colour towards black. Used for the comet tail, where a fixed
-// second colour would just be a bright block rather than a fading trail.
+// Scale an RGB565 colour towards black.
 static uint16_t dim(uint16_t c, uint8_t num, uint8_t den) {
   if (den == 0) return 0;
   uint16_t r = (c >> 11) & 0x1F, g = (c >> 5) & 0x3F, b = c & 0x1F;
@@ -100,15 +98,12 @@ static void drawSecondsRing(int sec) {
       break;
 
     case SEC_STYLE_LINE: {
-      // A continuous arc. Drawn as 60 short chords rather than with drawArc,
-      // which the GFX build here does not have.
       int px = 0, py = 0;
       for (int i = 0; i <= 60; i++) {
         int x, y; secPos(i, R, &x, &y);
         if (i > 0) gfx->drawLine(px, py, x, y, (i <= sec) ? on : off);
         px = x; py = y;
       }
-      // A little weight on the leading end so the arc has a visible head.
       int hx, hy; secPos(sec, R, &hx, &hy);
       gfx->fillCircle(hx, hy, 4, on);
       break;
@@ -116,7 +111,7 @@ static void drawSecondsRing(int sec) {
 
     case SEC_STYLE_COMET: {
       const int TAIL = 12;
-      for (int i = 0; i < 60; i++) {          // faint track underneath
+      for (int i = 0; i < 60; i++) {
         int x, y; secPos(i, R, &x, &y);
         gfx->drawPixel(x, y, off);
       }
@@ -129,64 +124,251 @@ static void drawSecondsRing(int sec) {
       }
       break;
     }
+
+    case SEC_STYLE_RADAR: {
+      // Rotating radar sweep beam with trailing gradient spokes
+      const int r0 = R - 28, r1 = R + 2;
+      const int SPOKES = 8;
+      for (int k = SPOKES; k >= 0; k--) {
+        int s = sec - k;
+        if (s < 0) s += 60;
+        float a = (s * 6.0f - 90.0f) * 0.0174532925f;
+        float ca = cosf(a), sa = sinf(a);
+        int x0 = CX + (int)(r0 * ca), y0 = CY + (int)(r0 * sa);
+        int x1 = CX + (int)(r1 * ca), y1 = CY + (int)(r1 * sa);
+        uint16_t c = (k == 0) ? on : dim(on, (uint8_t)(SPOKES + 1 - k), (uint8_t)(SPOKES + 2));
+        gfx->drawLine(x0, y0, x1, y1, c);
+      }
+      int hx, hy; secPos(sec, r1, &hx, &hy);
+      gfx->fillCircle(hx, hy, 3, C_WHITE);
+      break;
+    }
+
+    case SEC_STYLE_TICKS: {
+      // Swiss chronometer tick marks
+      for (int i = 0; i < 60; i++) {
+        bool isMajor = (i % 5 == 0);
+        int len = isMajor ? 12 : 6;
+        float a = (i * 6.0f - 90.0f) * 0.0174532925f;
+        float ca = cosf(a), sa = sinf(a);
+        int x0 = CX + (int)((R - len) * ca), y0 = CY + (int)((R - len) * sa);
+        int x1 = CX + (int)((R + 2) * ca),   y1 = CY + (int)((R + 2) * sa);
+        uint16_t c = (i <= sec) ? on : off;
+        gfx->drawLine(x0, y0, x1, y1, c);
+        if (isMajor && i <= sec) {
+          gfx->drawPixel(x0 + 1, y0, c);
+          gfx->drawPixel(x1 + 1, y1, c);
+        }
+      }
+      int tx, ty; secPos(sec, R - 2, &tx, &ty);
+      gfx->fillCircle(tx, ty, 3, C_WHITE);
+      break;
+    }
+
+    case SEC_STYLE_ORBIT: {
+      gfx->drawCircle(CX, CY, R, off);
+      float a = (sec * 6.0f - 90.0f) * 0.0174532925f;
+      float ca = cosf(a), sa = sinf(a);
+      int sx = CX + (int)(R * ca), sy = CY + (int)(R * sa);
+      float pa = a + 1.5707963f;
+      float pca = cosf(pa), psa = sinf(pa);
+      int w1x = sx + (int)(5.0f * pca), w1y = sy + (int)(5.0f * psa);
+      int w2x = sx - (int)(5.0f * pca), w2y = sy - (int)(5.0f * psa);
+      gfx->drawLine(w1x, w1y, w2x, w2y, C_CYAN);
+      gfx->fillCircle(sx, sy, 3, on);
+      gfx->fillCircle(sx, sy, 1, C_WHITE);
+      break;
+    }
   }
 }
 
-void ScreenClock_Draw() {
-  gfx->fillScreen(C_BLACK);
-  Layout_Begin();
+// Draw a tapered luminous hand for analog clock
+static void drawHand(float angleDeg, float len, float backLen, float w, uint16_t color) {
+  float rad = (angleDeg - 90.0f) * 0.0174532925f;
+  float perp = rad + 1.5707963f;
+  float cr = cosf(rad), sr = sinf(rad);
+  float cp = cosf(perp), sp = sinf(perp);
 
-  // The screen dots at the top belong to the screen manager - on clock screen they sit at y=58
-  Layout_ReserveBand(58 - 6, 12);
+  int xTip = CX + (int)(len * cr);
+  int yTip = CY + (int)(len * sr);
+  int xTail = CX - (int)(backLen * cr);
+  int yTail = CY - (int)(backLen * sr);
 
-  if (!Outside_TimeValid()) {
-    UI_TextCentered(T(S_WIFI_WAIT), CY - 8, C_YELLOW, 2);
-    return;
+  int xL = CX + (int)(w * cp);
+  int yL = CY + (int)(w * sp);
+  int xR = CX - (int)(w * cp);
+  int yR = CY - (int)(w * sp);
+
+  gfx->fillTriangle(xTail, yTail, xL, yL, xTip, yTip, color);
+  gfx->fillTriangle(xTail, yTail, xR, yR, xTip, yTip, color);
+}
+
+// Draw a slender seconds needle with counterbalance ring
+static void drawSecondHand(float angleDeg, uint16_t color) {
+  float rad = (angleDeg - 90.0f) * 0.0174532925f;
+  float cr = cosf(rad), sr = sinf(rad);
+  int xTip = CX + (int)(175.0f * cr);
+  int yTip = CY + (int)(175.0f * sr);
+  int xTail = CX - (int)(36.0f * cr);
+  int yTail = CY - (int)(36.0f * sr);
+  gfx->drawLine(xTail, yTail, xTip, yTip, color);
+
+  // Counterbalance ring
+  int xRing = CX - (int)(22.0f * cr);
+  int yRing = CY - (int)(22.0f * sr);
+  gfx->fillCircle(xRing, yRing, 5, color);
+  gfx->fillCircle(xRing, yRing, 2, C_BLACK);
+}
+
+static void drawAnalogClock(const struct tm* lt, time_t now) {
+  // 1. Hour numerals (12, 3, 6, 9)
+  UI_TextCentered("12", 52, C_WHITE, 3);
+  UI_TextCentered("3", CY - 10, C_WHITE, 3);
+  Font_DrawCentered("3", CX + 165, CY - 10, C_WHITE, 3);
+  UI_TextCentered("6", LCD_HEIGHT - 72, C_WHITE, 3);
+  Font_DrawCentered("9", CX - 165, CY - 10, C_WHITE, 3);
+
+  // Hour tick marks for other hours
+  for (int h = 1; h <= 12; h++) {
+    if (h % 3 == 0) continue;
+    float a = (h * 30.0f - 90.0f) * 0.0174532925f;
+    float ca = cosf(a), sa = sinf(a);
+    int x0 = CX + (int)(168.0f * ca), y0 = CY + (int)(168.0f * sa);
+    int x1 = CX + (int)(182.0f * ca), y1 = CY + (int)(182.0f * sa);
+    gfx->drawLine(x0, y0, x1, y1, C_WHITE);
   }
 
-  time_t now = time(nullptr);
-  struct tm lt; localtime_r(&now, &lt);
-
-  // --- Seconds ring (outermost, drawn first) ---
-  drawSecondsRing(lt.tm_sec);
-
-  // --- 24h Solar Twilight Arc (day/golden hour/twilight/night ring) ---
-  if (Settings_HasLocation()) {
-    Astro_DrawSolarArc(CX, CY, 216, 3, Settings_Lat(), Settings_Lon(), now);
+  // 2. Complications (sub-dials)
+  // Left sub-dial: Weather icon + temperature
+  if (Settings_ClockShowWeather() && Forecast_CurrentValid()) {
+    const int subX = CX - 80, subY = CY;
+    gfx->drawCircle(subX, subY, 36, C_DKGRAY);
+    WxIcon_Draw(subX, subY - 9, 13, Forecast_CurrentCode(), Settings_IsNight());
+    char tbuf[16];
+    snprintf(tbuf, sizeof(tbuf), "%d°C", (int)lroundf(Forecast_CurrentTemp()));
+    Font_DrawCentered(tbuf, subX, subY + 9, C_WHITE, 2);
   }
 
+  // Right sub-dial: Moon phase icon & % illumination
+  if (Settings_ClockShowMoon()) {
+    const int subX = CX + 80, subY = CY;
+    gfx->drawCircle(subX, subY, 36, C_DKGRAY);
+    MoonInfo moon = Astro_GetMoon(now);
+    Astro_DrawMoonIcon(subX, subY - 9, 13, moon.phase);
+    char mbuf[16];
+    snprintf(mbuf, sizeof(mbuf), "%.0f%%", moon.illumination);
+    Font_DrawCentered(mbuf, subX, subY + 10, C_LTGRAY, 1);
+  }
+
+  // Date window (top center)
+  if (Settings_ClockShowDate()) {
+    char date[40];
+    if (Lang_Get() == LANG_EN) {
+      snprintf(date, sizeof(date), "%s %d %s",
+               Lang_WeekdayShort(lt->tm_wday), lt->tm_mday, Lang_MonthName(lt->tm_mon));
+    } else {
+      snprintf(date, sizeof(date), "%s %d. %s",
+               Lang_WeekdayShort(lt->tm_wday), lt->tm_mday, Lang_MonthName(lt->tm_mon));
+    }
+    UI_TextCentered(date, 115, C_GRAY, 2);
+  }
+
+  // Wind at bottom center
+  if (Settings_ClockShowWind() && Forecast_CurrentValid()) {
+    char wbuf[16];
+    snprintf(wbuf, sizeof(wbuf), "%d km/h", (int)lroundf(Forecast_CurrentWind()));
+    UI_TextCentered(wbuf, CY + 85, C_GRAY, 2);
+  }
+
+  // 3. Hands
+  float hourAngle = (lt->tm_hour % 12 + lt->tm_min / 60.0f) * 30.0f;
+  float minAngle  = (lt->tm_min + lt->tm_sec / 60.0f) * 6.0f;
+  float secAngle  = lt->tm_sec * 6.0f;
+
+  // Luminous hour hand
+  drawHand(hourAngle, 85.0f, 18.0f, 7.0f, C_WHITE);
+  drawHand(hourAngle, 72.0f, 12.0f, 3.0f, Settings_ClockColor());
+
+  // Luminous minute hand
+  drawHand(minAngle, 135.0f, 22.0f, 5.0f, C_WHITE);
+  drawHand(minAngle, 122.0f, 15.0f, 2.5f, Settings_ClockColor());
+
+  // Second hand
+  drawSecondHand(secAngle, Settings_SecondsColor());
+
+  // Center hub cap
+  gfx->fillCircle(CX, CY, 9, C_DKGRAY);
+  gfx->fillCircle(CX, CY, 6, C_WHITE);
+  gfx->fillCircle(CX, CY, 3, Settings_SecondsColor());
+}
+
+static void drawMinimalClock(const struct tm* lt, time_t now) {
+  // Date above
+  if (Settings_ClockShowDate()) {
+    char date[40];
+    if (Lang_Get() == LANG_EN) {
+      snprintf(date, sizeof(date), "%s %d %s",
+               Lang_WeekdayShort(lt->tm_wday), lt->tm_mday, Lang_MonthName(lt->tm_mon));
+    } else {
+      snprintf(date, sizeof(date), "%s %d. %s",
+               Lang_WeekdayShort(lt->tm_wday), lt->tm_mday, Lang_MonthName(lt->tm_mon));
+    }
+    UI_TextCentered(date, 135, C_GRAY, 2);
+  }
+
+  // Giant clean time centered at CY - 18
+  char hhmm[8];
+  snprintf(hhmm, sizeof(hhmm), "%02d:%02d", lt->tm_hour, lt->tm_min);
+  UI_TextCentered(hhmm, 180, Settings_ClockColor(), 8);
+
+  // Weather row below
+  if (Settings_ClockShowWeather() && Forecast_CurrentValid()) {
+    char tbuf[32];
+    snprintf(tbuf, sizeof(tbuf), "%d°C", (int)lroundf(Forecast_CurrentTemp()));
+    int tw = Layout_TextW(tbuf, 3);
+    int totalW = 32 + 10 + tw;
+    int x0 = CX - totalW / 2;
+    WxIcon_Draw(x0 + 16, 290, 16, Forecast_CurrentCode(), Settings_IsNight());
+    UI_Text(tbuf, x0 + 38, 290 - 7, C_WHITE, 3);
+  }
+
+  // Moon phase below
+  if (Settings_ClockShowMoon()) {
+    MoonInfo moon = Astro_GetMoon(now);
+    char mbuf[40];
+    snprintf(mbuf, sizeof(mbuf), "%s  %.0f%%", moon.name, moon.illumination);
+    UI_TextCentered(mbuf, 345, C_LTGRAY, 2);
+  }
+}
+
+static void drawDigitalClock(const struct tm* lt, time_t now) {
   // --- Weekday and date (above the clock) ---
-  char date[40];
-  if (Lang_Get() == LANG_EN) {
-    snprintf(date, sizeof(date), "%s %d %s",
-             Lang_WeekdayShort(lt.tm_wday), lt.tm_mday, Lang_MonthName(lt.tm_mon));
-  } else {
-    snprintf(date, sizeof(date), "%s %d. %s",
-             Lang_WeekdayShort(lt.tm_wday), lt.tm_mday, Lang_MonthName(lt.tm_mon));
+  if (Settings_ClockShowDate()) {
+    char date[40];
+    if (Lang_Get() == LANG_EN) {
+      snprintf(date, sizeof(date), "%s %d %s",
+               Lang_WeekdayShort(lt->tm_wday), lt->tm_mday, Lang_MonthName(lt->tm_mon));
+    } else {
+      snprintf(date, sizeof(date), "%s %d. %s",
+               Lang_WeekdayShort(lt->tm_wday), lt->tm_mday, Lang_MonthName(lt->tm_mon));
+    }
+    uint8_t dsize = 2;
+    if (Layout_TextW(date, 2) > 2 * Layout_ChordHalf(DATE_Y + 16) - 16) dsize = 1;
+    Layout_ReserveTextCentered(date, dsize, CX, DATE_Y);
+    UI_TextCentered(date, DATE_Y, C_GRAY, dsize);
   }
-  // Long Czech month names ("listopadu") can outgrow the chord at size 2 - drop
-  // to size 1 rather than letting it run off the rim.
-  uint8_t dsize = 2;
-  if (Layout_TextW(date, 2) > 2 * Layout_ChordHalf(DATE_Y + 16) - 16) dsize = 1;
-  Layout_ReserveTextCentered(date, dsize, CX, DATE_Y);
-  UI_TextCentered(date, DATE_Y, C_GRAY, dsize);
 
   // --- HH:MM ---
-  // Size 8 is 48 px per character, so five characters come to 240 px - well
-  // inside the chord at this height (about 470 px).
   char hhmm[8];
-  snprintf(hhmm, sizeof(hhmm), "%02d:%02d", lt.tm_hour, lt.tm_min);
+  snprintf(hhmm, sizeof(hhmm), "%02d:%02d", lt->tm_hour, lt->tm_min);
   Layout_ReserveTextCentered(hhmm, 8, CX, CLK_Y);
   UI_TextCentered(hhmm, CLK_Y, Settings_ClockColor(), 8);
 
   // --- Current conditions: icon, temperature and rain on one row ---
-  // All of it comes from the forecast request, so the row simply stays empty
-  // until the first one lands.
-  if (Forecast_CurrentValid()) {
+  if (Settings_ClockShowWeather() && Forecast_CurrentValid()) {
     char tbuf[16], pbuf[16];
     snprintf(tbuf, sizeof(tbuf), "%d°C", (int)lroundf(Forecast_CurrentTemp()));
 
-    // Precipitation shares the temperature's row
     const float p = Forecast_CurrentPrecip();
     const bool hasRain = (p >= 0.05f);
     if (hasRain) snprintf(pbuf, sizeof(pbuf), "%.1f mm", p);
@@ -200,21 +382,16 @@ void ScreenClock_Draw() {
     const int x0 = CX - totalW / 2;
 
     if (Layout_Claim(x0 - 6, WX_Y - WX_ICON_R - 3, totalW + 12, 2 * WX_ICON_R + 6)) {
-      // 1. Draw weather icon centered vertically at WX_Y
       WxIcon_Draw(x0 + WX_ICON_R, WX_Y, WX_ICON_R,
                   Forecast_CurrentCode(), Settings_IsNight());
-
-      // 2. Draw temperature text vertically centered with the icon at WX_Y
       UI_Text(tbuf, x0 + iconW + gap, WX_Y - 7, C_WHITE, 3);
-
-      // 3. Draw precipitation text vertically centered at WX_Y if raining
       if (hasRain) {
         UI_Text(pbuf, x0 + iconW + gap + tw + pgap, WX_Y - 5, C_CYAN, 2);
       }
     }
 
     // --- Wind, on its own line ---
-    {
+    if (Settings_ClockShowWind()) {
       char wbuf[16];
       snprintf(wbuf, sizeof(wbuf), "%d km/h", (int)lroundf(Forecast_CurrentWind()));
       const int ww = Layout_TextW(wbuf, 2);
@@ -224,8 +401,8 @@ void ScreenClock_Draw() {
     }
   }
 
-  // --- Moon Phase & Illumination Widget (2 lines: Icon above, Name + % below) ---
-  {
+  // --- Moon Phase & Illumination Widget ---
+  if (Settings_ClockShowMoon()) {
     MoonInfo moon = Astro_GetMoon(now);
     const int mr = 16;
     Astro_DrawMoonIcon(CX, MOON_ICON_Y, mr, moon.phase);
@@ -236,9 +413,46 @@ void ScreenClock_Draw() {
     if (Layout_TextW(mbuf, 2) > 340) msize = 1;
     UI_TextCentered(mbuf, MOON_TEXT_Y, C_LTGRAY, msize);
   }
+}
 
-  // A quiet hint that a tap switches the look, but only when a tap actually
-  // does something - with the automatic mode on it would be a lie.
+void ScreenClock_Draw() {
+  gfx->fillScreen(C_BLACK);
+  Layout_Begin();
+
+  // The screen dots at the top belong to the screen manager
+  Layout_ReserveBand(58 - 6, 12);
+
+  if (!Outside_TimeValid()) {
+    UI_TextCentered(T(S_WIFI_WAIT), CY - 8, C_YELLOW, 2);
+    return;
+  }
+
+  time_t now = time(nullptr);
+  struct tm lt; localtime_r(&now, &lt);
+
+  // --- Seconds ring (outermost, drawn first) ---
+  drawSecondsRing(lt.tm_sec);
+
+  // --- 24h Solar Twilight Arc ---
+  if (Settings_ClockShowAstro() && Settings_HasLocation()) {
+    Astro_DrawSolarArc(CX, CY, 216, 3, Settings_Lat(), Settings_Lon(), now);
+  }
+
+  // --- Render clock face by selected style ---
+  switch (Settings_ClockStyle()) {
+    case CLOCK_STYLE_ANALOG:
+      drawAnalogClock(&lt, now);
+      break;
+    case CLOCK_STYLE_MINIMAL:
+      drawMinimalClock(&lt, now);
+      break;
+    case CLOCK_STYLE_DIGITAL:
+    default:
+      drawDigitalClock(&lt, now);
+      break;
+  }
+
+  // Night hint footer
   if (!Settings_NightAuto()) {
     const char* m = Settings_IsNight() ? "noc" : "den";
     if (Lang_Get() == LANG_EN) m = Settings_IsNight() ? "night" : "day";

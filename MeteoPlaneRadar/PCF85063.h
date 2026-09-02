@@ -9,5 +9,7 @@
 #define PCF85063_ADDR 0x51
 
 bool PCF85063_Init();
+bool PCF85063_IsDetected();
+bool PCF85063_IsOscillatorStopped();
 bool PCF85063_ReadTime(struct tm* out);
 bool PCF85063_SetTime(time_t epochUtc);

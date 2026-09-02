@@ -17,14 +17,30 @@ static inline uint8_t dec2bcd(uint8_t val) {
   return ((val / 10) << 4) | (val % 10);
 }
 
+static bool s_detected = false;
+static bool s_oscStopped = false;
+
+bool PCF85063_IsDetected() { return s_detected; }
+bool PCF85063_IsOscillatorStopped() { return s_oscStopped; }
+
 bool PCF85063_Init() {
   Wire.beginTransmission(PCF85063_ADDR);
   byte err = Wire.endTransmission();
   if (err != 0) {
+    s_detected = false;
     Serial.println("RTC: PCF85063 nenalezen na I2C (0x51)");
     return false;
   }
+  s_detected = true;
   Serial.println("RTC: PCF85063 detekovan na I2C (0x51)");
+
+  // Check oscillator stop flag
+  Wire.beginTransmission(PCF85063_ADDR);
+  Wire.write(PCF85063_REG_SEC);
+  if (Wire.endTransmission() == 0 && Wire.requestFrom((int)PCF85063_ADDR, 1) == 1) {
+    uint8_t sec = Wire.read();
+    s_oscStopped = (sec & 0x80) != 0;
+  }
   return true;
 }
 

@@ -80,10 +80,36 @@ void    Settings_SetRadarSource(uint8_t s);
 // --- Clock appearance -------------------------------------------------------
 uint8_t  Settings_SecondsStyle();          // SEC_STYLE_*
 void     Settings_SetSecondsStyle(uint8_t s);
+uint8_t  Settings_ClockStyle();            // CLOCK_STYLE_*
+void     Settings_SetClockStyle(uint8_t s);
 uint16_t Settings_ClockColor();            // RGB565
 void     Settings_SetClockColor(uint16_t c);
 uint16_t Settings_SecondsColor();
 void     Settings_SetSecondsColor(uint16_t c);
+
+// --- Clock widget toggles ---------------------------------------------------
+bool     Settings_ClockShowDate();
+void     Settings_SetClockShowDate(bool on);
+bool     Settings_ClockShowWeather();
+void     Settings_SetClockShowWeather(bool on);
+bool     Settings_ClockShowWind();
+void     Settings_SetClockShowWind(bool on);
+bool     Settings_ClockShowMoon();
+void     Settings_SetClockShowMoon(bool on);
+bool     Settings_ClockShowAstro();
+void     Settings_SetClockShowAstro(bool on);
+bool     Settings_NightClockOnly();
+void     Settings_SetNightClockOnly(bool on);
+
+// --- Radar widget toggles ---------------------------------------------------
+bool     Settings_RadarShowTrails();
+void     Settings_SetRadarShowTrails(bool on);
+bool     Settings_RadarShowNearest();
+void     Settings_SetRadarShowNearest(bool on);
+bool     Settings_RadarShowAirports();
+void     Settings_SetRadarShowAirports(bool on);
+bool     Settings_RadarShowRings();
+void     Settings_SetRadarShowRings(bool on);
 
 // --- Aircraft filters and alerts --------------------------------------------
 uint16_t Settings_AltMinFt();
