@@ -229,7 +229,11 @@ td:first-child{color:var(--mut);width:45%}
       <select id="clockStyle">
         <option value="0" data-i18n="clkDigital">Digitálny klasický</option>
         <option value="1" data-i18n="clkAnalog">Letecký kokpitový analóg (Aviator)</option>
-        <option value="2" data-i18n="clkMinimal">Minimalistický moderný (Nordic)</option>
+        <option value="2" data-i18n="clkOrbital">Planetárne prstence (Orbital Gauges)</option>
+        <option value="3" data-i18n="clkHud">Stíhací priehľadový displej (Fighter HUD)</option>
+        <option value="4" data-i18n="clkRegulator">Astronomický regulátor (Régulateur)</option>
+        <option value="5" data-i18n="clkStacked">Vertikálna typografia (Stacked Bold)</option>
+        <option value="6" data-i18n="clkMinimal">Minimalistický moderný (Nordic)</option>
       </select>
     </div>
     <div class="row"><label data-i18n="secStyle">Štýl sekundového prstenca</label>
@@ -407,7 +411,7 @@ const D={
   secOff:"Vypnuto",secDots:"Tečky (Dots)",secLine:"Plná čára (Line)",secComet:"Kometa (Comet)",
    secRadar:"Radarový paprsek (Sweep)",secTicks:"Hodinářské indexy (Ticks)",secOrbit:"Satelit na orbitě (Orbit)",
    clockColor:"Barva číslic hodin",secColor:"Barva vteřinového prstence",
-   clockStyle:"Styl ciferníku",clkDigital:"Digitální klasický",clkAnalog:"Letecký kokpitový analog (Aviator)",clkMinimal:"Minimalistický moderní (Nordic)",
+   clockStyle:"Styl ciferníku",clkDigital:"Digitální klasický",clkAnalog:"Letecký kokpitový analog (Aviator)",clkOrbital:"Planetární prstence (Orbital Gauges)",clkHud:"Stíhací průhledový displej (Fighter HUD)",clkRegulator:"Astronomický regulátor (Régulateur)",clkStacked:"Vertikální typografie (Stacked Bold)",clkMinimal:"Minimalistický moderní (Nordic)",
    clockWidgets:"Prvky na obrazovce hodin",cDate:"Datum",cWx:"Počasí & teplota",cWind:"Rychlost větru",cMoon:"Fáze měsíce",cAstro:"24h solární prstenec",nightClockOnly:"V noci pouze Hodiny (zastavit radary)",
    radarWidgets:"Prvky radarových map",rTrails:"Trajektorie letadel (Trails)",rNearest:"Vektor k nejbližšímu letadlu",rAirports:"Letiště (Runway ikony)",rRings:"Kilometrové kružnice dosahu",
    hwRtc:"⏱️ Hardware RTC Hodiny (PCF85063)",hwRtcLbl:"Stav RTC čipu:",hwRtcTimeLbl:"Čas v RTC čipu:",btnSyncNtp:"🌐 Synchronizovat s NTP",btnSyncBrowser:"💻 Odeslat čas z prohlížeče",hwI2c:"🔍 I2C Sběrnice (Bus Inspector)",
@@ -453,7 +457,7 @@ const D={
   secOff:"Vypnuté",secDots:"Bodky (Dots)",secLine:"Plná čiara (Line)",secComet:"Kométa (Comet)",
    secRadar:"Radarový lúč (Sweep)",secTicks:"Hodinárske indexy (Ticks)",secOrbit:"Satelit na orbite (Orbit)",
    clockColor:"Farba číslic hodín",secColor:"Farba sekundového prstenca",
-   clockStyle:"Štýl ciferníka",clkDigital:"Digitálny klasický",clkAnalog:"Letecký kokpitový analóg (Aviator)",clkMinimal:"Minimalistický moderný (Nordic)",
+   clockStyle:"Štýl ciferníka",clkDigital:"Digitálny klasický",clkAnalog:"Letecký kokpitový analóg (Aviator)",clkOrbital:"Planetárne prstence (Orbital Gauges)",clkHud:"Stíhací priehľadový displej (Fighter HUD)",clkRegulator:"Astronomický regulátor (Régulateur)",clkStacked:"Vertikálna typografia (Stacked Bold)",clkMinimal:"Minimalistický moderný (Nordic)",
    clockWidgets:"Prvky na obrazovke hodín",cDate:"Dátum",cWx:"Počasie & teplota",cWind:"Rýchlosť vetra",cMoon:"Fáza mesiaca",cAstro:"24h solárny prstenec",nightClockOnly:"V noci iba Hodiny (zastavit radary)",
    radarWidgets:"Prvky radarových máp",rTrails:"Trajektórie lietadiel (Trails)",rNearest:"Vektor k najbližšiemu lietadlu",rAirports:"Letiská (Runway ikony)",rRings:"Kilometrové kružnice dosahu",
    hwRtc:"⏱️ Hardware RTC Hodiny (PCF85063)",hwRtcLbl:"Stav RTC čipu:",hwRtcTimeLbl:"Čas v RTC čipe:",btnSyncNtp:"🌐 Synchronizovať s NTP",btnSyncBrowser:"💻 Odoslať čas z prehliadača",hwI2c:"🔍 I2C Zbernica (Bus Inspector)",
@@ -499,7 +503,7 @@ const D={
   secOff:"Off",secDots:"Dots",secLine:"Line",secComet:"Comet",
    secRadar:"Radar sweep",secTicks:"Swiss ticks",secOrbit:"Orbiting satellite",
    clockColor:"Clock digits colour",secColor:"Seconds ring colour",
-   clockStyle:"Clock face style",clkDigital:"Classic Digital",clkAnalog:"Aviator Cockpit Analog",clkMinimal:"Nordic Minimal",
+   clockStyle:"Clock face style",clkDigital:"Classic Digital",clkAnalog:"Aviator Cockpit Analog",clkOrbital:"Orbital Gauges",clkHud:"Fighter HUD",clkRegulator:"Observatory Régulateur",clkStacked:"Stacked Bold Typography",clkMinimal:"Nordic Minimal",
    clockWidgets:"Clock screen widgets",cDate:"Date",cWx:"Weather & temp",cWind:"Wind speed",cMoon:"Moon phase",cAstro:"24h solar arc",nightClockOnly:"Night: Clock only (pause radars)",
    radarWidgets:"Radar map widgets",rTrails:"Flight trails (breadcrumbs)",rNearest:"Vector to nearest aircraft",rAirports:"Airports (runway icons)",rRings:"Range rings",
    hwRtc:"⏱️ Hardware RTC Clock (PCF85063)",hwRtcLbl:"RTC chip status:",hwRtcTimeLbl:"RTC hardware time:",btnSyncNtp:"🌐 Sync with NTP",btnSyncBrowser:"💻 Sync from browser",hwI2c:"🔍 I2C Bus Inspector",

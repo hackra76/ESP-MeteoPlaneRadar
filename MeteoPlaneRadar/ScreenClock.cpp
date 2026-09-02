@@ -45,8 +45,13 @@ bool ScreenClock_Tick() {
   if (!Outside_TimeValid()) return false;
   time_t now = time(nullptr);
   struct tm lt; localtime_r(&now, &lt);
-  // In analog mode or when seconds ring is active, update every second
-  if (Settings_ClockStyle() == CLOCK_STYLE_ANALOG || Settings_SecondsStyle() != SEC_STYLE_OFF) {
+  // In analog, orbital, hud, regulator modes or when seconds ring is active, update every second
+  bool secTick = (Settings_ClockStyle() == CLOCK_STYLE_ANALOG ||
+                  Settings_ClockStyle() == CLOCK_STYLE_ORBITAL ||
+                  Settings_ClockStyle() == CLOCK_STYLE_HUD ||
+                  Settings_ClockStyle() == CLOCK_STYLE_REGULATOR ||
+                  Settings_SecondsStyle() != SEC_STYLE_OFF);
+  if (secTick) {
     if (lt.tm_sec == s_lastSec) return false;
     s_lastSec = lt.tm_sec;
     s_lastMin = lt.tm_min;
@@ -302,6 +307,316 @@ static void drawAnalogClock(const struct tm* lt, time_t now) {
   gfx->fillCircle(CX, CY, 3, Settings_SecondsColor());
 }
 
+static void drawGaugeArc(int cx, int cy, int rIn, int rOut, float startDeg, float endDeg, uint16_t color) {
+  if (endDeg <= startDeg) return;
+  for (float deg = startDeg; deg <= endDeg; deg += 1.0f) {
+    float rad = (deg - 90.0f) * 0.0174532925f;
+    float c = cosf(rad), s = sinf(rad);
+    int x0 = cx + (int)(rIn * c), y0 = cy + (int)(rIn * s);
+    int x1 = cx + (int)(rOut * c), y1 = cy + (int)(rOut * s);
+    gfx->drawLine(x0, y0, x1, y1, color);
+  }
+}
+
+// 1. Orbital Gauges (Concentric Planetary Arc Rings)
+static void drawOrbitalClock(const struct tm* lt, time_t now) {
+  // Outer track: Minutes (0..60 min)
+  float minDeg = (lt->tm_min + lt->tm_sec / 60.0f) * 6.0f;
+  drawGaugeArc(CX, CY, 198, 210, 0.0f, 360.0f, 0x18C3);
+  drawGaugeArc(CX, CY, 198, 210, 0.0f, minDeg, Settings_ClockColor());
+  float mRad = (minDeg - 90.0f) * 0.0174532925f;
+  gfx->fillCircle(CX + (int)(204.0f * cosf(mRad)), CY + (int)(204.0f * sinf(mRad)), 5, C_WHITE);
+
+  // Middle track: Hours (0..12 h)
+  float hourDeg = (lt->tm_hour % 12 + lt->tm_min / 60.0f) * 30.0f;
+  drawGaugeArc(CX, CY, 170, 182, 0.0f, 360.0f, 0x18C3);
+  drawGaugeArc(CX, CY, 170, 182, 0.0f, hourDeg, C_CYAN);
+  float hRad = (hourDeg - 90.0f) * 0.0174532925f;
+  gfx->fillCircle(CX + (int)(176.0f * cosf(hRad)), CY + (int)(176.0f * sinf(hRad)), 5, C_WHITE);
+
+  // Inner track: Seconds (0..60 s)
+  float secDeg = lt->tm_sec * 6.0f;
+  drawGaugeArc(CX, CY, 144, 154, 0.0f, 360.0f, 0x1082);
+  drawGaugeArc(CX, CY, 144, 154, 0.0f, secDeg, Settings_SecondsColor());
+  float sRad = (secDeg - 90.0f) * 0.0174532925f;
+  gfx->fillCircle(CX + (int)(149.0f * cosf(sRad)), CY + (int)(149.0f * sinf(sRad)), 4, C_WHITE);
+
+  // Central Core Display
+  if (Settings_ClockShowDate()) {
+    char date[32];
+    snprintf(date, sizeof(date), "%s %d.%d.", Lang_WeekdayShort(lt->tm_wday), lt->tm_mday, lt->tm_mon + 1);
+    UI_TextCentered(date, CY - 60, C_LTGRAY, 2);
+  }
+
+  // Large digital time in center
+  char hhmm[8];
+  snprintf(hhmm, sizeof(hhmm), "%02d:%02d", lt->tm_hour, lt->tm_min);
+  UI_TextCentered(hhmm, CY - 24, C_WHITE, 4);
+
+  // Seconds small badge next to time
+  char ssec[8];
+  snprintf(ssec, sizeof(ssec), ":%02d", lt->tm_sec);
+  UI_Text(ssec, CX + 62, CY - 18, Settings_SecondsColor(), 2);
+
+  // Conditions row below center (Weather & Temp)
+  if (Settings_ClockShowWeather() && Forecast_CurrentValid()) {
+    char tbuf[16];
+    snprintf(tbuf, sizeof(tbuf), "%d°C", (int)lroundf(Forecast_CurrentTemp()));
+    int tw = Layout_TextW(tbuf, 2);
+    int totalW = 24 + 8 + tw;
+    int x0 = CX - totalW / 2;
+    WxIcon_Draw(x0 + 12, CY + 36, 12, Forecast_CurrentCode(), Settings_IsNight());
+    UI_Text(tbuf, x0 + 30, CY + 30, C_LTGRAY, 2);
+  }
+
+  // Moon phase at bottom
+  if (Settings_ClockShowMoon()) {
+    MoonInfo moon = Astro_GetMoon(now);
+    char mbuf[24];
+    snprintf(mbuf, sizeof(mbuf), "%.0f%%", moon.illumination);
+    Astro_DrawMoonIcon(CX - 18, CY + 72, 10, moon.phase);
+    UI_Text(mbuf, CX + 4, CY + 66, C_GRAY, 1);
+  }
+}
+
+// 2. Fighter HUD (Cockpit Head-Up Display)
+static void drawHudClock(const struct tm* lt, time_t now) {
+  uint16_t hudCol = Settings_ClockColor();
+  uint16_t dimHud = dim(hudCol, 1, 3);
+
+  // Top Compass Heading Tape
+  gfx->drawFastHLine(CX - 140, 68, 280, dimHud);
+  for (int h = -40; h <= 40; h += 10) {
+    int x = CX + h * 3;
+    gfx->drawFastVLine(x, 64, 8, hudCol);
+  }
+  gfx->fillTriangle(CX - 5, 58, CX + 5, 58, CX, 66, hudCol);
+  UI_TextCentered("HDG 360", 42, hudCol, 1);
+
+  // Pitch Ladder
+  gfx->drawFastHLine(CX - 130, CY, 60, hudCol);
+  gfx->drawFastHLine(CX + 70, CY, 60, hudCol);
+  gfx->drawFastVLine(CX - 130, CY, 10, hudCol);
+  gfx->drawFastVLine(CX + 130, CY, 10, hudCol);
+
+  gfx->drawFastHLine(CX - 80, CY - 55, 40, dimHud);
+  gfx->drawFastVLine(CX - 80, CY - 55, 6, dimHud);
+  gfx->drawFastHLine(CX + 40, CY - 55, 40, dimHud);
+  gfx->drawFastVLine(CX + 80, CY - 55, 6, dimHud);
+  UI_Text("10", CX - 100, CY - 60, dimHud, 1);
+  UI_Text("10", CX + 88, CY - 60, dimHud, 1);
+
+  for (int dx = 0; dx < 40; dx += 8) {
+    gfx->drawFastHLine(CX - 80 + dx, CY + 55, 4, dimHud);
+    gfx->drawFastHLine(CX + 40 + dx, CY + 55, 4, dimHud);
+  }
+  gfx->drawFastVLine(CX - 80, CY + 49, 6, dimHud);
+  gfx->drawFastVLine(CX + 80, CY + 49, 6, dimHud);
+  UI_Text("-10", CX - 104, CY + 50, dimHud, 1);
+  UI_Text("-10", CX + 88, CY + 50, dimHud, 1);
+
+  // Center Aircraft Reticle
+  gfx->drawCircle(CX, CY, 8, hudCol);
+  gfx->drawPixel(CX, CY, hudCol);
+  gfx->drawFastHLine(CX - 18, CY, 7, hudCol);
+  gfx->drawFastHLine(CX + 12, CY, 7, hudCol);
+
+  // Target Lock Box (Locked on time)
+  char hhmmss[16];
+  snprintf(hhmmss, sizeof(hhmmss), "%02d:%02d:%02d", lt->tm_hour, lt->tm_min, lt->tm_sec);
+  int tw = Layout_TextW(hhmmss, 3);
+  int bx = CX - tw / 2 - 12, by = CY - 18, bw = tw + 24, bh = 36;
+  int cLen = 8;
+  gfx->drawFastHLine(bx, by, cLen, hudCol);
+  gfx->drawFastVLine(bx, by, cLen, hudCol);
+  gfx->drawFastHLine(bx + bw - cLen, by, cLen, hudCol);
+  gfx->drawFastVLine(bx + bw, by, cLen, hudCol);
+  gfx->drawFastHLine(bx, by + bh, cLen, hudCol);
+  gfx->drawFastVLine(bx, by + bh - cLen, cLen, hudCol);
+  gfx->drawFastHLine(bx + bw - cLen, by + bh, cLen, hudCol);
+  gfx->drawFastVLine(bx + bw, by + bh - cLen, cLen, hudCol);
+  UI_TextCentered(hhmmss, CY - 11, hudCol, 3);
+  UI_Text("SYS·TGT·LOCK", CX - 36, by - 12, dimHud, 1);
+
+  // Left Tape (Weather / Temp)
+  gfx->drawFastVLine(55, 120, 240, dimHud);
+  for (int y = 120; y <= 360; y += 24) {
+    gfx->drawFastHLine(50, y, 6, dimHud);
+  }
+  if (Settings_ClockShowWeather() && Forecast_CurrentValid()) {
+    char tbuf[16];
+    snprintf(tbuf, sizeof(tbuf), "%d°C", (int)lroundf(Forecast_CurrentTemp()));
+    gfx->drawRect(18, CY - 14, 46, 28, hudCol);
+    UI_Text(tbuf, 24, CY - 6, hudCol, 2);
+    WxIcon_Draw(40, CY - 36, 12, Forecast_CurrentCode(), Settings_IsNight());
+  }
+
+  // Right Tape (Wind speed)
+  gfx->drawFastVLine(425, 120, 240, dimHud);
+  for (int y = 120; y <= 360; y += 24) {
+    gfx->drawFastHLine(425, y, 6, dimHud);
+  }
+  if (Settings_ClockShowWind() && Forecast_CurrentValid()) {
+    char wbuf[16];
+    snprintf(wbuf, sizeof(wbuf), "%d", (int)lroundf(Forecast_CurrentWind()));
+    gfx->drawRect(416, CY - 14, 46, 28, hudCol);
+    UI_Text(wbuf, 424, CY - 6, hudCol, 2);
+    UI_Text("WND", 422, CY - 26, dimHud, 1);
+    UI_Text("KMH", 422, CY + 18, dimHud, 1);
+  }
+
+  // Tactical Bottom Info Line
+  if (Settings_ClockShowDate()) {
+    char dLine[48];
+    snprintf(dLine, sizeof(dLine), "UTC %02d:%02d · %s %02d",
+             lt->tm_hour, lt->tm_min, Lang_MonthName(lt->tm_mon), lt->tm_mday);
+    UI_TextCentered(dLine, 410, dimHud, 1);
+  }
+}
+
+// 3. Observatory Régulateur (Decoupled Axes Chronometer)
+static void drawRegulatorClock(const struct tm* lt, time_t now) {
+  // Outer 60-Minute Chapter Ring
+  for (int m = 0; m < 60; m++) {
+    float a = (m * 6.0f - 90.0f) * 0.0174532925f;
+    float ca = cosf(a), sa = sinf(a);
+    bool major = (m % 5 == 0);
+    int r0 = major ? 200 : 208;
+    gfx->drawLine(CX + (int)(r0 * ca), CY + (int)(r0 * sa),
+                  CX + (int)(216.0f * ca), CY + (int)(216.0f * sa),
+                  major ? C_WHITE : C_DKGRAY);
+  }
+
+  // Upper Sub-dial: Hours (Center CX, 138, radius 58)
+  const int H_CY = 138, H_R = 58;
+  gfx->drawCircle(CX, H_CY, H_R, C_DKGRAY);
+  gfx->drawCircle(CX, H_CY, H_R - 2, 0x18C3);
+  UI_TextCentered("12", H_CY - 50, C_WHITE, 1);
+  UI_Text("3", CX + 44, H_CY - 4, C_WHITE, 1);
+  UI_TextCentered("6", H_CY + 40, C_WHITE, 1);
+  UI_Text("9", CX - 50, H_CY - 4, C_WHITE, 1);
+
+  // Hour hand
+  float hourAngle = (lt->tm_hour % 12 + lt->tm_min / 60.0f) * 30.0f;
+  float hRad = (hourAngle - 90.0f) * 0.0174532925f;
+  float hPerp = hourAngle * 0.0174532925f;
+  int hTipX = CX + (int)(42.0f * cosf(hRad));
+  int hTipY = H_CY + (int)(42.0f * sinf(hRad));
+  int hTailX = CX - (int)(10.0f * cosf(hRad));
+  int hTailY = H_CY - (int)(10.0f * sinf(hRad));
+  int hLx = CX + (int)(4.0f * cosf(hPerp));
+  int hLy = H_CY + (int)(4.0f * sinf(hPerp));
+  int hRx = CX - (int)(4.0f * cosf(hPerp));
+  int hRy = H_CY - (int)(4.0f * sinf(hPerp));
+  gfx->fillTriangle(hTailX, hTailY, hLx, hLy, hTipX, hTipY, Settings_ClockColor());
+  gfx->fillTriangle(hTailX, hTailY, hRx, hRy, hTipX, hTipY, Settings_ClockColor());
+  gfx->fillCircle(CX, H_CY, 4, C_WHITE);
+
+  // Lower Sub-dial: Seconds (Center CX, 342, radius 58)
+  const int S_CY = 342, S_R = 58;
+  gfx->drawCircle(CX, S_CY, S_R, C_DKGRAY);
+  gfx->drawCircle(CX, S_CY, S_R - 2, 0x18C3);
+  UI_TextCentered("60", S_CY - 50, Settings_SecondsColor(), 1);
+  UI_Text("15", CX + 42, S_CY - 4, Settings_SecondsColor(), 1);
+  UI_TextCentered("30", S_CY + 40, Settings_SecondsColor(), 1);
+  UI_Text("45", CX - 50, S_CY - 4, Settings_SecondsColor(), 1);
+
+  // Seconds hand
+  float secAngle = lt->tm_sec * 6.0f;
+  float sRad = (secAngle - 90.0f) * 0.0174532925f;
+  int sTipX = CX + (int)(46.0f * cosf(sRad));
+  int sTipY = S_CY + (int)(46.0f * sinf(sRad));
+  int sTailX = CX - (int)(12.0f * cosf(sRad));
+  int sTailY = S_CY - (int)(12.0f * sinf(sRad));
+  gfx->drawLine(sTailX, sTailY, sTipX, sTipY, Settings_SecondsColor());
+  gfx->fillCircle(CX, S_CY, 4, Settings_SecondsColor());
+
+  // Complications at 9 o'clock (Weather) and 3 o'clock (Moon)
+  if (Settings_ClockShowWeather() && Forecast_CurrentValid()) {
+    gfx->drawCircle(72, CY, 38, C_DKGRAY);
+    WxIcon_Draw(72, CY - 8, 14, Forecast_CurrentCode(), Settings_IsNight());
+    char tbuf[16];
+    snprintf(tbuf, sizeof(tbuf), "%d°C", (int)lroundf(Forecast_CurrentTemp()));
+    UI_TextCentered(tbuf, CY + 14, C_WHITE, 1);
+  }
+
+  if (Settings_ClockShowMoon()) {
+    gfx->drawCircle(408, CY, 38, C_DKGRAY);
+    MoonInfo moon = Astro_GetMoon(now);
+    Astro_DrawMoonIcon(408, CY - 8, 12, moon.phase);
+    char mbuf[16];
+    snprintf(mbuf, sizeof(mbuf), "%.0f%%", moon.illumination);
+    UI_TextCentered(mbuf, CY + 14, C_LTGRAY, 1);
+  }
+
+  // Large Master Minute Hand (Pivoting at CX, CY)
+  float minAngle = (lt->tm_min + lt->tm_sec / 60.0f) * 6.0f;
+  drawHand(minAngle, 192.0f, 28.0f, 6.0f, C_WHITE);
+  drawHand(minAngle, 178.0f, 20.0f, 3.0f, Settings_ClockColor());
+  gfx->fillCircle(CX, CY, 8, C_WHITE);
+  gfx->fillCircle(CX, CY, 4, Settings_ClockColor());
+
+  // Date banner
+  if (Settings_ClockShowDate()) {
+    char date[32];
+    snprintf(date, sizeof(date), "%s %d", Lang_MonthName(lt->tm_mon), lt->tm_mday);
+    UI_TextCentered(date, CY + 24, C_LTGRAY, 1);
+  }
+}
+
+// 4. Stacked Bold Typography
+static void drawStackedClock(const struct tm* lt, time_t now) {
+  // Top giant hours
+  char hbuf[4];
+  snprintf(hbuf, sizeof(hbuf), "%02d", lt->tm_hour);
+  UI_TextCentered(hbuf, 95, Settings_ClockColor(), 9);
+
+  // Bottom giant minutes
+  char mbuf[4];
+  snprintf(mbuf, sizeof(mbuf), "%02d", lt->tm_min);
+  UI_TextCentered(mbuf, 215, Settings_SecondsColor(), 9);
+
+  // Top Date Pill
+  if (Settings_ClockShowDate()) {
+    char date[40];
+    snprintf(date, sizeof(date), "%s %d. %s",
+             Lang_WeekdayShort(lt->tm_wday), lt->tm_mday, Lang_MonthName(lt->tm_mon));
+    int dw = Layout_TextW(date, 2);
+    gfx->fillRoundRect(CX - dw / 2 - 12, 60, dw + 24, 26, 12, 0x18C3);
+    UI_TextCentered(date, 65, C_WHITE, 2);
+  }
+
+  // Left Weather Pill
+  if (Settings_ClockShowWeather() && Forecast_CurrentValid()) {
+    gfx->fillRoundRect(36, CY - 40, 56, 80, 16, 0x18C3);
+    gfx->drawRoundRect(36, CY - 40, 56, 80, 16, 0x31A6);
+    WxIcon_Draw(64, CY - 18, 14, Forecast_CurrentCode(), Settings_IsNight());
+    char tbuf[16];
+    snprintf(tbuf, sizeof(tbuf), "%d°", (int)lroundf(Forecast_CurrentTemp()));
+    UI_TextCentered(tbuf, CY + 10, C_WHITE, 2);
+  }
+
+  // Right Moon Pill
+  if (Settings_ClockShowMoon()) {
+    gfx->fillRoundRect(388, CY - 40, 56, 80, 16, 0x18C3);
+    gfx->drawRoundRect(388, CY - 40, 56, 80, 16, 0x31A6);
+    MoonInfo moon = Astro_GetMoon(now);
+    Astro_DrawMoonIcon(416, CY - 18, 12, moon.phase);
+    char pbuf[16];
+    snprintf(pbuf, sizeof(pbuf), "%.0f%%", moon.illumination);
+    UI_TextCentered(pbuf, CY + 12, C_LTGRAY, 1);
+  }
+
+  // Bottom Wind Pill
+  if (Settings_ClockShowWind() && Forecast_CurrentValid()) {
+    char wbuf[24];
+    snprintf(wbuf, sizeof(wbuf), "%d km/h", (int)lroundf(Forecast_CurrentWind()));
+    int ww = Layout_TextW(wbuf, 2);
+    gfx->fillRoundRect(CX - ww / 2 - 12, 385, ww + 24, 24, 12, 0x18C3);
+    UI_TextCentered(wbuf, 389, C_GRAY, 2);
+  }
+}
+
 static void drawMinimalClock(const struct tm* lt, time_t now) {
   // Date above
   if (Settings_ClockShowDate()) {
@@ -442,6 +757,18 @@ void ScreenClock_Draw() {
   switch (Settings_ClockStyle()) {
     case CLOCK_STYLE_ANALOG:
       drawAnalogClock(&lt, now);
+      break;
+    case CLOCK_STYLE_ORBITAL:
+      drawOrbitalClock(&lt, now);
+      break;
+    case CLOCK_STYLE_HUD:
+      drawHudClock(&lt, now);
+      break;
+    case CLOCK_STYLE_REGULATOR:
+      drawRegulatorClock(&lt, now);
+      break;
+    case CLOCK_STYLE_STACKED:
+      drawStackedClock(&lt, now);
       break;
     case CLOCK_STYLE_MINIMAL:
       drawMinimalClock(&lt, now);
