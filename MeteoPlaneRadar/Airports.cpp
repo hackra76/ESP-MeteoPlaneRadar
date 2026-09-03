@@ -61,10 +61,7 @@ void Airports_Draw(ProjectFn project, int cx, int cy, int radius,
     }
 
     if (Settings_ShowLegends()) {
-      gfx->setTextSize(1);
-      gfx->setTextColor(C_CYAN);
-      gfx->setCursor(tx, ty);
-      gfx->print(ap.iata);
+      UI_Text(ap.iata, tx, ty, C_CYAN, 1);
     }
   }
 }

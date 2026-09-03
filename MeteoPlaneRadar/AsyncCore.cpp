@@ -155,9 +155,11 @@ static void asyncWorkerTask(void* param) {
 
       // 1. Radar Tile Download (RainViewer background stepping - highest priority when on radar)
       if (rvBusy) {
+        Watchdog_Feed();
         if (RainViewer_Step()) {
           s_radarUpdated = true;
         }
+        Watchdog_Feed();
         lastTlsTime = millis();
         vTaskDelay(pdMS_TO_TICKS(15));
       }

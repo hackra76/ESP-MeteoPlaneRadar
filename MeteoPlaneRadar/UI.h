@@ -60,3 +60,17 @@ inline void UI_Text(const String& text, int x, int y, uint16_t color, uint8_t si
 // nothing when neither is known yet, and refuses to draw text that would not
 // fit inside the circle rather than letting it run off the edge.
 void UI_DrawStatusLine(int cy);
+
+// Unified range / zoom indicator across all radar screens.
+// Standardizes dot size (r=4), spacing (gap=20), positioning (LY_RANGE_DOTS),
+// text backing, and visibility.
+void UI_DrawRangeIndicator(const char* text, int activeIdx, int totalCount, bool showText = true);
+
+// Unified home position marker (cyan outer ring, yellow inner ring, white center dot, crosshair)
+void UI_DrawHomeMarker(int x, int y);
+
+struct Aircraft;
+struct RouteInfo;
+
+// Unified, richly color-coded aircraft detail card for ScreenPlanes & ScreenTactical
+void UI_DrawAircraftDetail(const Aircraft& ac, const RouteInfo* rt, int routeState, bool signalLost);

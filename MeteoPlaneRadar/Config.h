@@ -71,6 +71,7 @@
 // "the whole country", a fixed view that ignores where the user is.
 #define METEO_RANGES_KM    { 25.0f, 50.0f, 100.0f, 200.0f, 0.0f }
 #define TACTICAL_RANGES_KM { 25.0f, 50.0f, 100.0f, 200.0f, 0.0f }
+#define TACTICAL_RADAR_PERIOD_MS (5 * 60 * 1000UL) // 5 minut perioda obnovy zrazkoveho radaru na Tactical obrazovke
 
 // Prodleva mezi pokusy o data meteoradaru, kdyz zadna nejsou. Plati pro oba
 // zdroje: u CHMU bez ni slo prvni nacteni znovu pri kazdem pruchodu smyckou,
@@ -107,13 +108,13 @@
 #define OUTSIDE_TEMP_PERIOD_MS 600000UL   // 10 min - it is a model value
 #define OUTSIDE_TEMP_RETRY_MS   60000UL   // sooner while we have nothing yet
 
-// Degree symbol. The built-in CP437 font renders character 0xF8 (\xF8) as
-// the true degree circle "°".
+// Degree symbol. In UTF-8 typography (U8g2 engine), character U+00B0 is
+// encoded as "\xC2\xB0".
 #define OUTSIDE_DEG_SYMBOL 1
 #if OUTSIDE_DEG_SYMBOL
-  #define OUTSIDE_DEG_TEXT "\xF8" "C"
+  #define OUTSIDE_DEG_TEXT "\xC2\xB0" "C"
 #else
-  #define OUTSIDE_DEG_TEXT "degC"
+  #define OUTSIDE_DEG_TEXT "°C"
 #endif
 
 // ---------------------------------------------------------------------------
@@ -246,7 +247,7 @@
 // ---------------------------------------------------------------------------
 //  Watchdog
 // ---------------------------------------------------------------------------
-#define WDT_TIMEOUT_S 20       // reboot after this many seconds of being stuck
+#define WDT_TIMEOUT_S 40       // reboot after this many seconds of being stuck (accommodates slow TLS handshake + TCP timeout)
 
 // =============================================================================
 //  0.6.0 additions

@@ -104,7 +104,9 @@ size_t NetBufSink::write(const uint8_t* data, size_t len) {
   }
   if (!_buf || len == 0) return 0;
 
-  size_t room = (_len < _cap) ? (_cap - _len) : 0;
+  // Reserve 1 byte for NUL termination so terminate() always succeeds when within capacity
+  size_t maxData = (_cap > 0) ? (_cap - 1) : 0;
+  size_t room = (_len < maxData) ? (maxData - _len) : 0;
   if (len > room) {
     _over = true;              // record it - the caller must not use the body
     len   = room;
@@ -126,8 +128,8 @@ long Net_ReadBody(HTTPClient& http, uint8_t* buf, size_t cap, const char* tag,
                   void (*poll)()) {
   if (!buf || cap == 0) return -1;
 
-  // Reserve one byte so the body can always be NUL-terminated.
-  NetBufSink sink(buf, cap - 1, poll, NET_BODY_BUDGET_MS);
+  // NetBufSink handles capacity and reserves one byte for NUL termination.
+  NetBufSink sink(buf, cap, poll, NET_BODY_BUDGET_MS);
   int ret = http.writeToStream(&sink);
 
   if (sink.timedOut()) {

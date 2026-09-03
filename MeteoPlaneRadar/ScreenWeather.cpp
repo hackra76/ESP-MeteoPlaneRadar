@@ -363,8 +363,7 @@ static void drawOverlay() {
     borderProject(Settings_Lat(), Settings_Lon(), &px, &py);
     long ddx = px - CX, ddy = py - CY;
     if (ddx * ddx + ddy * ddy <= (long)(DISP_R - 10) * (DISP_R - 10)) {
-      gfx->drawFastHLine(px - 8, py, 16, C_WHITE);
-      gfx->drawFastVLine(px, py - 8, 16, C_WHITE);
+      UI_DrawHomeMarker(px, py);
     }
   }
 
@@ -392,17 +391,13 @@ static void drawOverlay() {
 
     const int lx = 30, ly = 142, boxW = 96, boxH = 22 + 6 * 13 + 2;
     gfx->fillRect(lx - 2, ly - 2, boxW, boxH, C_BLACK);   // readability backing
-    gfx->setTextSize(1);
-    gfx->setTextColor(rv ? C_CYAN : C_GREEN);
-    gfx->setCursor(lx, ly); gfx->print(rv ? "RainViewer" : "CHMU");
-    gfx->setTextColor(C_GRAY);
-    gfx->setCursor(lx, ly + 10); gfx->print("dBZ / mm/h");
+    UI_Text(rv ? "RainViewer" : "CHMU", lx, ly, rv ? C_CYAN : C_GREEN, 1);
+    UI_Text("dBZ / mm/h", lx, ly + 10, C_GRAY, 1);
     for (int i = 0; i < 6; i++) {
       int ry = ly + 22 + i * 13;
       gfx->fillRect(lx, ry, 9, 9, col[i]);
       gfx->drawRect(lx, ry, 9, 9, C_DKGRAY);
-      gfx->setTextColor(C_WHITE);
-      gfx->setCursor(lx + 13, ry + 1); gfx->print(lbl[i]);
+      UI_Text(lbl[i], lx + 13, ry + 1, C_WHITE, 1);
     }
   }
 
@@ -439,27 +434,14 @@ static void drawOverlay() {
     }
   }
 
-  // Range + indicator dots (bottom centre) with a backing.
-  if (Settings_ShowLegends()) {
-    char rbuf[24] = "";
-    if (isWholeCountry()) {
-      // Uzivatel si nepraje zobrazovat text "cele Slovensko" na displeji (ponechame cisty radar s bodkami dole)
-    }
-    else if (rvMode())    snprintf(rbuf, sizeof(rbuf), "%.0f %s",
-                                   RainViewer_EffectiveRadiusKm(), T(S_KM));
-    else                  snprintf(rbuf, sizeof(rbuf), "%.0f %s", currentRange(), T(S_KM));
-    if (rbuf[0]) {
-      gfx->fillRect(CX - 70, LY_RANGE - 4, 140, 24, C_BLACK);
-      UI_TextCenteredIn(rbuf, 0, LCD_WIDTH, LY_RANGE, C_YELLOW, 2);
-    }
-    int dotGap = 16, dotY = LY_RANGE_DOTS, totalW = (RANGE_COUNT - 1) * dotGap;
-    int startX = CX - totalW / 2;
-    for (int i = 0; i < RANGE_COUNT; i++) {
-      int x = startX + i * dotGap;
-      if (i == s_rangeIdx) gfx->fillCircle(x, dotY, 3, C_YELLOW);
-      else                 gfx->drawCircle(x, dotY, 3, C_GRAY);
-    }
+  // Range + indicator dots (bottom centre)
+  char rbuf[24] = "";
+  if (!isWholeCountry()) {
+    if (rvMode()) snprintf(rbuf, sizeof(rbuf), "%.0f %s",
+                           RainViewer_EffectiveRadiusKm(), T(S_KM));
+    else          snprintf(rbuf, sizeof(rbuf), "%.0f %s", currentRange(), T(S_KM));
   }
+  UI_DrawRangeIndicator(rbuf, s_rangeIdx, RANGE_COUNT, Settings_ShowLegends());
 }
 
 void ScreenWeather_RangeText(char* out, size_t cap) {
@@ -490,6 +472,9 @@ void ScreenWeather_Enter() {
   s_curFrame = 0;
 }
 
+static float s_lastRng = -999.0f;
+static double s_lastLat = -999.0, s_lastLon = -999.0;
+
 void ScreenWeather_ChangeRange(int dir) {
   s_rangeIdx = (s_rangeIdx + dir + RANGE_COUNT) % RANGE_COUNT;
   Settings_SetMeteoRange(s_rangeIdx);   // remember across restarts (debounced)
@@ -501,6 +486,9 @@ void ScreenWeather_ChangeRange(int dir) {
     s_gap = false;
     double vlat = Settings_Lat(), vlon = Settings_Lon();
     float vrng = currentRange();
+    s_lastRng = vrng;
+    s_lastLat = vlat;
+    s_lastLon = vlon;
     if (vrng <= 0.0f) {
       getWholeCountryView(&vlat, &vlon, &vrng, nullptr);
       RainViewer_Begin(vlat, vlon, -vrng, CHMU_ANIM_MAX);
@@ -518,8 +506,6 @@ static bool tickRainViewer() {
   float rng = currentRange();
   double vlat = Settings_Lat(), vlon = Settings_Lon();
 
-  static float s_lastRng = -999.0f;
-  static double s_lastLat = -999.0, s_lastLon = -999.0;
   bool viewChanged = (rng != s_lastRng) || (fabs(vlat - s_lastLat) > 1e-5) || (fabs(vlon - s_lastLon) > 1e-5);
   if (viewChanged) {
     s_lastRng = rng; s_lastLat = vlat; s_lastLon = vlon;

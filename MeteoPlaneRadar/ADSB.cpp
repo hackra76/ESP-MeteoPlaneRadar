@@ -25,18 +25,32 @@
 
 static const float KM_PER_NM = 1.852f;
 
-static Aircraft s_list[ADSB_MAX];   // last GOOD snapshot shown on screen
+static Aircraft* s_list = nullptr;   // last GOOD snapshot shown on screen
 static int s_count = 0;
 // Scratch buffer we parse into. The visible list (s_list/s_count) is only
 // overwritten once a fetch has fully and correctly parsed - so a truncated or
 // otherwise broken JSON never blanks the radar, it just keeps the previous
 // aircraft until the next good fetch.
-static Aircraft s_tmp[ADSB_MAX];
+static Aircraft* s_tmp = nullptr;
 static void (*s_poll)() = nullptr;
+
+static bool ensureAdsbBuffers() {
+  if (!s_list) {
+    s_list = (Aircraft*)heap_caps_malloc(sizeof(Aircraft) * ADSB_MAX, MALLOC_CAP_SPIRAM);
+    if (!s_list) s_list = (Aircraft*)malloc(sizeof(Aircraft) * ADSB_MAX);
+    if (s_list) memset(s_list, 0, sizeof(Aircraft) * ADSB_MAX);
+  }
+  if (!s_tmp) {
+    s_tmp = (Aircraft*)heap_caps_malloc(sizeof(Aircraft) * ADSB_MAX, MALLOC_CAP_SPIRAM);
+    if (!s_tmp) s_tmp = (Aircraft*)malloc(sizeof(Aircraft) * ADSB_MAX);
+    if (s_tmp) memset(s_tmp, 0, sizeof(Aircraft) * ADSB_MAX);
+  }
+  return (s_list != nullptr && s_tmp != nullptr);
+}
 
 void ADSB_SetPollFn(void (*fn)()) { s_poll = fn; }
 int  ADSB_Count() { return s_count; }
-const Aircraft* ADSB_List() { return s_list; }
+const Aircraft* ADSB_List() { ensureAdsbBuffers(); return s_list; }
 
 const char* ADSB_EmergencyCode(const Aircraft& a) {
   if (!a.squawk[0]) return nullptr;
@@ -47,7 +61,7 @@ const char* ADSB_EmergencyCode(const Aircraft& a) {
 }
 
 int ADSB_FindByHex(const char* hex) {
-  if (!hex || !hex[0]) return -1;
+  if (!hex || !hex[0] || !s_list) return -1;
   for (int i = 0; i < s_count; i++) {
     if (strcmp(s_list[i].hex, hex) == 0) return i;
   }
@@ -194,6 +208,7 @@ static void buildFilter(JsonDocument& filter) {
 }
 
 bool ADSB_Fetch(double lat, double lon, float radiusKm) {
+  if (!ensureAdsbBuffers()) return false;
   // No link -> keep whatever we last drew (do NOT blank the radar).
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("ADSB: no WiFi");

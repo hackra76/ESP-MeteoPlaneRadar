@@ -11,6 +11,39 @@ pohromadě v `MeteoPlaneRadar/Config.h`.
 
 ---
 
+## [1.3.0] - 2026-09-03
+
+### Pridané / Added
+- **Moderné dotykové gestá a Plynulé prechody obrazoviek (Slide Transitions):**
+  - **Horizontálny swipe (doľava / doprava):** Okamžité a plynulé prepínanie medzi obrazovkami.
+  - **Plynulá animácia prechodu (Slide Transition):** Dvojitý hardvérový framebuffer v PSRAM zabezpečuje bezblikajúce odsunutie a nasunutie novej obrazovky s ease-out krivkou (~100 ms).
+  - **Stiahnutie z horného okraja (Pull-down):** Vyvolanie nového rýchleho ovládacieho centra (**Quick Control Center**).
+  - **Vertikálny swipe v strede:** Rýchly zoom na radaroch (hore = Zoom In, dole = Zoom Out) alebo zatvorenie ovládacieho centra.
+  - **Klepnutie na spodnú lištu rozsahu:** Dotyková zmena zoomu (ľavá polovica = zmenšenie, pravá polovica = zväčšenie).
+- **Rýchle ovládacie centrum (Quick Control Center):**
+  - Translucentné tmavé vysúvacie menu z horného okraja.
+  - Okamžitá regulácia jasu podsvietenia (tlačidlá `[-]`, `[+]` s krokom 15%).
+  - Rýchly prepínač nočného režimu (`Noc: AUTO / ZAP / VYP`) a skratka do Nastavení.
+  - Kontextové prepínače pre aktívnu obrazovku: Letiská, Okruhy, Popisy lietadiel, Trasy, Prepínanie radarového zdroja ČHMÚ/RainViewer, cyklovanie ciferníkov, solárny oblúk a auto-rotácia.
+- **Inteligentné sledovanie zaujímavých lietadiel (Watchlist & Alert HUD):**
+  - Automatická detekcia a špeciálne vizuálne zvýraznenie:
+    - **Záchranárske vrtuľníky (HEMS):** ATE, Kryštof, HZS, SAR, LZZ, typy H135, H145, EC35, EC45, A109, UH60 $\rightarrow$ smaragdovo zelený pulzujúci kruh.
+    - **Vládne špeciály (VIP):** SSG (Letecký útvar MV SR), CEF (Vzdušné sily AČR), IAM, GAF, COTAM $\rightarrow$ kráľovský zlatý kruh.
+    - **Ikonické stroje a obry:** Airbus A380, Boeing 747, Antonov An-124/225, Airbus Beluga $\rightarrow$ azúrový kruh.
+    - **Vojenské lety:** detekované cez databázu, typy a volacie znaky NATO, JAS, ALCA, TIGER, F16, F35... $\rightarrow$ červený kruh.
+    - **Používateľský watchlist:** zhodné s nastaveným filtrom $\rightarrow$ fialový purpurový kruh.
+  - **Alert HUD štítok:** Automatické upozornenie v hornej časti radaru pod časom pri výskyte špeciálneho letu v dosahu (napr. `! Zachranny vrtulnik: ATE02 (18 km) !`).
+- **Ľudsky čitateľné názvy lietadiel & Farebný telemetrický detail:**
+  - ICAO kódy sa automaticky prekladajú do zrozumiteľných názvov (napr. `A320` $\rightarrow$ `Airbus A320`, `B38M` $\rightarrow$ `Boeing 737 MAX 8`, `AT76` $\rightarrow$ `ATR 72-600`).
+  - Zjednotený detailný panel lietadla s farebne odlíšenými údajmi: žltý/červený volací znak, azúrová výška, biela rýchlosť a kurz, dynamická zelená/červená pre stúpanie/klesanie, jantárový typ a registrácia, zelené odletové a jantárové cieľové letisko.
+- **Bohatší ciferník hodín (Minipredpoveď počasia):**
+  - 3 moderné kapsuly (pills) priamo na obrazovke hodín s hodinovou predpoveďou na najbližšie 3 hodiny (`+1h`, `+2h`, `+3h`) vrátane WMO ikoniek a teplôt.
+- **Auto-rotácia podľa polohy (QMI8658 IMU):**
+  - Automatické prispôsobenie orientácie radaru gravitácii pri otočení zariadenia o 90°, 180° alebo 270°.
+  - Rýchly prepínač `[Auto-rotácia: ZAP / VYP]` priamo v Quick Control Center.
+
+---
+
 ## [1.2.0] - 2026-09-02
 
 ### Pridané / Added

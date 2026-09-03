@@ -11,6 +11,7 @@
 #include <Arduino_GFX_Library.h>
 #include <string.h>
 #include <math.h>
+#include "esp_heap_caps.h"
 
 extern Arduino_GFX* gfx;
 
@@ -22,7 +23,18 @@ struct TrailEntry {
   unsigned long lastSeenMs = 0;
 };
 
-static TrailEntry s_trails[TRAIL_MAX_PLANES];
+static TrailEntry* s_trails = nullptr;
+
+static bool ensureTrails() {
+  if (!s_trails) {
+    s_trails = (TrailEntry*)heap_caps_malloc(sizeof(TrailEntry) * TRAIL_MAX_PLANES, MALLOC_CAP_SPIRAM);
+    if (!s_trails) s_trails = (TrailEntry*)malloc(sizeof(TrailEntry) * TRAIL_MAX_PLANES);
+    if (s_trails) {
+      for (int i = 0; i < TRAIL_MAX_PLANES; i++) s_trails[i] = TrailEntry();
+    }
+  }
+  return s_trails != nullptr;
+}
 
 // Scale an RGB565 color towards dark/black
 static uint16_t dimColor(uint16_t c, uint8_t num, uint8_t den) {
@@ -37,7 +49,7 @@ static uint16_t dimColor(uint16_t c, uint8_t num, uint8_t den) {
 }
 
 static TrailEntry* findTrail(const char* hex) {
-  if (!hex || !hex[0]) return nullptr;
+  if (!hex || !hex[0] || !ensureTrails()) return nullptr;
   for (int i = 0; i < TRAIL_MAX_PLANES; i++) {
     if (s_trails[i].hex[0] && strcasecmp(s_trails[i].hex, hex) == 0) {
       return &s_trails[i];
@@ -47,6 +59,7 @@ static TrailEntry* findTrail(const char* hex) {
 }
 
 static TrailEntry* allocTrail(const char* hex) {
+  if (!ensureTrails()) return nullptr;
   unsigned long now = millis();
   TrailEntry* oldest = nullptr;
   unsigned long oldestTime = 0xFFFFFFFF;
@@ -79,13 +92,14 @@ static TrailEntry* allocTrail(const char* hex) {
 }
 
 void PlaneTrail_Clear() {
+  if (!s_trails) return;
   for (int i = 0; i < TRAIL_MAX_PLANES; i++) {
     s_trails[i] = TrailEntry();
   }
 }
 
 void PlaneTrail_Update(const Aircraft* list, int count) {
-  if (!list || count <= 0) return;
+  if (!list || count <= 0 || !ensureTrails()) return;
   unsigned long now = millis();
 
   for (int i = 0; i < count; i++) {

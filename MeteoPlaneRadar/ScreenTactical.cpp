@@ -21,6 +21,7 @@
 #include "Lang.h"
 #include "Status.h"
 #include "Display_ST7701.h"
+#include "AircraftType.h"
 
 #include <WiFi.h>
 #include <math.h>
@@ -223,8 +224,20 @@ void ScreenTactical_Draw() {
   }
 
   // 2. Borders & Cities
-  const Aircraft* list = ADSB_List();
+  static Aircraft* s_drawList = nullptr;
+  if (!s_drawList) {
+    s_drawList = (Aircraft*)heap_caps_malloc(sizeof(Aircraft) * ADSB_MAX, MALLOC_CAP_SPIRAM);
+    if (!s_drawList) s_drawList = (Aircraft*)malloc(sizeof(Aircraft) * ADSB_MAX);
+  }
+  Async_LockAdsb();
   int n = ADSB_Count();
+  if (n > ADSB_MAX) n = ADSB_MAX;
+  const Aircraft* liveList = ADSB_List();
+  if (s_drawList && liveList) {
+    for (int i = 0; i < n; i++) s_drawList[i] = liveList[i];
+  }
+  Async_UnlockAdsb();
+  const Aircraft* list = s_drawList ? s_drawList : liveList;
   s_planeN = n;
 
   // Scan for any emergency aircraft (7500 / 7600 / 7700)
@@ -275,11 +288,7 @@ void ScreenTactical_Draw() {
     gfx->drawCircle(R_CX, R_CY, R_RADIUS / 2, C_DKGRAY);
   }
   if (emergIdx < 0 && !isWholeCountry()) {
-    gfx->drawCircle(R_CX, R_CY, 8, C_CYAN);
-    gfx->drawCircle(R_CX, R_CY, 4, C_YELLOW);
-    gfx->fillCircle(R_CX, R_CY, 2, C_WHITE);
-    gfx->drawFastHLine(R_CX - 12, R_CY, 24, C_DKGRAY);
-    gfx->drawFastVLine(R_CX, R_CY - 12, 24, C_DKGRAY);
+    UI_DrawHomeMarker(R_CX, R_CY);
   } else if (emergIdx >= 0) {
     int hx, hy;
     project(Settings_Lat(), Settings_Lon(), clat, clon, crng, &hx, &hy);
@@ -296,6 +305,11 @@ void ScreenTactical_Draw() {
 
   int closestIdx = -1;
   float minDistKm = 999999.0f;
+  int specialIdx = -1;
+  float specialDistKm = 999999.0f;
+  char specialLabel[32] = "";
+  uint16_t specialCol = C_CYAN;
+  SpecialCategory bestSpecialCat = SPEC_NONE;
 
   for (int i = 0; i < n; i++) {
     s_planeX[i] = -9999; s_planeY[i] = -9999;
@@ -314,6 +328,18 @@ void ScreenTactical_Draw() {
     if (d3D < minDistKm) {
       minDistKm = d3D;
       closestIdx = i;
+    }
+
+    // Classify special interest flights
+    char sLbl[32]; uint16_t sCol = C_WHITE;
+    SpecialCategory scat = Aircraft_Classify(list[i], sLbl, sizeof(sLbl), &sCol);
+    if (scat != SPEC_NONE && scat >= bestSpecialCat) {
+      bestSpecialCat = scat;
+      specialIdx = i;
+      specialDistKm = dGnd;
+      strncpy(specialLabel, sLbl, sizeof(specialLabel) - 1);
+      specialLabel[sizeof(specialLabel) - 1] = '\0';
+      specialCol = sCol;
     }
 
     const char* em = Settings_SquawkAlert() ? ADSB_EmergencyCode(list[i]) : nullptr;
@@ -336,13 +362,16 @@ void ScreenTactical_Draw() {
       gfx->drawCircle(sx, sy, 20, C_RED);
       gfx->drawCircle(sx, sy, 21, C_RED);
       gfx->drawCircle(sx, sy, 22, C_WHITE);
+    } else if (scat != SPEC_NONE) {
+      gfx->drawCircle(sx, sy, 15, sCol);
+      gfx->drawCircle(sx, sy, 16, sCol);
     } else if (watched) {
-      gfx->drawCircle(sx, sy, 20, C_GREEN);
-      gfx->drawCircle(sx, sy, 21, C_GREEN);
+      gfx->drawCircle(sx, sy, 15, C_GREEN);
+      gfx->drawCircle(sx, sy, 16, C_GREEN);
     }
 
     bool altKnown = (list[i].altFt > 0.0f);
-    bool isMil = list[i].isMilitary;
+    bool isMil = list[i].isMilitary || (scat == SPEC_MILITARY);
     uint16_t col = (em || isMil) ? C_RED : altColor(list[i].altFt, altKnown);
 
     // Draw flight trajectory breadcrumb trail
@@ -386,10 +415,7 @@ void ScreenTactical_Draw() {
           int ty = sy + c.dy;
           if (tx < 6 || tx + tw > LCD_WIDTH - 6 || ty < 6 || ty + th > LCD_HEIGHT - 6) continue;
           if (Layout_Claim(tx - 2, ty - 1, tw + 4, th + 2)) {
-            gfx->setTextSize(c.size);
-            gfx->setTextColor(lCol);
-            gfx->setCursor(tx, ty);
-            gfx->print(label);
+            UI_Text(label, tx, ty, lCol, c.size);
 
             // Route label (e.g. "VIE>LHR") on the line below the callsign
             if (list[i].callsign[0]) {
@@ -403,10 +429,7 @@ void ScreenTactical_Draw() {
                 int ry = ty + th + 1;
                 if (rx >= 6 && rx + rw <= LCD_WIDTH - 6 && ry + rh <= LCD_HEIGHT - 6) {
                   if (Layout_Claim(rx - 1, ry, rw + 2, rh + 1)) {
-                    gfx->setTextSize(1);
-                    gfx->setTextColor(C_YELLOW);
-                    gfx->setCursor(rx, ry);
-                    gfx->print(rl);
+                    UI_Text(rl, rx, ry, C_YELLOW, 1);
                   }
                 }
               } else if (!rt) {
@@ -467,33 +490,25 @@ void ScreenTactical_Draw() {
     } else {
       snprintf(l1, sizeof(l1), "%s", cname);
     }
-    gfx->setTextSize(2);
-    gfx->setTextColor(C_YELLOW);
-    gfx->setCursor(boxX + 12, boxY + 6);
-    gfx->print(l1);
+    UI_Text(l1, boxX + 12, boxY + 6, C_YELLOW, 2);
 
     char l2[48];
     snprintf(l2, sizeof(l2), "ALT: %.0f ft (%.0f m)   GS: %.0f km/h",
              emAc.altFt, emAc.altFt * 0.3048f, emAc.gsKt * 1.852f);
-    gfx->setTextSize(1);
-    gfx->setTextColor(C_WHITE);
-    gfx->setCursor(boxX + 12, boxY + 30);
-    gfx->print(l2);
+    UI_Text(l2, boxX + 12, boxY + 30, C_WHITE, 1);
 
     char l3[48];
+    uint16_t l3Col = C_CYAN;
     if (emAc.baroRate < -300.0f) {
       snprintf(l3, sizeof(l3), "KLESANIE:  v %.0f ft/min (%.1f m/s)", emAc.baroRate, emAc.baroRate * 0.00508f);
-      gfx->setTextColor(C_RED);
+      l3Col = C_RED;
     } else if (emAc.baroRate > 300.0f) {
       snprintf(l3, sizeof(l3), "STUPANIE:  ^ +%.0f ft/min (%.1f m/s)", emAc.baroRate, emAc.baroRate * 0.00508f);
-      gfx->setTextColor(C_GREEN);
+      l3Col = C_GREEN;
     } else {
-      snprintf(l3, sizeof(l3), "ROVNY LET: 0 ft/min   HDG: %.0f deg", emAc.track);
-      gfx->setTextColor(C_CYAN);
+      snprintf(l3, sizeof(l3), "ROVNY LET: 0 ft/min   HDG: %.0f\xC2\xB0", emAc.track);
     }
-    gfx->setTextSize(1);
-    gfx->setCursor(boxX + 12, boxY + 48);
-    gfx->print(l3);
+    UI_Text(l3, boxX + 12, boxY + 48, l3Col, 1);
   } else if (alertCode) {
     const char* what = (strcmp(alertCode, SQUAWK_HIJACK) == 0) ? T(S_HIJACK)
                      : (strcmp(alertCode, SQUAWK_RADIO)  == 0) ? T(S_RADIO_FAIL)
@@ -502,106 +517,40 @@ void ScreenTactical_Draw() {
     int tw = Layout_TextW(sub, 2);
     gfx->fillRect(LCD_WIDTH / 2 - tw / 2 - 6, LY_SUB - 3, tw + 12, 20, C_RED);
     UI_TextCentered(sub, LY_SUB, C_WHITE, 2);
+  } else if (specialIdx >= 0 && emergIdx < 0) {
+    const Aircraft& spAc = list[specialIdx];
+    const char* cname = spAc.callsign[0] ? spAc.callsign : spAc.hex;
+    snprintf(sub, sizeof(sub), "! %s: %s (%.0f km) !", specialLabel, cname, specialDistKm);
+    UI_TextCentered(sub, LY_SUB, specialCol, 1);
   } else {
     if (closestIdx >= 0 && minDistKm <= crng) {
       const char* cname = list[closestIdx].callsign[0] ? list[closestIdx].callsign : list[closestIdx].hex;
-      snprintf(sub, sizeof(sub), "%s: %d  [%s: %.1f km]", T(S_TACTICAL), drawnCount, cname, minDistKm);
+      snprintf(sub, sizeof(sub), "%s: %d  [%s: %.1f km]", T(S_AIRCRAFT), drawnCount, cname, minDistKm);
     } else {
-      snprintf(sub, sizeof(sub), "%s: %d", T(S_TACTICAL), drawnCount);
+      snprintf(sub, sizeof(sub), "%s: %d%s", T(S_AIRCRAFT), drawnCount,
+               watchedSeen ? " *" : "");
     }
-    int tw = Layout_TextW(sub, 1);
-    gfx->fillRect(LCD_WIDTH / 2 - tw / 2 - 6, LY_SUB - 2, tw + 12, 12, C_BLACK);
-    UI_TextCentered(sub, LY_SUB, C_CYAN, 1);
+    UI_TextCentered(sub, LY_SUB, watchedSeen ? C_GREEN : C_CYAN, 1);
   }
 
-  // 6. Range indicator at bottom
-  if (Settings_ShowLegends() && emergIdx < 0) {
-    char rbuf[32];
-    if (isWholeCountry()) {
-      const char* lbl = nullptr;
-      getWholeCountryView(nullptr, nullptr, nullptr, &lbl);
-      snprintf(rbuf, sizeof(rbuf), "%s", lbl ? lbl : T(S_WHOLE_COUNTRY));
-    } else {
-      snprintf(rbuf, sizeof(rbuf), "%.0f km", crng);
-    }
-    int rw = Layout_TextW(rbuf, 2);
-    gfx->fillRect(LCD_WIDTH / 2 - rw / 2 - 6, LY_RANGE - 3, rw + 12, 22, C_BLACK);
-    UI_TextCentered(rbuf, LY_RANGE, C_YELLOW, 2);
-
-    int dotGap = 20;
-    int totalW = (RANGE_COUNT - 1) * dotGap;
-    int startX = R_CX - totalW / 2;
-    int dotY = LY_RANGE_DOTS;
-    for (int i = 0; i < RANGE_COUNT; i++) {
-      int x = startX + i * dotGap;
-      if (i == s_rangeIdx) gfx->fillCircle(x, dotY, 4, C_YELLOW);
-      else                 gfx->drawCircle(x, dotY, 4, C_GRAY);
-    }
+  // 5. Range indicator at the bottom
+  // Standardized UI indicator matching ScreenWeather and ScreenPlanes
+  if (isWholeCountry()) {
+    UI_DrawRangeIndicator(nullptr, s_rangeIdx, RANGE_COUNT, false);
+  } else {
+    char rbuf[16];
+    snprintf(rbuf, sizeof(rbuf), "%.0f km", crng);
+    UI_DrawRangeIndicator(rbuf, s_rangeIdx, RANGE_COUNT, true);
   }
 
-  // 7. Aircraft detail panel if selected
+  // 6. Detail overlay
   if (selIdx >= 0 && selIdx < n) { s_selCache = list[selIdx]; s_selCacheOk = true; }
+  const bool signalLost = (selIdx < 0) && s_selCacheOk;
 
   if (ScreenTactical_DetailOpen() && s_selCacheOk) {
-    const Aircraft& ac = s_selCache;
-    const bool metric = Settings_MetricUnits();
-
-    const int pw = 320, ph = 260;
-    const int px = R_CX - pw / 2;
-    const int py = R_CY - ph / 2;
-    gfx->fillRoundRect(px, py, pw, ph, 14, C_DKGRAY);
-    gfx->drawRoundRect(px, py, pw, ph, 14, C_CYAN);
-
-    int cxx = px + pw - 24, cyy = py + 22;
-    gfx->fillCircle(cxx, cyy, 15, C_RED);
-    gfx->drawLine(cxx - 6, cyy - 6, cxx + 6, cyy + 6, C_WHITE);
-    gfx->drawLine(cxx - 6, cyy + 6, cxx + 6, cyy - 6, C_WHITE);
-
-    UI_Text(ac.callsign[0] ? ac.callsign : (ac.hex[0] ? ac.hex : "?"),
-            px + 18, py + 16, C_YELLOW, 3);
-
-    char line[44];
-    int ty = py + 56;
-
-    if (metric) snprintf(line, sizeof(line), "%s: %.0f m", T(S_ALTITUDE), ac.altFt * 0.3048f);
-    else        snprintf(line, sizeof(line), "%s: %.0f ft", T(S_ALTITUDE), ac.altFt);
-    UI_Text(line, px + 18, ty, C_WHITE, 2); ty += 26;
-
-    if (metric) snprintf(line, sizeof(line), "%s: %.0f km/h", T(S_SPEED), ac.gsKt * 1.852f);
-    else        snprintf(line, sizeof(line), "%s: %.0f kt", T(S_SPEED), ac.gsKt);
-    UI_Text(line, px + 18, ty, C_WHITE, 2); ty += 26;
-
-    if (ac.hasTrack) snprintf(line, sizeof(line), "%s: %.0f deg", T(S_TRACK), ac.track);
-    else             snprintf(line, sizeof(line), "%s: %s", T(S_TRACK), T(S_UNKNOWN));
-    UI_Text(line, px + 18, ty, C_WHITE, 2); ty += 26;
-
-    const char* ar = ac.baroRate > 100 ? "^" : (ac.baroRate < -100 ? "v" : "-");
-    if (metric) snprintf(line, sizeof(line), "%s: %.1f m/s %s", T(S_CLIMB), ac.baroRate * 0.00508f, ar);
-    else        snprintf(line, sizeof(line), "%s: %.0f ft/m %s", T(S_CLIMB), ac.baroRate, ar);
-    UI_Text(line, px + 18, ty, C_WHITE, 2); ty += 26;
-
-    Route_Select(ac.callsign, ac.lat, ac.lon);
+    Route_Select(s_selCache.callsign, s_selCache.lat, s_selCache.lon);
     const RouteInfo* rt = Route_Get();
-
-    const char* typ = ac.type[0] ? ac.type : nullptr;
-    if (typ || ac.reg[0]) {
-      snprintf(line, sizeof(line), "%s: %s%s%s", T(S_TYPE),
-               typ ? typ : "?",
-               ac.reg[0] ? "  " : "",
-               ac.reg[0] ? ac.reg : "");
-      int maxCh = (pw - 36) / 12;
-      if ((int)strlen(line) > maxCh) { line[maxCh - 1] = '.'; line[maxCh] = '\0'; }
-      UI_Text(line, px + 18, ty, C_WHITE, 2);
-      ty += 26;
-    }
-
-    if (rt && (rt->from[0] || rt->to[0])) {
-      snprintf(line, sizeof(line), "%s", rt->from);
-      UI_Text(line, px + 18, ty, C_YELLOW, 2);
-      ty += 22;
-      snprintf(line, sizeof(line), "-> %s", rt->to);
-      UI_Text(line, px + 18, ty, C_YELLOW, 2);
-    }
+    UI_DrawAircraftDetail(s_selCache, rt, Route_GetState(), signalLost);
   }
 }
 
@@ -615,6 +564,7 @@ void ScreenTactical_Enter() {
   Async_SetActiveScreen(SCREEN_TACTICAL_I);
   Async_SetAdsbTarget(clat, clon, crng);
   Async_RequestAdsb();
+  s_lastRadarFetch = millis();
   if (rvMode()) {
     if (isWholeCountry()) {
       RainViewer_Begin(clat, clon, -crng, 1);
@@ -646,6 +596,7 @@ void ScreenTactical_ChangeRange(int dir) {
   }
   Async_SetAdsbTarget(clat, clon, crng);
   Async_RequestAdsb();
+  s_lastRadarFetch = millis();
   if (rvMode()) {
     if (isWholeCountry()) {
       RainViewer_Begin(clat, clon, -crng, 1);
@@ -657,6 +608,18 @@ void ScreenTactical_ChangeRange(int dir) {
 
 bool ScreenTactical_Tick() {
   if (WiFi.status() != WL_CONNECTED) return false;
+
+  unsigned long now = millis();
+
+  // Periodicka obnova zrazkoveho radaru (RainViewer) kazdych 5 minut alebo retry pri chybe
+  if (rvMode() && !RainViewer_Busy()) {
+    bool failed = (RainViewer_Failed() || RainViewer_Count() == 0);
+    if ((failed && (now - s_lastRadarFetch >= RADAR_RETRY_MS)) ||
+        (!failed && (now - s_lastRadarFetch >= TACTICAL_RADAR_PERIOD_MS))) {
+      s_lastRadarFetch = now;
+      RainViewer_Refresh();
+    }
+  }
 
   bool routeChanged = Async_TakeRouteUpdated() || Route_TakeChanged();
   bool adsbChanged  = Async_TakeAdsbUpdated();

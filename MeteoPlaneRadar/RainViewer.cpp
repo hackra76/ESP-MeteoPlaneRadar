@@ -51,6 +51,7 @@ static char    s_host[64] = "";
 // --- Incremental fetch state ------------------------------------------------
 enum RvState : uint8_t { RV_IDLE, RV_NEED_INDEX, RV_TILES, RV_DONE };
 static RvState s_state = RV_IDLE;
+static volatile uint32_t s_jobId = 0;   // Generation counter to abort stale in-flight fetches across cores
 static int  s_buildOrder[RV_ANIM_MAX];  // which frame to build next
 static int  s_buildPos = 0;
 static int  s_tilePos  = 0;
@@ -233,8 +234,10 @@ static int rvPngDraw(PNGDRAW* d) {
 
 // --- Index ------------------------------------------------------------------
 static bool fetchIndex(int wantFrames) {
+  poll();
   String body;
   if (!Net_GetString(RV_INDEX_URL, body, "RAINVIEWER")) return false;
+  poll();
 
   JsonDocument filter;
   filter["host"] = true;
@@ -355,8 +358,9 @@ void RainViewer_Begin(double lat, double lon, float radiusKm, int wantFrames) {
     return;
   }
 
-  // A view change abandons whatever was in flight, connection included.
-  Net_SessionEnd();
+  // Increment generation to cancel any in-flight download on Core 0 safely.
+  // Net_SessionEnd() is NOT called here on Core 1 to avoid destroying active sockets while in use.
+  s_jobId = s_jobId + 1;
 
   s_lat = lat; s_lon = lon; s_reqRadius = radiusKm;
   computeGrid();
@@ -391,7 +395,8 @@ void RainViewer_Refresh() {
     Async_UnlockRadar();
     return;
   }
-  Net_SessionEnd();
+  // Increment generation to cancel any in-flight download on Core 0 safely.
+  s_jobId = s_jobId + 1;
   for (int i = 0; i < s_frameN; i++) {
     if (s_fr[i].px) memset(s_fr[i].px, 0, (size_t)FRAME_PX * 2);
     s_fr[i].ready = false;
@@ -416,10 +421,16 @@ bool RainViewer_Step() {
       return false;
 
     case RV_NEED_INDEX: {
+      Net_SessionEnd();              // Clean up any lingering session on Core 0
       int frames = s_frameN;
+      uint32_t myJob = s_jobId;
       Async_UnlockRadar();
       bool indexOk = fetchIndex(frames);
       Async_LockRadar();
+      if (s_jobId != myJob) {
+        Async_UnlockRadar();
+        return false;
+      }
       if (!indexOk) {
         s_failed = true;
         s_state = RV_DONE;
@@ -437,6 +448,7 @@ bool RainViewer_Step() {
     case RV_TILES: {
       if (s_buildPos >= s_frameN) {
         s_state = RV_DONE;
+        Net_SessionEnd();
         Async_UnlockRadar();
         return false;
       }
@@ -454,9 +466,19 @@ bool RainViewer_Step() {
       }
 
       int curTile = s_tilePos;
+      uint32_t myJob = s_jobId;
       Async_UnlockRadar();
+      poll();
       bool ok = fetchOneTile(f, curTile);
+      poll();
       Async_LockRadar();
+
+      if (s_jobId != myJob) {
+        // View was changed on Core 1 during download - discard stale tile and reset session
+        Net_SessionEnd();
+        Async_UnlockRadar();
+        return false;
+      }
 
       if (!ok && s_tileTry < RV_TILE_RETRY) {
         s_tileTry++;
@@ -469,6 +491,7 @@ bool RainViewer_Step() {
         Serial.printf("RAINVIEWER: dlazdice %d snimku %d se nestahla ani na %d pokusu\n",
                       s_tilePos, f, RV_TILE_RETRY + 1);
         s_missed++;
+        Net_SessionBegin();
       }
       s_tileTry = 0;
       s_tilePos++;

@@ -67,7 +67,7 @@ static const char* bearingLabel(uint16_t deg, char* buf, size_t len) {
   static const char* N8_EN[8] = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" };
   if (deg % 45 == 0) return (Lang_Get() == LANG_EN) ? N8_EN[(deg / 45) % 8]
                                                     : N8_CZ[(deg / 45) % 8];
-  snprintf(buf, len, "%u", (unsigned)deg);
+  snprintf(buf, len, "%u\xC2\xB0", (unsigned)deg);
   return buf;
 }
 
@@ -179,9 +179,7 @@ void ScreenSettings_Draw() {
     gfx->fillCircle(COMPASS_CX, COMPASS_CY, 2, C_GRAY);
     int lx = COMPASS_CX + (int)(COMPASS_R * sinf(a)) - 2;
     int ly = COMPASS_CY - (int)(COMPASS_R * cosf(a)) - 3;
-    gfx->setTextSize(1); gfx->setTextColor(C_WHITE);
-    gfx->setCursor(lx, ly);
-    gfx->print(Lang_Get() == LANG_EN ? "N" : "S");
+    UI_Text(Lang_Get() == LANG_EN ? "N" : "S", lx, ly, C_WHITE, 1);
   }
 
   // --- Buttons ---

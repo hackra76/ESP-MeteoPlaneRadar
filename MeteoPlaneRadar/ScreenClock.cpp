@@ -656,6 +656,39 @@ static void drawMinimalClock(const struct tm* lt, time_t now) {
   }
 }
 
+static void drawHourlyForecastPills(int cy) {
+  if (Forecast_HourCount() < 4) return;
+  const FcHour* hrs = Forecast_Hours();
+
+  const int n = 3;
+  const int pillW = 82, pillH = 44, pillGap = 12;
+  const int startX = CX - (n * pillW + (n - 1) * pillGap) / 2;
+  const int py = cy - pillH / 2;
+
+  time_t now = time(nullptr);
+  struct tm lt; localtime_r(&now, &lt);
+
+  for (int i = 1; i <= n; i++) {
+    int px = startX + (i - 1) * (pillW + pillGap);
+    gfx->fillRoundRect(px, py, pillW, pillH, 8, 0x0821);
+    gfx->drawRoundRect(px, py, pillW, pillH, 8, 0x2965);
+
+    // Time: e.g. "15:00"
+    char hbuf[10];
+    snprintf(hbuf, sizeof(hbuf), "%02d:00", (lt.tm_hour + i) % 24);
+    UI_TextCenteredIn(hbuf, px, pillW, py + 4, C_GRAY, 1);
+
+    // Weather Icon
+    WxIcon_Draw(px + 18, py + 28, 9, hrs[i].code, Settings_IsNight());
+
+    // Temp
+    char tbuf[12];
+    snprintf(tbuf, sizeof(tbuf), "%.0f\xC2\xB0", hrs[i].temp);
+    uint16_t tcol = (hrs[i].precip > 0.1f) ? C_CYAN : C_WHITE;
+    UI_Text(tbuf, px + 36, py + 22, tcol, 1);
+  }
+}
+
 static void drawDigitalClock(const struct tm* lt, time_t now) {
   // --- Weekday and date (above the clock) ---
   if (Settings_ClockShowDate()) {
@@ -682,7 +715,7 @@ static void drawDigitalClock(const struct tm* lt, time_t now) {
   // --- Current conditions: icon, temperature and rain on one row ---
   if (Settings_ClockShowWeather() && Forecast_CurrentValid()) {
     char tbuf[16], pbuf[16];
-    snprintf(tbuf, sizeof(tbuf), "%d°C", (int)lroundf(Forecast_CurrentTemp()));
+    snprintf(tbuf, sizeof(tbuf), "%d\xC2\xB0""C", (int)lroundf(Forecast_CurrentTemp()));
 
     const float p = Forecast_CurrentPrecip();
     const bool hasRain = (p >= 0.05f);
@@ -714,19 +747,24 @@ static void drawDigitalClock(const struct tm* lt, time_t now) {
         UI_TextCentered(wbuf, WIND_Y, C_GRAY, 2);
       }
     }
+
+    // --- 3-Hour Mini-Forecast Pills ---
+    drawHourlyForecastPills(338);
   }
 
   // --- Moon Phase & Illumination Widget ---
   if (Settings_ClockShowMoon()) {
     MoonInfo moon = Astro_GetMoon(now);
     const int mr = 16;
-    Astro_DrawMoonIcon(CX, MOON_ICON_Y, mr, moon.phase);
+    const int moonY = (Settings_ClockShowWeather() && Forecast_HourCount() >= 4) ? 388 : MOON_ICON_Y;
+    const int textY = (Settings_ClockShowWeather() && Forecast_HourCount() >= 4) ? 412 : MOON_TEXT_Y;
+    Astro_DrawMoonIcon(CX, moonY, mr, moon.phase);
 
     char mbuf[40];
     snprintf(mbuf, sizeof(mbuf), "%s  %.0f%%", moon.name, moon.illumination);
     uint8_t msize = 2;
     if (Layout_TextW(mbuf, 2) > 340) msize = 1;
-    UI_TextCentered(mbuf, MOON_TEXT_Y, C_LTGRAY, msize);
+    UI_TextCentered(mbuf, textY, C_LTGRAY, msize);
   }
 }
 

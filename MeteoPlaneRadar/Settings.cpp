@@ -70,6 +70,7 @@ static uint8_t  s_rngM = 1;
 static uint8_t  s_scr  = SCREEN_PLANES_I;
 static uint16_t s_top  = 0;
 static bool     s_showLegends = true;
+static bool     s_autoRotateBearing = false;
 
 // --- Admin password (see the note in Settings.h) ---
 static char s_pw[33] = "";
@@ -141,6 +142,7 @@ void Settings_Begin() {
     s_scr    = prefs.getUChar("scr", SCREEN_PLANES_I);
     s_top    = prefs.getUShort("topb", 0);
     s_showLegends = prefs.getBool("sLeg", true);
+    s_autoRotateBearing = prefs.getBool("autoRot", false);
     prefs.getString("pw", s_pw, sizeof(s_pw));
     prefs.getString("ssid", s_ssid, sizeof(s_ssid));
     prefs.getString("wpass", s_wpass, sizeof(s_wpass));
@@ -346,6 +348,13 @@ void    Settings_SetShowLegends(bool show) {
 }
 void    Settings_ToggleLegends() {
   Settings_SetShowLegends(!s_showLegends);
+}
+bool    Settings_AutoRotateBearing() { return s_autoRotateBearing; }
+void    Settings_SetAutoRotateBearing(bool on) {
+  if (on != s_autoRotateBearing) {
+    s_autoRotateBearing = on;
+    putBool("autoRot", on);
+  }
 }
 
 // --- Admin password ---------------------------------------------------------

@@ -82,7 +82,9 @@ bool Net_GetString(const char* url, String& out, const char* tag) {
   if (!http.begin(client, url)) { Serial.printf("%s: begin() selhalo\n", tag); return false; }
   http.collectHeaders(DATE_HDR, 1);
 
+  poll();
   int code = http.GET();
+  poll();
   if (code != HTTP_CODE_OK) {
     Serial.printf("%s: HTTP %d\n", tag, code);
     http.end();
@@ -126,10 +128,8 @@ bool Net_GetBinary(const char* url, uint8_t* buf, size_t cap, size_t* outLen,
 
   WiFiClientSecure  own;
   WiFiClientSecure& client = sess ? *s_sess : own;
-  if (!sess) {
-    own.setInsecure();
-    own.setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
-  }
+  client.setInsecure();
+  client.setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
 
   HTTPClient http;
   http.setConnectTimeout(6000);
@@ -138,7 +138,9 @@ bool Net_GetBinary(const char* url, uint8_t* buf, size_t cap, size_t* outLen,
   if (!http.begin(client, url)) return false;
   http.collectHeaders(DATE_HDR, 1);
 
+  poll();
   int code = http.GET();
+  poll();
   if (code != HTTP_CODE_OK) { Serial.printf("%s: HTTP %d\n", tag, code); http.end(); return false; }
   if (http.hasHeader("Date")) Outside_NoteHttpDate(http.header("Date").c_str());
 
@@ -151,6 +153,7 @@ bool Net_GetBinary(const char* url, uint8_t* buf, size_t cap, size_t* outLen,
 
   long got = Net_ReadBody(http, buf, cap, tag, s_poll);
   http.end();
+  poll();
   if (got <= 0) return false;
   if (outLen) *outLen = got;
   return true;
@@ -169,12 +172,15 @@ bool Net_TouchDate(const char* url) {
   http.setReuse(false);
   if (!http.begin(client, url)) return false;
   http.collectHeaders(DATE_HDR, 1);
+  poll();
   int code = http.sendRequest("HEAD");
+  poll();
   bool ok = false;
   if (code > 0 && http.hasHeader("Date")) {
     Outside_NoteHttpDate(http.header("Date").c_str());
     ok = true;
   }
   http.end();
+  poll();
   return ok;
 }

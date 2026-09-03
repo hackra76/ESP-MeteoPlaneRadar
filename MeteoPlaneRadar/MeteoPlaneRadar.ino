@@ -89,6 +89,7 @@
 #include "ScreenClock.h"
 #include "ScreenForecast.h"
 #include "ScreenSettings.h"
+#include "QuickControl.h"
 #include "Forecast.h"
 #include "NightMode.h"
 #include "Watchdog.h"
@@ -119,7 +120,13 @@ Arduino_GFX* gfx = nullptr;
 //
 //  The action still waits for the fetch to end, but fires the instant it does.
 // =============================================================================
-enum PendKind : uint8_t { PEND_NONE = 0, PEND_SWIPE, PEND_LONG, PEND_TAP };
+enum PendKind : uint8_t {
+  PEND_NONE = 0,
+  PEND_SWIPE_SCREEN,
+  PEND_SWIPE_ZOOM,
+  PEND_PULL_DOWN,
+  PEND_TAP
+};
 static PendKind s_pendKind = PEND_NONE;
 static int      s_pendA = 0, s_pendB = 0;
 
@@ -184,28 +191,34 @@ static void touchPump() {
   const int dx = s_lastX - s_startX;
   const int dy = s_lastY - s_startY;
   const unsigned long dur = s_lastSeenMs - s_startMs;
-  const bool smallMove = (abs(dx) < 60 && abs(dy) < 60);
+  const bool smallMove = (abs(dx) < 35 && abs(dy) < 35);
 
 #if TOUCH_DEBUG
-  Serial.printf("TOUCH: start=(%d,%d) konec=(%d,%d) dx=%d dy=%d %lums -> %s\n",
-                s_startX, s_startY, s_lastX, s_lastY, dx, dy, (unsigned long)dur,
-                (abs(dx) >= 70 && abs(dy) <= 90 && dur <= 700) ? "swipe"
-                  : (smallMove && dur >= 500) ? "dlouhy stisk"
-                  : (smallMove) ? "klepnuti" : "ignorovano");
+  Serial.printf("TOUCH: start=(%d,%d) konec=(%d,%d) dx=%d dy=%d %lums\n",
+                s_startX, s_startY, s_lastX, s_lastY, dx, dy, (unsigned long)dur);
 #endif
 
-  // The most recent gesture wins. If one is still queued behind a long download
-  // the user has changed their mind since, and acting on the stale one would be
-  // the wrong answer arriving late.
-  if (abs(dx) >= 70 && abs(dy) <= 90 && dur <= 700) {
-    s_pendKind = PEND_SWIPE;
-    s_pendA = (dx < 0) ? +1 : -1;
-  } else if (smallMove && dur >= 500) {
-    s_pendKind = PEND_LONG;
-    s_pendA = s_lastX;
-  } else if (smallMove) {
-    s_pendKind = PEND_TAP;
-    s_pendA = s_lastX; s_pendB = s_lastY;
+  if (dur <= 750) {
+    // 1. Pull down from top edge (Control Center)
+    if (s_startY <= 120 && dy >= 60 && abs(dx) < 80) {
+      s_pendKind = PEND_PULL_DOWN;
+    }
+    // 2. Horizontal swipe: change screen (left = next, right = prev)
+    else if (abs(dx) >= 60 && abs(dx) > abs(dy)) {
+      s_pendKind = PEND_SWIPE_SCREEN;
+      s_pendA = (dx < 0) ? +1 : -1;
+    }
+    // 3. Vertical swipe: change zoom (or swipe up to close control center)
+    else if (abs(dy) >= 60 && abs(dy) > abs(dx)) {
+      s_pendKind = PEND_SWIPE_ZOOM;
+      // dy < 0 is swipe up (zoom in / smaller radius), dy > 0 is swipe down (zoom out / larger radius)
+      s_pendA = (dy < 0) ? -1 : +1;
+    }
+    // 4. Short tap
+    else if (smallMove) {
+      s_pendKind = PEND_TAP;
+      s_pendA = s_lastX; s_pendB = s_lastY;
+    }
   }
 }
 
@@ -278,6 +291,9 @@ static void drawActive() {
     case SCREEN_SETTINGS_I: ScreenSettings_Draw(); break;
   }
   drawScreenDots();
+  if (QuickControl_IsOpen()) {
+    QuickControl_Draw(s_screen);
+  }
   gfx->flush();    // hand the framebuffer over; Canvas16 switches to the other
 }
 
@@ -293,6 +309,14 @@ static void enterActive() {
   drawActive();
 }
 
+static uint16_t* s_transFb = nullptr;
+
+static void initTransitionBuffer() {
+  if (!s_transFb) {
+    s_transFb = (uint16_t*)heap_caps_malloc(LCD_WIDTH * LCD_HEIGHT * sizeof(uint16_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  }
+}
+
 // dir -1 = previous, +1 = next. Walks over disabled screens; the guard stops it
 // looping forever if somehow nothing is enabled at all.
 static void switchScreen(int dir) {
@@ -302,16 +326,72 @@ static void switchScreen(int dir) {
     if (screenVisible(next)) break;
   }
   if (next == s_screen) return;
+
+  // Snapshot the old screen before switching
+  initTransitionBuffer();
+  const uint16_t* activeFb = LCD_GetActiveBuffer();
+  if (s_transFb && activeFb) {
+    memcpy(s_transFb, activeFb, LCD_WIDTH * LCD_HEIGHT * sizeof(uint16_t));
+  }
+
   s_screen = next;
   Settings_SetScreen((uint8_t)s_screen);
   Async_SetActiveScreen((uint8_t)s_screen);
   Serial.printf("Screen: %d\n", s_screen);
-  enterActive();
+
+  switch (s_screen) {
+    case SCREEN_CLOCK_I:    ScreenClock_Enter();    break;
+    case SCREEN_PLANES_I:   ScreenPlanes_Enter();   break;
+    case SCREEN_METEO_I:    ScreenWeather_Enter();  break;
+    case SCREEN_TACTICAL_I: ScreenTactical_Enter(); break;
+    case SCREEN_FORECAST_I: ScreenForecast_Enter(); break;
+    case SCREEN_SETTINGS_I: ScreenSettings_Enter(); break;
+  }
+
+  switch (s_screen) {
+    case SCREEN_CLOCK_I:    ScreenClock_Draw();    break;
+    case SCREEN_PLANES_I:   ScreenPlanes_Draw();   break;
+    case SCREEN_METEO_I:    ScreenWeather_Draw();  break;
+    case SCREEN_TACTICAL_I: ScreenTactical_Draw(); break;
+    case SCREEN_FORECAST_I: ScreenForecast_Draw(); break;
+    case SCREEN_SETTINGS_I: ScreenSettings_Draw(); break;
+  }
+  drawScreenDots();
+
+  // Perform smooth horizontal slide transition
+  if (s_transFb) {
+    Canvas16* c16 = (Canvas16*)gfx;
+    uint16_t* newFb = c16->getFramebuffer();
+    int otherIdx = (newFb == LCD_FrameBuffer(0)) ? 1 : 0;
+    uint16_t* drawFb = LCD_FrameBuffer(otherIdx);
+
+    if (newFb && drawFb) {
+      const int steps[4] = { 140, 270, 390, 455 };
+      for (int s = 0; s < 4; s++) {
+        int shift = steps[s];
+        for (int y = 0; y < LCD_HEIGHT; y++) {
+          uint16_t* dst = &drawFb[y * LCD_WIDTH];
+          if (dir > 0) {
+            int oldW = LCD_WIDTH - shift;
+            if (oldW > 0) memcpy(dst, &s_transFb[y * LCD_WIDTH + shift], oldW * sizeof(uint16_t));
+            if (shift > 0) memcpy(dst + oldW, &newFb[y * LCD_WIDTH], shift * sizeof(uint16_t));
+          } else {
+            int oldW = LCD_WIDTH - shift;
+            if (shift > 0) memcpy(dst, &newFb[y * LCD_WIDTH + oldW], shift * sizeof(uint16_t));
+            if (oldW > 0) memcpy(dst + shift, &s_transFb[y * LCD_WIDTH], oldW * sizeof(uint16_t));
+          }
+        }
+        LCD_Flush(drawFb);
+      }
+    }
+  }
+
+  gfx->flush();
 }
 
 // Jump straight to a screen. Used by the web remote control; a disabled screen
 // is refused, which the handler has already checked.
-static void gotoScreen(int idx) {
+void gotoScreen(int idx) {
   if (idx < 0 || idx >= SCREEN_N) return;
   if (!screenVisible(idx)) return;
   if (idx == s_screen) return;
@@ -344,6 +424,13 @@ static void activeChangeRange(int dir) {
 }
 
 static bool activeTap(int x, int y) {
+  // Tap on bottom range indicator area (Y >= 390 && Y <= 460) on radar/weather screens
+  if (y >= 390 && y <= 460) {
+    if (s_screen == SCREEN_PLANES_I || s_screen == SCREEN_METEO_I || s_screen == SCREEN_TACTICAL_I) {
+      activeChangeRange(x < LCD_WIDTH / 2 ? -1 : +1);
+      return true;
+    }
+  }
   switch (s_screen) {
     case SCREEN_CLOCK_I:    return ScreenClock_HandleTap(x, y);
     case SCREEN_PLANES_I:   return ScreenPlanes_HandleTap(x, y);
@@ -353,15 +440,19 @@ static bool activeTap(int x, int y) {
   }
 }
 
-// Is a modal (the aircraft detail) open? Then swipe/long-press are captured to
-// close it rather than change range / switch screen.
+// Is a modal (aircraft detail or QuickControl) open?
 static bool activeModalOpen() {
+  if (QuickControl_IsOpen())         return true;
   if (s_screen == SCREEN_PLANES_I)   return ScreenPlanes_DetailOpen();
   if (s_screen == SCREEN_TACTICAL_I) return ScreenTactical_DetailOpen();
   return false;
 }
 
 static void closeModal() {
+  if (QuickControl_IsOpen()) {
+    QuickControl_Close();
+    return;
+  }
   if (s_screen == SCREEN_PLANES_I)        ScreenPlanes_CloseDetail();
   else if (s_screen == SCREEN_TACTICAL_I) ScreenTactical_CloseDetail();
 }
@@ -375,21 +466,45 @@ static void dispatchTouch() {
   s_pendKind = PEND_NONE;
 
   switch (kind) {
-    case PEND_SWIPE:
-      // With the detail open a swipe just closes it, so you cannot accidentally
-      // re-scale the map behind the panel.
-      if (activeModalOpen()) { closeModal(); drawActive(); }
-      else                   { activeChangeRange(a); drawActive(); }
+    case PEND_PULL_DOWN:
+      if (!QuickControl_IsOpen()) {
+        if (activeModalOpen()) closeModal();
+        QuickControl_Open();
+        drawActive();
+      }
       s_touchPauseUntil = millis() + autoRotatePauseMs();
       break;
-    case PEND_LONG:
-      if (activeModalOpen()) { closeModal(); drawActive(); }
-      else switchScreen(a < LCD_WIDTH / 2 ? -1 : +1);
+    case PEND_SWIPE_SCREEN:
+      if (QuickControl_IsOpen()) {
+        QuickControl_Close();
+        drawActive();
+      } else if (activeModalOpen()) {
+        closeModal();
+        drawActive();
+      } else {
+        switchScreen(a);
+      }
+      s_touchPauseUntil = millis() + autoRotatePauseMs();
+      break;
+    case PEND_SWIPE_ZOOM:
+      if (QuickControl_IsOpen()) {
+        if (a < 0) { QuickControl_Close(); drawActive(); } // swipe up closes control center
+      } else if (activeModalOpen()) {
+        closeModal();
+        drawActive();
+      } else {
+        activeChangeRange(a);
+        drawActive();
+      }
       s_touchPauseUntil = millis() + autoRotatePauseMs();
       break;
     case PEND_TAP:
-      // A tap does not pause the cycling - see touchPump().
-      if (activeTap(a, b)) drawActive();
+      if (QuickControl_IsOpen()) {
+        QuickControl_HandleTap(a, b, s_screen);
+        drawActive();
+      } else {
+        if (activeTap(a, b)) drawActive();
+      }
       break;
     default:
       break;
@@ -727,6 +842,27 @@ void loop() {
   displayWatchdog();
   NightMode_Tick();   // day/night brightness
   QMI8658_Tick();     // IMU gestures (double-tap detection)
+
+  // Auto-orientation check from IMU QMI8658
+  static unsigned long s_lastOrientCheck = 0;
+  if (Settings_AutoRotateBearing() && millis() - s_lastOrientCheck >= 400) {
+    s_lastOrientCheck = millis();
+    QMI_Data qd;
+    QMI8658_GetData(&qd);
+    float gPlane = sqrtf(qd.ax * qd.ax + qd.ay * qd.ay);
+    if (gPlane >= 0.45f) {
+      float angleRad = atan2f(qd.ax, -qd.ay);
+      int angleDeg = (int)(angleRad * 57.29578f);
+      while (angleDeg < 0) angleDeg += 360;
+
+      uint16_t targetBearing = (uint16_t)(((angleDeg + 45) / 90) * 90 % 360);
+      if (targetBearing != Settings_TopBearing()) {
+        Settings_SetTopBearing(targetBearing);
+        drawActive();
+      }
+    }
+  }
+
   Settings_Tick();    // debounced persist of UI state to NVS
   Watchdog_Feed();
   delay(2);

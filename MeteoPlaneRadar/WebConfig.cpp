@@ -65,9 +65,14 @@ void WebConfig_RequestRedraw()  { s_reqRedraw = true; }
 
 // --- Helpers ----------------------------------------------------------------
 static void sendJson(int code, JsonDocument& doc) {
+  size_t len = measureJson(doc);
   String out;
-  serializeJson(doc, out);
-  s_srv.send(code, "application/json", out);
+  if (out.reserve(len + 1)) {
+    serializeJson(doc, out);
+    s_srv.send(code, "application/json", out);
+  } else {
+    s_srv.send(500, "text/plain", "OOM");
+  }
 }
 
 static bool readBody(JsonDocument& doc) {
