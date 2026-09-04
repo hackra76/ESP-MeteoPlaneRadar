@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-SK%20%7C%20CZ%20%7C%20EN-green.svg)
-![Release](https://img.shields.io/badge/Release-v1.5.6-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v1.5.7-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunkčná meteo-radarová stanica, živý letecký radar, zrážkový meteoradar (SHMÚ, ČHMÚ, RainViewer), taktický kombinovaný radar a dizajnové hodiny na okrúhlom 2.1" IPS dotykovom displeji.**  
@@ -29,17 +29,14 @@ Vyvinuté pre hardvérovú dosku **Waveshare ESP32-S3-Touch-LCD-2.1** s moderný
 
 ---
 
-## 🌟 Kľúčové novinky vo verzii v1.5.5
+## 🌟 Kľúčové novinky vo verzii v1.5.7
 
+- 🚀 **Priama online aktualizácia firmvéru z GitHubu (GitHub OTA Updates):** Webové rozhranie na záložke *Systém* teraz obsahuje kartu priamej kontroly a inštalácie nových verzií priamo z GitHub repozitára `hackra76/ESP-MeteoPlaneRadar`. ESP32 cez bezpečné HTTPS stiahne `-ota.bin` balíček, s reálnym ukazovateľom priebehu v percentách zapíše firmvér do pamäte a automaticky reštartuje zariadenie.
+- 🖼️ **Celoobrazovkový náhľad fotografie lietadla (Fullscreen Aircraft Photo):** Ťuknutím na fotografiu lietadla v detaile sa snímka proporčne roztiahne cez celú plochu okrúhleho 480×480 displeja bez skreslenia pomeru strán.
 - 🇸🇰 **Oficiálny radar SHMÚ (Slovensko):** Priama natívna podpora sťahovania vysoko detailných radarových kompozitov CMAX priamo zo serverov Slovenského hydrometeorologického ústavu (SHMÚ) s oficiálnou farebnou škálou zrážok (dBZ / mm/h).
 - 🇨🇿 **Radar ČHMÚ & 🌍 Globálny RainViewer:** Okamžité prepínanie medzi poskytovateľmi zrážkových dát (SHMÚ, ČHMÚ, RainViewer) priamo cez dotykové menu, web alebo nastavenia.
 - 🎨 **Bilineárne vyhladzovanie zrážkového radaru (Anti-Aliasing):** Pri vysokom priblížení (zoom 25 km a 50 km) algoritmus bilineárnej interpolácie odstraňuje kockatý "pixel-art" efekt a vykresľuje zrážkové polia a búrkové bunky v hodvábne plynulých farebných prechodoch. Prepínač je dostupný v QuickControl, na obrazovke Nastavení aj na webe.
-- 📷 **Reálne fotografie lietadiel (Planespotters.net):** Po kliknutí na lietadlo sa v detailnej karte popri trase a telemetrii načíta aj reálna farebná fotografia konkrétneho lietadla s uvedením mena fotografa.
-- 📐 **Vyladený dizajn obrazoviek:**
-  - **Predpoveď počasia (Forecast):** Dokonale vertikálne aj horizontálne vycentrované rozloženie hodín a denných predpovedí na kruhovom displeji.
-  - **Nastavenia (Settings):** Tlačidlá preusporiadané do prehľadnej mriežky 2×2 (Jednotky, Vyhladenie, Jazyk, Reset WiFi) s čistým odstupom od podpisu autora.
-- 🚀 **Optimalizované webové rozhranie:** Odstránený zbytočný canvas náhľad displeja, čo radikálne znížilo zaťaženie CPU ESP32 a ušetrilo pamäť RAM a sieťovú prevádzku. Diaľkové ovládanie prepínania obrazoviek a zoomu zostáva plne funkčné.
-- 🛡️ **Extrémne stabilné jadro FreeRTOS:** Sieťový worker disponuje zväčšeným stackom 24 KB, vláknovo bezpečnými mutexmi a bezpečnou správou LwIP TCP socketov zabraňujúcou reštartom pamäte.
+- 📐 **Vyladený dizajn obrazoviek:** Dokonale vycentrovaná predpoveď počasia, 2×2 mriežka tlačidiel v Nastaveniach s čistým odstupom a optimalizované webové rozhranie s minimálnym zaťažením CPU.
 
 ---
 

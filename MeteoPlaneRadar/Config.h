@@ -48,6 +48,11 @@
 #define AP_PASSWORD ""     // "" = open network
 
 // ---------------------------------------------------------------------------
+//  GitHub repository for online OTA updates
+// ---------------------------------------------------------------------------
+#define GITHUB_REPO "hackra76/ESP-MeteoPlaneRadar"
+
+// ---------------------------------------------------------------------------
 //  Aircraft radar (adsb.fi)
 // ---------------------------------------------------------------------------
 #define ADSB_MAX 100       // max aircraft held/drawn (airborne only)

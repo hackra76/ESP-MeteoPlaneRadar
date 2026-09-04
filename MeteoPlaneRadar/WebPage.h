@@ -330,6 +330,28 @@ td:first-child{color:var(--mut);width:45%}
 
 <!-- ================= 7. SYSTÉM & SIEŤ ================= -->
 <section id="tSys" class="tab hide">
+  <div class="card" id="cardGithubOta">
+    <h2 data-i18n="otaHdr">🚀 Aktualizácia firmvéru (GitHub OTA)</h2>
+    <table>
+      <tr><td data-i18n="otaCurLbl">Nainštalovaná verzia:</td><td><span class="stat-val" id="otaCurVer">-</span></td></tr>
+      <tr><td data-i18n="otaGitLbl">Najnovšia verzia na GitHube:</td><td><span class="stat-val" id="otaLatVer">-</span> <span id="otaTagBadge" class="pill hide"></span></td></tr>
+    </table>
+    <div id="otaReleaseNotes" class="hide" style="margin-top:10px;padding:10px;background:rgba(255,255,255,0.04);border-radius:6px;max-height:160px;overflow-y:auto;font-size:12px;white-space:pre-wrap;color:#cbd5e1;border:1px solid rgba(255,255,255,0.08);font-family:monospace;"></div>
+    <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <button type="button" class="sec" id="btnOtaCheck" onclick="checkGithubUpdates(true)" data-i18n="btnOtaCheck">🔍 Skontrolovať aktualizácie</button>
+      <button type="button" class="hide" id="btnOtaInstall" onclick="startGithubOta()" style="background:#22c55e;color:#000;font-weight:700;" data-i18n="btnOtaInstall">⚡ Aktualizovať z GitHubu</button>
+      <span id="otaSpinner" class="hide" style="font-size:13px;color:#94a3b8;">⏳ <span id="otaStatusTxt">...</span></span>
+    </div>
+    <div id="otaProgWrap" class="hide" style="margin-top:14px;">
+      <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px;">
+        <span data-i18n="otaProgLbl">Priebeh inštalácie:</span>
+        <span class="stat-val" id="otaPctTxt">0%</span>
+      </div>
+      <div class="prog-bar"><div class="prog-fill" id="otaProgBar" style="width:0%;background:linear-gradient(90deg,#06b6d4,#10b981);"></div></div>
+      <p class="hint" data-i18n="otaWarn" style="margin-top:6px;color:#f59e0b;">⚠️ Zariadenie nevypínajte. Po dokončení zápisu sa zariadenie automaticky reštartuje.</p>
+    </div>
+  </div>
+
   <div class="card" id="cardWifi">
     <h2 data-i18n="wifi">📶 WiFi Pripojenie</h2>
     <p class="hint" id="wifiNow"></p>
@@ -421,7 +443,13 @@ const D={
   pwNone:"Zatím není nastavené žádné heslo — aktualizace, import a reset jsou otevřené.",pwSet:"Heslo je nastavené.",
   wrongPass:"Chybné heslo",doneReboot:"Hotovo. Restartuji...",importOk:"Import úspěšný. Restartuji...",
   autoSaved:"Uloženo",saved:"Uloženo",failed:"Nepovedlo se",searching:"Hledám…",nothing:"Nic nenalezeno",
-  disabled:"Obrazovka je vypnutá",confirmReset:"Opravdu smazat všechna nastavení včetně WiFi?"
+  disabled:"Obrazovka je vypnutá",confirmReset:"Opravdu smazat všechna nastavení včetně WiFi?",
+  otaHdr:"🚀 Aktualizace firmwaru (GitHub OTA)",otaCurLbl:"Nainstalovaná verze:",otaGitLbl:"Nejnovější verze na GitHubu:",
+  btnOtaCheck:"🔍 Zkontrolovat aktualizace",btnOtaInstall:"⚡ Aktualizovat z GitHubu",otaProgLbl:"Průběh instalace:",
+  otaWarn:"⚠️ Zařízení nevypínejte. Po dokončení zápisu se zařízení automaticky restartuje.",
+  otaUpToDate:"Máte nejnovější verzi",otaNewAvail:"K dispozici je nová verze!",otaChecking:"Kontroluji GitHub...",
+  otaDownloading:"Stahování a zápis firmwaru...",otaSuccess:"Aktualizace úspěšná! Restartuji...",otaErr:"Chyba aktualizace",
+  otaNoAsset:"Vydání neobsahuje soubor OTA (-ota.bin)",otaConfirm:"Opravdu spustit aktualizaci firmwaru na verzi"
  },
  sk:{
   tabCtl:"🎛️ Ovládanie",tabLoc:"📍 Poloha",tabScr:"🖥️ Obrazovky",tabPlanes:"✈️ Lietadlá",tabLook:"🎨 Vzhľad",tabHw:"⚡ Hardvér",tabSys:"⚙️ Systém",
@@ -467,7 +495,13 @@ const D={
   pwNone:"Zatiaľ nie je nastavené žiadne heslo — aktualizácia, import a reset sú otvorené.",pwSet:"Heslo je nastavené.",
   wrongPass:"Chybné heslo",doneReboot:"Hotovo. Reštartujem...",importOk:"Import úspešný. Reštartujem...",
   autoSaved:"Uložené",saved:"Uložené",failed:"Nepodarilo sa",searching:"Hľadám…",nothing:"Nič sa nenašlo",
-  disabled:"Obrazovka je vypnutá",confirmReset:"Naozaj vymazať všetky nastavenia vrátane WiFi?"
+  disabled:"Obrazovka je vypnutá",confirmReset:"Naozaj vymazať všetky nastavenia vrátane WiFi?",
+  otaHdr:"🚀 Aktualizácia firmvéru (GitHub OTA)",otaCurLbl:"Nainštalovaná verzia:",otaGitLbl:"Najnovšia verzia na GitHube:",
+  btnOtaCheck:"🔍 Skontrolovať aktualizácie",btnOtaInstall:"⚡ Aktualizovať z GitHubu",otaProgLbl:"Priebeh inštalácie:",
+  otaWarn:"⚠️ Zariadenie nevypínajte. Po dokončení zápisu sa zariadenie automaticky reštartuje.",
+  otaUpToDate:"Máte najnovšiu verziu",otaNewAvail:"K dispozícii je nová verzia!",otaChecking:"Kontrolujem GitHub...",
+  otaDownloading:"Sťahovanie a zápis firmvéru...",otaSuccess:"Aktualizácia úspešná! Reštartujem...",otaErr:"Chyba aktualizácie",
+  otaNoAsset:"Vydanie neobsahuje súbor OTA (-ota.bin)",otaConfirm:"Naozaj spustiť aktualizáciu firmvéru na verziu"
  },
  en:{
   tabCtl:"🎛️ Control",tabLoc:"📍 Location",tabScr:"🖥️ Screens",tabPlanes:"✈️ Aircraft",tabLook:"🎨 Appearance",tabHw:"⚡ Hardware",tabSys:"⚙️ System",
@@ -513,7 +547,13 @@ const D={
   pwNone:"No password set — update, import and reset are open.",pwSet:"Password is set.",
   wrongPass:"Wrong password",doneReboot:"Done. Rebooting...",importOk:"Import successful. Rebooting...",
   autoSaved:"Saved",saved:"Saved",failed:"Failed",searching:"Searching…",nothing:"Nothing found",
-  disabled:"Screen is disabled",confirmReset:"Really erase all settings and reset WiFi?"
+  disabled:"Screen is disabled",confirmReset:"Really erase all settings and reset WiFi?",
+  otaHdr:"🚀 Firmware Update (GitHub OTA)",otaCurLbl:"Installed version:",otaGitLbl:"Latest version on GitHub:",
+  btnOtaCheck:"🔍 Check for updates",btnOtaInstall:"⚡ Update from GitHub",otaProgLbl:"Installation progress:",
+  otaWarn:"⚠️ Do not power off device. It will automatically restart once finished.",
+  otaUpToDate:"Up to date",otaNewAvail:"New version available!",otaChecking:"Checking GitHub...",
+  otaDownloading:"Downloading & flashing firmware...",otaSuccess:"Update successful! Restarting...",otaErr:"Update failed",
+  otaNoAsset:"Release missing OTA binary (-ota.bin)",otaConfirm:"Really install firmware update to version"
  }
 };
 
@@ -545,6 +585,7 @@ function showTab(id){
  const isControlOrHw = (id=="tCtl" || id=="tHw");
  $("saveBar").classList.toggle("hide", isControlOrHw);
  if(id=="tHw") updateHardware();
+ if(id=="tSys" && !g_otaLatest) checkGithubUpdates(false);
  window.scrollTo(0,0);
 }
 document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
@@ -698,6 +739,7 @@ async function load(){
  const r=await fetch("/api/config");CFG=await r.json();
  setLang(CFG.lang);
  $("ver").textContent="v"+CFG.version;
+ if($("otaCurVer")) $("otaCurVer").textContent="v"+CFG.version;
  $("lat").value=CFG.lat;$("lon").value=CFG.lon;
  $("sClock").checked=CFG.screens.clock;$("sPlanes").checked=CFG.screens.planes;
  $("sMeteo").checked=CFG.screens.meteo;$("sTactical").checked=CFG.screens.tactical;$("sForecast").checked=CFG.screens.forecast;
@@ -853,6 +895,192 @@ function hexToRgb565(h){
  const g=parseInt(h.substr(3,2),16);
  const b=parseInt(h.substr(5,2),16);
  return ((r>>3)<<11)|((g>>2)<<5)|(b>>3);
+}
+
+// --- GitHub OTA Client ---
+let g_otaLatest = null;
+let g_otaPollTimer = null;
+
+async function checkGithubUpdates(userTriggered){
+ const sp = $("otaSpinner"), st = $("otaStatusTxt");
+ if(sp) sp.classList.remove("hide");
+ if(st) st.textContent = (D[L] && D[L].otaChecking) ? D[L].otaChecking : "Kontrolujem...";
+ if($("otaCurVer")) $("otaCurVer").textContent = "v" + (CFG.version || "1.5.6");
+
+ try {
+  let data = null;
+  try {
+   const r = await fetch("/api/ota/check");
+   if(r.ok) data = await r.json();
+  } catch(e) {}
+
+  if(!data || !data.latest) {
+   try {
+    const gh = await fetch("https://api.github.com/repos/hackra76/ESP-MeteoPlaneRadar/releases/latest");
+    if(gh.ok) {
+     const gj = await gh.json();
+     let otaUrl = "";
+     if(gj.assets) {
+      for(let a of gj.assets) {
+       if(a.name && (a.name.indexOf("-ota.bin") >= 0 || a.name.indexOf("ota.bin") >= 0)) {
+        otaUrl = a.browser_download_url;
+        break;
+       }
+      }
+     }
+     const cur = CFG.version || "1.5.6";
+     const lat = (gj.tag_name || "").replace(/^v/i, "");
+     const [c1,c2,c3] = cur.split(".").map(Number);
+     const [l1,l2,l3] = lat.split(".").map(Number);
+     const isNewer = (l1>c1) || (l1===c1 && l2>c2) || (l1===c1 && l2===c2 && l3>c3);
+     data = {
+      current: cur,
+      latest: gj.tag_name,
+      updateAvailable: isNewer,
+      name: gj.name,
+      body: gj.body,
+      url: otaUrl
+     };
+    }
+   } catch(e) {}
+  }
+
+  if(!data) {
+   if(st) st.textContent = (D[L] && D[L].failed) ? D[L].failed : "Chyba spojenia";
+   return;
+  }
+
+  g_otaLatest = data;
+  if($("otaLatVer")) $("otaLatVer").textContent = data.latest || "-";
+  const badge = $("otaTagBadge");
+  const btnInst = $("btnOtaInstall");
+  const notes = $("otaReleaseNotes");
+
+  if(data.body && notes) {
+   notes.textContent = (data.name ? (data.name + "\n\n") : "") + data.body;
+   notes.classList.remove("hide");
+  } else if(notes) {
+   notes.classList.add("hide");
+  }
+
+  if(data.updateAvailable) {
+   if(badge) {
+    badge.textContent = (D[L] && D[L].otaNewAvail) ? D[L].otaNewAvail : "Nová verzia";
+    badge.className = "pill pill-warn";
+    badge.classList.remove("hide");
+   }
+   if(data.url) {
+    if(btnInst) btnInst.classList.remove("hide");
+   } else {
+    if(btnInst) btnInst.classList.add("hide");
+    if(st) st.textContent = (D[L] && D[L].otaNoAsset) ? D[L].otaNoAsset : "Chýba OTA súbor";
+   }
+  } else {
+   if(badge) {
+    badge.textContent = (D[L] && D[L].otaUpToDate) ? D[L].otaUpToDate : "Aktuálna";
+    badge.className = "pill pill-ok";
+    badge.classList.remove("hide");
+   }
+   if(btnInst) btnInst.classList.add("hide");
+  }
+  if(st) st.textContent = "";
+ } catch(e) {
+  if(st) st.textContent = (D[L] && D[L].failed) ? D[L].failed : "Chyba";
+ } finally {
+  if(sp) sp.classList.add("hide");
+ }
+}
+
+async function startGithubOta(){
+ if(!g_otaLatest || !g_otaLatest.url) return;
+ const cMsg = ((D[L] && D[L].otaConfirm) ? D[L].otaConfirm : "Naozaj spustiť aktualizáciu?") + " " + g_otaLatest.latest + "?";
+ if(!confirm(cMsg)) return;
+
+ let pass = "";
+ if(CFG.hasPassword) {
+  pass = prompt(((D[L] && D[L].adminPass) ? D[L].adminPass : "Heslo") + ":") || "";
+  if(!pass) return;
+ }
+
+ const pWrap = $("otaProgWrap");
+ const pBar = $("otaProgBar");
+ const pTxt = $("otaPctTxt");
+ const btnInst = $("btnOtaInstall");
+ const btnCheck = $("btnOtaCheck");
+ const sp = $("otaSpinner");
+ const st = $("otaStatusTxt");
+
+ if(pWrap) pWrap.classList.remove("hide");
+ if(pBar) pBar.style.width = "0%";
+ if(pTxt) pTxt.textContent = "0%";
+ if(btnInst) btnInst.disabled = true;
+ if(btnCheck) btnCheck.disabled = true;
+ if(sp) sp.classList.remove("hide");
+ if(st) st.textContent = (D[L] && D[L].otaDownloading) ? D[L].otaDownloading : "Sťahovanie...";
+
+ try {
+  const r = await fetch("/api/ota/start", {
+   method: "POST",
+   headers: {"Content-Type":"application/json"},
+   body: JSON.stringify({
+    url: g_otaLatest.url,
+    tag: g_otaLatest.latest,
+    password: pass
+   })
+  });
+  if(r.status === 403 || r.status === 401) {
+   alert((D[L] && D[L].wrongPass) ? D[L].wrongPass : "Chybné heslo");
+   if(btnInst) btnInst.disabled = false;
+   if(btnCheck) btnCheck.disabled = false;
+   if(pWrap) pWrap.classList.add("hide");
+   if(sp) sp.classList.add("hide");
+   return;
+  }
+  if(!r.ok) {
+   const err = await r.json().catch(()=>({}));
+   alert(((D[L] && D[L].otaErr) ? D[L].otaErr : "Chyba:") + " " + (err.error || r.status));
+   if(btnInst) btnInst.disabled = false;
+   if(btnCheck) btnCheck.disabled = false;
+   if(pWrap) pWrap.classList.add("hide");
+   if(sp) sp.classList.add("hide");
+   return;
+  }
+
+  clearInterval(g_otaPollTimer);
+  g_otaPollTimer = setInterval(async () => {
+   try {
+    const sRes = await fetch("/api/ota/status");
+    if(!sRes.ok) return;
+    const s = await sRes.json();
+    if(pBar) pBar.style.width = s.progress + "%";
+    if(pTxt) pTxt.textContent = s.progress + "%";
+
+    if(s.state === "downloading" || s.state === "flashing") {
+     if(st) st.textContent = ((D[L] && D[L].otaDownloading) ? D[L].otaDownloading : "Sťahovanie...") + " (" + s.progress + "%)";
+    } else if(s.state === "success") {
+     clearInterval(g_otaPollTimer);
+     if(pBar) pBar.style.width = "100%";
+     if(pTxt) pTxt.textContent = "100%";
+     if(st) st.textContent = (D[L] && D[L].otaSuccess) ? D[L].otaSuccess : "Hotovo! Reštartujem...";
+     setTimeout(() => {
+      alert((D[L] && D[L].otaSuccess) ? D[L].otaSuccess : "Hotovo! Reštartujem...");
+      window.location.reload();
+     }, 3000);
+    } else if(s.state === "error") {
+     clearInterval(g_otaPollTimer);
+     if(st) st.textContent = ((D[L] && D[L].otaErr) ? D[L].otaErr : "Chyba:") + " " + (s.error || "failed");
+     alert(((D[L] && D[L].otaErr) ? D[L].otaErr : "Chyba aktualizácie:") + " " + s.error);
+     if(btnInst) btnInst.disabled = false;
+     if(btnCheck) btnCheck.disabled = false;
+    }
+   } catch(e) {}
+  }, 1000);
+
+ } catch(e) {
+  alert(((D[L] && D[L].otaErr) ? D[L].otaErr : "Chyba spojenia:") + " " + e.message);
+  if(btnInst) btnInst.disabled = false;
+  if(btnCheck) btnCheck.disabled = false;
+ }
 }
 
 window.onload=load;

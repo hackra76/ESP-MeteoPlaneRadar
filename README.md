@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20SK%20%7C%20CZ-green.svg)
-![Release](https://img.shields.io/badge/Release-v1.5.6-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v1.5.7-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, and designer clock faces on a round 2.1" IPS touchscreen.**  
@@ -29,17 +29,14 @@ Designed specifically for the **Waveshare ESP32-S3-Touch-LCD-2.1** development b
 
 ---
 
-## 🌟 Key Highlights in v1.5.5
+## 🌟 Key Highlights in v1.5.7
 
+- 🚀 **Direct Online GitHub OTA Updates:** The web dashboard (*System* tab) now features a dedicated card to automatically check for new releases on GitHub (`hackra76/ESP-MeteoPlaneRadar`). When available, the user can review release notes and trigger a one-click OTA upgrade. The ESP32 streams the `-ota.bin` image securely over HTTPS, flashes the memory with live progress %, and reboots.
+- 🖼️ **Fullscreen Aircraft Photo Mode:** Tapping an aircraft photo in the detail view smoothly expands it to fill the entire round 480×480 screen while preserving aspect ratio.
 - 🇸🇰 **Native SHMÚ Radar Support (Slovakia):** Direct integration of high-resolution CMAX radar composites from the Slovak Hydrometeorological Institute (SHMÚ) with authentic national reflectivity scales.
 - 🇨🇿 **ČHMÚ Radar (Czechia) & 🌍 Global RainViewer:** Instant live switching between national radar providers (SHMÚ, ČHMÚ) and worldwide RainViewer directly via Quick Control, Settings, or Web dashboard.
 - 🎨 **Bilinear Radar Anti-Aliasing (Smoothing):** Eliminates blocky pixelation on high zooms (25 km and 50 km). Renders silky smooth precipitation gradients and storm cells. Easily toggled on/off in Settings, QuickControl, or Web UI.
-- 📷 **Real Aircraft Photos (Planespotters.net):** Tapping on any aircraft pulls real-world high-resolution aircraft photos with photographer credit directly on the detail card.
-- 📐 **Polished Round Display Layout:**
-  - **Forecast Screen:** Centered vertically and horizontally for balanced, modern round aesthetics.
-  - **Settings Screen:** 2×2 button grid (Units, Smoothing, Language, Reset WiFi) with ample clearance above the author signature.
-- 🚀 **Streamlined Web Dashboard:** Removed redundant live canvas mirror preview, drastically reducing ESP32 CPU load, saving RAM, and eliminating unnecessary network telemetry while preserving remote controls.
-- 🛡️ **Hardened FreeRTOS Dual-Core Architecture:** 24 KB network task stack, thread-safe asynchronous route caching, and robust LwIP TCP socket lifecycle management to prevent memory exceptions.
+- 📐 **Polished Round Display Layout:** Centered forecast display, 2×2 button layout on the Settings screen, and streamlined web interface for minimal CPU and RAM overhead.
 
 ---
 

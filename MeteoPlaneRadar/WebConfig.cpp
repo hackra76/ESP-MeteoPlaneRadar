@@ -32,6 +32,8 @@
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
 #include <Update.h>
+#include <WiFiClientSecure.h>
+#include <HTTPClient.h>
 #include <esp_heap_caps.h>
 #include <esp_system.h>
 #include <math.h>
@@ -257,6 +259,7 @@ static void handleHardware() {
   doc["cpuRev"] = ESP.getChipRevision();
   doc["cpuCores"] = ESP.getChipCores();
   doc["cpuTemp"] = (int)round(temperatureRead());
+  doc["version"] = FW_VERSION;
 
   uint32_t heapFree = (uint32_t)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   uint32_t heapTotal = (uint32_t)heap_caps_get_total_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
@@ -582,6 +585,306 @@ static void otaEnd(bool ok) {
   s_updating = false;
 }
 
+// --- GitHub Online OTA ------------------------------------------------------
+enum OtaState : uint8_t {
+  OTA_IDLE = 0,
+  OTA_CHECKING,
+  OTA_DOWNLOADING,
+  OTA_FLASHING,
+  OTA_SUCCESS,
+  OTA_ERROR
+};
+static volatile OtaState s_otaState = OTA_IDLE;
+static volatile int      s_otaProgress = 0;
+static String            s_otaError = "";
+static String            s_targetOtaUrl = "";
+static String            s_targetOtaTag = "";
+static TaskHandle_t      s_otaTaskHandle = nullptr;
+
+static void githubOtaTask(void* param) {
+  (void)param;
+  s_otaState = OTA_DOWNLOADING;
+  s_otaProgress = 0;
+  s_otaError = "";
+
+  otaStart();
+
+  String currentUrl = s_targetOtaUrl;
+  WiFiClientSecure client;
+  client.setInsecure();
+  client.setHandshakeTimeout(15);
+  HTTPClient http;
+  http.setConnectTimeout(10000);
+  http.setTimeout(30000);
+  http.setUserAgent(HTTP_USER_AGENT);
+  static const char* WANTED_HEADERS[] = { "Location", "Content-Length" };
+  http.collectHeaders(WANTED_HEADERS, 2);
+
+  bool connected = false;
+  int redirects = 0;
+  while (redirects < 5) {
+    Watchdog_Feed();
+    if (!http.begin(client, currentUrl)) {
+      s_otaError = "Connection failed";
+      break;
+    }
+    int code = http.GET();
+    if (code == 301 || code == 302 || code == 307 || code == 308) {
+      String newLoc = http.header("Location");
+      while (client.available()) client.read();
+      http.end();
+      client.stop();
+      delay(50);
+      if (newLoc.length() == 0) {
+        s_otaError = "Empty redirect";
+        break;
+      }
+      currentUrl = newLoc;
+      redirects++;
+      continue;
+    }
+    if (code == HTTP_CODE_OK) {
+      connected = true;
+      break;
+    }
+    s_otaError = "HTTP " + String(code);
+    while (client.available()) client.read();
+    http.end();
+    client.stop();
+    break;
+  }
+
+  if (!connected) {
+    s_otaState = OTA_ERROR;
+    otaEnd(false);
+    s_otaTaskHandle = nullptr;
+    vTaskDelete(NULL);
+    return;
+  }
+
+  int totalLen = http.getSize();
+  size_t updateSize = (totalLen > 0) ? (size_t)totalLen : UPDATE_SIZE_UNKNOWN;
+  if (!Update.begin(updateSize)) {
+    s_otaError = Update.errorString();
+    while (client.available()) client.read();
+    http.end();
+    client.stop();
+    s_otaState = OTA_ERROR;
+    otaEnd(false);
+    s_otaTaskHandle = nullptr;
+    vTaskDelete(NULL);
+    return;
+  }
+
+  WiFiClient* stream = http.getStreamPtr();
+  const size_t BUF_SZ = 4096;
+  uint8_t* buf = (uint8_t*)heap_caps_malloc(BUF_SZ, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  if (!buf) buf = (uint8_t*)malloc(BUF_SZ);
+  if (!buf) {
+    s_otaError = "No memory for buffer";
+    Update.abort();
+    while (client.available()) client.read();
+    http.end();
+    client.stop();
+    s_otaState = OTA_ERROR;
+    otaEnd(false);
+    s_otaTaskHandle = nullptr;
+    vTaskDelete(NULL);
+    return;
+  }
+
+  size_t written = 0;
+  unsigned long lastFeed = millis();
+  while (http.connected() && (totalLen <= 0 || written < (size_t)totalLen)) {
+    size_t avail = stream ? stream->available() : 0;
+    if (avail) {
+      size_t toRead = avail > BUF_SZ ? BUF_SZ : avail;
+      int r = stream->readBytes(buf, toRead);
+      if (r > 0) {
+        if (Update.write(buf, (size_t)r) != (size_t)r) {
+          s_otaError = Update.errorString();
+          Update.abort();
+          break;
+        }
+        written += (size_t)r;
+        if (totalLen > 0) {
+          s_otaProgress = (int)(written * 100 / (size_t)totalLen);
+        }
+      }
+    } else {
+      delay(10);
+    }
+    if (millis() - lastFeed > 1000) {
+      Watchdog_Feed();
+      lastFeed = millis();
+    }
+  }
+
+  if (buf) {
+    if (esp_ptr_external_ram(buf)) heap_caps_free(buf);
+    else free(buf);
+  }
+  while (client.available()) client.read();
+  http.end();
+  client.stop();
+
+  if (s_otaError.length() == 0 && Update.end(true)) {
+    s_otaProgress = 100;
+    s_otaState = OTA_SUCCESS;
+    otaEnd(true);
+    Serial.printf("OTA: GitHub update to %s successful (%u B)\n", s_targetOtaTag.c_str(), (unsigned)written);
+    vTaskDelay(pdMS_TO_TICKS(1500));
+    ESP.restart();
+  } else {
+    if (s_otaError.length() == 0) s_otaError = Update.errorString();
+    s_otaState = OTA_ERROR;
+    otaEnd(false);
+  }
+
+  s_otaTaskHandle = nullptr;
+  vTaskDelete(NULL);
+}
+
+static void handleOtaCheck() {
+  WiFiClientSecure client;
+  client.setInsecure();
+  client.setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
+  HTTPClient http;
+  http.setConnectTimeout(8000);
+  http.setTimeout(15000);
+  http.setUserAgent(HTTP_USER_AGENT);
+
+  String url = "https://api.github.com/repos/" GITHUB_REPO "/releases/latest";
+  if (!http.begin(client, url)) {
+    client.stop();
+    s_srv.send(500, "application/json", "{\"error\":\"begin_failed\"}");
+    return;
+  }
+  http.addHeader("Accept", "application/vnd.github.v3+json");
+  int code = http.GET();
+  if (code != HTTP_CODE_OK) {
+    while (client.available()) client.read();
+    http.end();
+    client.stop();
+    char errJson[64];
+    snprintf(errJson, sizeof(errJson), "{\"error\":\"github_http_%d\"}", code);
+    s_srv.send(code > 0 ? code : 502, "application/json", errJson);
+    return;
+  }
+
+  JsonDocument filter;
+  filter["tag_name"] = true;
+  filter["name"] = true;
+  filter["body"] = true;
+  filter["assets"][0]["name"] = true;
+  filter["assets"][0]["browser_download_url"] = true;
+
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, http.getStream(), DeserializationOption::Filter(filter));
+  while (client.available()) client.read();
+  http.end();
+  client.stop();
+
+  if (err) {
+    s_srv.send(500, "application/json", "{\"error\":\"json_parse_failed\"}");
+    return;
+  }
+
+  const char* tag = doc["tag_name"] | "";
+  const char* title = doc["name"] | "";
+  const char* body = doc["body"] | "";
+  String otaUrl = "";
+
+  JsonArrayConst assets = doc["assets"].as<JsonArrayConst>();
+  for (JsonObjectConst a : assets) {
+    const char* aname = a["name"] | "";
+    if (strstr(aname, "-ota.bin") || strstr(aname, "ota.bin")) {
+      otaUrl = a["browser_download_url"] | "";
+      break;
+    }
+  }
+
+  const char* cur = FW_VERSION;
+  const char* lat = tag;
+  if (lat[0] == 'v' || lat[0] == 'V') lat++;
+
+  int curMaj = 0, curMin = 0, curPat = 0;
+  int latMaj = 0, latMin = 0, latPat = 0;
+  sscanf(cur, "%d.%d.%d", &curMaj, &curMin, &curPat);
+  sscanf(lat, "%d.%d.%d", &latMaj, &latMin, &latPat);
+
+  bool updateAvail = false;
+  if (latMaj > curMaj) updateAvail = true;
+  else if (latMaj == curMaj && latMin > curMin) updateAvail = true;
+  else if (latMaj == curMaj && latMin == curMin && latPat > curPat) updateAvail = true;
+
+  JsonDocument out;
+  out["current"] = FW_VERSION;
+  out["latest"] = tag;
+  out["updateAvailable"] = updateAvail;
+  out["name"] = title;
+  out["body"] = body;
+  out["url"] = otaUrl;
+
+  String resp;
+  serializeJson(out, resp);
+  s_srv.send(200, "application/json", resp);
+}
+
+static void handleOtaStatus() {
+  const char* stStr = "idle";
+  switch (s_otaState) {
+    case OTA_CHECKING:    stStr = "checking"; break;
+    case OTA_DOWNLOADING: stStr = "downloading"; break;
+    case OTA_FLASHING:    stStr = "flashing"; break;
+    case OTA_SUCCESS:     stStr = "success"; break;
+    case OTA_ERROR:       stStr = "error"; break;
+    default:              stStr = "idle"; break;
+  }
+
+  char buf[256];
+  snprintf(buf, sizeof(buf),
+           "{\"state\":\"%s\",\"progress\":%d,\"error\":\"%s\"}",
+           stStr, s_otaProgress, s_otaError.c_str());
+  s_srv.send(200, "application/json", buf);
+}
+
+static void handleOtaStart() {
+  String body = s_srv.hasArg("plain") ? s_srv.arg("plain") : "";
+  JsonDocument doc;
+  if (deserializeJson(doc, body) != DeserializationError::Ok) {
+    s_srv.send(400, "application/json", "{\"error\":\"invalid_json\"}");
+    return;
+  }
+  if (!authed(doc)) return;
+
+  if (s_otaState == OTA_DOWNLOADING || s_otaState == OTA_FLASHING) {
+    s_srv.send(409, "application/json", "{\"error\":\"already_running\"}");
+    return;
+  }
+
+  String url = doc["url"] | "";
+  String tag = doc["tag"] | "";
+
+  if (url.length() == 0) {
+    s_srv.send(400, "application/json", "{\"error\":\"missing_url\"}");
+    return;
+  }
+
+  s_targetOtaUrl = url;
+  s_targetOtaTag = tag;
+  s_otaError = "";
+  s_otaProgress = 0;
+
+  BaseType_t ret = xTaskCreatePinnedToCore(githubOtaTask, "GhOta", 20480, NULL, 5, &s_otaTaskHandle, 0);
+  if (ret != pdPASS) {
+    s_srv.send(500, "application/json", "{\"error\":\"task_create_failed\"}");
+    return;
+  }
+
+  s_srv.send(200, "application/json", "{\"status\":\"started\"}");
+}
+
 // --- Firmware update --------------------------------------------------------
 // This replaces the ElegantOTA library. That library is AGPL-3.0, which would
 // have made every binary built from this project AGPL too; the Update class
@@ -773,6 +1076,9 @@ void WebConfig_Begin(bool apMode) {
   s_srv.on("/api/import", HTTP_POST, handleImport);
   s_srv.on("/api/reboot", HTTP_POST, handleReboot);
   s_srv.on("/api/reset", HTTP_POST, handleReset);
+  s_srv.on("/api/ota/check", HTTP_GET, handleOtaCheck);
+  s_srv.on("/api/ota/status", HTTP_GET, handleOtaStatus);
+  s_srv.on("/api/ota/start", HTTP_POST, handleOtaStart);
   // The update page authenticates with HTTP Basic when a password is set. See
   // the note in Settings.h about why the password is stored in the clear.
   s_srv.on("/update", HTTP_GET, handleUpdatePage);

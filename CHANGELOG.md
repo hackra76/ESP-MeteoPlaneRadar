@@ -9,6 +9,18 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [1.5.7] - 2026-09-04
+
+### Pridané / Added
+- **Priama online aktualizácia firmvéru z GitHubu (GitHub OTA Updates):**
+  - Do webového rozhrania (záložka *Systém*) pribudla nová karta **🚀 Aktualizácia firmvéru (GitHub OTA)**.
+  - Zariadenie automaticky pri otvorení záložky alebo manuálnym kliknutím porovná nainštalovanú verziu s najnovším vydaním (Latest Release) na GitHube (`hackra76/ESP-MeteoPlaneRadar`).
+  - Pri dostupnosti novej verzie sa zobrazí odznak "Nová verzia", kompletný zoznam zmien (Release Notes) a tlačidlo **⚡ Aktualizovať z GitHubu**.
+  - ESP32 po potvrdení a autorizácii heslom správcu (ak je nastavené) stiahne cez zabezpečené HTTPS spojenie priamo OTA binárku (`*-ota.bin`), streamuje dáta do internej flash pamäte cez `Update` knižnicu a zobrazuje reálny priebeh v percentách na webovej stránke aj na okrúhlom displeji.
+  - Po úspešnom dokončení zápisu sa zariadenie automaticky reštartuje do nového firmvéru.
+
+---
+
 ## [1.5.6] - 2026-09-04
 
 ### Pridané / Added
