@@ -9,7 +9,6 @@
 #include "ScreenPlanes.h"
 #include "ScreenWeather.h"
 #include "ScreenTactical.h"
-#include "ADSB.h"
 #include "Settings.h"
 #include "Status.h"
 #include "Version.h"
@@ -22,7 +21,6 @@
 #include "Display_ST7701.h"
 #include "Watchdog.h"
 #include "QMI8658.h"
-#include "Astro.h"
 #include "AsyncCore.h"
 #include "PCF85063.h"
 #include "Outside.h"
@@ -454,87 +452,6 @@ static void handleGeocode() {
   sendJson(200, out);
 }
 
-static void handleLive() {
-  JsonDocument doc;
-  const uint8_t scr = Settings_Screen();
-  doc["screen"] = scr;
-  doc["lat"] = Settings_Lat();
-  doc["lon"] = Settings_Lon();
-  doc["legends"] = Settings_ShowLegends();
-  doc["topBearing"] = Settings_TopBearing();
-  doc["metric"] = Settings_MetricUnits();
-  doc["secStyle"] = Settings_SecondsStyle();
-
-  char rb[24] = "";
-  if      (scr == SCREEN_PLANES_I)   ScreenPlanes_RangeText(rb, sizeof(rb));
-  else if (scr == SCREEN_METEO_I)    ScreenWeather_RangeText(rb, sizeof(rb));
-  else if (scr == SCREEN_TACTICAL_I) ScreenTactical_RangeText(rb, sizeof(rb));
-  doc["range"] = rb;
-
-  // Time & Calendar
-  time_t now = time(nullptr);
-  struct tm lt; localtime_r(&now, &lt);
-  char timeBuf[16];
-  snprintf(timeBuf, sizeof(timeBuf), "%02d:%02d:%02d", lt.tm_hour, lt.tm_min, lt.tm_sec);
-  doc["time"] = timeBuf;
-  doc["hour"] = lt.tm_hour;
-  doc["min"]  = lt.tm_min;
-  doc["sec"]  = lt.tm_sec;
-  doc["wday"] = lt.tm_wday;
-  doc["mday"] = lt.tm_mday;
-  doc["mon"]  = lt.tm_mon + 1;
-
-  if (Forecast_CurrentValid()) {
-    doc["temp"] = (int)roundf(Forecast_CurrentTemp() * 10.0f) / 10.0f;
-    doc["precip"] = Forecast_CurrentPrecip();
-    doc["code"] = Forecast_CurrentCode();
-  }
-  if (AirQuality_Valid()) {
-    doc["aqi"] = AirQuality_Aqi();
-  }
-
-  // Moon Phase & Illumination
-  MoonInfo moon = Astro_GetMoon(now);
-  doc["moonName"] = moon.name;
-  doc["moonIllum"] = (int)roundf(moon.illumination);
-  doc["moonPhase"] = (int)moon.phaseEnum;
-
-  // Aircraft list for radar rendering
-  const Aircraft* list = ADSB_List();
-  int n = ADSB_Count();
-  JsonArray acList = doc["aircraft"].to<JsonArray>();
-  for (int i = 0; i < n && i < 35; i++) {
-    if (list[i].onGround) continue;
-    JsonObject a = acList.add<JsonObject>();
-    a["call"] = list[i].callsign[0] ? list[i].callsign : list[i].hex;
-    a["hex"]  = list[i].hex;
-    a["lat"]  = list[i].lat;
-    a["lon"]  = list[i].lon;
-    a["alt"]  = (int)list[i].altFt;
-    a["trk"]  = (int)list[i].track;
-    a["spd"]  = (int)list[i].gsKt;
-    a["climb"]= (int)list[i].baroRate;
-    const char* em = ADSB_EmergencyCode(list[i]);
-    if (em) a["em"] = em;
-  }
-
-  // Hourly forecast for forecast preview screen
-  if (Forecast_Valid() && scr == SCREEN_FORECAST_I) {
-    JsonArray fcArr = doc["hours"].to<JsonArray>();
-    const FcHour* hours = Forecast_Hours();
-    int hCount = min(Forecast_HourCount(), 6);
-    for (int i = 0; i < hCount; i++) {
-      JsonObject h = fcArr.add<JsonObject>();
-      struct tm hlt; localtime_r(&hours[i].t, &hlt);
-      h["h"] = hlt.tm_hour;
-      h["temp"] = (int)roundf(hours[i].temp);
-      h["precip"] = hours[i].precip;
-      h["code"] = hours[i].code;
-    }
-  }
-
-  sendJson(200, doc);
-}
 
 static void handleToggleLegends() {
   if (Settings_Screen() == SCREEN_CLOCK_I) {
@@ -845,7 +762,6 @@ void WebConfig_Begin(bool apMode) {
   s_srv.on("/api/hardware", HTTP_GET, handleHardware);
   s_srv.on("/api/rtc/sync_ntp", HTTP_POST, handleRtcSyncNtp);
   s_srv.on("/api/rtc/sync_browser", HTTP_POST, handleRtcSyncBrowser);
-  s_srv.on("/api/live", HTTP_GET, handleLive);
   s_srv.on("/api/toggle-legends", HTTP_POST, handleToggleLegends);
   s_srv.on("/api/input", HTTP_POST, handleInput);
   s_srv.on("/api/screen", HTTP_POST, handleScreen);

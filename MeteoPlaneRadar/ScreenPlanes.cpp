@@ -14,6 +14,7 @@
 #include "Settings.h"
 #include "Config.h"
 #include "Route.h"
+#include "PlanePhoto.h"
 #include "EuBorder.h"
 #include "Airports.h"
 #include "UI.h"
@@ -96,6 +97,7 @@ static void selectNone(const char* reason) {
   s_selMiss = 0;
   s_selCacheOk = false;
   Route_Clear();
+  PlanePhoto_Clear();
 }
 static void selectHex(const char* hex) {
   strncpy(s_selectedHex, hex, sizeof(s_selectedHex) - 1);
@@ -113,13 +115,6 @@ static void selectHex(const char* hex) {
 // direction they are looking out of the window. Everything then follows:
 //
 //     screen angle of bearing b  =  b - topBearing      (0 = up, clockwise)
-//
-// So looking east (top = 90) puts north on the left, which is exactly where it
-// is in reality. Setting an "amount to turn by" instead used to need the
-// opposite value (360 - bearing) and felt like the map was mirrored.
-//
-// We do NOT rotate the display (the canvas only supports rotation 0 and turning
-// the framebuffer would break touch mapping) - the PROJECTION is rotated.
 // Borders and cities go through the same project(), so they follow along for
 // free; only the aircraft icons need their heading corrected separately.
 static float s_rotSin = 0.0f, s_rotCos = 1.0f;   // cached sin/cos of the angle
@@ -260,7 +255,7 @@ void ScreenPlanes_Enter() {
 bool ScreenPlanes_Tick() {
   if (WiFi.status() != WL_CONNECTED) { s_status = T(S_WIFI_WAIT); return false; }
 
-  bool routeChanged = Async_TakeRouteUpdated() || Route_TakeChanged();
+  bool routeChanged = Async_TakeRouteUpdated() || Route_TakeChanged() || PlanePhoto_TakeChanged();
   bool adsbChanged  = Async_TakeAdsbUpdated();
 
   if (adsbChanged) {
@@ -728,6 +723,7 @@ void ScreenPlanes_Draw() {
 
   if (ScreenPlanes_DetailOpen() && s_selCacheOk) {
     Route_Select(s_selCache.callsign, s_selCache.lat, s_selCache.lon);
+    PlanePhoto_Select(s_selCache.reg, s_selCache.hex);
     const RouteInfo* rt = Route_Get();
     UI_DrawAircraftDetail(s_selCache, rt, Route_GetState(), signalLost);
   }

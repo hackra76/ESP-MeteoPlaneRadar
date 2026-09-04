@@ -125,122 +125,160 @@ void UI_DrawHomeMarker(int x, int y) {
 
 #include "ADSB.h"
 #include "Route.h"
+#include "PlanePhoto.h"
 #include "AircraftType.h"
 #include "Settings.h"
 #include "Lang.h"
+static float calcGeoDistKm(double lat1, double lon1, double lat2, double lon2) {
+  const float R = 6371.0f, D = 0.017453293f;
+  float dLat = (float)(lat2 - lat1) * D;
+  float dLon = (float)(lon2 - lon1) * D;
+  float a = sinf(dLat * 0.5f) * sinf(dLat * 0.5f) +
+            cosf((float)lat1 * D) * cosf((float)lat2 * D) * sinf(dLon * 0.5f) * sinf(dLon * 0.5f);
+  if (a < 0) a = 0; else if (a > 1) a = 1;
+  return 2.0f * R * asinf(sqrtf(a));
+}
 
 void UI_DrawAircraftDetail(const Aircraft& ac, const RouteInfo* rt, int routeState, bool signalLost) {
   const bool metric = Settings_MetricUnits();
 
-  const int pw = 300, ph = 224;
-  const int px = (LCD_WIDTH - pw) / 2;
-  const int py = (LCD_HEIGHT - ph) / 2;
+  // --- 1. Aircraft Photo Box (Top section, 200x133) ---
+  const int photoW = 200, photoH = 133;
+  const int photoX = (LCD_WIDTH - photoW) / 2;
+  const int photoY = 50;
 
-  // Modern glassmorphic dark card with rounded corners and cyan accent border
-  gfx->fillRoundRect(px, py, pw, ph, 14, 0x0821);
-  gfx->drawRoundRect(px, py, pw, ph, 14, ac.isMilitary ? C_RED : C_CYAN);
+  gfx->fillRoundRect(photoX - 2, photoY - 2, photoW + 4, photoH + 4, 8, 0x0821);
+  gfx->drawRoundRect(photoX - 2, photoY - 2, photoW + 4, photoH + 4, 8, ac.isMilitary ? C_RED : C_CYAN);
 
-  // Close button in top right: small red/dark circular badge with 'X'
-  const int cx = px + pw - 20, cy = py + 18;
-  gfx->fillCircle(cx, cy, 11, 0x3000);
-  gfx->drawCircle(cx, cy, 11, C_GRAY);
-  gfx->drawLine(cx - 4, cy - 4, cx + 4, cy + 4, C_WHITE);
-  gfx->drawLine(cx - 4, cy + 4, cx + 4, cy - 4, C_WHITE);
-
-  int ty = py + 12;
-  char line[64];
-
-  // 1. Callsign (header in bright yellow, or red if military)
-  const char* cs = ac.callsign[0] ? ac.callsign : (ac.hex[0] ? ac.hex : "?");
-  UI_Text(cs, px + 18, ty, ac.isMilitary ? C_RED : C_YELLOW, 2);
-  if (ac.isMilitary) {
-    UI_Text("MIL", px + 18 + Layout_TextW(cs, 2) + 12, ty + 2, C_RED, 1);
-  }
-  ty += 25;
-
-  // 2. Altitude: ft or m - in C_CYAN
-  if (metric) snprintf(line, sizeof(line), "%s: %.0f m", T(S_ALTITUDE), ac.altFt * 0.3048f);
-  else        snprintf(line, sizeof(line), "%s: %.0f ft", T(S_ALTITUDE), ac.altFt);
-  UI_Text(line, px + 18, ty, C_CYAN, 2);
-  ty += 24;
-
-  // 3. Speed: kt or km/h - in C_WHITE
-  if (metric) snprintf(line, sizeof(line), "%s: %.0f km/h", T(S_SPEED), ac.gsKt * 1.852f);
-  else        snprintf(line, sizeof(line), "%s: %.0f kt", T(S_SPEED), ac.gsKt);
-  UI_Text(line, px + 18, ty, C_WHITE, 2);
-  ty += 24;
-
-  // 4. Track (Heading) - in C_WHITE with degree symbol °
-  if (ac.hasTrack) snprintf(line, sizeof(line), "%s: %.0f\xC2\xB0", T(S_TRACK), ac.track);
-  else             snprintf(line, sizeof(line), "%s: %s", T(S_TRACK), T(S_UNKNOWN));
-  UI_Text(line, px + 18, ty, C_WHITE, 2);
-  ty += 24;
-
-  // 5. Climb / Descent - dynamic color: C_GREEN (climb) / C_RED (descent) / C_GRAY (level)
-  uint16_t clCol = C_GRAY;
-  const char* ar = "-";
-  if (ac.baroRate > 100.0f) {
-    clCol = C_GREEN;
-    ar = "^";
-  } else if (ac.baroRate < -100.0f) {
-    clCol = C_RED;
-    ar = "v";
-  }
-  if (metric) snprintf(line, sizeof(line), "%s: %.1f m/s %s", T(S_CLIMB), ac.baroRate * 0.00508f, ar);
-  else        snprintf(line, sizeof(line), "%s: %.0f ft/m %s", T(S_CLIMB), ac.baroRate, ar);
-  UI_Text(line, px + 18, ty, clCol, 2);
-  ty += 24;
-
-  // 6. Type & Reg - in soft amber with translated human name!
-  const char* fullType = AircraftType_Format(ac.type);
-  if (fullType[0] || ac.reg[0]) {
-    if (fullType[0] && ac.reg[0]) {
-      snprintf(line, sizeof(line), "%s [%s]", fullType, ac.reg);
-    } else if (fullType[0]) {
-      snprintf(line, sizeof(line), "%s", fullType);
-    } else {
-      snprintf(line, sizeof(line), "%s: %s", T(S_TYPE), ac.reg);
-    }
-    int avail = pw - 36;
-    int tw = Layout_TextW(line, 2);
-    int size = 2;
-    if (tw > avail) {
-      size = 1;
-      tw = Layout_TextW(line, 1);
-      if (tw > avail) {
-        int maxCh = avail / 6;
-        if ((int)strlen(line) > maxCh) { line[maxCh - 2] = '.'; line[maxCh - 1] = '.'; line[maxCh] = '\0'; }
+  PhotoState pState = PlanePhoto_GetState();
+  if (pState == PHOTO_OK) {
+    int iw = 0, ih = 0;
+    const uint16_t* pixels = PlanePhoto_GetRgb565(&iw, &ih);
+    if (pixels && iw > 0 && ih > 0) {
+      int dx = photoX + (photoW - iw) / 2;
+      int dy = photoY + (photoH - ih) / 2;
+      for (int j = 0; j < ih; j++) {
+        for (int i = 0; i < iw; i++) {
+          gfx->drawPixel(dx + i, dy + j, pixels[j * iw + i]);
+        }
       }
     }
-    UI_Text(line, px + 18, ty + (size == 1 ? 4 : 0), 0xFDE0 /* Soft amber */, size);
+    const char* photog = PlanePhoto_GetPhotographer();
+    char credit[48];
+    snprintf(credit, sizeof(credit), "Photo: %s", (photog && photog[0]) ? photog : "Planespotters.net");
+    UI_TextCentered(credit, photoY + photoH + 4, C_GRAY, 1);
+  } else if (pState == PHOTO_WAIT) {
+    UI_TextCentered(T(S_PHOTO_WAIT), photoY + photoH / 2 - 4, C_GRAY, 1);
+  } else if (pState == PHOTO_NONE) {
+    UI_TextCentered(T(S_NO_PHOTO), photoY + photoH / 2 - 4, 0x52AA, 1);
   }
-  ty += 26;
 
-  // 7. Route: From -> To (or wait message)
-  const int avail = pw - 36;
+  // --- 2. Telemetry Card (Middle section, 310x126) ---
+  const int cw = 310, ch = 126;
+  const int cx = (LCD_WIDTH - cw) / 2;
+  const int cy = 202;
+
+  gfx->fillRoundRect(cx, cy, cw, ch, 12, 0x0821);
+  gfx->drawRoundRect(cx, cy, cw, ch, 12, ac.isMilitary ? C_RED : 0x2FE6);
+
+  // Close button in top right
+  const int bx = cx + cw - 16, by = cy + 14;
+  gfx->fillCircle(bx, by, 9, 0x3000);
+  gfx->drawCircle(bx, by, 9, C_GRAY);
+  gfx->drawLine(bx - 3, by - 3, bx + 3, by + 3, C_WHITE);
+  gfx->drawLine(bx - 3, by + 3, bx + 3, by - 3, C_WHITE);
+
+  int ty = cy + 10;
+
+  // Title: Callsign & Type
+  const char* cs = ac.callsign[0] ? ac.callsign : (ac.hex[0] ? ac.hex : "?");
+  UI_Text(cs, cx + 14, ty, ac.isMilitary ? C_RED : C_YELLOW, 2);
+  int csw = Layout_TextW(cs, 2);
+  if (ac.isMilitary) {
+    UI_Text("MIL", cx + 14 + csw + 8, ty + 2, C_RED, 1);
+    csw += 28;
+  }
+  if (ac.type[0]) {
+    UI_Text(ac.type, cx + 14 + csw + 10, ty, C_WHITE, 2);
+  }
+  ty += 23;
+
+  // 2-Column Telemetry Rows
+  const int col1X = cx + 14;
+  const int col2X = cx + 160;
+
+  // Row 1: ALT & V/S
+  char altStr[32];
+  if (metric) snprintf(altStr, sizeof(altStr), "ALT %.0f m", ac.altFt * 0.3048f);
+  else        snprintf(altStr, sizeof(altStr), "ALT %.0f ft", ac.altFt);
+  UI_Text(altStr, col1X, ty, C_WHITE, 1);
+
+  char vsStr[32];
+  uint16_t vsCol = C_GRAY;
+  if (ac.baroRate > 100.0f)       vsCol = C_GREEN;
+  else if (ac.baroRate < -100.0f) vsCol = C_RED;
+  if (metric) snprintf(vsStr, sizeof(vsStr), "V/S %+.1f m/s", ac.baroRate * 0.00508f);
+  else        snprintf(vsStr, sizeof(vsStr), "V/S %+.0f", ac.baroRate);
+  UI_Text(vsStr, col2X, ty, vsCol, 1);
+  ty += 18;
+
+  // Row 2: SPD & HDG
+  char spdStr[32];
+  if (metric) snprintf(spdStr, sizeof(spdStr), "SPD %.0f km/h", ac.gsKt * 1.852f);
+  else        snprintf(spdStr, sizeof(spdStr), "SPD %.0f kt", ac.gsKt);
+  UI_Text(spdStr, col1X, ty, C_WHITE, 1);
+
+  char hdgStr[32];
+  if (ac.hasTrack) snprintf(hdgStr, sizeof(hdgStr), "HDG %03.0f\xC2\xB0", ac.track);
+  else             snprintf(hdgStr, sizeof(hdgStr), "HDG ---");
+  UI_Text(hdgStr, col2X, ty, C_WHITE, 1);
+  ty += 18;
+
+  // Row 3: DIST & SQK
+  float distKm = calcGeoDistKm(Settings_Lat(), Settings_Lon(), ac.lat, ac.lon);
+  char distStr[32];
+  if (metric) snprintf(distStr, sizeof(distStr), "DIST %.1f km", distKm);
+  else        snprintf(distStr, sizeof(distStr), "DIST %.1f NM", distKm * 0.539957f);
+  UI_Text(distStr, col1X, ty, C_WHITE, 1);
+
+  char sqkStr[32];
+  if (ac.squawk[0]) snprintf(sqkStr, sizeof(sqkStr), "SQK %s", ac.squawk);
+  else              snprintf(sqkStr, sizeof(sqkStr), "SQK ----");
+  UI_Text(sqkStr, col2X, ty, C_WHITE, 1);
+  ty += 20;
+
+  // Row 4: Route (or Type / Reg)
+  const int availW = cw - 28;
   if (routeState == ROUTE_WAIT) {
-    UI_Text(T(S_ROUTE_WAIT), px + 18, ty, C_GRAY, 1);
+    UI_Text(T(S_ROUTE_WAIT), col1X, ty, C_GRAY, 1);
   } else if (rt && (rt->from[0] || rt->to[0])) {
-    char l1[48], l2[48];
-    snprintf(l1, sizeof(l1), "%s: %s", T(S_FROM), rt->from[0] ? rt->from : "?");
-    snprintf(l2, sizeof(l2), "%s: %s", T(S_TO), rt->to[0] ? rt->to : "?");
-
-    int s1 = (Layout_TextW(l1, 2) > avail) ? 1 : 2;
-    int s2 = (Layout_TextW(l2, 2) > avail) ? 1 : 2;
-    int finalSize = (s1 < s2) ? s1 : s2;
-
-    int maxCh = avail / (6 * finalSize);
-    if ((int)strlen(l1) > maxCh) { l1[maxCh - 2] = '.'; l1[maxCh - 1] = '.'; l1[maxCh] = '\0'; }
-    if ((int)strlen(l2) > maxCh) { l2[maxCh - 2] = '.'; l2[maxCh - 1] = '.'; l2[maxCh] = '\0'; }
-
-    UI_Text(l1, px + 18, ty, 0x56E0 /* Bright soft green for departure */, finalSize);
-    ty += (finalSize == 2 ? 22 : 14);
-    UI_Text(l2, px + 18, ty, 0xFDE0 /* Soft amber for destination */, finalSize);
+    char rtLine[64];
+    snprintf(rtLine, sizeof(rtLine), "%s -> %s", rt->from[0] ? rt->from : "?", rt->to[0] ? rt->to : "?");
+    int rw = Layout_TextW(rtLine, 2);
+    uint8_t fSize = (rw <= availW) ? 2 : 1;
+    if (fSize == 1 && Layout_TextW(rtLine, 1) > availW) {
+      int maxCh = availW / 6;
+      if ((int)strlen(rtLine) > maxCh) { rtLine[maxCh - 2] = '.'; rtLine[maxCh - 1] = '.'; rtLine[maxCh] = '\0'; }
+    }
+    UI_Text(rtLine, col1X, ty, 0x56E0 /* Bright soft green */, fSize);
+  } else {
+    char typeLine[64] = "";
+    const char* fullType = AircraftType_Format(ac.type);
+    if (fullType[0] && ac.reg[0]) snprintf(typeLine, sizeof(typeLine), "%s [%s]", fullType, ac.reg);
+    else if (ac.reg[0])           snprintf(typeLine, sizeof(typeLine), "Reg: %s", ac.reg);
+    else if (fullType[0])         snprintf(typeLine, sizeof(typeLine), "%s", fullType);
+    if (typeLine[0]) {
+      if (Layout_TextW(typeLine, 1) > availW) {
+        int maxCh = availW / 6;
+        if ((int)strlen(typeLine) > maxCh) { typeLine[maxCh - 2] = '.'; typeLine[maxCh - 1] = '.'; typeLine[maxCh] = '\0'; }
+      }
+      UI_Text(typeLine, col1X, ty, 0xFDE0 /* Soft amber */, 1);
+    }
   }
 
-  // Signal lost note if missing from current frame
+  // Signal lost indicator
   if (signalLost) {
     const char* lost = T(S_SIGNAL_LOST);
-    UI_Text(lost, px + pw - 18 - Layout_TextW(lost, 1), py + ph - 16, C_YELLOW, 1);
+    UI_Text(lost, cx + cw - 14 - Layout_TextW(lost, 1), cy + ch - 12, C_YELLOW, 1);
   }
 }

@@ -189,8 +189,9 @@
 // ---------------------------------------------------------------------------
 //  Network
 // ---------------------------------------------------------------------------
-// A TLS handshake needs roughly 25-30 kB of internal RAM on ESP32-S3.
-#define NET_MIN_HEAP 35000
+// A TLS handshake needs roughly 35-40 kB of internal RAM on ESP32-S3.
+#define NET_MIN_HEAP  45000
+#define NET_MIN_BLOCK 24000
 
 // WiFiClientSecure defaults the mbedTLS handshake to 120 s, six times
 // WDT_TIMEOUT_S. setConnectTimeout() does NOT cover it - that only bounds the
@@ -285,6 +286,7 @@
 // ---------------------------------------------------------------------------
 #define RADAR_SRC_CHMU       0
 #define RADAR_SRC_RAINVIEWER 1
+#define RADAR_SRC_SHMU       2
 
 // RainViewer: free, no key, non-commercial. The JSON lists the available
 // frames, the tiles come from the tile cache in standard Web Mercator z/x/y.

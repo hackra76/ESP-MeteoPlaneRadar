@@ -66,7 +66,7 @@ static int s_tx0, s_ty0, s_txN, s_tyN;
 // One tile's PNG, reused for every download.
 static uint8_t* s_png = nullptr;
 static size_t   s_pngLen = 0;
-static PNG      s_decoder;
+static PNG*     s_decoder = nullptr;
 static uint16_t* s_lineBuf = nullptr;
 
 // Where the tile being decoded lands on the display.
@@ -158,6 +158,11 @@ static void chooseZoomAndScale(double lat, float radiusKm, bool mustCover) {
 
 // --- Buffers ----------------------------------------------------------------
 static bool ensureBuffers(int frames) {
+  if (!s_decoder) {
+    s_decoder = (PNG*)heap_caps_malloc(sizeof(PNG), MALLOC_CAP_SPIRAM);
+    if (!s_decoder) s_decoder = (PNG*)malloc(sizeof(PNG));
+    if (!s_decoder) return false;
+  }
   if (!s_png) {
     s_png = (uint8_t*)heap_caps_malloc(RV_MAX_PNG, MALLOC_CAP_SPIRAM);
     if (!s_png) s_png = (uint8_t*)malloc(RV_MAX_PNG);
@@ -198,7 +203,7 @@ static int rvPngDraw(PNGDRAW* d) {
   // Transparent pixels (no radar coverage) blend to black, which is what the
   // rest of the screen is - so "no data" and "no rain" look the same, exactly
   // as they do on the CHMU composite.
-  s_decoder.getLineAsRGB565(d, s_lineBuf, PNG_RGB565_LITTLE_ENDIAN, 0x00000000);
+  s_decoder->getLineAsRGB565(d, s_lineBuf, PNG_RGB565_LITTLE_ENDIAN, 0x00000000);
 
   // Which source pixels can land on screen at all. Working this out once beats
   // clipping inside the inner loop, which at scale 8 runs 2048 times a row.
@@ -338,12 +343,12 @@ static bool fetchOneTile(int frameIdx, int tileIdx) {
   s_dstY = (int)lround((ty * (double)RV_TILE_SIZE - s_originY) * s_scale);
   s_dstFrame = s_fr[frameIdx].px;
 
-  if (s_decoder.openRAM(s_png, s_pngLen, rvPngDraw) != PNG_SUCCESS) {
+  if (!s_decoder || s_decoder->openRAM(s_png, s_pngLen, rvPngDraw) != PNG_SUCCESS) {
     Serial.println("RAINVIEWER: dlazdice se neda dekodovat");
     return false;
   }
-  s_decoder.decode(nullptr, 0);
-  s_decoder.close();
+  s_decoder->decode(nullptr, 0);
+  s_decoder->close();
   poll();
   return true;
 }

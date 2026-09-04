@@ -9,6 +9,112 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [1.5.5] - 2026-09-04
+
+### Zmenené / Changed
+- **Zarovnanie obrazovky Predpoveď počasia (ScreenForecast):**
+  - Posunutie obsahu o 20 px nižšie (`HOUR_Y0` posunuté z 58 na 78 px) pre dokonalé vertikálne vyváženie v kruhovom výreze displeja.
+  - Horizontálne zarovnanie stĺpcov symetricky na stred (`CX = 240`) s rovnomernými 85 px okrajmi z oboch strán.
+- **Preusporiadanie tlačidiel na obrazovke Nastavenia (ScreenSettings):**
+  - 4 tlačidlá (Jednotky, Vyhladenie, Jazyk, Reset WiFi) boli usporiadané do prehľadnej mriežky 2×2 namiesto jedného dlhého vertikálneho stĺpca.
+  - Vznikla tak veľkorysá 78-pixelová rezerva medzi tlačidlami a menom autora ("H4CKR4"), čím sa úplne odstránilo prekrývanie prvkov v dolnej časti displeja.
+- **Optimalizácia webového rozhrania (WebConfig):**
+  - Kompletne odstránený živý náhľad displeja (HTML5 canvas) a dopytovací endpoint `/api/live`.
+  - Výrazné zníženie zaťaženia CPU ESP32, sieťovej prevádzky a RAM (ušetrené periodické serializácie JSON a volania na pozadí).
+- **Prečistenie kódu (Codebase cleanup):**
+  - Odstránené pozostatky po vývoji a testovaní, dočistené nepoužívané premenné a dočasné bloky kódu pri zachovaní 100% funkcionality.
+
+---
+
+## [1.5.4] - 2026-09-04
+
+### Pridané / Added
+- **Bilineárne vyhladzovanie zrážkového radaru (Anti-aliasing / Bilinear Filtering) pre SHMÚ a ČHMÚ:**
+  - Pri väčšom priblížení (zoom 25 km a 50 km) bol orez národných radarových kompozitov (cca 50×50 px) na okrúhly 480×480 displej silne pixelizovaný (schodovité bloky pixelov).
+  - Implementovaná vysoko optimalizovaná bilineárna interpolácia s celočíselnou (fixed-point 8-bit) matematikou a predpočítanou mapovacou tabuľkou v `ScreenWeather.cpp` (`blitCrop`) aj `ScreenTactical.cpp` (`buildTacticalComposite`).
+  - Radarové odrazy a zrážkové polia majú teraz krásne hladké, plynulé prechody a prirodzený vzhľad.
+- **Prepínač vyhladzovania radaru (Radar smoothing toggle):**
+  - Trvalé uloženie voľby do NVS pamäte (`Settings_SmoothRadar()` / `Settings_SetSmoothRadar()`, predvolene zapnuté).
+  - Prepínač je prístupný priamo na 4 miestach:
+    1. **Rýchle menu (QuickControl):** na obrazovke *Meteoradar* aj *Taktický radar* tlačidlo `Vyhladenie: ZAP / VYP`.
+    2. **Obrazovka Nastavení (Settings):** nové tlačidlo `Vyhladenie radaru: ZAP / VYP`.
+    3. **Webové rozhranie (WebConfig):** zaškrtávacie pole `Vyhladenie radarových dát (bilineárna interpolácia pre SHMÚ a ČHMÚ)`.
+    4. Dynamická okamžitá zmena bez nutnosti reštartu zariadenia.
+
+---
+
+## [1.5.3] - 2026-09-04
+
+### Opravené / Fixed
+- **Odstránenie pádu LwIP (`pbuf_free: p->ref > 0`) pri dopytoch na trasy lietadiel:**
+  - **Príčina:** Sieťový worker task na jadre 0 mal stack iba 8 KB. Pri vykonávaní mbedTLS TLS handshakeu, HTTPClient a následnom parsovaní cez ArduinoJson dochádzalo k vyčerpaniu a pretečeniu stacku, čo korumpovalo hlavičky paketových bufferov LwIP (`pbuf`) na heape. Navyše dopyty na trasy lietadiel bežali v rýchlom 1,5s intervale, čím sa hromadili neuzatvorené TCP sockety v stave FIN_WAIT.
+  - **Riešenie:**
+    - Veľkosť stacku úlohy `AsyncNetWorker` bola zvýšená z 8 KB na **24 KB** (vďaka 136 KB ušetrenej internej RAM v verzii 1.5.2 je pre task k dispozícii obrovská rezerva).
+    - V `Route.cpp` a `PlanePhoto.cpp` sa socket po prečítaní tela explicitne uzatvára cez `client.stop()` s ochranným oneskorením 100 ms, aby LwIP TCP stack stihol korektne dokončiť `FIN/ACK` handshake.
+    - Interval dopytovania trás lietadiel na pozadí bol upravený na stabilných **3,5 s**, čím sa zamedzilo preťažovaniu TCP stacku a verejného API `api.adsb.lol`.
+    - Opravená manipulácia s expirovanými záznamami v cache pri presune z fronty (`Route_Tick`).
+
+---
+
+## [1.5.2] - 2026-09-04
+
+### Zásadná optimalizácia pamäte / Core Memory Architecture Fix
+- **Trvalé vyriešenie chýb alokácie pamäte pre SSL (`SSL - Memory allocation failed -32512`):**
+  - **Príčina:** Inštancie dekodéra `PNGdec` (`PNG`) zaberali v internej SRAM pamäti (`.bss`) 45,6 KB každá. Pretože `RainViewer.cpp`, `ScreenWeather.cpp` a `ScreenTactical.cpp` mali každá svoju vlastnú statickú inštanciu, plytvalo sa **136,8 KB internej SRAM** pamäte (z celkových 320 KB čipu). Pri otvorení viacerých obrazoviek alebo sťahovaní zostávalo pre mbedTLS len cca 30 KB, čo spôsobovalo trvalé zlyhávanie `start_ssl_client` na chybu `-32512`.
+  - **Riešenie:** Všetky objekty `PNG` dekodérov a riadkové buffery boli presunuté do externej **8 MB PSRAM** pamäte (`MALLOC_CAP_SPIRAM`).
+  - **Výsledok:** Využitie internej RAM kleslo z **60.9 % na iba 19.2 %**! Uvoľnilo sa vyše **136 KB internej pamäte** pre LwIP sieťový zásobník a mbedTLS handshaky. Voľná interná pamäť pri štarte vzrástla z cca 156 KB na takmer 293 KB.
+- **Oprava pádu LwIP (`pbuf_free: p->ref > 0 assert`):**
+  - V `Route.cpp`, `SHMU.cpp`, `CHMU.cpp` a `PlanePhoto.cpp` sa pri chybovom HTTP kóde (napr. HTTP 500) teraz pred zatvorením socketu vyprázdnia prichádzajúce dáta (`while (client.available()) client.read();`). Tým sa zabráni násilnému TCP `RST` a kolízii v paketových bufferoch LwIP.
+  - Zvýšená doba usadenia medzi TLS dopytmi (`delay(150)` namiesto `delay(30)`) zabraňuje prekrývaniu FIN/ACK handshakeov.
+  - Zvýšené bezpečnostné prahy pre sieťové dopyty v `Config.h` (`NET_MIN_HEAP 45000`, `NET_MIN_BLOCK 24000`).
+
+---
+
+## [1.5.1] - 2026-09-04
+
+### Opravené / Fixed
+- **Podpora meteoradaru SHMÚ a ČHMÚ na obrazovke Tactical (Kombinovaný radar):**
+  - Obrazovka Tactical pôvodne podporovala iba podklad z RainVieweru (`rvMode()`); pri voľbe SHMÚ alebo ČHMÚ bol podklad čierny a zobrazovali sa len lietadlá.
+  - Implementované plné orezávanie a renderovanie kompozitných radarových máp (SHMÚ aj ČHMÚ) priamo do 480×480 framebufferu na pozadí lietadiel.
+  - Okamžitý prepočet orezu pri zmene dosahu (25, 50, 100, 200 km, Celá krajina) priamo z pamäte PSRAM bez zbytočného opakovaného sťahovania zo siete.
+  - Asynchrónne periodické sťahovanie (Core 0) koordinované tak, aby nekolidovalo s TLS spojeniami pre ADS-B a fotografie lietadiel.
+  - Okamžitá reakcia pri prepnutí zdroja radaru cez vysúvacie menu QuickControl.
+- **Oprava zlyhania TLS pamäte pri sťahovaní zo SHMÚ (`SSL - Memory allocation failed -32512`):**
+  - Dôsledné uvoľňovanie a scoping `WiFiClientSecure client` pred začiatkom sťahovania snímok.
+
+---
+
+## [1.5.0] - 2026-09-04
+
+### Pridané / Added
+- **Zobrazenie fotografie lietadla (Planespotters.net):**
+  - Po kliknutí na lietadlo sa v hornej časti okrúhleho displeja zobrazí miniatúra skutočného lietadla podľa registrácie alebo ICAO kódu.
+  - Využitie rýchleho hardvérovo akcelerovaného JPEG dekodéra `bitbank2/JPEGDEC` s optimalizáciami pre ESP32-S3 SIMD.
+  - Zobrazenie mena autora fotografie („Photo: <fotograf>“).
+  - Asynchrónne sťahovanie na jadre 0 (Core 0) bez blokovania vykresľovania radarovej scény na jadre 1.
+  - Viacúrovňová vyrovnávacia pamäť v PSRAM pre okamžité zobrazenie pri prepínaní lietadiel.
+- **Nový 2-stĺpcový HUD panel detailu lietadla:**
+  - Moderný dvojstĺpcový layout s prehľadnými parametrami letu:
+    - Callsign a typ lietadla (napr. `ETD87A B789`)
+    - Vľavo: Výška (`ALT`), Rýchlosť (`SPD`), Vzdialenosť od pozorovateľa (`DIST`)
+    - Vpravo: Vertikálna rýchlosť stúpania/klesania (`V/S`), Kurz (`HDG`), Squawk kód (`SQK`)
+    - Dole: Zelený štítok trasy letu (odkiaľ -> kam)
+  - Radar a spodné indikátory dosahu zostávajú na pozadí viditeľné a interaktívne.
+
+---
+
+## [1.4.0] - 2026-09-04
+
+### Pridané / Added
+- **Integrácia slovenského meteoradaru SHMÚ (Slovensko):**
+  - Pridaný plnohodnotný tretí poskytovateľ radarových dát popri ČHMÚ a RainViewer.
+  - Sťahovanie priamych ostrých 8-bitových PNG kompozitov (800 × 550 px) z `shmu.sk` s 5-minútovou frekvenciou.
+  - Vynikajúce priestorové rozlíšenie cca 0,94 km/px (ostré jadrá zrážok namiesto hrubých blokov z RainVieweru).
+  - Minimálna latencia (nové snímky dostupné do 2–4 minút od merania).
+  - Filtrovanie masky mimo dosahu radaru pre čisté zobrazenie na okrúhlom displeji.
+  - Špecifická stupnica intenzity zrážok (dBZ / mm/h) pre SHMÚ kompozit.
+  - Podpora v rýchlom menu (Quick Control Center), webovom rozhraní a automatické prispôsobenie zobrazenia celého Slovenska.
+
 ---
 
 ## [1.3.0] - 2026-09-03

@@ -95,19 +95,8 @@ td:first-child{color:var(--mut);width:45%}
 
 <div class="wrap">
 
-<!-- ================= 1. OVLÁDANIE & ŽIVÝ RADAR ================= -->
+<!-- ================= 1. OVLÁDANIE ================= -->
 <section id="tCtl" class="tab">
-  <div class="card" id="cardLive">
-    <h2 data-i18n="liveRadar">📡 Živý náhľad displeja (Live Screen Mirror)</h2>
-    <div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin:8px 0;">
-      <div style="position:relative;width:280px;height:280px;border-radius:50%;overflow:hidden;border:2px solid var(--acc);box-shadow:0 0 20px rgba(56,189,248,0.25);background:#05080e;">
-        <canvas id="cvDisplay" width="280" height="280" style="display:block;width:280px;height:280px;"></canvas>
-      </div>
-      <div id="radarTargetBadge" style="background:#182232;border:1px solid var(--line);border-radius:8px;padding:6px 14px;font-size:12.5px;color:var(--acc);font-weight:600" data-i18n="radarActive">
-        ✈ Radar aktívny
-      </div>
-    </div>
-  </div>
 
   <div class="card" id="cardRemote">
     <h2 data-i18n="remote">🎮 Diaľkový ovládač</h2>
@@ -183,11 +172,13 @@ td:first-child{color:var(--mut);width:45%}
     <h2 data-i18n="radar">🌧️ Meteoradar & Zobrazenie</h2>
     <div class="row"><label data-i18n="radarSrc">Zdroj radarových dát</label>
       <select id="radarSrc">
-        <option value="1" data-i18n="srcRv">RainViewer (Slovensko, Európa a svet)</option>
         <option value="0" data-i18n="srcChmu">ČHMÚ (veľmi ostré dáta, len ČR)</option>
+        <option value="2" data-i18n="srcShmu">SHMÚ (veľmi ostré dáta, Slovensko)</option>
+        <option value="1" data-i18n="srcRv">RainViewer (Európa a svet)</option>
       </select>
     </div>
     <div class="row"><label class="chk"><input type="checkbox" id="showLegends"><span data-i18n="showLegends">Zobrazovať výškovú lištu a farebnú škálu zrážok (alebo poklepanie)</span></label></div>
+    <div class="row"><label class="chk"><input type="checkbox" id="smoothRadar"><span data-i18n="smoothRadar">Vyhladenie zrážkového radaru (bilineárna interpolácia pre SHMÚ a ČHMÚ)</span></label></div>
     <h3 style="margin:16px 0 8px;font-size:14px;color:#94a3b8;" data-i18n="radarWidgets">Prvky radarových máp</h3>
     <div class="grid">
       <label class="chk"><input type="checkbox" id="rTrails"><span data-i18n="rTrails">Trajektórie lietadiel (Trails)</span></label>
@@ -388,7 +379,6 @@ td:first-child{color:var(--mut);width:45%}
 const D={
  cs:{
   tabCtl:"🎛️ Ovládání",tabLoc:"📍 Poloha",tabScr:"🖥️ Obrazovky",tabPlanes:"✈️ Letadla",tabLook:"🎨 Vzhled",tabHw:"⚡ Hardware",tabSys:"⚙️ Systém",
-  liveRadar:"📡 Živý radarový stream",radarActive:"✈ Radar aktivní",radarNoPlanes:"✈ 0 letadel v dosahu",
   remote:"🎮 Dálkové ovládání",rangeLbl:"Rozsah radaru:",
   btnPrev:"← Předchozí",btnDblTap:"🔄 Dvojklik / Legenda",btnNext:"Následující →",btnDec:"− Přiblížit (− km)",btnInc:"+ Oddálit (+ km)",
   remoteHint:"Rozsah se mění na obrazovkách Letadla, Meteoradar a Taktický radar. Zásah pozastaví automatické střídání.",
@@ -400,9 +390,10 @@ const D={
   screens:"🖥️ Seznam aktivních obrazovek",scrClock:"Hodiny & Astro",scrPlanes:"Letadla radar",scrMeteo:"Meteoradar",scrTactical:"Taktický radar",scrForecast:"Předpověď počasí",scrSettings:"Nastavení",
   autoRotate:"Automatické střídání (sekundy, 0 = vypnuto)",
   rotHint:"Střídání pozastaví potažení prstem nebo přepnutí z prohlížeče. Otevřený detail letadla střídání drží.",
-  radar:"🌧️ Meteoradar & Zobrazení",radarSrc:"Zdroj radarových dat",srcRv:"RainViewer (Evropa a svět)",srcChmu:"ČHMÚ (velmi ostrá data, jen ČR)",
+  radar:"🌧️ Meteoradar & Zobrazení",radarSrc:"Zdroj radarových dat",srcRv:"RainViewer (Evropa a svět)",srcChmu:"ČHMÚ (velmi ostrá data, jen ČR)",srcShmu:"SHMÚ (velmi ostrá data, Slovensko)",
   showLegends:"Zobrazovat výškovou lištu a stupnici srážek (nebo poklepání)",
-  radarHint:"Mimo ČR nemá ČHMÚ data — použijte RainViewer.",
+  smoothRadar:"Vyhlazení radarových dat (bilineární interpolace pro ČHMÚ a SHMÚ)",
+  radarHint:"V ČR použijte ČHMÚ, na Slovensku SHMÚ, jinde ve světě RainViewer.",
   planes:"✈️ ADS-B Filtry & Sledování",altMin:"Minimální letová výška (ft)",altMax:"Maximální letová výška (ft)",onlyCs:"Jen letadla s volacím znakem (callsign)",
   sqAlert:"Zvýraznit a upozornit na nouzové squawky (7500/7600/7700)",watch:"Sledovaný let (Callsign nebo ICAO hex)",
   planesHint:"Filtry se týkají jen kreslení. Nouzový squawk ani sledované letadlo neschovají.",
@@ -434,7 +425,6 @@ const D={
  },
  sk:{
   tabCtl:"🎛️ Ovládanie",tabLoc:"📍 Poloha",tabScr:"🖥️ Obrazovky",tabPlanes:"✈️ Lietadlá",tabLook:"🎨 Vzhľad",tabHw:"⚡ Hardvér",tabSys:"⚙️ Systém",
-  liveRadar:"📡 Živý radarový stream",radarActive:"✈ Radar aktívny",radarNoPlanes:"✈ 0 lietadiel v dosahu",
   remote:"🎮 Diaľkový ovládač",rangeLbl:"Rozsah radaru:",
   btnPrev:"← Predchádzajúca",btnDblTap:"🔄 Dvojklik / Legenda",btnNext:"Nasledujúca →",btnDec:"− Priblížiť (− km)",btnInc:"+ Oddialiť (+ km)",
   remoteHint:"Rozsah sa mení na obrazovkách Lietadlá, Meteoradar a Taktický radar. Zásah pozastaví automatické striedanie.",
@@ -446,9 +436,10 @@ const D={
   screens:"🖥️ Zoznam aktívnych obrazoviek",scrClock:"Hodiny & Astro",scrPlanes:"Lietadlá radar",scrMeteo:"Meteoradar",scrTactical:"Taktický radar",scrForecast:"Predpoveď počasia",scrSettings:"Nastavenia",
   autoRotate:"Automatické striedanie (sekundy, 0 = vypnuté)",
   rotHint:"Striedanie pozastaví potiahnutie prstom alebo prepnutie z prehliadača. Otvorený detail lietadla striedanie pozastaví.",
-  radar:"🌧️ Meteoradar & Zobrazenie",radarSrc:"Zdroj radarových dát",srcRv:"RainViewer (Slovensko, Európa a svet)",srcChmu:"ČHMÚ (veľmi ostré dáta, len ČR)",
+  radar:"🌧️ Meteoradar & Zobrazenie",radarSrc:"Zdroj radarových dát",srcRv:"RainViewer (Európa a svet)",srcChmu:"ČHMÚ (veľmi ostré dáta, len ČR)",srcShmu:"SHMÚ (veľmi ostré dáta, Slovensko)",
   showLegends:"Zobrazovať výškovú lištu a farebnú škálu zrážok (alebo poklepanie)",
-  radarHint:"Mimo územia ČR použite RainViewer, inak meteoradar zostane bez odrazov.",
+  smoothRadar:"Vyhladenie radarových dát (bilineárna interpolácia pre SHMÚ a ČHMÚ)",
+  radarHint:"V SR použite SHMÚ, v ČR ČHMÚ, inde v Európe a vo svete RainViewer.",
   planes:"✈️ ADS-B Filtre & Sledovanie",altMin:"Minimálna letová výška (ft)",altMax:"Maximálna letová výška (ft)",onlyCs:"Iba lietadlá so známym volacím znakom (callsign)",
   sqAlert:"Zvýrazniť a upozorniť na núdzové squawky (7500 / 7600 / 7700)",watch:"Sledovaný let (Callsign alebo ICAO hex)",
   planesHint:"Filtre ovplyvňujú len vykresľovanie. Núdzový squawk ani sledované lietadlo filter nikdy neskryje.",
@@ -480,7 +471,6 @@ const D={
  },
  en:{
   tabCtl:"🎛️ Control",tabLoc:"📍 Location",tabScr:"🖥️ Screens",tabPlanes:"✈️ Aircraft",tabLook:"🎨 Appearance",tabHw:"⚡ Hardware",tabSys:"⚙️ System",
-  liveRadar:"📡 Live Radar Stream",radarActive:"✈ Radar active",radarNoPlanes:"✈ 0 aircraft in range",
   remote:"🎮 Remote Control",rangeLbl:"Radar Range:",
   btnPrev:"← Previous",btnDblTap:"🔄 Double-Tap / Legend",btnNext:"Next →",btnDec:"− Zoom In (− km)",btnInc:"+ Zoom Out (+ km)",
   remoteHint:"Range applies to Aircraft, Weather and Tactical screens. Manual action pauses auto cycling.",
@@ -492,9 +482,10 @@ const D={
   screens:"🖥️ Active Screens",scrClock:"Clock & Astro",scrPlanes:"Aircraft radar",scrMeteo:"Weather radar",scrTactical:"Tactical radar",scrForecast:"Weather forecast",scrSettings:"Settings",
   autoRotate:"Auto cycle (seconds, 0 = off)",
   rotHint:"Cycling is paused by swiping or browser actions. An open aircraft detail keeps cycling paused.",
-  radar:"🌧️ Weather Radar & Feeds",radarSrc:"Radar Data Source",srcRv:"RainViewer (Europe & Global)",srcChmu:"CHMU (high-res, Czechia only)",
+  radar:"🌧️ Weather Radar & Feeds",radarSrc:"Radar Data Source",srcRv:"RainViewer (Europe & Global)",srcChmu:"CHMU (high-res, Czechia only)",srcShmu:"SHMU (high-res, Slovakia)",
   showLegends:"Show altitude bar and precipitation color scales (or double-tap)",
-  radarHint:"Outside Czechia use RainViewer feed.",
+  smoothRadar:"Radar smoothing (bilinear interpolation for SHMU and CHMU)",
+  radarHint:"Use CHMU for Czechia, SHMU for Slovakia, or RainViewer globally.",
   planes:"✈️ ADS-B Filters & Watchlist",altMin:"Min altitude (ft)",altMax:"Max altitude (ft)",onlyCs:"Only aircraft with callsign",
   sqAlert:"Highlight emergency squawks (7500/7600/7700)",watch:"Watched flight (Callsign or ICAO hex)",
   planesHint:"Filters only affect drawing. Emergencies and watched flights are never hidden.",
@@ -544,7 +535,7 @@ function setLang(v){
    }
   }
  });
- pwState();status();updateHardware();updateLiveTelemetry();
+ pwState();status();updateHardware();
 }
 
 function showTab(id){
@@ -554,7 +545,6 @@ function showTab(id){
  const isControlOrHw = (id=="tCtl" || id=="tHw");
  $("saveBar").classList.toggle("hide", isControlOrHw);
  if(id=="tHw") updateHardware();
- if(id=="tCtl") updateLiveTelemetry();
  window.scrollTo(0,0);
 }
 document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
@@ -579,272 +569,7 @@ async function post(u,b){try{const r=await fetch(u,{method:"POST",headers:{"Cont
 function goScreen(i){post("/api/screen",{index:i});}
 function stepScreen(d){post("/api/screen",{step:d});}
 function stepRange(d){post("/api/range",{step:d});}
-function toggleLegendsRemote(){post("/api/toggle-legends",{});}
 
-// --- Live Display Vector Renderer & Telemetry ---
-function drawVectorPreview(d) {
- const cv = $("cvDisplay"); if(!cv) return;
- const ctx = cv.getContext("2d");
- const W = cv.width, H = cv.height, CX = W/2, CY = H/2, R = W/2 - 6;
- ctx.clearRect(0,0,W,H);
-
- // Dark background
- ctx.fillStyle = "#05080e";
- ctx.beginPath(); ctx.arc(CX,CY,CX,0,Math.PI*2); ctx.fill();
-
- const scr = d.screen !== undefined ? d.screen : 1;
-
- if (scr === 0) {
-  // === SCREEN 0: HODINY & ASTRO ===
-  const sec = d.sec || 0;
-  const secR = R - 2;
-  for (let s = 0; s < 60; s++) {
-   const ang = (s * 6 - 90) * Math.PI / 180;
-   const x = CX + secR * Math.cos(ang), y = CY + secR * Math.sin(ang);
-   ctx.fillStyle = (s <= sec) ? "#38bdf8" : "#1e293b";
-   ctx.beginPath(); ctx.arc(x, y, (s === sec) ? 2.5 : 1.2, 0, Math.PI*2); ctx.fill();
-  }
-
-  // Solar Twilight Arc
-  const arcR = R - 14;
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = "#0284c7"; ctx.beginPath(); ctx.arc(CX, CY, arcR, -0.6 * Math.PI, 0.4 * Math.PI); ctx.stroke();
-  ctx.strokeStyle = "#f59e0b"; ctx.beginPath(); ctx.arc(CX, CY, arcR, 0.4 * Math.PI, 0.55 * Math.PI); ctx.stroke();
-  ctx.strokeStyle = "#4338ca"; ctx.beginPath(); ctx.arc(CX, CY, arcR, 0.55 * Math.PI, 0.7 * Math.PI); ctx.stroke();
-  ctx.strokeStyle = "#0f172a"; ctx.beginPath(); ctx.arc(CX, CY, arcR, 0.7 * Math.PI, 1.4 * Math.PI); ctx.stroke();
-
-  // Screen dots inside
-  ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(CX, 35, 3, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle = "#475569";
-  for (let di = -2; di <= 2; di++) {
-   if (di !== 0) { ctx.beginPath(); ctx.arc(CX + di * 12, 35, 2.5, 0, Math.PI*2); ctx.stroke(); }
-  }
-
-  // Date text
-  ctx.fillStyle = "#94a3b8"; ctx.font = "bold 11px system-ui, sans-serif"; ctx.textAlign = "center";
-  const wd = ["NEDEĽA","PONDELOK","UTOROK","STREDA","ŠTVRTOK","PIATOK","SOBOTA"][d.wday||0];
-  ctx.fillText((wd + " " + (d.mday||1) + "." + (d.mon||1) + ".").toUpperCase(), CX, 68);
-
-  // Big Digital Clock
-  ctx.fillStyle = "#ffffff"; ctx.font = "bold 44px monospace, system-ui";
-  const tStr = d.time ? d.time.substring(0, 5) : "--:--";
-  ctx.fillText(tStr, CX, 130);
-
-  // Seconds sub-digits
-  ctx.fillStyle = "#38bdf8"; ctx.font = "bold 15px monospace";
-  ctx.fillText(":" + String(sec).padStart(2, '0'), CX, 154);
-
-  // Temperature & Weather
-  if (d.temp !== undefined) {
-   ctx.fillStyle = "#f8fafc"; ctx.font = "bold 16px system-ui";
-   ctx.fillText(d.temp + " °C", CX, 192);
-  }
-
-  // Moon icon & Illumination
-  const moonEmojis = ["🌑","🌒","🌓","🌔","🌕","🌖","🌗","🌘"];
-  const mEmoji = moonEmojis[d.moonPhase !== undefined ? d.moonPhase : 4] || "🌕";
-  const mName = d.moonName || "Mesiac";
-  const mIllum = (d.moonIllum !== undefined) ? ("  " + d.moonIllum + "%") : "";
-  ctx.fillStyle = "#e2e8f0"; ctx.font = "bold 13.5px system-ui";
-  ctx.fillText(mEmoji + " " + mName + mIllum, CX, 226);
-
- } else if (scr === 1 || scr === 3) {
-  // === SCREEN 1 (PLANES) / SCREEN 3 (TACTICAL) ===
-  const isTactical = (scr === 3);
-  const strokeCol = isTactical ? "#0284c7" : "#1e293b";
-  const radR = R - 10;
-
-  // Concentric range rings
-  ctx.strokeStyle = strokeCol; ctx.lineWidth = 1.2;
-  ctx.beginPath(); ctx.arc(CX, CY, radR, 0, Math.PI*2); ctx.stroke();
-  ctx.beginPath(); ctx.arc(CX, CY, radR * 0.66, 0, Math.PI*2); ctx.stroke();
-  ctx.beginPath(); ctx.arc(CX, CY, radR * 0.33, 0, Math.PI*2); ctx.stroke();
-
-  // Crosshair
-  ctx.beginPath(); ctx.moveTo(CX - radR, CY); ctx.lineTo(CX + radR, CY); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(CX, CY - radR); ctx.lineTo(CX, CY + radR); ctx.stroke();
-
-  // Tactical bearing ticks
-  if (isTactical) {
-   for (let deg = 0; deg < 360; deg += 30) {
-    const a = deg * Math.PI / 180;
-    ctx.beginPath();
-    ctx.moveTo(CX + (radR - 6) * Math.cos(a), CY + (radR - 6) * Math.sin(a));
-    ctx.lineTo(CX + radR * Math.cos(a), CY + radR * Math.sin(a));
-    ctx.stroke();
-   }
-  }
-
-  // Home Beacon
-  ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(CX, CY, 6, 0, Math.PI*2); ctx.stroke();
-  ctx.fillStyle = "#f59e0b"; ctx.beginPath(); ctx.arc(CX, CY, 3, 0, Math.PI*2); ctx.fill();
-
-  // Aircraft targets
-  if (d.aircraft && d.aircraft.length > 0) {
-   const clat = d.lat || 49.2011, clon = d.lon || 21.2442;
-   let rngKm = parseFloat(d.range) || 50.0; if (rngKm <= 0) rngKm = 50.0;
-   const tbRad = (d.topBearing || 0) * Math.PI / 180;
-
-   d.aircraft.forEach(ac => {
-    let dLat = (ac.lat - clat) * 111.0;
-    let dLon = (ac.lon - clon) * (111.0 * Math.cos(clat * 0.017453));
-    let rotX = dLon * Math.cos(-tbRad) - dLat * Math.sin(-tbRad);
-    let rotY = dLon * Math.sin(-tbRad) + dLat * Math.cos(-tbRad);
-
-    const px = CX + (rotX / rngKm) * radR;
-    const py = CY - (rotY / rngKm) * radR;
-    const distFromCenter = Math.hypot(px - CX, py - CY);
-
-    if (distFromCenter <= radR) {
-     const altM = ac.alt * 0.3048;
-     const col = ac.em ? "#ef4444" : (ac.alt > 30000) ? "#f43f5e" : (ac.alt > 15000) ? "#38bdf8" : "#22c55e";
-
-     ctx.fillStyle = col; ctx.strokeStyle = col; ctx.lineWidth = 1.5;
-     const trkRad = ((ac.trk || 0) - (d.topBearing || 0) - 90) * Math.PI / 180;
-     ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI*2); ctx.fill();
-
-     // Velocity vector line
-     ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + 14 * Math.cos(trkRad), py + 14 * Math.sin(trkRad)); ctx.stroke();
-
-     // Label
-     ctx.fillStyle = "#f1f5f9"; ctx.font = "bold 9px system-ui"; ctx.textAlign = "left";
-     let climbIco = (ac.climb > 300) ? " ▲" : (ac.climb < -300) ? " ▼" : "";
-     ctx.fillText((ac.call || ac.hex) + climbIco, px + 6, py + 3);
-
-     if (isTactical) {
-      ctx.fillStyle = "#94a3b8"; ctx.font = "8px monospace";
-      ctx.fillText(Math.round(altM) + "m", px + 6, py + 12);
-     }
-    }
-   });
-  }
-
-  // Header & Range
-  ctx.fillStyle = "#38bdf8"; ctx.font = "bold 11px system-ui"; ctx.textAlign = "center";
-  ctx.fillText(isTactical ? "TAKTIKA" : "LIETADLÁ", CX, 24);
-  ctx.fillStyle = "#94a3b8"; ctx.font = "10px monospace";
-  ctx.fillText(d.range || "50 km", CX, H - 16);
-
- } else if (scr === 2) {
-  // === SCREEN 2: METEORADAR ===
-  const radR = R - 10;
-  ctx.strokeStyle = "#047857"; ctx.lineWidth = 1.2;
-  ctx.beginPath(); ctx.arc(CX, CY, radR, 0, Math.PI*2); ctx.stroke();
-  ctx.beginPath(); ctx.arc(CX, CY, radR * 0.66, 0, Math.PI*2); ctx.stroke();
-  ctx.beginPath(); ctx.arc(CX, CY, radR * 0.33, 0, Math.PI*2); ctx.stroke();
-
-  // Radar beam sweep simulation
-  const nowMs = Date.now();
-  const sweepAngle = (nowMs % 4000) / 4000 * Math.PI * 2;
-  ctx.strokeStyle = "rgba(16, 185, 129, 0.4)"; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(CX, CY); ctx.lineTo(CX + radR * Math.cos(sweepAngle), CY + radR * Math.sin(sweepAngle)); ctx.stroke();
-
-  // Precipitation echoes simulation glow
-  ctx.fillStyle = "rgba(16, 185, 129, 0.15)";
-  ctx.beginPath(); ctx.arc(CX + 25, CY - 20, 35, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = "rgba(59, 130, 246, 0.2)";
-  ctx.beginPath(); ctx.arc(CX - 30, CY + 25, 45, 0, Math.PI*2); ctx.fill();
-
-  // Home Beacon
-  ctx.fillStyle = "#f59e0b"; ctx.beginPath(); ctx.arc(CX, CY, 4, 0, Math.PI*2); ctx.fill();
-
-  // Title & Scale
-  ctx.fillStyle = "#10b981"; ctx.font = "bold 12px system-ui"; ctx.textAlign = "center";
-  ctx.fillText("METEORADAR", CX, 24);
-  ctx.fillStyle = "#94a3b8"; ctx.font = "10px monospace";
-  ctx.fillText(d.range || "192 km", CX, H - 18);
-
-  // Precipitation color bar
-  const barW = 100, barH = 5, barX = CX - barW/2, barY = H - 32;
-  const grad = ctx.createLinearGradient(barX, barY, barX + barW, barY);
-  grad.addColorStop(0, "#0284c7"); grad.addColorStop(0.3, "#22c55e"); grad.addColorStop(0.7, "#eab308"); grad.addColorStop(1, "#ef4444");
-  ctx.fillStyle = grad; ctx.fillRect(barX, barY, barW, barH);
-
- } else if (scr === 4) {
-  // === SCREEN 4: PREDPOCEĎ POČASIA ===
-  ctx.fillStyle = "#38bdf8"; ctx.font = "bold 13px system-ui"; ctx.textAlign = "center";
-  ctx.fillText("PREDPOVEĎ POČASIA", CX, 24);
-
-  // Current Temp Hero
-  ctx.fillStyle = "#ffffff"; ctx.font = "bold 26px system-ui";
-  ctx.fillText((d.temp !== undefined ? d.temp : "--") + " °C", CX, 62);
-  ctx.fillStyle = "#94a3b8"; ctx.font = "11px system-ui";
-  ctx.fillText("Zrážky: " + (d.precip !== undefined ? d.precip : 0) + " mm  ·  AQI: " + (d.aqi !== undefined ? d.aqi : "--"), CX, 82);
-
-  // Hourly rows/cards
-  if (d.hours && d.hours.length > 0) {
-   const cardW = 38, startX = CX - (d.hours.length * (cardW + 4))/2;
-   d.hours.forEach((h, idx) => {
-    const x = startX + idx * (cardW + 4);
-    ctx.fillStyle = "#1e293b"; ctx.roundRect(x, 100, cardW, 65, 6); ctx.fill();
-    ctx.fillStyle = "#94a3b8"; ctx.font = "bold 10px system-ui"; ctx.fillText(h.h + "h", x + cardW/2, 114);
-    ctx.fillStyle = "#38bdf8"; ctx.font = "14px system-ui"; ctx.fillText("⛅", x + cardW/2, 134);
-    ctx.fillStyle = "#ffffff"; ctx.font = "bold 11px system-ui"; ctx.fillText(h.temp + "°", x + cardW/2, 155);
-   });
-  }
-
-  // 3-Day Forecast Footer
-  ctx.fillStyle = "#64748b"; ctx.font = "10.5px system-ui";
-  ctx.fillText("3-dňový výhľad: ☀️ Streda  ⛅ Štvrtok  🌧️ Piatok", CX, 200);
-
- } else if (scr === 5) {
-  // === SCREEN 5: NASTAVENIA ===
-  ctx.fillStyle = "#22c55e"; ctx.font = "bold 13px system-ui"; ctx.textAlign = "center";
-  ctx.fillText("NASTAVENIA", CX, 26);
-
-  // Compass Dial
-  ctx.strokeStyle = "#334155"; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(CX, 105, 45, 0, Math.PI*2); ctx.stroke();
-  const tbRad = (d.topBearing || 0) * Math.PI / 180 - Math.PI/2;
-  ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.moveTo(CX, 105); ctx.lineTo(CX + 35 * Math.cos(tbRad), 105 + 35 * Math.sin(tbRad)); ctx.stroke();
-  ctx.fillStyle = "#ffffff"; ctx.font = "bold 11px monospace";
-  ctx.fillText((d.topBearing || 0) + "° HORE", CX, 165);
-
-  // Alias H4CKR4
-  ctx.fillStyle = "#22c55e"; ctx.font = "bold 14px monospace";
-  ctx.fillText("H4CKR4", CX, 215);
-  ctx.fillStyle = "#64748b"; ctx.font = "10px system-ui";
-  ctx.fillText("MeteoPlaneRadar v1.2.0", CX, 235);
- }
-}
-
-async function updateLiveTelemetry(){
- if(TAB !== "tCtl") return;
- try{
-  const r = await fetch("/api/live"); if(!r.ok) return;
-  const d = await r.json();
-  drawVectorPreview(d);
-  if(d.range && $("rangeNow")) $("rangeNow").textContent = d.range;
-  if($("radarTargetBadge")){
-   if(d.screen === 0) {
-    $("radarTargetBadge").textContent = D[L].scrClock || "Hodiny & Astro";
-   } else if(d.screen === 2) {
-    $("radarTargetBadge").textContent = D[L].scrMeteo || "Meteoradar";
-   } else if(d.screen === 4) {
-    $("radarTargetBadge").textContent = D[L].scrForecast || "Predpoveď počasia";
-   } else if(d.screen === 5) {
-    $("radarTargetBadge").textContent = D[L].scrSettings || "Nastavenia";
-   } else if(d.aircraft && d.aircraft.length > 0) {
-    const clat = d.lat || 49.2011, clon = d.lon || 21.2442;
-    let closest = null, minD = 999999;
-    d.aircraft.forEach(ac => {
-     const dLat = (ac.lat - clat) * 111.0;
-     const dLon = (ac.lon - clon) * (111.0 * Math.cos(clat * 0.017453));
-     const gndD = Math.sqrt(dLat * dLat + dLon * dLon);
-     if(gndD < minD){ minD = gndD; closest = ac; }
-    });
-    if(closest){
-     $("radarTargetBadge").textContent = "✈ " + (closest.call || closest.hex) + " · " + minD.toFixed(1) + " km · " + Math.round(closest.alt * 0.3048) + " m";
-    }
-   } else {
-    $("radarTargetBadge").textContent = D[L].radarNoPlanes || "✈ 0 lietadiel v dosahu";
-   }
-  }
- }catch(e){}
-}
-setInterval(updateLiveTelemetry, 2000);
 
 // --- Realtime Hardware Diagnostics ---
 async function updateHardware(){
@@ -977,7 +702,8 @@ async function load(){
  $("sClock").checked=CFG.screens.clock;$("sPlanes").checked=CFG.screens.planes;
  $("sMeteo").checked=CFG.screens.meteo;$("sTactical").checked=CFG.screens.tactical;$("sForecast").checked=CFG.screens.forecast;
  $("autoRotate").value=CFG.autoRotate;$("radarSrc").value=CFG.radarSrc;
- if($("showLegends")) $("showLegends").checked=!!CFG.showLegends;
+  if($("showLegends")) $("showLegends").checked=!!CFG.showLegends;
+  if($("smoothRadar")) $("smoothRadar").checked=CFG.smoothRadar!==false;
  $("briDay").value=CFG.briDay;$("briNight").value=CFG.briNight;
  $("nightAuto").checked=CFG.nightAuto;$("nightOffset").value=CFG.nightOffset;
  $("secStyle").value=CFG.secStyle;$("metric").checked=CFG.metric;$("topBearing").value=CFG.topBearing;
@@ -997,7 +723,7 @@ async function load(){
  pwState();
  $("onlyCallsign").checked=CFG.onlyCallsign;$("squawkAlert").checked=CFG.squawkAlert;$("watch").value=CFG.watch||"";
  $("wifiHintTxt").textContent=CFG.apMode?D[L].wifiHint:D[L].wifiHintSta;
- bri();wireAutoSave();status();updateLiveTelemetry();updateHardware();
+ bri();wireAutoSave();status();updateHardware();
 }
 
 function pwState(){
@@ -1032,6 +758,7 @@ function body(){return{
  squawkAlert:$("squawkAlert").checked,watch:$("watch").value.trim(),
  autoRotate:+$("autoRotate").value,radarSrc:+$("radarSrc").value,
  showLegends:$("showLegends")?$("showLegends").checked:true,
+ smoothRadar:$("smoothRadar")?$("smoothRadar").checked:true,
   clockStyle:$("clockStyle")?+$("clockStyle").value:0,
   cDate:$("cDate")?$("cDate").checked:true,
   cWx:$("cWx")?$("cWx").checked:true,

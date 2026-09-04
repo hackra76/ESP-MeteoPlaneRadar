@@ -44,12 +44,12 @@
 #define COMPASS_CY   252
 #define COMPASS_R     24
 
-#define BTN_X   90
-#define BTN_W   300
-#define BTN_H    36
-#define BTN0_Y  288        // units
-#define BTN1_Y  330        // language
-#define BTN2_Y  372        // forget WiFi
+#define BTN_L_X   75
+#define BTN_R_X  245
+#define BTN_W    160
+#define BTN_H     36
+#define BTN_R1_Y 286        // Row 1: Units (left) & Smooth (right)
+#define BTN_R2_Y 334        // Row 2: Language (left) & Forget WiFi (right)
 
 static bool s_wantsWifiReset = false;
 
@@ -95,22 +95,33 @@ bool ScreenSettings_HandleTap(int x, int y) {
       return true;
     }
   }
-  if (x < BTN_X || x > BTN_X + BTN_W) return false;
 
-  if (y >= BTN0_Y && y <= BTN0_Y + BTN_H) {
-    Settings_SetMetricUnits(!Settings_MetricUnits());
-    return true;
+  // Row 1: Units (left) & Smooth (right)
+  if (y >= BTN_R1_Y && y <= BTN_R1_Y + BTN_H) {
+    if (x >= BTN_L_X && x <= BTN_L_X + BTN_W) {
+      Settings_SetMetricUnits(!Settings_MetricUnits());
+      return true;
+    }
+    if (x >= BTN_R_X && x <= BTN_R_X + BTN_W) {
+      Settings_SetSmoothRadar(!Settings_SmoothRadar());
+      return true;
+    }
   }
-  if (y >= BTN1_Y && y <= BTN1_Y + BTN_H) {
-    uint8_t cur = Lang_Get();
-    uint8_t nextLang = (cur == LANG_CZ) ? LANG_SK : ((cur == LANG_SK) ? LANG_EN : LANG_CZ);
-    Settings_SetLanguage(nextLang);
-    return true;
+
+  // Row 2: Language (left) & Forget WiFi (right)
+  if (y >= BTN_R2_Y && y <= BTN_R2_Y + BTN_H) {
+    if (x >= BTN_L_X && x <= BTN_L_X + BTN_W) {
+      uint8_t cur = Lang_Get();
+      uint8_t nextLang = (cur == LANG_CZ) ? LANG_SK : ((cur == LANG_SK) ? LANG_EN : LANG_CZ);
+      Settings_SetLanguage(nextLang);
+      return true;
+    }
+    if (x >= BTN_R_X && x <= BTN_R_X + BTN_W) {
+      s_wantsWifiReset = true;
+      return true;
+    }
   }
-  if (y >= BTN2_Y && y <= BTN2_Y + BTN_H) {
-    s_wantsWifiReset = true;
-    return true;
-  }
+
   return false;
 }
 
@@ -182,20 +193,29 @@ void ScreenSettings_Draw() {
     UI_Text(Lang_Get() == LANG_EN ? "N" : "S", lx, ly, C_WHITE, 1);
   }
 
-  // --- Buttons ---
-  gfx->fillRoundRect(BTN_X, BTN0_Y, BTN_W, BTN_H, 10, C_GRAY);
-  UI_TextCentered(Settings_MetricUnits() ? T(S_UNITS_METRIC) : T(S_UNITS_AVIA),
-                  BTN0_Y + BTN_H / 2 - 8, C_BLACK, 2);
+  // --- Buttons (2x2 grid to preserve ample room above H4CKR4) ---
+  // Row 1: Units & Radar Smoothing
+  gfx->fillRoundRect(BTN_L_X, BTN_R1_Y, BTN_W, BTN_H, 10, C_GRAY);
+  UI_TextCenteredIn(Settings_MetricUnits() ? T(S_UNITS_METRIC) : T(S_UNITS_AVIA),
+                    BTN_L_X, BTN_W, BTN_R1_Y + BTN_H / 2 - 8, C_BLACK, 2);
 
-  gfx->fillRoundRect(BTN_X, BTN1_Y, BTN_W, BTN_H, 12, C_CYAN);
-  const char* langBtn = (Lang_Get() == LANG_EN) ? "Language: English"
-                      : ((Lang_Get() == LANG_SK) ? "Jazyk: slovenčina" : "Jazyk: čeština");
-  UI_TextCentered(langBtn, BTN1_Y + BTN_H / 2 - 8, C_BLACK, 2);
+  bool sm = Settings_SmoothRadar();
+  gfx->fillRoundRect(BTN_R_X, BTN_R1_Y, BTN_W, BTN_H, 10, sm ? 0x05E0 : C_DKGRAY);
+  const char* smBtn = (Lang_Get() == LANG_EN) ? (sm ? "Smooth: ON" : "Smooth: OFF")
+                    : ((Lang_Get() == LANG_SK) ? (sm ? "Vyhlad.: ZAP" : "Vyhlad.: VYP")
+                                               : (sm ? "Vyhlaz.: ZAP" : "Vyhlaz.: VYP"));
+  UI_TextCenteredIn(smBtn, BTN_R_X, BTN_W, BTN_R1_Y + BTN_H / 2 - 8, sm ? C_BLACK : C_WHITE, 2);
 
-  gfx->fillRoundRect(BTN_X, BTN2_Y, BTN_W, BTN_H, 12, C_ORANGE);
-  const char* forgetWifiBtn = (Lang_Get() == LANG_EN) ? "Forget WiFi"
-                            : ((Lang_Get() == LANG_SK) ? "Zabudnúť WiFi" : "Zapomenout WiFi");
-  UI_TextCentered(forgetWifiBtn, BTN2_Y + BTN_H / 2 - 8, C_BLACK, 2);
+  // Row 2: Language & Forget WiFi
+  gfx->fillRoundRect(BTN_L_X, BTN_R2_Y, BTN_W, BTN_H, 10, C_CYAN);
+  const char* langBtn = (Lang_Get() == LANG_EN) ? "English"
+                      : ((Lang_Get() == LANG_SK) ? "Slovencina" : "Cestina");
+  UI_TextCenteredIn(langBtn, BTN_L_X, BTN_W, BTN_R2_Y + BTN_H / 2 - 8, C_BLACK, 2);
+
+  gfx->fillRoundRect(BTN_R_X, BTN_R2_Y, BTN_W, BTN_H, 10, C_ORANGE);
+  const char* forgetWifiBtn = (Lang_Get() == LANG_EN) ? "Reset WiFi"
+                            : ((Lang_Get() == LANG_SK) ? "Reset WiFi" : "Reset WiFi");
+  UI_TextCenteredIn(forgetWifiBtn, BTN_R_X, BTN_W, BTN_R2_Y + BTN_H / 2 - 8, C_BLACK, 2);
 
   UI_TextCentered("H4CKR4", LY_FOOTER, C_GREEN, 2);
 }

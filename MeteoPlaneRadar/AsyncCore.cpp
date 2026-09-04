@@ -13,9 +13,11 @@
 #include "Settings.h"
 #include "ADSB.h"
 #include "CHMU.h"
+#include "SHMU.h"
 #include "RainViewer.h"
 #include "Forecast.h"
 #include "Route.h"
+#include "PlanePhoto.h"
 #include "Outside.h"
 #include "WebConfig.h"
 #include "WiFiPortal.h"
@@ -118,6 +120,7 @@ static void asyncWorkerTask(void* param) {
   unsigned long lastAdsbFetch = 0;
   unsigned long lastForecastFetch = 0;
   unsigned long lastOutsideFetch = 0;
+  unsigned long lastRadarFetch = 0;
 
   Serial.println("AsyncCore: Worker task running on Core 0");
 
@@ -141,9 +144,10 @@ static void asyncWorkerTask(void* param) {
       const bool planesActive = (curScr == SCREEN_PLANES_I || curScr == SCREEN_TACTICAL_I);
       const bool rvBusy = RainViewer_Busy();
 
-      // Clear background route lookup queue when leaving aircraft screens
+      // Clear background route lookup queue and photo when leaving aircraft screens
       if (!planesActive) {
         Route_ClearQueue();
+        PlanePhoto_Clear();
       }
 
       // Fast clock sync on first WiFi connect if time is not yet valid from RTC
@@ -174,6 +178,25 @@ static void asyncWorkerTask(void* param) {
           if (Route_TakeChanged()) {
             s_routeUpdated = true;
           }
+        }
+        // 2b. Pending Plane Photo Lookups
+        else if (planesActive && (now - lastAdsbFetch >= 1000) && PlanePhoto_HasPending()) {
+          PlanePhoto_Tick();
+          lastTlsTime = millis();
+          if (PlanePhoto_TakeChanged()) {
+            s_routeUpdated = true;
+          }
+        }
+        // 2c. Tactical Radar Fetch for CHMU / SHMU (when on Tactical screen and not RainViewer)
+        else if ((curScr == SCREEN_TACTICAL_I) && (Settings_RadarSource() != RADAR_SRC_RAINVIEWER) &&
+                 (s_reqRadar || (now - lastRadarFetch >= TACTICAL_RADAR_PERIOD_MS))) {
+          s_reqRadar = false;
+          lastRadarFetch = now;
+          int n = (Settings_RadarSource() == RADAR_SRC_SHMU) ? SHMU_FetchAnim(1) : CHMU_FetchAnim(1);
+          if (n > 0) {
+            s_radarUpdated = true;
+          }
+          lastTlsTime = millis();
         }
         // 3. ADS-B Aircraft Fetching (when on Planes or Tactical screen, or requested)
         else if ((planesActive && (now - lastAdsbFetch >= adsbPeriod)) || s_reqAdsb) {
@@ -219,11 +242,11 @@ void Async_Begin() {
   if (!s_mtxForecast) s_mtxForecast = xSemaphoreCreateMutex();
   if (!s_mtxRoute)    s_mtxRoute    = xSemaphoreCreateMutex();
 
-  // Create background network worker task on Core 0 with 8KB stack
+  // Create background network worker task on Core 0 with 24KB stack
   BaseType_t res = xTaskCreatePinnedToCore(
     asyncWorkerTask,
     "AsyncNetWorker",
-    8192,
+    24576, // 24KB stack (safe for deep mbedTLS handshake + JSON parsing)
     NULL,
     1, // Priority 1 (idle is 0, UI on Core 1 is 1)
     &s_netTaskHandle,

@@ -74,8 +74,10 @@ uint16_t Settings_AutoRotateSec();
 void     Settings_SetAutoRotateSec(uint16_t s);
 
 // --- Weather radar ----------------------------------------------------------
-uint8_t Settings_RadarSource();            // RADAR_SRC_CHMU / RADAR_SRC_RAINVIEWER
+uint8_t Settings_RadarSource();            // RADAR_SRC_CHMU / RADAR_SRC_RAINVIEWER / RADAR_SRC_SHMU
 void    Settings_SetRadarSource(uint8_t s);
+bool    Settings_SmoothRadar();
+void    Settings_SetSmoothRadar(bool en);
 
 // --- Clock appearance -------------------------------------------------------
 uint8_t  Settings_SecondsStyle();          // SEC_STYLE_*

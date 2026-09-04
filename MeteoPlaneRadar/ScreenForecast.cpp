@@ -22,13 +22,8 @@
 
 #define CX (LCD_WIDTH / 2)
 
-// Vertical stack. The hourly block is denser than the daily one - six rows have
-// to fit where the circle is still narrowing, so they get less height each.
-//
-// Every number is size 2 with its unit in size 1 beside it: full-size units
-// would force the numbers down to an unreadable size, and bare numbers at the
-// end of a row mean nothing to the reader.
-#define HOUR_Y0    58
+// Vertical stack. Shifted down to be vertically centered on the round display.
+#define HOUR_Y0    78
 #define HOUR_H     26
 #define SEP_Y      (HOUR_Y0 + FORECAST_HOURS * HOUR_H + 4)
 #define DAY_Y0     (SEP_Y + 7)
@@ -36,17 +31,12 @@
 #define AQ_Y0      (DAY_Y0 + FORECAST_DAYS * DAY_H + 8)
 #define AQ_H       22     // line spacing in the air-quality block
 
-// Columns, measured from the centre. The narrowest row is the top one, where
-// the chord is about 320 px, so everything has to live inside +/-160.
-//
-// The temperature-to-precipitation gap fits the worst case on a DAY row:
-// "-12/-19" is 84 px. Any tighter and the precipitation would be dropped on
-// exactly the cold days you want it.
-#define COL_LABEL  (CX - 150)
-#define COL_ICON   (CX - 104)
-#define COL_TEMP   (CX -  80)
-#define COL_PRECIP (CX +  16)
-#define COL_WIND   (CX +  92)
+// Columns, measured from the centre. Perfectly balanced left-right (85 px margins).
+#define COL_LABEL  (CX - 155)
+#define COL_ICON   (CX - 105)
+#define COL_TEMP   (CX -  75)
+#define COL_PRECIP (CX +  15)
+#define COL_WIND   (CX +  85)
 
 static unsigned long s_lastSeen = 0;
 

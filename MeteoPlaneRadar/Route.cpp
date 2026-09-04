@@ -239,16 +239,20 @@ static int getJson(const char* url, JsonDocument& filter, JsonDocument& doc) {
   http.setConnectTimeout(6000);
   http.setTimeout(8000);
   http.setReuse(false);
-  if (!http.begin(client, url)) return -1000;
-  // POZOR: setUserAgent(), NE addHeader(). ESP32 HTTPClient::addHeader() mlcky
-  // zahodi Connection, Host, Accept-Encoding a prave User-Agent - vidi je jako
-  // "handled by code" a nic nenahlasi. Nez se na to prislo, odchazela porad
-  // vychozi "ESP32HTTPClient", adsb.lol na ni vracelo 403 "User-Agent too
-  // generic" a v logu pritom svitila hlavicka, kterou nikdo neposlal.
+  if (!http.begin(client, url)) {
+    client.stop();
+    return -1000;
+  }
   http.setUserAgent(HTTP_USER_AGENT);
   http.addHeader("Accept", "application/json");
   int code = http.GET();
-  if (code != HTTP_CODE_OK) { http.end(); client.stop(); return code; }
+  if (code != HTTP_CODE_OK) {
+    while (client.available()) client.read();
+    http.end();
+    client.stop();
+    delay(50);
+    return code;
+  }
   // Buffer the body first. http.getStream() is the RAW socket and does not
   // strip chunked encoding, so parsing straight off it would read the hex
   // block size as a value and report Ok on an empty document - the same
@@ -258,11 +262,18 @@ static int getJson(const char* url, JsonDocument& filter, JsonDocument& doc) {
   if (!s_buf) {
     s_buf = (uint8_t*)heap_caps_malloc(ROUTE_MAX, MALLOC_CAP_SPIRAM);
     if (!s_buf) s_buf = (uint8_t*)malloc(ROUTE_MAX);
-    if (!s_buf) { http.end(); client.stop(); return -1002; }
+    if (!s_buf) {
+      while (client.available()) client.read();
+      http.end();
+      client.stop();
+      return -1002;
+    }
   }
   long len = Net_ReadBody(http, s_buf, ROUTE_MAX, "ROUTE", s_poll);
+  while (client.available()) client.read();
   http.end();
   client.stop();
+  delay(100);    // Give LwIP TCP stack time to settle the FIN/ACK handshake!
   if (len <= 0) return -1001;
 
   DeserializationError err = deserializeJson(doc, s_buf, (size_t)len,
@@ -271,9 +282,9 @@ static int getJson(const char* url, JsonDocument& filter, JsonDocument& doc) {
 }
 
 void Route_Tick() {
-  // Rate-limit route queries so rapid retries don't exhaust TLS heap
+  // Rate-limit route queries to 3.5s so rapid retries don't churn TCP sockets
   static uint32_t s_lastQueryMs = 0;
-  if (millis() - s_lastQueryMs < 1500) return;
+  if (millis() - s_lastQueryMs < 3500) return;
 
   // If the main slot is idle, promote a queued background lookup.
   if (!s_pending && s_queuePending) {
@@ -286,12 +297,13 @@ void Route_Tick() {
       s_queueKey[0] = '\0';
       // Check cache first
       Entry* e = find(s_wantKey);
-      if (e && !expired(e)) {
+      if (e && expired(e)) { *e = Entry(); e = nullptr; }
+      if (e) {
         s_wantKey[0] = '\0';   // already cached, nothing to do
         Async_UnlockRoute();
         return;
       }
-      if (!e) insert(s_wantKey);
+      insert(s_wantKey);
       s_pending = true;
     }
     Async_UnlockRoute();
@@ -332,10 +344,14 @@ void Route_Tick() {
     // Nesmime zaznam jen tak smazat (*e = Entry()), protoze radar v kazdem snimku
     // letadlo znovu zaradi do fronty a zpusobi nekonecnou smycku HTTPS dotazu,
     // ktera vycerpa TLS pamet (-32512) a schodi i radar RainVieweru.
-    char key[12]; strncpy(key, e->key, sizeof(key)); key[sizeof(key) - 1] = '\0';
-    e->state = ROUTE_NONE;
-    e->stamp = millis();
-    Serial.printf("TRASA %s: dotaz selhal (%d), odlozeno o 1 min\n", key, code);
+    Async_LockRoute();
+    Entry* cur = find(s_wantKey);
+    if (cur) {
+      cur->state = ROUTE_NONE;
+      cur->stamp = millis();
+    }
+    Async_UnlockRoute();
+    Serial.printf("TRASA %s: dotaz selhal (%d), odlozeno o 1 min\n", s_wantKey, code);
     return;
   }
 
@@ -346,8 +362,11 @@ void Route_Tick() {
   bool plausible = doc["plausible"] | false;
 
   if (strcmp(codes, "unknown") == 0 || !plausible) {
-    e->state = ROUTE_NONE; e->stamp = millis();
-    Serial.printf("TRASA %s: %s\n", e->key,
+    Async_LockRoute();
+    Entry* cur = find(s_wantKey);
+    if (cur) { cur->state = ROUTE_NONE; cur->stamp = millis(); }
+    Async_UnlockRoute();
+    Serial.printf("TRASA %s: %s\n", s_wantKey,
                   strcmp(codes, "unknown") == 0 ? "neni v databazi"
                                                 : "nalezena, ale neverohodna k poloze");
     return;
@@ -356,9 +375,11 @@ void Route_Tick() {
   JsonArrayConst aps = doc["_airports"].as<JsonArrayConst>();
   int n = aps.isNull() ? 0 : (int)aps.size();
   if (n < 2) {
-    // Kody trasy jsou, ale letiste se v databazi nenasla - neni co popsat.
-    e->state = ROUTE_NONE; e->stamp = millis();
-    Serial.printf("TRASA %s: %s (letiste chybi)\n", e->key, codes);
+    Async_LockRoute();
+    Entry* cur = find(s_wantKey);
+    if (cur) { cur->state = ROUTE_NONE; cur->stamp = millis(); }
+    Async_UnlockRoute();
+    Serial.printf("TRASA %s: %s (letiste chybi)\n", s_wantKey, codes);
     return;
   }
 
@@ -375,19 +396,28 @@ void Route_Tick() {
     }
   }
 
-  airportLabel(e->info.from, sizeof(e->info.from), aps[best]);
-  airportLabel(e->info.to,   sizeof(e->info.to),   aps[best + 1]);
-  airportIata(e->info.iataFrom, sizeof(e->info.iataFrom), aps[best]);
-  airportIata(e->info.iataTo,   sizeof(e->info.iataTo),   aps[best + 1]);
+  RouteInfo info;
+  memset(&info, 0, sizeof(info));
+  airportLabel(info.from, sizeof(info.from), aps[best]);
+  airportLabel(info.to,   sizeof(info.to),   aps[best + 1]);
+  airportIata(info.iataFrom, sizeof(info.iataFrom), aps[best]);
+  airportIata(info.iataTo,   sizeof(info.iataTo),   aps[best + 1]);
 
-  bool any = (e->info.from[0] || e->info.to[0]);
-  e->state = any ? ROUTE_OK : ROUTE_NONE;
-  e->stamp = millis();   // od ted bezi platnost, viz expired()
-  Serial.printf("TRASA %s: %s -> %s [%s>%s] (%s, usek %d/%d)\n", e->key,
-                e->info.from[0] ? e->info.from : "?",
-                e->info.to[0]   ? e->info.to   : "?",
-                e->info.iataFrom[0] ? e->info.iataFrom : "?",
-                e->info.iataTo[0]   ? e->info.iataTo   : "?",
+  bool any = (info.from[0] || info.to[0]);
+  Async_LockRoute();
+  Entry* cur = find(s_wantKey);
+  if (cur) {
+    cur->info = info;
+    cur->state = any ? ROUTE_OK : ROUTE_NONE;
+    cur->stamp = millis();   // od ted bezi platnost, viz expired()
+  }
+  Async_UnlockRoute();
+
+  Serial.printf("TRASA %s: %s -> %s [%s>%s] (%s, usek %d/%d)\n", s_wantKey,
+                info.from[0] ? info.from : "?",
+                info.to[0]   ? info.to   : "?",
+                info.iataFrom[0] ? info.iataFrom : "?",
+                info.iataTo[0]   ? info.iataTo   : "?",
                 codes, best + 1, n - 1);
 }
 

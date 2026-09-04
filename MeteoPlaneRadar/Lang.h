@@ -56,6 +56,8 @@
   X(S_FROM,          "Z",                  "Z",                  "Z",                  "Z",                  "From") \
   X(S_TO,            "Do",                 "Do",                 "Do",                 "Do",                 "To") \
   X(S_ROUTE_WAIT,    "zjistuji trasu",     "zjišťuji trasu",     "zistujem trasu",     "zisťujem trasu",     "looking up route") \
+  X(S_PHOTO_WAIT,    "nacitam foto...",    "načítám foto...",    "nacitavam foto...",  "načítavam foto...",  "loading photo...") \
+  X(S_NO_PHOTO,      "bez fotografie",     "bez fotografie",     "bez fotografie",     "bez fotografie",     "no photo") \
   X(S_SIGNAL_LOST,   "signal ztracen",     "signál ztracen",     "signal strateny",    "signál stratený",    "signal lost") \
   X(S_UNKNOWN,       "neznamy",            "neznámý",            "neznamy",            "neznámy",            "unknown") \
   X(S_EMERGENCY,     "NOUZE",              "NOUZE",              "NUDZA",              "NÚDZA",              "EMERGENCY") \
@@ -76,7 +78,8 @@
   X(S_POLLEN,        "Pyl",                "Pyl",                "Pel",                "Peľ",                "Pollen") \
   X(S_TODAY,         "dnes",               "dnes",               "dnes",               "dnes",               "today") \
   X(S_LAT_LABEL,     "Zemepisna sirka",    "Zeměpisná šířka",    "Zemepisna sirka",    "Zemepisná šírka",    "Latitude") \
-  X(S_LON_LABEL,     "Zemepisna delka",    "Zeměpisná délka",    "Zemepisna dlzka",    "Zemepisná dĺžka",    "Longitude")
+  X(S_LON_LABEL,     "Zemepisna delka",    "Zeměpisná délka",    "Zemepisna dlzka",    "Zemepisná dĺžka",    "Longitude") \
+  X(S_SMOOTH_RADAR,  "Vyhlazeni radaru",   "Vyhlazení radaru",   "Vyhladenie radaru",  "Vyhladenie radaru",  "Radar smoothing")
 
 enum StrId : uint16_t {
 #define X(id, cz, czw, sk, skw, en) id,

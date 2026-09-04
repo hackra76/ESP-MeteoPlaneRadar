@@ -9,6 +9,7 @@
 #include "Lang.h"
 #include "UI.h"
 #include "Layout.h"
+#include "AsyncCore.h"
 
 extern void gotoScreen(int idx);
 
@@ -86,11 +87,18 @@ void QuickControl_Draw(int currentScreen) {
     drawButton(CW_X + 186, y4, 158, 34, Settings_AutoRotateBearing() ? "Auto-rotácia: ZAP" : "Auto-rotácia: VYP", Settings_AutoRotateBearing());
   } else if (currentScreen == SCREEN_TACTICAL_I) {
     drawButton(CW_X + 16,  y3, 158, 34, Settings_RadarShowTrails()   ? "Trasy: ZAP"   : "Trasy: VYP",   Settings_RadarShowTrails());
-    drawButton(CW_X + 186, y3, 158, 34, Settings_RadarSource() == RADAR_SRC_RAINVIEWER ? "Zdroj: RainViewer" : "Zdroj: CHMU/SHMU", false);
-    drawButton(CW_X + 16,  y4, 158, 34, Settings_RadarShowAirports() ? "Letiská: ZAP" : "Letiská: VYP", Settings_RadarShowAirports());
-    drawButton(CW_X + 186, y4, 158, 34, Settings_AutoRotateBearing() ? "Auto-rotácia: ZAP" : "Auto-rotácia: VYP", Settings_AutoRotateBearing());
+    const char* tSrc = (Settings_RadarSource() == RADAR_SRC_SHMU) ? "Zdroj: SHMU" :
+                       (Settings_RadarSource() == RADAR_SRC_RAINVIEWER) ? "Zdroj: RainViewer" : "Zdroj: CHMU";
+    drawButton(CW_X + 186, y3, 158, 34, tSrc, false);
+    const char* smLabel = Settings_SmoothRadar() ? "Vyhladenie: ZAP" : "Vyhladenie: VYP";
+    drawButton(CW_X + 16,  y4, 158, 34, smLabel, Settings_SmoothRadar(), 0x07E0);
+    drawButton(CW_X + 186, y4, 158, 34, Settings_RadarShowAirports() ? "Letiská: ZAP" : "Letiská: VYP", Settings_RadarShowAirports());
   } else if (currentScreen == SCREEN_METEO_I) {
-    drawButton(CW_X + 16,  y3, CW_W - 32, 34, Settings_RadarSource() == RADAR_SRC_RAINVIEWER ? "Zdroj: RainViewer" : "Zdroj: CHMU / SHMU", false);
+    const char* mSrc = (Settings_RadarSource() == RADAR_SRC_SHMU) ? "Zdroj: SHMU" :
+                       (Settings_RadarSource() == RADAR_SRC_RAINVIEWER) ? "Zdroj: RainViewer" : "Zdroj: CHMU";
+    drawButton(CW_X + 16,  y3, 158, 34, mSrc, false);
+    const char* smLabel = Settings_SmoothRadar() ? "Vyhladenie: ZAP" : "Vyhladenie: VYP";
+    drawButton(CW_X + 186, y3, 158, 34, smLabel, Settings_SmoothRadar(), 0x07E0);
     drawButton(CW_X + 16,  y4, CW_W - 32, 34, "Prepnúť radarový zdroj", true, 0x07E0);
   } else if (currentScreen == SCREEN_CLOCK_I) {
     const char* cStyle = "Ciferník: Digitálny";
@@ -205,25 +213,45 @@ bool QuickControl_HandleTap(int x, int y, int currentScreen) {
         return true;
       }
       if (x >= CW_X + 186 && x <= CW_X + 344) {
-        uint8_t nextSrc = (Settings_RadarSource() == RADAR_SRC_RAINVIEWER) ? RADAR_SRC_CHMU : RADAR_SRC_RAINVIEWER;
+        uint8_t curSrc = Settings_RadarSource();
+        uint8_t nextSrc = (curSrc == RADAR_SRC_CHMU) ? RADAR_SRC_SHMU :
+                          (curSrc == RADAR_SRC_SHMU) ? RADAR_SRC_RAINVIEWER : RADAR_SRC_CHMU;
         Settings_SetRadarSource(nextSrc);
+        Async_RequestRadar();
         return true;
       }
     }
     if (y >= y4 && y <= y4 + 34) {
       if (x >= CW_X + 16 && x <= CW_X + 174) {
-        Settings_SetRadarShowAirports(!Settings_RadarShowAirports());
+        Settings_SetSmoothRadar(!Settings_SmoothRadar());
         return true;
       }
       if (x >= CW_X + 186 && x <= CW_X + 344) {
-        Settings_SetAutoRotateBearing(!Settings_AutoRotateBearing());
+        Settings_SetRadarShowAirports(!Settings_RadarShowAirports());
         return true;
       }
     }
   } else if (currentScreen == SCREEN_METEO_I) {
-    if ((y >= y3 && y <= y3 + 34) || (y >= y4 && y <= y4 + 34)) {
-      uint8_t nextSrc = (Settings_RadarSource() == RADAR_SRC_RAINVIEWER) ? RADAR_SRC_CHMU : RADAR_SRC_RAINVIEWER;
+    if (y >= y3 && y <= y3 + 34) {
+      if (x >= CW_X + 16 && x <= CW_X + 174) {
+        uint8_t curSrc = Settings_RadarSource();
+        uint8_t nextSrc = (curSrc == RADAR_SRC_CHMU) ? RADAR_SRC_SHMU :
+                          (curSrc == RADAR_SRC_SHMU) ? RADAR_SRC_RAINVIEWER : RADAR_SRC_CHMU;
+        Settings_SetRadarSource(nextSrc);
+        Async_RequestRadar();
+        return true;
+      }
+      if (x >= CW_X + 186 && x <= CW_X + 344) {
+        Settings_SetSmoothRadar(!Settings_SmoothRadar());
+        return true;
+      }
+    }
+    if (y >= y4 && y <= y4 + 34) {
+      uint8_t curSrc = Settings_RadarSource();
+      uint8_t nextSrc = (curSrc == RADAR_SRC_CHMU) ? RADAR_SRC_SHMU :
+                        (curSrc == RADAR_SRC_SHMU) ? RADAR_SRC_RAINVIEWER : RADAR_SRC_CHMU;
       Settings_SetRadarSource(nextSrc);
+      Async_RequestRadar();
       return true;
     }
   } else if (currentScreen == SCREEN_CLOCK_I) {

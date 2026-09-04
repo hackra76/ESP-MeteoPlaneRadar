@@ -83,6 +83,7 @@
 #include "ADSB.h"
 #include "ScreenPlanes.h"
 #include "CHMU.h"
+#include "SHMU.h"
 #include "RainViewer.h"
 #include "ScreenWeather.h"
 #include "ScreenTactical.h"
@@ -583,7 +584,7 @@ void setup() {
   delay(300);
   Serial.printf("\n=== MeteoPlaneRadar v%s ===\n", FW_VERSION);
   Serial.printf("Duvod restartu: %s\n", resetReasonText());
-  Serial.printf("Volna pamet: %u B\n", (unsigned)ESP.getFreeHeap());
+  Serial.printf("Volna pamet: internal %u B, PSRAM %u B\n", (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getFreePsram());
 
   Watchdog_Begin();          // initialize hardware task watchdog early
   Settings_Begin();          // also sets the interface language
@@ -650,6 +651,7 @@ void setup() {
 
   ADSB_SetPollFn(netPoll);
   CHMU_SetPollFn(netPoll);
+  SHMU_SetPollFn(netPoll);
   Net_SetPollFn(netPoll);
   RainViewer_SetPollFn(netPoll);
   Route_SetPollFn(netPoll);
@@ -851,12 +853,15 @@ void loop() {
     QMI8658_GetData(&qd);
     float gPlane = sqrtf(qd.ax * qd.ax + qd.ay * qd.ay);
     if (gPlane >= 0.45f) {
-      float angleRad = atan2f(qd.ax, -qd.ay);
+      // In default upright position, ax ≈ +1.0g, ay ≈ 0.
+      // Using atan2f(ay, ax) gives 0 deg (North UP) in default position.
+      float angleRad = atan2f(qd.ay, qd.ax);
       int angleDeg = (int)(angleRad * 57.29578f);
       while (angleDeg < 0) angleDeg += 360;
 
       uint16_t targetBearing = (uint16_t)(((angleDeg + 45) / 90) * 90 % 360);
       if (targetBearing != Settings_TopBearing()) {
+        Serial.printf("IMU AutoRotate: TopBearing -> %u deg (raw angle: %d deg)\n", targetBearing, angleDeg);
         Settings_SetTopBearing(targetBearing);
         drawActive();
       }

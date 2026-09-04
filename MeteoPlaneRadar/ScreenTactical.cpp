@@ -10,10 +10,13 @@
 #include "PlaneTrail.h"
 #include "ADSB.h"
 #include "CHMU.h"
+#include "SHMU.h"
 #include "RainViewer.h"
+#include <PNGdec.h>
 #include "Settings.h"
 #include "Config.h"
 #include "Route.h"
+#include "PlanePhoto.h"
 #include "EuBorder.h"
 #include "Airports.h"
 #include "UI.h"
@@ -58,7 +61,10 @@ static int   s_planeN = 0;
 static float s_rotSin = 0.0f, s_rotCos = 1.0f;
 static uint16_t s_topDeg = 0;
 
-static bool rvMode() { return Settings_RadarSource() == RADAR_SRC_RAINVIEWER; }
+static bool rvMode()   { return Settings_RadarSource() == RADAR_SRC_RAINVIEWER; }
+static bool shmuMode() { return Settings_RadarSource() == RADAR_SRC_SHMU; }
+static bool chmuMode() { return Settings_RadarSource() == RADAR_SRC_CHMU; }
+static inline int clampI(int v, int lo, int hi) { return v < lo ? lo : (v > hi ? hi : v); }
 
 bool ScreenTactical_DetailOpen() { return s_selectedHex[0] != '\0'; }
 
@@ -68,6 +74,7 @@ static void selectNone(const char* reason) {
   s_selMiss = 0;
   s_selCacheOk = false;
   Route_Clear();
+  PlanePhoto_Clear();
 }
 
 static void selectHex(const char* hex) {
@@ -189,6 +196,269 @@ static bool passesFilter(const Aircraft& ac) {
   return true;
 }
 
+// --- Composite Radar Background (CHMU / SHMU) for Tactical Screen ---
+static uint16_t* s_radarFb = nullptr;
+static uint16_t* s_crop565 = nullptr;
+static int       s_cropCap = 0;
+static uint16_t* s_lineBuf = nullptr;
+static int       s_lineCap = 0;
+static PNG*      s_png = nullptr;
+
+struct TacticalCrop {
+  int x1, y1, x2, y2;
+  int cw, ch;
+  int imgW, imgH;
+  int dataX1, dataY0;
+  bool isShmu;
+};
+static TacticalCrop s_tc;
+
+static float tacRadarLonLeft(bool isShmu)   { return isShmu ? SHMU_LON_LEFT : CHMU_LON_LEFT; }
+static float tacRadarLonRight(bool isShmu)  { return isShmu ? SHMU_LON_RIGHT : CHMU_LON_RIGHT; }
+static float tacRadarLatTop(bool isShmu)    { return isShmu ? SHMU_LAT_TOP : CHMU_LAT_TOP; }
+static float tacRadarLatBottom(bool isShmu) { return isShmu ? SHMU_LAT_BOTTOM : CHMU_LAT_BOTTOM; }
+
+static float tacMercY(float latDeg) {
+  float r = latDeg * 0.0174532925f;
+  return logf(tanf(0.7853981634f + r * 0.5f));
+}
+
+static int tacLonToX(float lon, bool isShmu, int imgW) {
+  float left = tacRadarLonLeft(isShmu), right = tacRadarLonRight(isShmu);
+  return lroundf((lon - left) * (imgW - 1) / (right - left));
+}
+
+static int tacLatToY(float lat, bool isShmu, int imgH) {
+  float yt = tacMercY(tacRadarLatTop(isShmu)), yb = tacMercY(tacRadarLatBottom(isShmu));
+  return lroundf((yt - tacMercY(lat)) * (imgH - 1) / (yt - yb));
+}
+
+static int pngDrawTactical(PNGDRAW* d) {
+  int srcY = d->y;
+  if (srcY < s_tc.y1 || srcY > s_tc.y2) return 1;
+  if (!s_crop565 || !s_lineBuf || !s_png) return 1;
+  s_png->getLineAsRGB565(d, s_lineBuf, PNG_RGB565_LITTLE_ENDIAN, 0x00000000);
+  const int cw = s_tc.cw;
+  uint16_t* row = s_crop565 + (int64_t)(srcY - s_tc.y1) * cw;
+  const bool isShmu = s_tc.isShmu;
+  for (int i = 0; i < cw; i++) {
+    int srcX = s_tc.x1 + i;
+    bool have = (srcX >= 0 && srcX < s_tc.imgW && srcX <= s_tc.dataX1 && srcY >= s_tc.dataY0);
+    uint16_t col = have ? s_lineBuf[srcX] : 0x0000;
+    if (isShmu) {
+      if (col == 0xE71C || col == 0xD6DA || col == 0xE73C || col == 0xD69A || col == 0xFFFF) {
+        col = 0x0000;
+      }
+    }
+    row[i] = col;
+  }
+  return 1;
+}
+
+static bool ensureTacticalRadarBuffers(int needCropPx) {
+  if (!s_png) {
+    s_png = (PNG*)heap_caps_malloc(sizeof(PNG), MALLOC_CAP_SPIRAM);
+    if (!s_png) s_png = (PNG*)malloc(sizeof(PNG));
+  }
+  if (!s_radarFb) {
+    s_radarFb = (uint16_t*)heap_caps_malloc((size_t)LCD_WIDTH * LCD_HEIGHT * sizeof(uint16_t), MALLOC_CAP_SPIRAM);
+    if (s_radarFb) memset(s_radarFb, 0, (size_t)LCD_WIDTH * LCD_HEIGHT * sizeof(uint16_t));
+  }
+  if (needCropPx > 0 && (!s_crop565 || s_cropCap < needCropPx)) {
+    if (s_crop565) free(s_crop565);
+    s_crop565 = (uint16_t*)heap_caps_malloc((size_t)needCropPx * sizeof(uint16_t), MALLOC_CAP_SPIRAM);
+    s_cropCap = s_crop565 ? needCropPx : 0;
+  }
+  return (s_png != nullptr && s_radarFb != nullptr && (needCropPx == 0 || s_crop565 != nullptr));
+}
+
+static void buildTacticalComposite() {
+  if (rvMode()) return;
+  bool isShmu = shmuMode();
+  int cnt = isShmu ? SHMU_AnimCount() : CHMU_AnimCount();
+  if (cnt <= 0) return;
+
+  int newestIdx = cnt - 1;
+  uint8_t* pngData = isShmu ? SHMU_AnimData(newestIdx) : CHMU_AnimData(newestIdx);
+  size_t   pngSize = isShmu ? SHMU_AnimSize(newestIdx) : CHMU_AnimSize(newestIdx);
+  if (!pngData || pngSize == 0) return;
+
+  if (!ensureTacticalRadarBuffers(0)) return;
+  if (s_png->openRAM(pngData, pngSize, pngDrawTactical) != PNG_SUCCESS) {
+    return;
+  }
+  s_tc.imgW = s_png->getWidth();
+  s_tc.imgH = s_png->getHeight();
+  s_tc.isShmu = isShmu;
+  if (isShmu) {
+    s_tc.dataX1 = s_tc.imgW - 1;
+    s_tc.dataY0 = 0;
+  } else {
+    s_tc.dataX1 = tacLonToX(CHMU_LON_DATA_RIGHT, false, s_tc.imgW);
+    s_tc.dataY0 = tacLatToY(CHMU_LAT_DATA_TOP, false, s_tc.imgH);
+  }
+
+  if (s_tc.imgW > s_lineCap) {
+    if (s_lineBuf) free(s_lineBuf);
+    s_lineBuf = (uint16_t*)heap_caps_malloc((size_t)s_tc.imgW * sizeof(uint16_t), MALLOC_CAP_SPIRAM);
+    if (!s_lineBuf) s_lineBuf = (uint16_t*)malloc((size_t)s_tc.imgW * sizeof(uint16_t));
+    s_lineCap = s_lineBuf ? s_tc.imgW : 0;
+  }
+  if (!s_lineBuf) { s_png->close(); return; }
+
+  // Vypocet bounding boxu orezu (lat, lon, radiusKm)
+  double clat = Settings_Lat(), clon = Settings_Lon();
+  float crng = currentRange();
+  if (isWholeCountry()) {
+    getWholeCountryView(&clat, &clon, &crng, nullptr);
+  }
+  float degLat = crng / 111.32f;
+  float degLon = crng / (111.32f * cosf(clat * 0.0174532925f));
+  int x1 = tacLonToX(clon - degLon, isShmu, s_tc.imgW);
+  int x2 = tacLonToX(clon + degLon, isShmu, s_tc.imgW);
+  int y1 = tacLatToY(clat + degLat, isShmu, s_tc.imgH);
+  int y2 = tacLatToY(clat - degLat, isShmu, s_tc.imgH);
+  if (x2 < x1) { int t = x1; x1 = x2; x2 = t; }
+  if (y2 < y1) { int t = y1; y1 = y2; y2 = t; }
+
+  s_tc.x1 = x1; s_tc.x2 = x2;
+  s_tc.y1 = y1; s_tc.y2 = y2;
+  s_tc.cw = x2 - x1 + 1;
+  s_tc.ch = y2 - y1 + 1;
+  if (s_tc.cw <= 0 || s_tc.ch <= 0) { s_png->close(); return; }
+
+  int needCropPx = s_tc.cw * s_tc.ch;
+  if (!ensureTacticalRadarBuffers(needCropPx)) { s_png->close(); return; }
+
+  memset(s_crop565, 0, (size_t)needCropPx * sizeof(uint16_t));
+  s_png->decode(nullptr, 0);
+  s_png->close();
+
+  // Skalovanie do 480x480 kruhoveho framebufferu s_radarFb
+  const int cw = s_tc.cw, ch = s_tc.ch;
+  if (cw <= 0 || ch <= 0) return;
+  const long R2 = (long)DISP_R * DISP_R;
+  const bool smooth = Settings_SmoothRadar() && (cw > 1) && (ch > 1);
+
+  if (!smooth) {
+    for (int dy = 0; dy < LCD_HEIGHT; dy++) {
+      long ddy = dy - R_CY;
+      uint16_t* dst = s_radarFb + (int32_t)dy * LCD_WIDTH;
+      long room = R2 - ddy * ddy;
+      if (room <= 0) {
+        memset(dst, 0, LCD_WIDTH * sizeof(uint16_t));
+        continue;
+      }
+      int half = (int)sqrtf((float)room);
+      int sx0 = R_CX - half, sx1 = R_CX + half;
+      if (sx0 < 0) sx0 = 0;
+      if (sx1 >= LCD_WIDTH) sx1 = LCD_WIDTH - 1;
+      if (sx0 > 0) memset(dst, 0, sx0 * sizeof(uint16_t));
+      if (sx1 < LCD_WIDTH - 1) memset(dst + sx1 + 1, 0, (LCD_WIDTH - 1 - sx1) * sizeof(uint16_t));
+
+      int srcRow = clampI((int)((int64_t)dy * ch / LCD_HEIGHT), 0, ch - 1);
+      uint16_t* row = s_crop565 + (int64_t)srcRow * cw;
+      for (int dx = sx0; dx <= sx1; dx++) {
+        int srcCol = clampI((int)((int64_t)dx * cw / LCD_WIDTH), 0, cw - 1);
+        dst[dx] = row[srcCol];
+      }
+    }
+    return;
+  }
+
+  // Bilinear interpolation
+  struct TacScaleMapX {
+    uint16_t x0;
+    uint16_t x1;
+    uint8_t  qx;
+  };
+  static TacScaleMapX s_tacMapX[LCD_WIDTH];
+
+  for (int dx = 0; dx < LCD_WIDTH; dx++) {
+    int fx = (int)(((int64_t)dx * (cw - 1) * 256 + (LCD_WIDTH / 2)) / (LCD_WIDTH - 1));
+    int x0 = fx >> 8;
+    if (x0 < 0) x0 = 0;
+    if (x0 >= cw) x0 = cw - 1;
+    int x1 = (x0 < cw - 1) ? x0 + 1 : x0;
+    s_tacMapX[dx].x0 = (uint16_t)x0;
+    s_tacMapX[dx].x1 = (uint16_t)x1;
+    s_tacMapX[dx].qx = (uint8_t)(fx & 0xFF);
+  }
+
+  for (int dy = 0; dy < LCD_HEIGHT; dy++) {
+    long ddy = dy - R_CY;
+    uint16_t* dst = s_radarFb + (int32_t)dy * LCD_WIDTH;
+    long room = R2 - ddy * ddy;
+    if (room <= 0) {
+      memset(dst, 0, LCD_WIDTH * sizeof(uint16_t));
+      continue;
+    }
+    int half = (int)sqrtf((float)room);
+    int sx0 = R_CX - half, sx1 = R_CX + half;
+    if (sx0 < 0) sx0 = 0;
+    if (sx1 >= LCD_WIDTH) sx1 = LCD_WIDTH - 1;
+    if (sx0 > 0) memset(dst, 0, sx0 * sizeof(uint16_t));
+    if (sx1 < LCD_WIDTH - 1) memset(dst + sx1 + 1, 0, (LCD_WIDTH - 1 - sx1) * sizeof(uint16_t));
+
+    int fy = (int)(((int64_t)dy * (ch - 1) * 256 + (LCD_HEIGHT / 2)) / (LCD_HEIGHT - 1));
+    int y0 = fy >> 8;
+    if (y0 < 0) y0 = 0;
+    if (y0 >= ch) y0 = ch - 1;
+    int y1 = (y0 < ch - 1) ? y0 + 1 : y0;
+    int qy = fy & 0xFF;
+    int wy0 = 256 - qy;
+    int wy1 = qy;
+
+    const uint16_t* r0 = s_crop565 + (int64_t)y0 * cw;
+    const uint16_t* r1 = s_crop565 + (int64_t)y1 * cw;
+
+    for (int dx = sx0; dx <= sx1; dx++) {
+      int x0 = s_tacMapX[dx].x0;
+      int x1 = s_tacMapX[dx].x1;
+      int qx = s_tacMapX[dx].qx;
+
+      uint16_t c00 = r0[x0];
+      uint16_t c10 = r0[x1];
+      uint16_t c01 = r1[x0];
+      uint16_t c11 = r1[x1];
+
+      uint16_t outCol;
+      if ((c00 | c10 | c01 | c11) == 0) {
+        outCol = 0x0000;
+      } else if (c00 == c10 && c00 == c01 && c00 == c11) {
+        outCol = c00;
+      } else {
+        int w00 = (wy0 * (256 - qx)) >> 8;
+        int w10 = (wy0 * qx) >> 8;
+        int w01 = (wy1 * (256 - qx)) >> 8;
+        int w11 = (wy1 * qx) >> 8;
+
+        uint32_t r = ((c00 >> 11) & 0x1F) * w00 +
+                     ((c10 >> 11) & 0x1F) * w10 +
+                     ((c01 >> 11) & 0x1F) * w01 +
+                     ((c11 >> 11) & 0x1F) * w11;
+
+        uint32_t g = ((c00 >> 5) & 0x3F) * w00 +
+                     ((c10 >> 5) & 0x3F) * w10 +
+                     ((c01 >> 5) & 0x3F) * w01 +
+                     ((c11 >> 5) & 0x3F) * w11;
+
+        uint32_t b = (c00 & 0x1F) * w00 +
+                     (c10 & 0x1F) * w10 +
+                     (c01 & 0x1F) * w01 +
+                     (c11 & 0x1F) * w11;
+
+        r >>= 8;
+        g >>= 8;
+        b >>= 8;
+        if (r < 1 && g < 2 && b < 1) outCol = 0x0000;
+        else outCol = (uint16_t)((r << 11) | (g << 5) | b);
+      }
+      dst[dx] = outCol;
+    }
+  }
+}
+
 static void blitRainViewer(const uint16_t* fb) {
   if (!fb) return;
   const long R2 = (long)DISP_R * DISP_R;
@@ -221,6 +491,8 @@ void ScreenTactical_Draw() {
     if (frameCount > 0) {
       blitRainViewer(RainViewer_Frame(frameCount - 1));
     }
+  } else if (s_radarFb) {
+    blitRainViewer(s_radarFb);
   }
 
   // 2. Borders & Cities
@@ -549,6 +821,7 @@ void ScreenTactical_Draw() {
 
   if (ScreenTactical_DetailOpen() && s_selCacheOk) {
     Route_Select(s_selCache.callsign, s_selCache.lat, s_selCache.lon);
+    PlanePhoto_Select(s_selCache.reg, s_selCache.hex);
     const RouteInfo* rt = Route_Get();
     UI_DrawAircraftDetail(s_selCache, rt, Route_GetState(), signalLost);
   }
@@ -571,6 +844,12 @@ void ScreenTactical_Enter() {
     } else {
       RainViewer_Begin(clat, clon, crng, 1);
     }
+  } else {
+    int cnt = shmuMode() ? SHMU_AnimCount() : CHMU_AnimCount();
+    if (cnt > 0) {
+      buildTacticalComposite();
+    }
+    Async_RequestRadar();
   }
 }
 
@@ -603,6 +882,11 @@ void ScreenTactical_ChangeRange(int dir) {
     } else {
       RainViewer_Begin(clat, clon, crng, 1);
     }
+  } else {
+    int cnt = shmuMode() ? SHMU_AnimCount() : CHMU_AnimCount();
+    if (cnt > 0) {
+      buildTacticalComposite();
+    }
   }
 }
 
@@ -610,6 +894,32 @@ bool ScreenTactical_Tick() {
   if (WiFi.status() != WL_CONNECTED) return false;
 
   unsigned long now = millis();
+  uint8_t curSrc = Settings_RadarSource();
+  static uint8_t s_lastSrc = 255;
+  bool srcChanged = false;
+  if (curSrc != s_lastSrc) {
+    s_lastSrc = curSrc;
+    srcChanged = true;
+    double clat = Settings_Lat(), clon = Settings_Lon();
+    float crng = currentRange();
+    if (isWholeCountry()) {
+      getWholeCountryView(&clat, &clon, &crng, nullptr);
+    }
+    s_lastRadarFetch = now;
+    if (rvMode()) {
+      if (isWholeCountry()) {
+        RainViewer_Begin(clat, clon, -crng, 1);
+      } else {
+        RainViewer_Begin(clat, clon, crng, 1);
+      }
+    } else {
+      int cnt = shmuMode() ? SHMU_AnimCount() : CHMU_AnimCount();
+      if (cnt > 0) {
+        buildTacticalComposite();
+      }
+      Async_RequestRadar();
+    }
+  }
 
   // Periodicka obnova zrazkoveho radaru (RainViewer) kazdych 5 minut alebo retry pri chybe
   if (rvMode() && !RainViewer_Busy()) {
@@ -619,11 +929,31 @@ bool ScreenTactical_Tick() {
       s_lastRadarFetch = now;
       RainViewer_Refresh();
     }
+  } else if (!rvMode()) {
+    if (now - s_lastRadarFetch >= TACTICAL_RADAR_PERIOD_MS) {
+      s_lastRadarFetch = now;
+      Async_RequestRadar();
+    }
   }
 
-  bool routeChanged = Async_TakeRouteUpdated() || Route_TakeChanged();
+  bool curSmooth = Settings_SmoothRadar();
+  static bool s_lastSmooth = true;
+  bool smoothChanged = false;
+  if (curSmooth != s_lastSmooth) {
+    s_lastSmooth = curSmooth;
+    smoothChanged = true;
+    if (!rvMode()) {
+      buildTacticalComposite();
+    }
+  }
+
+  bool routeChanged = Async_TakeRouteUpdated() || Route_TakeChanged() || PlanePhoto_TakeChanged();
   bool adsbChanged  = Async_TakeAdsbUpdated();
   bool radarChanged = Async_TakeRadarUpdated();
+
+  if (radarChanged && !rvMode()) {
+    buildTacticalComposite();
+  }
 
   if (adsbChanged) {
     s_dataOk = (ADSB_Count() > 0);
@@ -639,7 +969,7 @@ bool ScreenTactical_Tick() {
     return true;
   }
 
-  return routeChanged || radarChanged;
+  return routeChanged || radarChanged || srcChanged || smoothChanged;
 }
 
 bool ScreenTactical_HandleTap(int x, int y) {

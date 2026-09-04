@@ -1,8 +1,8 @@
 // MeteoPlaneRadar - vyvoj / development: chiptron.cz
 // =============================================================================
-//  MeteoPlaneRadar - meteoradar CHMU: stahovani do PSRAM (1 snimek + animace).
+//  MeteoPlaneRadar - meteoradar SHMU: stahovani do PSRAM (1 snimek + animace).
 // =============================================================================
-#include "CHMU.h"
+#include "SHMU.h"
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
@@ -13,10 +13,10 @@
 #include "NetSink.h"
 #include <string.h>      // strstr / memcmp
 
-static const char* NAME_PREFIX = "pacz2gmaps3.z_max3d.";
+static const char* NAME_PREFIX = "cmax.kruh.";
 
 static void (*s_poll)() = nullptr;
-void CHMU_SetPollFn(void (*fn)()) { s_poll = fn; }
+void SHMU_SetPollFn(void (*fn)()) { s_poll = fn; }
 
 // -----------------------------------------------------------------------------
 //  Spolecne pomucky
@@ -34,12 +34,6 @@ static String extractTimestamp(const String& name) {
   return date + hhmm;   // YYYYMMDDHHMM
 }
 
-// The name carries a UTC timestamp; the label wants local time. The conversion
-// deliberately does NOT look at the current clock - it turns the frame's own
-// date into an epoch and lets the TZ rules decide CET or CEST for THAT date.
-// Reading "now" instead used to put the labels an hour out whenever NTP had not
-// answered yet, because the unset clock sits in January (CET) while the frame
-// is from summer (CEST).
 static String timeTextFromName(const String& name) {
   String ts = extractTimestamp(name);
   if (ts.length() < 12) return "";
@@ -62,19 +56,21 @@ static String timeTextFromName(const String& name) {
 static bool downloadNameTo(const String& name, uint8_t* buf, size_t cap, size_t* outSize) {
   *outSize = 0;
   if (!buf) return false;
-  if (!Net_HeapOk("CHMU")) return false;
-  String url = String(CHMU_INDEX_URL) + name;
+  if (!Net_HeapOk("SHMU")) return false;
+  String url = String(SHMU_BASE_URL) + name;
   WiFiClientSecure client; client.setInsecure();
   client.setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
   HTTPClient http;
   http.setConnectTimeout(6000);   // TCP connect only, NOT the TLS handshake
   http.setTimeout(15000);
+  http.setUserAgent("Mozilla/5.0 (ESP-MeteoPlaneRadar)");
   if (!http.begin(client, url)) {
     client.stop();
     return false;
   }
   int code = http.GET();
   if (code != HTTP_CODE_OK) {
+    Serial.printf("SHMU: GET %s selhal (%d)\n", name.c_str(), code);
     while (client.available()) client.read();
     http.end();
     client.stop();
@@ -82,21 +78,19 @@ static bool downloadNameTo(const String& name, uint8_t* buf, size_t cap, size_t*
   }
   int total = http.getSize();
   if (total > (int)cap) {
+    Serial.printf("SHMU: %s prilis velky (%d > %u)\n", name.c_str(), total, (unsigned)cap);
     while (client.available()) client.read();
     http.end();
     client.stop();
     return false;
   }
-  long got = Net_ReadBody(http, buf, cap, "CHMU", s_poll);
+  long got = Net_ReadBody(http, buf, cap, "SHMU", s_poll);
   http.end();
   client.stop();
   if (got < 0) return false;
 
-  // A PNG that is not a PNG means we were handed an error page or something
-  // re-encoded in transit. Checking the signature here stops the decoder from
-  // being fed rubbish and drawing a corrupt frame over a good radar image.
   if (got < 8 || memcmp(buf, "\x89PNG\r\n\x1a\n", 8) != 0) {
-    Serial.printf("CHMU: %s neni PNG (%ld B)\n", name.c_str(), got);
+    Serial.printf("SHMU: %s neni PNG (%ld B)\n", name.c_str(), got);
     return false;
   }
   *outSize = (size_t)got;
@@ -106,36 +100,36 @@ static bool downloadNameTo(const String& name, uint8_t* buf, size_t cap, size_t*
 // -----------------------------------------------------------------------------
 //  Animace - nejnovejsich N ramcu
 // -----------------------------------------------------------------------------
-static uint8_t* s_animBuf[CHMU_ANIM_MAX] = {0};
-static size_t   s_animSize[CHMU_ANIM_MAX] = {0};
-static String   s_animName[CHMU_ANIM_MAX];
+static uint8_t* s_animBuf[SHMU_ANIM_MAX] = {0};
+static size_t   s_animSize[SHMU_ANIM_MAX] = {0};
+static String   s_animName[SHMU_ANIM_MAX];
 static int      s_animCount = 0;
 
-int      CHMU_AnimCount() { return s_animCount; }
-uint8_t* CHMU_AnimData(int i) { return (i >= 0 && i < s_animCount) ? s_animBuf[i] : nullptr; }
-size_t   CHMU_AnimSize(int i) { return (i >= 0 && i < s_animCount) ? s_animSize[i] : 0; }
-String   CHMU_AnimTimeText(int i) { return (i >= 0 && i < s_animCount) ? timeTextFromName(s_animName[i]) : String(""); }
+int      SHMU_AnimCount() { return s_animCount; }
+uint8_t* SHMU_AnimData(int i) { return (i >= 0 && i < s_animCount) ? s_animBuf[i] : nullptr; }
+size_t   SHMU_AnimSize(int i) { return (i >= 0 && i < s_animCount) ? s_animSize[i] : 0; }
+String   SHMU_AnimTimeText(int i) { return (i >= 0 && i < s_animCount) ? timeTextFromName(s_animName[i]) : String(""); }
 
 // Bezici "top-N" nejnovejsich nazvu (vzestupne dle casu).
-static String s_topName[CHMU_ANIM_MAX];
-static String s_topTs[CHMU_ANIM_MAX];
+static String s_topName[SHMU_ANIM_MAX];
+static String s_topTs[SHMU_ANIM_MAX];
 static int    s_topCount = 0;
 
 static void topInsert(const String& name, const String& ts) {
   for (int i = 0; i < s_topCount; i++) if (s_topTs[i] == ts) return;   // duplicita
-  if (s_topCount < CHMU_ANIM_MAX) {
+  if (s_topCount < SHMU_ANIM_MAX) {
     int p = s_topCount;
     while (p > 0 && s_topTs[p - 1] > ts) { s_topTs[p] = s_topTs[p - 1]; s_topName[p] = s_topName[p - 1]; p--; }
     s_topTs[p] = ts; s_topName[p] = name; s_topCount++;
   } else if (ts > s_topTs[0]) {   // nahradime nejstarsi
     int p = 0;
-    while (p < CHMU_ANIM_MAX - 1 && s_topTs[p + 1] < ts) { s_topTs[p] = s_topTs[p + 1]; s_topName[p] = s_topName[p + 1]; p++; }
+    while (p < SHMU_ANIM_MAX - 1 && s_topTs[p + 1] < ts) { s_topTs[p] = s_topTs[p + 1]; s_topName[p] = s_topName[p + 1]; p++; }
     s_topTs[p] = ts; s_topName[p] = name;
   }
 }
 
 // -----------------------------------------------------------------------------
-//  Scanning indexu (HTML adresaroveho vypisu)
+//  Scanning getradardata JSON
 // -----------------------------------------------------------------------------
 static void scanTop(const char* text, void* user) {
   (void)user;
@@ -152,17 +146,17 @@ static void scanTop(const char* text, void* user) {
 
 static bool ensureAnimBuffer(int i) {
   if (s_animBuf[i]) return true;
-  s_animBuf[i] = (uint8_t*)heap_caps_malloc(CHMU_MAX_PNG, MALLOC_CAP_SPIRAM);
+  s_animBuf[i] = (uint8_t*)heap_caps_malloc(SHMU_MAX_PNG, MALLOC_CAP_SPIRAM);
   return s_animBuf[i] != nullptr;
 }
 
-int CHMU_FetchAnim(int wantN) {
+int SHMU_FetchAnim(int wantN) {
   if (WiFi.status() != WL_CONNECTED) return s_animCount;
-  if (wantN > CHMU_ANIM_MAX) wantN = CHMU_ANIM_MAX;
+  if (wantN > SHMU_ANIM_MAX) wantN = SHMU_ANIM_MAX;
   if (wantN < 1) wantN = 1;
 
-  // 1) projdi index a najdi N nejnovejsich nazvu
-  if (!Net_HeapOk("CHMU")) return s_animCount;
+  // 1) Projdi JSON API a najdi N nejnovejsich nazvu souboru
+  if (!Net_HeapOk("SHMU")) return s_animCount;
   s_topCount = 0;
   {
     WiFiClientSecure client; client.setInsecure();
@@ -170,9 +164,10 @@ int CHMU_FetchAnim(int wantN) {
     HTTPClient http;
     http.setConnectTimeout(6000);   // TCP connect only, NOT the TLS handshake
     http.setTimeout(15000);
+    http.setUserAgent("Mozilla/5.0 (ESP-MeteoPlaneRadar)");
     static const char* WANTED[] = { "Date" };
     http.collectHeaders(WANTED, 1);
-    if (!http.begin(client, CHMU_INDEX_URL)) {
+    if (!http.begin(client, SHMU_API_URL)) {
       client.stop();
       return s_animCount;
     }
@@ -184,11 +179,11 @@ int CHMU_FetchAnim(int wantN) {
       client.stop();
       return s_animCount;
     }
-    long ilen = Net_ScanBody(http, scanTop, nullptr, "CHMU", s_poll);
+    long ilen = Net_ScanBody(http, scanTop, nullptr, "SHMU", s_poll);
     http.end();
     client.stop();
     if (ilen <= 0) return s_animCount;
-    Serial.printf("CHMU: index %ld B, nalezeno %d nazvu\n", ilen, s_topCount);
+    Serial.printf("SHMU: API body %ld B, nalezeno %d nazvu\n", ilen, s_topCount);
   }
   if (s_topCount == 0) return s_animCount;
 
@@ -196,7 +191,7 @@ int CHMU_FetchAnim(int wantN) {
   if (s_poll) s_poll();
   delay(150);
 
-  // 2) stahni N nejnovejsich (top pole je vzestupne, bereme konec)
+  // 2) Stahni N nejnovejsich (top pole je vzestupne, bereme konec)
   int n = s_topCount < wantN ? s_topCount : wantN;
   int startIdx = s_topCount - n;
   int got = 0;
@@ -204,7 +199,7 @@ int CHMU_FetchAnim(int wantN) {
     if (s_poll) s_poll();
     if (!ensureAnimBuffer(i)) break;
     size_t sz = 0;
-    if (downloadNameTo(s_topName[startIdx + i], s_animBuf[i], CHMU_MAX_PNG, &sz)) {
+    if (downloadNameTo(s_topName[startIdx + i], s_animBuf[i], SHMU_MAX_PNG, &sz)) {
       s_animSize[i] = sz; s_animName[i] = s_topName[startIdx + i]; got++;
     } else {
       break;
@@ -213,6 +208,6 @@ int CHMU_FetchAnim(int wantN) {
     delay(100);
   }
   s_animCount = got;
-  Serial.printf("Meteoradar: %d ramcu\n", got);
+  Serial.printf("SHMU meteoradar: %d ramcu\n", got);
   return got;
 }
