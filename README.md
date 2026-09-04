@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20SK%20%7C%20CZ-green.svg)
-![Release](https://img.shields.io/badge/Release-v1.5.5-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v1.5.6-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, and designer clock faces on a round 2.1" IPS touchscreen.**  
@@ -103,6 +103,7 @@ A unique real-time screen overlaying **animated precipitation radar tiles (SHMÚ
 | **Swipe Up / Down in Center** | **On Radars:** Zoom In (swipe up) / Zoom Out (swipe down).<br>**On Control Center:** Closes the overlay. |
 | **Tap Bottom Range Bar** | Left half zooms Out, right half zooms In. |
 | **Tap on Aircraft** | Opens full color-coded aircraft telemetry detail card with live photo. |
+| **Tap on Aircraft Photo** | Enlarge aircraft photo to full screen (tap anywhere to return to card). |
 | **Double-Tap (Knock on chassis / desk)** | **On Clock:** Cycles to next watchface.<br>**On Radars:** Toggles Clean Map Mode (hides legends). |
 | **Hold BOOT button at startup (~3 s)** | Factory Reset (clears stored Wi-Fi and NVS settings). |
 

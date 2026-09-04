@@ -96,6 +96,7 @@ static void selectNone(const char* reason) {
   s_selectedHex[0] = '\0';
   s_selMiss = 0;
   s_selCacheOk = false;
+  UI_SetPhotoFullscreen(false);
   Route_Clear();
   PlanePhoto_Clear();
 }
@@ -278,7 +279,16 @@ bool ScreenPlanes_Tick() {
 // to sit at the bottom of the panel now lives on the settings screen).
 // Otherwise select the nearest aircraft.
 bool ScreenPlanes_HandleTap(int x, int y) {
+  if (UI_IsPhotoFullscreen()) {
+    UI_SetPhotoFullscreen(false);
+    return true;
+  }
   if (ScreenPlanes_DetailOpen()) {
+    // If photo is loaded and tap is on the photo box -> open fullscreen photo
+    if (PlanePhoto_GetState() == PHOTO_OK && x >= 130 && x <= 350 && y >= 40 && y <= 195) {
+      UI_SetPhotoFullscreen(true);
+      return true;
+    }
     selectNone("tap mimo panel");
     return true;
   }

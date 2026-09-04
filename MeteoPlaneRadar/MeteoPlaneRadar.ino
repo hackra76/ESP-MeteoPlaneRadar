@@ -454,6 +454,11 @@ static void closeModal() {
     QuickControl_Close();
     return;
   }
+  if (UI_IsPhotoFullscreen()) {
+    UI_SetPhotoFullscreen(false);
+    drawActive();
+    return;
+  }
   if (s_screen == SCREEN_PLANES_I)        ScreenPlanes_CloseDetail();
   else if (s_screen == SCREEN_TACTICAL_I) ScreenTactical_CloseDetail();
 }

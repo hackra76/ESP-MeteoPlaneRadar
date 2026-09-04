@@ -139,7 +139,90 @@ static float calcGeoDistKm(double lat1, double lon1, double lat2, double lon2) {
   return 2.0f * R * asinf(sqrtf(a));
 }
 
+static bool s_photoFullscreen = false;
+
+bool UI_IsPhotoFullscreen() {
+  return s_photoFullscreen;
+}
+
+void UI_SetPhotoFullscreen(bool en) {
+  s_photoFullscreen = en;
+}
+
+static void drawScaledPhoto(const uint16_t* pixels, int iw, int ih, int targetX, int targetY, int tw, int th) {
+  if (!pixels || iw <= 0 || ih <= 0 || tw <= 0 || th <= 0) return;
+  for (int y = 0; y < th; y++) {
+    int srcY = (y * ih) / th;
+    if (srcY >= ih) srcY = ih - 1;
+    const uint16_t* srcRow = pixels + (int32_t)srcY * iw;
+    int dstY = targetY + y;
+    if (dstY < 0 || dstY >= LCD_HEIGHT) continue;
+
+    for (int x = 0; x < tw; x++) {
+      int srcX = (x * iw) / tw;
+      if (srcX >= iw) srcX = iw - 1;
+      int dstX = targetX + x;
+      if (dstX >= 0 && dstX < LCD_WIDTH) {
+        gfx->drawPixel(dstX, dstY, srcRow[srcX]);
+      }
+    }
+  }
+}
+
+static void UI_DrawAircraftPhotoFullscreen(const Aircraft& ac) {
+  gfx->fillScreen(C_BLACK);
+
+  int iw = 0, ih = 0;
+  const uint16_t* pixels = PlanePhoto_GetRgb565(&iw, &ih);
+  if (!pixels || iw <= 0 || ih <= 0) {
+    s_photoFullscreen = false;
+    return;
+  }
+
+  // Fit photo within circular display (diameter 480, safe radius R=232)
+  float aspect = (float)iw / (float)ih;
+  float maxTh = sqrtf(4.0f * 53824.0f / (aspect * aspect + 1.0f));
+  int th = (int)maxTh;
+  int tw = (int)(th * aspect);
+  if (tw > 440) { tw = 440; th = (int)(tw / aspect); }
+  if (th > 350) { th = 350; tw = (int)(th * aspect); }
+
+  int targetX = (LCD_WIDTH - tw) / 2;
+  int targetY = (LCD_HEIGHT - th) / 2;
+
+  // Frame around photo
+  gfx->drawRoundRect(targetX - 2, targetY - 2, tw + 4, th + 4, 6, ac.isMilitary ? C_RED : C_CYAN);
+  drawScaledPhoto(pixels, iw, ih, targetX, targetY, tw, th);
+
+  // Top header: Callsign, Type, Reg
+  const char* cs = ac.callsign[0] ? ac.callsign : (ac.hex[0] ? ac.hex : "?");
+  char topTitle[64];
+  const char* fullType = AircraftType_Format(ac.type);
+  if (ac.reg[0] && fullType[0]) {
+    snprintf(topTitle, sizeof(topTitle), "%s  ·  %s [%s]", cs, fullType, ac.reg);
+  } else if (ac.reg[0]) {
+    snprintf(topTitle, sizeof(topTitle), "%s  ·  %s", cs, ac.reg);
+  } else {
+    snprintf(topTitle, sizeof(topTitle), "%s  ·  %s", cs, ac.type[0] ? ac.type : "");
+  }
+  UI_TextCentered(topTitle, 45, ac.isMilitary ? C_RED : C_YELLOW, 2);
+
+  // Bottom info: Photographer credit
+  const char* photog = PlanePhoto_GetPhotographer();
+  char credit[64];
+  snprintf(credit, sizeof(credit), "Foto: \xC2\xA9 %s (Planespotters.net)", (photog && photog[0]) ? photog : "Planespotters.net");
+  UI_TextCentered(credit, targetY + th + 10, C_WHITE, 1);
+
+  // Bottom hint: tap anywhere to return
+  UI_TextCentered(T(S_TAP_TO_RETURN), LCD_HEIGHT - 38, C_GRAY, 1);
+}
+
 void UI_DrawAircraftDetail(const Aircraft& ac, const RouteInfo* rt, int routeState, bool signalLost) {
+  if (s_photoFullscreen) {
+    UI_DrawAircraftPhotoFullscreen(ac);
+    return;
+  }
+
   const bool metric = Settings_MetricUnits();
 
   // --- 1. Aircraft Photo Box (Top section, 200x133) ---
@@ -155,17 +238,24 @@ void UI_DrawAircraftDetail(const Aircraft& ac, const RouteInfo* rt, int routeSta
     int iw = 0, ih = 0;
     const uint16_t* pixels = PlanePhoto_GetRgb565(&iw, &ih);
     if (pixels && iw > 0 && ih > 0) {
-      int dx = photoX + (photoW - iw) / 2;
-      int dy = photoY + (photoH - ih) / 2;
-      for (int j = 0; j < ih; j++) {
-        for (int i = 0; i < iw; i++) {
-          gfx->drawPixel(dx + i, dy + j, pixels[j * iw + i]);
-        }
+      float aspect = (float)iw / (float)ih;
+      int tw = photoW;
+      int th = (int)(tw / aspect);
+      if (th > photoH) {
+        th = photoH;
+        tw = (int)(th * aspect);
       }
+      int dx = photoX + (photoW - tw) / 2;
+      int dy = photoY + (photoH - th) / 2;
+      drawScaledPhoto(pixels, iw, ih, dx, dy, tw, th);
+
+      // Tap hint badge in bottom-right corner of photo box
+      gfx->fillRoundRect(photoX + photoW - 24, photoY + photoH - 17, 22, 14, 3, 0x18C3);
+      UI_Text("+", photoX + photoW - 16, photoY + photoH - 15, C_WHITE, 1);
     }
     const char* photog = PlanePhoto_GetPhotographer();
     char credit[48];
-    snprintf(credit, sizeof(credit), "Photo: %s", (photog && photog[0]) ? photog : "Planespotters.net");
+    snprintf(credit, sizeof(credit), "Foto: %s", (photog && photog[0]) ? photog : "Planespotters.net");
     UI_TextCentered(credit, photoY + photoH + 4, C_GRAY, 1);
   } else if (pState == PHOTO_WAIT) {
     UI_TextCentered(T(S_PHOTO_WAIT), photoY + photoH / 2 - 4, C_GRAY, 1);

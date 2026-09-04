@@ -73,6 +73,7 @@ static void selectNone(const char* reason) {
   s_selectedHex[0] = '\0';
   s_selMiss = 0;
   s_selCacheOk = false;
+  UI_SetPhotoFullscreen(false);
   Route_Clear();
   PlanePhoto_Clear();
 }
@@ -973,7 +974,16 @@ bool ScreenTactical_Tick() {
 }
 
 bool ScreenTactical_HandleTap(int x, int y) {
+  if (UI_IsPhotoFullscreen()) {
+    UI_SetPhotoFullscreen(false);
+    return true;
+  }
   if (ScreenTactical_DetailOpen()) {
+    // If photo is loaded and tap is on the photo box -> open fullscreen photo
+    if (PlanePhoto_GetState() == PHOTO_OK && x >= 130 && x <= 350 && y >= 40 && y <= 195) {
+      UI_SetPhotoFullscreen(true);
+      return true;
+    }
     selectNone("tap_outside");
     return true;
   }

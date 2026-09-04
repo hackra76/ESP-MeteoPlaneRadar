@@ -9,6 +9,20 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [1.5.6] - 2026-09-04
+
+### Pridané / Added
+- **Celoobrazovkový náhľad fotografie lietadla (Fullscreen Aircraft Photo Mode):**
+  - V detailnej karte lietadla (na obrazovke *Lietadlá* aj *Taktický radar*) stačí ťuknúť na rámček s fotografiou lietadla.
+  - Fotografia sa proporcionálne zväčší cez celú plochu okrúhleho 480×480 displeja bez orezania rohov a bez skreslenia pomeru strán.
+  - V hornej časti sa zobrazí hlavička s volacím znakom, typom a registráciou lietadla, v dolnej časti kredit fotografa (Planespotters.net) a navigačný tip.
+  - Opätovným ťuknutím kamkoľvek na obrazovku sa displej okamžite vráti späť na štandardnú kartu detailu s telemetriou a trasou letu.
+- **Korektné škálovanie náhľadu fotky (Aspect Ratio Fitting):**
+  - Náhľad v rámčeku detailnej karty lietadla sa teraz proporcionálne prispôsobuje pomeru strán snímky, takže nikdy nedochádza k orezaniu bokov ani pretečeniu rámčeka.
+  - Pridaný jemný indikátor `+` v rohu fotky signalizujúci možnosť zväčšenia.
+
+---
+
 ## [1.5.5] - 2026-09-04
 
 ### Zmenené / Changed

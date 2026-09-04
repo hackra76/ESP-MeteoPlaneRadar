@@ -74,3 +74,7 @@ struct RouteInfo;
 
 // Unified, richly color-coded aircraft detail card for ScreenPlanes & ScreenTactical
 void UI_DrawAircraftDetail(const Aircraft& ac, const RouteInfo* rt, int routeState, bool signalLost);
+
+// Fullscreen aircraft photo modal mode
+bool UI_IsPhotoFullscreen();
+void UI_SetPhotoFullscreen(bool en);

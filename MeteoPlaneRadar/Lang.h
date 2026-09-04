@@ -78,8 +78,8 @@
   X(S_POLLEN,        "Pyl",                "Pyl",                "Pel",                "Peľ",                "Pollen") \
   X(S_TODAY,         "dnes",               "dnes",               "dnes",               "dnes",               "today") \
   X(S_LAT_LABEL,     "Zemepisna sirka",    "Zeměpisná šířka",    "Zemepisna sirka",    "Zemepisná šírka",    "Latitude") \
-  X(S_LON_LABEL,     "Zemepisna delka",    "Zeměpisná délka",    "Zemepisna dlzka",    "Zemepisná dĺžka",    "Longitude") \
-  X(S_SMOOTH_RADAR,  "Vyhlazeni radaru",   "Vyhlazení radaru",   "Vyhladenie radaru",  "Vyhladenie radaru",  "Radar smoothing")
+  X(S_SMOOTH_RADAR,  "Vyhlazeni radaru",   "Vyhlazení radaru",   "Vyhladenie radaru",  "Vyhladenie radaru",  "Radar smoothing") \
+  X(S_TAP_TO_RETURN, "Klepnete pro navrat", "Klepněte pro návrat", "Tuknite pre navrat", "Ťuknite pre návrat", "Tap to return")
 
 enum StrId : uint16_t {
 #define X(id, cz, czw, sk, skw, en) id,
