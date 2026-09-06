@@ -104,6 +104,8 @@
 // flush() pushes the whole frame to the panel in one shot -> no flicker.
 Arduino_GFX* gfx = nullptr;
 
+volatile bool otaUpdating = false;
+
 // =============================================================================
 //  Touch: capture and dispatch, deliberately separated
 //

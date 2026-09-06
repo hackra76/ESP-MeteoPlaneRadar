@@ -558,18 +558,9 @@ static void handleNotFound() {
 // the drawing code can do about it, so the backlight goes off for the duration
 // and the browser shows the real progress bar.
 static void otaStart() {
-  const uint8_t lang = Lang_Get();
   s_updating = true;
-  gfx->fillScreen(C_BLACK);
-  const char* upTxt = (lang == LANG_EN) ? "Updating firmware..."
-                    : ((lang == LANG_SK) ? "Prebieha aktualizacia..." : "Probiha aktualizace...");
-  const char* pwrTxt = (lang == LANG_EN) ? "Do not disconnect power"
-                     : ((lang == LANG_SK) ? "Neodpajaj napajanie" : "Neodpojuj napajeni");
-  UI_TextCentered(upTxt, LCD_HEIGHT / 2 - 10, C_WHITE, 2);
-  UI_TextCentered(pwrTxt, LCD_HEIGHT / 2 + 20, C_GRAY, 1);
-  gfx->flush();
-  delay(700);
-  Set_Backlight(0);
+  delay(100);
+  Set_Backlight(0); // Zhasne podsvietenie, aby bolo jasné, že niečo prebieha
 }
 
 static void otaEnd(bool ok) {
@@ -582,7 +573,9 @@ static void otaEnd(bool ok) {
                              : ((lang == LANG_SK) ? "Aktualizacia zlyhala" : "Aktualizace selhala"));
   UI_TextCentered(doneTxt, LCD_HEIGHT / 2, ok ? C_GREEN : C_RED, 2);
   gfx->flush();
-  s_updating = false;
+  if (!ok) {
+    s_updating = false;
+  }
 }
 
 // --- GitHub Online OTA ------------------------------------------------------
@@ -971,66 +964,63 @@ static void handleUpdatePage() {
 // Called repeatedly by WebServer as the body arrives. The whole transfer runs
 // inside one handleClient(), so nothing else can be drawing meanwhile - but the
 // watchdog still has to be fed by hand.
+// --- Firmware update (Safe Stream Handler) ----------------------------------
 static void handleUpdateUpload() {
   HTTPUpload& up = s_srv.upload();
 
-  switch (up.status) {
-    case UPLOAD_FILE_START:
-      s_updOk = false;
-      s_updErr = "";
-      if (!updateAuthed()) { s_updErr = "auth"; return; }
-      Serial.printf("OTA: %s\n", up.filename.c_str());
-      otaStart();
-      // The browser does not announce the image size up front, so let Update
-      // take the whole free OTA slot.
-      if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
-        s_updErr = Update.errorString();
-        otaEnd(false);
-      }
-      break;
+  if (up.status == UPLOAD_FILE_START) {
+    s_updOk = false;
+    s_updErr = "";
+    if (!updateAuthed()) { s_updErr = "auth"; return; }
+    
+    Serial.printf("OTA: %s\n- Start zápisu do flash\n", up.filename.c_str());
+    Set_Backlight(0); // Zhasneme podsvietenie bez kreslenia do grafiky
+    
+    // Začneme OTA update bezpečne s neznámou veľkosťou slotu
+    if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
+      s_updErr = Update.errorString();
+    }
+  } 
+  else if (up.status == UPLOAD_FILE_WRITE) {
+    if (s_updErr.length() > 0) return;
 
-    case UPLOAD_FILE_WRITE:
-      if (s_updErr.length()) return;              // already failed, drain the body
-      if (Update.write(up.buf, up.currentSize) != up.currentSize) {
-        s_updErr = Update.errorString();
-        Update.abort();
-        otaEnd(false);
-        return;
-      }
-      Watchdog_Feed();
-      break;
+    // Zápis blokov dát priamo do flash pamäte
+    if (Update.write(up.buf, up.currentSize) != up.currentSize) {
+      s_updErr = Update.errorString();
+      Update.abort();
+    }
+    Watchdog_Feed(); // Nakŕmime watchdog počas veľkého zápisu
+  } 
+  else if (up.status == UPLOAD_FILE_END) {
+    if (s_updErr.length() > 0) return;
 
-    case UPLOAD_FILE_END:
-      if (s_updErr.length()) return;
-      if (Update.end(true)) {
-        s_updOk = true;
-        Serial.printf("OTA: hotovo, %u B\n", (unsigned)up.totalSize);
-        otaEnd(true);
-      } else {
-        s_updErr = Update.errorString();
-        otaEnd(false);
-      }
-      break;
-
-    case UPLOAD_FILE_ABORTED:
-      if (s_updErr == "auth") return;             // never started, keep the 401
-      if (Update.isRunning()) Update.abort();
-      if (s_updating) otaEnd(false);              // only if the screen was taken over
-      s_updErr = "aborted";
-      break;
+    // Ukončenie a overenie flash pamäte
+    if (Update.end(true)) {
+      s_updOk = true;
+      Serial.printf("OTA: hotovo, %u B\n", (unsigned)up.totalSize);
+    } else {
+      s_updErr = Update.errorString();
+    }
+  } 
+  else if (up.status == UPLOAD_FILE_ABORTED) {
+    if (Update.isRunning()) Update.abort();
+    s_updErr = "aborted";
   }
 }
 
-// Runs once the body has been consumed, so this is where the verdict is sent.
+// Odpoveď prehliadaču po dokončení prenosu
 static void handleUpdateDone() {
   if (s_updErr == "auth") { s_updErr = ""; s_srv.requestAuthentication(); return; }
   s_srv.sendHeader("Connection", "close");
+  
   if (s_updOk) {
     s_srv.send(200, "text/plain", "OK");
-    delay(400);
-    ESP.restart();
+    delay(500);
+    ESP.restart(); // Čistý reštart až po odoslaní odpovede OK do prehliadača
     return;
   }
+  
+  Set_Backlight(Settings_Backlight()); // Zapneme späť podsvietenie pri chybe
   s_srv.send(500, "text/plain", s_updErr.length() ? s_updErr : String("update failed"));
   s_updErr = "";
 }
