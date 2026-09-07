@@ -135,6 +135,12 @@ static void asyncWorkerTask(void* param) {
     WebConfig_Loop();
     WiFi_Loop();
 
+    // While a firmware update is running, suspend all background network/TLS operations
+    if (WebConfig_UpdateBusy()) {
+      vTaskDelay(pdMS_TO_TICKS(10));
+      continue;
+    }
+
     if (WiFi.status() == WL_CONNECTED) {
       unsigned long now = millis();
       static unsigned long lastTlsTime = 0;

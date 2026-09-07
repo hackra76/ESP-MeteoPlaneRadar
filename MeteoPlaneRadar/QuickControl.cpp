@@ -10,6 +10,10 @@
 #include "UI.h"
 #include "Layout.h"
 #include "AsyncCore.h"
+#include "CHMU.h"
+#include "SHMU.h"
+#include "RainViewer.h"
+#include "ScreenWeather.h"
 
 extern void gotoScreen(int idx);
 
@@ -217,6 +221,19 @@ bool QuickControl_HandleTap(int x, int y, int currentScreen) {
         uint8_t nextSrc = (curSrc == RADAR_SRC_CHMU) ? RADAR_SRC_SHMU :
                           (curSrc == RADAR_SRC_SHMU) ? RADAR_SRC_RAINVIEWER : RADAR_SRC_CHMU;
         Settings_SetRadarSource(nextSrc);
+        if (nextSrc == RADAR_SRC_RAINVIEWER) {
+          CHMU_FreeBuffers();
+          SHMU_FreeBuffers();
+          ScreenWeather_FreeBuffers();
+        } else if (nextSrc == RADAR_SRC_CHMU) {
+          RainViewer_FreeBuffers();
+          SHMU_FreeBuffers();
+          ScreenWeather_FreeBuffers();
+        } else if (nextSrc == RADAR_SRC_SHMU) {
+          RainViewer_FreeBuffers();
+          CHMU_FreeBuffers();
+          ScreenWeather_FreeBuffers();
+        }
         Async_RequestRadar();
         return true;
       }
@@ -238,6 +255,19 @@ bool QuickControl_HandleTap(int x, int y, int currentScreen) {
         uint8_t nextSrc = (curSrc == RADAR_SRC_CHMU) ? RADAR_SRC_SHMU :
                           (curSrc == RADAR_SRC_SHMU) ? RADAR_SRC_RAINVIEWER : RADAR_SRC_CHMU;
         Settings_SetRadarSource(nextSrc);
+        if (nextSrc == RADAR_SRC_RAINVIEWER) {
+          CHMU_FreeBuffers();
+          SHMU_FreeBuffers();
+          ScreenWeather_FreeBuffers();
+        } else if (nextSrc == RADAR_SRC_CHMU) {
+          RainViewer_FreeBuffers();
+          SHMU_FreeBuffers();
+          ScreenWeather_FreeBuffers();
+        } else if (nextSrc == RADAR_SRC_SHMU) {
+          RainViewer_FreeBuffers();
+          CHMU_FreeBuffers();
+          ScreenWeather_FreeBuffers();
+        }
         Async_RequestRadar();
         return true;
       }
@@ -251,6 +281,19 @@ bool QuickControl_HandleTap(int x, int y, int currentScreen) {
       uint8_t nextSrc = (curSrc == RADAR_SRC_CHMU) ? RADAR_SRC_SHMU :
                         (curSrc == RADAR_SRC_SHMU) ? RADAR_SRC_RAINVIEWER : RADAR_SRC_CHMU;
       Settings_SetRadarSource(nextSrc);
+      if (nextSrc == RADAR_SRC_RAINVIEWER) {
+        CHMU_FreeBuffers();
+        SHMU_FreeBuffers();
+        ScreenWeather_FreeBuffers();
+      } else if (nextSrc == RADAR_SRC_CHMU) {
+        RainViewer_FreeBuffers();
+        SHMU_FreeBuffers();
+        ScreenWeather_FreeBuffers();
+      } else if (nextSrc == RADAR_SRC_SHMU) {
+        RainViewer_FreeBuffers();
+        CHMU_FreeBuffers();
+        ScreenWeather_FreeBuffers();
+      }
       Async_RequestRadar();
       return true;
     }

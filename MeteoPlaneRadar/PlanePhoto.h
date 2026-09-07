@@ -22,3 +22,4 @@ bool            PlanePhoto_TakeChanged();
 PhotoState      PlanePhoto_GetState();
 const char*     PlanePhoto_GetPhotographer();
 const uint16_t* PlanePhoto_GetRgb565(int* outW, int* outH);
+void            PlanePhoto_ClearCache();

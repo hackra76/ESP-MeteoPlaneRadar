@@ -16,6 +16,9 @@
 #include "Lang.h"
 #include "Net.h"
 #include "Forecast.h"
+#include "CHMU.h"
+#include "SHMU.h"
+#include "RainViewer.h"
 #include "NightMode.h"
 #include "UI.h"
 #include "Display_ST7701.h"
@@ -155,10 +158,13 @@ static void handlePostConfig() {
                      (fabs(oldLon - Settings_Lon()) > 1e-6);
   if (moved) Forecast_Invalidate();
 
-  // These reach too far into cached state (decoded radar frames, allocated
-  // buffers, which screen is even reachable) to be worth unpicking at runtime.
-  // A restart is a second and a half and guarantees a clean result.
-  if (moved || oldSrc != Settings_RadarSource() || oldMask != newMask)
+  // Handle radar source change cleanly at runtime without requiring an ESP restart
+  if (oldSrc != Settings_RadarSource()) {
+    Async_RequestRadar();
+  }
+
+  // Location change or enabled screen set change requires a clean start / redraw
+  if (moved || oldMask != newMask)
     s_wantRestart = true;
 
   JsonDocument res;
@@ -678,7 +684,8 @@ static void githubOtaTask(void* param) {
 
   WiFiClient* stream = http.getStreamPtr();
   const size_t BUF_SZ = 4096;
-  uint8_t* buf = (uint8_t*)heap_caps_malloc(BUF_SZ, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  // Flash writes suspend the PSRAM cache on ESP32-S3, so this buffer MUST reside in internal RAM!
+  uint8_t* buf = (uint8_t*)heap_caps_malloc(BUF_SZ, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   if (!buf) buf = (uint8_t*)malloc(BUF_SZ);
   if (!buf) {
     s_otaError = "No memory for buffer";
@@ -991,18 +998,25 @@ static void handleUpdateUpload() {
 
     case UPLOAD_FILE_WRITE:
       if (s_updErr.length()) return;              // already failed, drain the body
-      if (Update.write(up.buf, up.currentSize) != up.currentSize) {
-        s_updErr = Update.errorString();
-        Update.abort();
+      if (!Update.isRunning()) {
+        s_updErr = "Update not running";
         otaEnd(false);
         return;
+      }
+      if (up.buf && up.currentSize > 0) {
+        if (Update.write(up.buf, up.currentSize) != up.currentSize) {
+          s_updErr = Update.errorString();
+          Update.abort();
+          otaEnd(false);
+          return;
+        }
       }
       Watchdog_Feed();
       break;
 
     case UPLOAD_FILE_END:
       if (s_updErr.length()) return;
-      if (Update.end(true)) {
+      if (Update.isRunning() && Update.end(true)) {
         s_updOk = true;
         Serial.printf("OTA: hotovo, %u B\n", (unsigned)up.totalSize);
         otaEnd(true);

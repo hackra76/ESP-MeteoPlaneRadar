@@ -70,4 +70,6 @@ float RainViewer_EffectiveRadiusKm();
 bool RainViewer_Busy();      // still fetching
 bool RainViewer_Failed();    // the last attempt brought nothing
 
+void RainViewer_FreeBuffers(); // Uvolnenie vyrovnavacich pamati (2.8 MB PSRAM)
+
 void RainViewer_SetPollFn(void (*fn)());

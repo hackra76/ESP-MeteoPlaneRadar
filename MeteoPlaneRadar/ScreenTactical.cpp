@@ -49,6 +49,8 @@ static bool  s_dataOk = false;
 static String s_status = "...";
 
 static char  s_selectedHex[8] = "";
+static unsigned long s_detailOpenMs = 0;
+static unsigned long s_detailSelectMs = 0;
 static int   s_selMiss = 0;
 static Aircraft s_selCache;
 static bool  s_selCacheOk = false;
@@ -73,6 +75,8 @@ static void selectNone(const char* reason) {
   s_selectedHex[0] = '\0';
   s_selMiss = 0;
   s_selCacheOk = false;
+  s_detailOpenMs = 0;
+  s_detailSelectMs = 0;
   UI_SetPhotoFullscreen(false);
   Route_Clear();
   PlanePhoto_Clear();
@@ -83,6 +87,8 @@ static void selectHex(const char* hex) {
   s_selectedHex[sizeof(s_selectedHex) - 1] = '\0';
   s_selMiss = 0;
   s_selCacheOk = false;
+  s_detailOpenMs = 0;
+  s_detailSelectMs = millis();
 }
 
 void ScreenTactical_CloseDetail() { selectNone("manual"); }
@@ -830,6 +836,21 @@ void ScreenTactical_Draw() {
 
 void ScreenTactical_Enter() {
   selectNone("enter");
+  uint8_t curSrc = Settings_RadarSource();
+  static uint8_t s_enterLastSrc = 255;
+  if (curSrc != s_enterLastSrc) {
+    s_enterLastSrc = curSrc;
+    if (curSrc == RADAR_SRC_RAINVIEWER) {
+      CHMU_FreeBuffers();
+      SHMU_FreeBuffers();
+    } else if (curSrc == RADAR_SRC_CHMU) {
+      RainViewer_FreeBuffers();
+      SHMU_FreeBuffers();
+    } else if (curSrc == RADAR_SRC_SHMU) {
+      RainViewer_FreeBuffers();
+      CHMU_FreeBuffers();
+    }
+  }
   double clat = Settings_Lat(), clon = Settings_Lon();
   float crng = currentRange();
   if (isWholeCountry()) {
@@ -894,6 +915,26 @@ void ScreenTactical_ChangeRange(int dir) {
 bool ScreenTactical_Tick() {
   if (WiFi.status() != WL_CONNECTED) return false;
 
+  // Automaticke zatvorenie detailu lietadla alebo fotky po 10 sekundach od zobrazenia
+  if (ScreenTactical_DetailOpen()) {
+    PhotoState pState = PlanePhoto_GetState();
+    bool photoDone = (pState == PHOTO_OK || pState == PHOTO_NONE);
+    if (!photoDone && s_selCacheOk && pState == PHOTO_IDLE) {
+      photoDone = true;
+    }
+    // Casovac 10s sa nastartuje az v momente, ked je fotka stiahnuta alebo potvrdena ako "bez fotky"
+    if (s_detailOpenMs == 0) {
+      if (photoDone || (millis() - s_detailSelectMs >= 15000UL)) {
+        s_detailOpenMs = millis();
+      }
+    } else {
+      if (millis() - s_detailOpenMs >= DETAIL_AUTO_CLOSE_MS) {
+        selectNone("auto timeout 10s");
+        return true;
+      }
+    }
+  }
+
   unsigned long now = millis();
   uint8_t curSrc = Settings_RadarSource();
   static uint8_t s_lastSrc = 255;
@@ -901,6 +942,16 @@ bool ScreenTactical_Tick() {
   if (curSrc != s_lastSrc) {
     s_lastSrc = curSrc;
     srcChanged = true;
+    if (curSrc == RADAR_SRC_RAINVIEWER) {
+      CHMU_FreeBuffers();
+      SHMU_FreeBuffers();
+    } else if (curSrc == RADAR_SRC_CHMU) {
+      RainViewer_FreeBuffers();
+      SHMU_FreeBuffers();
+    } else if (curSrc == RADAR_SRC_SHMU) {
+      RainViewer_FreeBuffers();
+      CHMU_FreeBuffers();
+    }
     double clat = Settings_Lat(), clon = Settings_Lon();
     float crng = currentRange();
     if (isWholeCountry()) {
@@ -976,12 +1027,14 @@ bool ScreenTactical_Tick() {
 bool ScreenTactical_HandleTap(int x, int y) {
   if (UI_IsPhotoFullscreen()) {
     UI_SetPhotoFullscreen(false);
+    s_detailOpenMs = millis();
     return true;
   }
   if (ScreenTactical_DetailOpen()) {
     // If photo is loaded and tap is on the photo box -> open fullscreen photo
     if (PlanePhoto_GetState() == PHOTO_OK && x >= 130 && x <= 350 && y >= 40 && y <= 195) {
       UI_SetPhotoFullscreen(true);
+      s_detailOpenMs = millis();
       return true;
     }
     selectNone("tap_outside");

@@ -43,7 +43,8 @@ long Net_ReadBody(HTTPClient& http, uint8_t* buf, size_t cap, const char* tag,
 // so a token shorter than NET_SCAN_MAX_TOKEN always arrives whole - and, because
 // the windows overlap, may arrive twice. Callbacks have to tolerate that.
 // Returns the byte count, or -1 on failure.
-typedef void (*NetScanFn)(const char* window, void* user);
+// Returns the byte count, or -1 on failure. Callback returns false to stop early (success).
+typedef bool (*NetScanFn)(const char* window, void* user);
 long Net_ScanBody(HTTPClient& http, NetScanFn cb, void* user, const char* tag,
                   void (*poll)() = nullptr);
 

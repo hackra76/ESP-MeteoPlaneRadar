@@ -20,3 +20,4 @@ void ScreenWeather_ChangeRange(int dir);   // swipe: change the range
 
 // The current range as text ("50 km" / "cela CR"), for the web UI.
 void ScreenWeather_RangeText(char* out, size_t cap);
+void ScreenWeather_FreeBuffers();

@@ -125,6 +125,43 @@ void PlanePhoto_Clear() {
   lock();
   s_activeSlot = -1;
   s_pending = false;
+  if (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) < 1500000) {
+    for (int i = 0; i < PHOTO_CACHE_N; i++) {
+      if (s_cache[i].rgb565) {
+        heap_caps_free(s_cache[i].rgb565);
+        s_cache[i].rgb565 = nullptr;
+      }
+      s_cache[i].state = PHOTO_IDLE;
+    }
+    if (s_tempJpeg) {
+      heap_caps_free(s_tempJpeg);
+      s_tempJpeg = nullptr;
+    }
+  }
+  unlock();
+}
+
+void PlanePhoto_ClearCache() {
+  lock();
+  for (int i = 0; i < PHOTO_CACHE_N; i++) {
+    if (s_cache[i].rgb565) {
+      heap_caps_free(s_cache[i].rgb565);
+      s_cache[i].rgb565 = nullptr;
+    }
+    s_cache[i].reg[0] = '\0';
+    s_cache[i].hex[0] = '\0';
+    s_cache[i].photographer[0] = '\0';
+    s_cache[i].width = 0;
+    s_cache[i].height = 0;
+    s_cache[i].state = PHOTO_IDLE;
+    s_cache[i].stamp = 0;
+  }
+  if (s_tempJpeg) {
+    heap_caps_free(s_tempJpeg);
+    s_tempJpeg = nullptr;
+  }
+  s_activeSlot = -1;
+  s_pending = false;
   unlock();
 }
 

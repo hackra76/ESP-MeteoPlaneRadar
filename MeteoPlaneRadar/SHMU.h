@@ -28,3 +28,4 @@ int         SHMU_AnimCount();
 uint8_t*    SHMU_AnimData(int i);
 size_t      SHMU_AnimSize(int i);
 String      SHMU_AnimTimeText(int i);   // HH:MM (lokalni cas snimku)
+void        SHMU_FreeBuffers();         // Uvolnenie vyrovnavacej pamate z PSRAM

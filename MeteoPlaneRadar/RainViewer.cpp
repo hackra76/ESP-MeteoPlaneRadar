@@ -574,3 +574,32 @@ int RainViewer_MinutesAgo(int i) {
   if (!newest || newest < t) return 0;
   return (int)((newest - t) / 60);
 }
+
+void RainViewer_FreeBuffers() {
+  s_jobId = s_jobId + 1;
+  s_state = RV_IDLE;
+  for (int i = 0; i < RV_ANIM_MAX; i++) {
+    if (s_fr[i].px) {
+      heap_caps_free(s_fr[i].px);
+      s_fr[i].px = nullptr;
+    }
+    s_fr[i].t = 0;
+    s_fr[i].path[0] = '\0';
+    s_fr[i].ready = false;
+  }
+  if (s_png) {
+    heap_caps_free(s_png);
+    s_png = nullptr;
+  }
+  if (s_decoder) {
+    heap_caps_free(s_decoder);
+    s_decoder = nullptr;
+  }
+  if (s_lineBuf) {
+    free(s_lineBuf);
+    s_lineBuf = nullptr;
+  }
+  s_frameN = 0;
+  s_readyN = 0;
+  s_dstFrame = nullptr;
+}

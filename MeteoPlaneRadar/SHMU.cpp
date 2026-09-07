@@ -114,34 +114,50 @@ String   SHMU_AnimTimeText(int i) { return (i >= 0 && i < s_animCount) ? timeTex
 static String s_topName[SHMU_ANIM_MAX];
 static String s_topTs[SHMU_ANIM_MAX];
 static int    s_topCount = 0;
+static bool   s_scanDone = false;
+static int    s_targetN = SHMU_ANIM_MAX;
 
-static void topInsert(const String& name, const String& ts) {
-  for (int i = 0; i < s_topCount; i++) if (s_topTs[i] == ts) return;   // duplicita
-  if (s_topCount < SHMU_ANIM_MAX) {
+static bool topInsert(const String& name, const String& ts) {
+  for (int i = 0; i < s_topCount; i++) if (s_topTs[i] == ts) return true;   // duplicita, pokracujeme
+  if (s_topCount < s_targetN) {
     int p = s_topCount;
     while (p > 0 && s_topTs[p - 1] > ts) { s_topTs[p] = s_topTs[p - 1]; s_topName[p] = s_topName[p - 1]; p--; }
     s_topTs[p] = ts; s_topName[p] = name; s_topCount++;
-  } else if (ts > s_topTs[0]) {   // nahradime nejstarsi
-    int p = 0;
-    while (p < SHMU_ANIM_MAX - 1 && s_topTs[p + 1] < ts) { s_topTs[p] = s_topTs[p + 1]; s_topName[p] = s_topName[p + 1]; p++; }
-    s_topTs[p] = ts; s_topName[p] = name;
+    return true;
   }
+  if (ts > s_topTs[0]) {   // nahradime nejstarsi
+    int p = 0;
+    while (p < s_targetN - 1 && s_topTs[p + 1] < ts) { s_topTs[p] = s_topTs[p + 1]; s_topName[p] = s_topName[p + 1]; p++; }
+    s_topTs[p] = ts; s_topName[p] = name;
+    return true;
+  }
+  // V SHMU API idu snimky od najnovsieho k najstarsiemu. Ak uz mame s_targetN snimkov
+  // a narazili sme na starsi nez najstarsi z nasho vyberu, znamena to, ze vsetky
+  // dalsie snimky v JSON su este starsie a mozeme skenovanie okamzite ukoncit!
+  s_scanDone = true;
+  return false;
 }
 
 // -----------------------------------------------------------------------------
 //  Scanning getradardata JSON
 // -----------------------------------------------------------------------------
-static void scanTop(const char* text, void* user) {
+static bool scanTop(const char* text, void* user) {
   (void)user;
+  if (s_scanDone) return false;
   const char* pos = text;
   while (true) {
     const char* idx = strstr(pos, NAME_PREFIX); if (!idx) break;
     const char* end = strstr(idx, ".png");      if (!end) break;
     String name; name.concat(idx, (size_t)(end + 4 - idx));
     String ts = extractTimestamp(name);
-    if (ts.length()) topInsert(name, ts);
+    if (ts.length()) {
+      if (!topInsert(name, ts)) {
+        return false;   // Ukoncit skenovanie tela
+      }
+    }
     pos = end + 4;
   }
+  return !s_scanDone;
 }
 
 static bool ensureAnimBuffer(int i) {
@@ -158,6 +174,8 @@ int SHMU_FetchAnim(int wantN) {
   // 1) Projdi JSON API a najdi N nejnovejsich nazvu souboru
   if (!Net_HeapOk("SHMU")) return s_animCount;
   s_topCount = 0;
+  s_scanDone = false;
+  s_targetN  = wantN;
   {
     WiFiClientSecure client; client.setInsecure();
     client.setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
@@ -182,14 +200,17 @@ int SHMU_FetchAnim(int wantN) {
     long ilen = Net_ScanBody(http, scanTop, nullptr, "SHMU", s_poll);
     http.end();
     client.stop();
-    if (ilen <= 0) return s_animCount;
-    Serial.printf("SHMU: API body %ld B, nalezeno %d nazvu\n", ilen, s_topCount);
+    if (s_topCount == 0) {
+      Serial.printf("SHMU: API body %ld B, nenajdeny ziadny nazov\n", ilen);
+      return s_animCount;
+    }
+    Serial.printf("SHMU: API body %ld B, najdenych %d snimkov (zastavene vcas: %s)\n",
+                  ilen, s_topCount, s_scanDone ? "ano" : "nie");
   }
-  if (s_topCount == 0) return s_animCount;
 
   // Kratky odpocinek a uvolneni sitovych struktur pred stahovanim PNG
   if (s_poll) s_poll();
-  delay(150);
+  delay(100);
 
   // 2) Stahni N nejnovejsich (top pole je vzestupne, bereme konec)
   int n = s_topCount < wantN ? s_topCount : wantN;
@@ -205,9 +226,23 @@ int SHMU_FetchAnim(int wantN) {
       break;
     }
     if (s_poll) s_poll();
-    delay(100);
+    delay(50);
   }
   s_animCount = got;
   Serial.printf("SHMU meteoradar: %d ramcu\n", got);
   return got;
 }
+
+void SHMU_FreeBuffers() {
+  for (int i = 0; i < SHMU_ANIM_MAX; i++) {
+    if (s_animBuf[i]) {
+      heap_caps_free(s_animBuf[i]);
+      s_animBuf[i] = nullptr;
+    }
+    s_animSize[i] = 0;
+    s_animName[i] = "";
+  }
+  s_animCount = 0;
+  s_topCount = 0;
+}
+

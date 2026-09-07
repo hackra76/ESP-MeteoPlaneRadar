@@ -66,6 +66,8 @@ static String s_status = "...";
 //
 // Empty string = nothing selected / detail closed.
 static char s_selectedHex[8] = "";
+static unsigned long s_detailOpenMs = 0;
+static unsigned long s_detailSelectMs = 0;
 
 // Grace period for the detail panel. adsb.fi sometimes omits an aircraft from a
 // single poll and sends it again in the next one; closing the panel on the
@@ -96,6 +98,8 @@ static void selectNone(const char* reason) {
   s_selectedHex[0] = '\0';
   s_selMiss = 0;
   s_selCacheOk = false;
+  s_detailOpenMs = 0;
+  s_detailSelectMs = 0;
   UI_SetPhotoFullscreen(false);
   Route_Clear();
   PlanePhoto_Clear();
@@ -105,6 +109,8 @@ static void selectHex(const char* hex) {
   s_selectedHex[sizeof(s_selectedHex) - 1] = '\0';
   s_selMiss = 0;
   s_selCacheOk = false;
+  s_detailOpenMs = 0;
+  s_detailSelectMs = millis();
 #if TOUCH_DEBUG
   Serial.printf("SEL: vybrano hex=%s\n", s_selectedHex);
 #endif
@@ -256,6 +262,26 @@ void ScreenPlanes_Enter() {
 bool ScreenPlanes_Tick() {
   if (WiFi.status() != WL_CONNECTED) { s_status = T(S_WIFI_WAIT); return false; }
 
+  // Automaticke zatvorenie detailu lietadla alebo fotky po 10 sekundach od zobrazenia
+  if (ScreenPlanes_DetailOpen()) {
+    PhotoState pState = PlanePhoto_GetState();
+    bool photoDone = (pState == PHOTO_OK || pState == PHOTO_NONE);
+    if (!photoDone && s_selCacheOk && pState == PHOTO_IDLE) {
+      photoDone = true;
+    }
+    // Casovac 10s sa nastartuje az v momente, ked je fotka stiahnuta alebo potvrdena ako "bez fotky"
+    if (s_detailOpenMs == 0) {
+      if (photoDone || (millis() - s_detailSelectMs >= 15000UL)) {
+        s_detailOpenMs = millis();
+      }
+    } else {
+      if (millis() - s_detailOpenMs >= DETAIL_AUTO_CLOSE_MS) {
+        selectNone("auto timeout 10s");
+        return true;
+      }
+    }
+  }
+
   bool routeChanged = Async_TakeRouteUpdated() || Route_TakeChanged() || PlanePhoto_TakeChanged();
   bool adsbChanged  = Async_TakeAdsbUpdated();
 
@@ -281,12 +307,14 @@ bool ScreenPlanes_Tick() {
 bool ScreenPlanes_HandleTap(int x, int y) {
   if (UI_IsPhotoFullscreen()) {
     UI_SetPhotoFullscreen(false);
+    s_detailOpenMs = millis();
     return true;
   }
   if (ScreenPlanes_DetailOpen()) {
     // If photo is loaded and tap is on the photo box -> open fullscreen photo
     if (PlanePhoto_GetState() == PHOTO_OK && x >= 130 && x <= 350 && y >= 40 && y <= 195) {
       UI_SetPhotoFullscreen(true);
+      s_detailOpenMs = millis();
       return true;
     }
     selectNone("tap mimo panel");

@@ -733,16 +733,12 @@ static void displayWatchdog() {
 
 void loop() {
   // A firmware upload owns the machine: writing flash suspends the PSRAM cache
-  // from under the RGB DMA, so nothing may draw, and every spare cycle should
-  // go to the transfer. The watchdog is fed by the OTA progress callback.
+  // from under the RGB DMA, so nothing may draw. The transfer and WebConfig_Loop()
+  // run exclusively on Core 0 (AsyncCore).
   if (WebConfig_UpdateBusy()) {
-    Async_Pause();
-    WebConfig_Loop();
-    delay(1);
+    Watchdog_Feed();
+    delay(50);
     return;
-  }
-  if (Async_IsPaused()) {
-    Async_Resume();
   }
 
   // Touch: sample and act.

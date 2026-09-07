@@ -68,6 +68,7 @@
 #define ADSB_PERIOD_FAR_MS  15000    // beyond ADSB_MID_KM
 #define ADSB_NEAR_KM 25.0f
 #define ADSB_MID_KM  50.0f
+#define DETAIL_AUTO_CLOSE_MS 10000UL // Automaticke zatvorenie detailu / fotky lietadla (10 sekund)
 
 // ---------------------------------------------------------------------------
 //  Weather radar (CHMU) & Tactical radar

@@ -283,7 +283,8 @@ static ScaleMapX s_mapX[LCD_WIDTH];
 // Pixels outside the round area are left black.
 // When Settings_SmoothRadar() is enabled, performs bilinear interpolation.
 static void blitCrop() {
-  if (!s_crop565) return;
+  const uint16_t* srcBuf = s_crop565;
+  if (!srcBuf || s_frameCount <= 0) return;
   const int cw = cropW(), ch = cropH();
   if (cw <= 0 || ch <= 0) return;
   const long R2 = (long)DISP_R * DISP_R;
@@ -300,7 +301,7 @@ static void blitCrop() {
       if (x1 >= LCD_WIDTH) x1 = LCD_WIDTH - 1;
 
       int srcRow = clampI((int)((int64_t)dy * ch / LCD_HEIGHT), 0, ch - 1);
-      const uint16_t* row = s_crop565 + (int64_t)srcRow * cw;
+      const uint16_t* row = srcBuf + (int64_t)srcRow * cw;
       for (int dx = x0; dx <= x1; dx++) {
         int srcCol = clampI((int)((int64_t)dx * cw / LCD_WIDTH), 0, cw - 1);
         gfx->drawPixel(dx, dy, row[srcCol]);
@@ -339,8 +340,8 @@ static void blitCrop() {
     int wy0 = 256 - qy;
     int wy1 = qy;
 
-    const uint16_t* r0 = s_crop565 + (int64_t)y0 * cw;
-    const uint16_t* r1 = s_crop565 + (int64_t)y1 * cw;
+    const uint16_t* r0 = srcBuf + (int64_t)y0 * cw;
+    const uint16_t* r1 = srcBuf + (int64_t)y1 * cw;
 
     for (int dx = sx0; dx <= sx1; dx++) {
       int x0 = s_mapX[dx].x0;
@@ -420,7 +421,7 @@ static bool rebuildCrops() {
   s_wide = false;
 
   if (s_imgW > s_lineCap) {
-    if (s_lineBuf) free(s_lineBuf);
+    if (s_lineBuf) heap_caps_free(s_lineBuf);
     s_lineBuf = (uint16_t*)heap_caps_malloc((size_t)s_imgW * sizeof(uint16_t), MALLOC_CAP_SPIRAM);
     if (!s_lineBuf) s_lineBuf = (uint16_t*)malloc((size_t)s_imgW * sizeof(uint16_t));
     s_lineCap = s_lineBuf ? s_imgW : 0;
@@ -439,7 +440,7 @@ static bool rebuildCrops() {
   int okc = 0;
   for (int f = 0; f < cnt; f++) {
     if (s_frameCap[f] < need) {
-      if (s_frame565[f]) free(s_frame565[f]);
+      if (s_frame565[f]) heap_caps_free(s_frame565[f]);
       s_frame565[f] = (uint16_t*)heap_caps_malloc((size_t)need * 2, MALLOC_CAP_SPIRAM);
       if (!s_frame565[f]) s_frame565[f] = (uint16_t*)malloc((size_t)need * 2);
       s_frameCap[f] = s_frame565[f] ? need : 0;
@@ -457,6 +458,27 @@ static bool rebuildCrops() {
   }
   s_frameCount = okc;
   return okc > 0;
+}
+
+void ScreenWeather_FreeBuffers() {
+  for (int f = 0; f < ANIM_FRAMES; f++) {
+    if (s_frame565[f]) {
+      heap_caps_free(s_frame565[f]);
+      s_frame565[f] = nullptr;
+    }
+    s_frameCap[f] = 0;
+  }
+  if (s_lineBuf) {
+    heap_caps_free(s_lineBuf);
+    s_lineBuf = nullptr;
+    s_lineCap = 0;
+  }
+  if (s_png) {
+    heap_caps_free(s_png);
+    s_png = nullptr;
+  }
+  s_crop565 = nullptr;
+  s_frameCount = 0;
 }
 
 // Download frames + build crops. The fetch blocks for a few seconds, so the
@@ -608,10 +630,29 @@ void ScreenWeather_Enter() {
   static uint8_t s_enterLastSrc = 255;
   uint8_t curSrc = Settings_RadarSource();
   if (curSrc != s_enterLastSrc) {
+    uint8_t oldSrc = s_enterLastSrc;
     s_enterLastSrc = curSrc;
     s_frameCount = 0;
     s_needRebuild = false;
     s_lastFetch = 0;
+    s_loading = false;
+    s_lastFail = false;
+    s_status = T(S_LOADING);
+
+    // Free buffers of the inactive providers to conserve PSRAM!
+    if (curSrc == RADAR_SRC_RAINVIEWER) {
+      CHMU_FreeBuffers();
+      SHMU_FreeBuffers();
+      ScreenWeather_FreeBuffers();
+    } else if (curSrc == RADAR_SRC_CHMU) {
+      RainViewer_FreeBuffers();
+      SHMU_FreeBuffers();
+      ScreenWeather_FreeBuffers();
+    } else if (curSrc == RADAR_SRC_SHMU) {
+      RainViewer_FreeBuffers();
+      CHMU_FreeBuffers();
+      ScreenWeather_FreeBuffers();
+    }
   }
   uint8_t saved = Settings_MeteoRange();
   if (saved >= RANGE_COUNT) saved = 1;             // guard against a stale value
@@ -726,12 +767,32 @@ bool ScreenWeather_Tick() {
   static uint8_t s_lastSrc = 255;
   uint8_t curSrc = Settings_RadarSource();
   if (curSrc != s_lastSrc) {
+    uint8_t oldSrc = s_lastSrc;
     s_lastSrc = curSrc;
     s_frameCount = 0;
     s_needRebuild = false;
     s_curFrame = 0;
     s_gap = false;
     s_lastFetch = 0;
+    s_loading = false;
+    s_lastFail = false;
+    s_status = T(S_LOADING);
+
+    // Free buffers of the inactive providers to conserve PSRAM!
+    if (curSrc == RADAR_SRC_RAINVIEWER) {
+      CHMU_FreeBuffers();
+      SHMU_FreeBuffers();
+      ScreenWeather_FreeBuffers();
+    } else if (curSrc == RADAR_SRC_CHMU) {
+      RainViewer_FreeBuffers();
+      SHMU_FreeBuffers();
+      ScreenWeather_FreeBuffers();
+    } else if (curSrc == RADAR_SRC_SHMU) {
+      RainViewer_FreeBuffers();
+      CHMU_FreeBuffers();
+      ScreenWeather_FreeBuffers();
+    }
+
     if (rvMode()) {
       double vlat = Settings_Lat(), vlon = Settings_Lon();
       float vrng = currentRange();
@@ -821,8 +882,10 @@ void ScreenWeather_Draw() {
     if (rvMode()) {
       blitRainViewer(RainViewer_Frame(f));
     } else {
-      s_crop565 = s_frame565[f];
-      blitCrop();
+      if (s_frame565[f]) {
+        s_crop565 = s_frame565[f];
+        blitCrop();
+      }
     }
   }
 
@@ -862,7 +925,7 @@ void ScreenWeather_Draw() {
     UI_TextCentered(T(S_METEORADAR), CY - 16, C_WHITE, 1);
     const char* msg = (s_loading || RainViewer_Busy()) ? T(S_LOADING)
                     : s_wide ? T(S_FRAME_WIDE)
-                             : s_status.c_str();
+                    : (s_status == T(S_OK) ? T(S_LOADING) : s_status.c_str());
     UI_TextCentered(msg, CY + 2, C_YELLOW, 2);
   }
 

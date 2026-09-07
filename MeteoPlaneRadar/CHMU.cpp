@@ -137,7 +137,7 @@ static void topInsert(const String& name, const String& ts) {
 // -----------------------------------------------------------------------------
 //  Scanning indexu (HTML adresaroveho vypisu)
 // -----------------------------------------------------------------------------
-static void scanTop(const char* text, void* user) {
+static bool scanTop(const char* text, void* user) {
   (void)user;
   const char* pos = text;
   while (true) {
@@ -148,6 +148,7 @@ static void scanTop(const char* text, void* user) {
     if (ts.length()) topInsert(name, ts);
     pos = end + 4;
   }
+  return true;
 }
 
 static bool ensureAnimBuffer(int i) {
@@ -215,4 +216,17 @@ int CHMU_FetchAnim(int wantN) {
   s_animCount = got;
   Serial.printf("Meteoradar: %d ramcu\n", got);
   return got;
+}
+
+void CHMU_FreeBuffers() {
+  for (int i = 0; i < CHMU_ANIM_MAX; i++) {
+    if (s_animBuf[i]) {
+      heap_caps_free(s_animBuf[i]);
+      s_animBuf[i] = nullptr;
+    }
+    s_animSize[i] = 0;
+    s_animName[i] = "";
+  }
+  s_animCount = 0;
+  s_topCount = 0;
 }

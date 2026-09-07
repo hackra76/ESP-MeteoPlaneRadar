@@ -65,8 +65,9 @@ public:
   // Scan whatever is left in the window. Call once the transfer is over.
   void finish();
 
-  size_t length()   const { return _total; }
-  bool   timedOut() const { return _timeout; }
+  size_t length()       const { return _total; }
+  bool   timedOut()     const { return _timeout; }
+  bool   stoppedEarly() const { return _stopped; }
 
 private:
   void scanWindow();
@@ -82,6 +83,7 @@ private:
   size_t    _fill    = 0;
   size_t    _total   = 0;
   bool      _timeout = false;
+  bool      _stopped = false;
 };
 
 NetBufSink::NetBufSink(uint8_t* buf, size_t cap, void (*poll)(), uint32_t budgetMs)
@@ -102,18 +104,19 @@ size_t NetBufSink::write(const uint8_t* data, size_t len) {
     _timeout = true;
     return 0;
   }
-  if (!_buf || len == 0) return 0;
+  if (!data || len == 0) return 0;
+  if (!_buf) { _over = true; return 0; }
 
-  // Reserve 1 byte for NUL termination so terminate() always succeeds when within capacity
-  size_t maxData = (_cap > 0) ? (_cap - 1) : 0;
-  size_t room = (_len < maxData) ? (maxData - _len) : 0;
-  if (len > room) {
-    _over = true;              // record it - the caller must not use the body
-    len   = room;
+  // Reserve the last byte for the NUL terminator.
+  size_t room = (_cap > _len + 1) ? (_cap - 1 - _len) : 0;
+  size_t take = (len < room) ? len : room;
+  if (take > 0) {
+    memcpy(_buf + _len, data, take);
+    _len += take;
   }
-  if (len) {
-    memcpy(_buf + _len, data, len);
-    _len += len;
+  if (take < len) {
+    _over = true;
+    return 0;                  // short write aborts the download
   }
   return len;
 }
@@ -166,6 +169,7 @@ size_t NetScanSink::write(uint8_t b) {
 size_t NetScanSink::write(const uint8_t* data, size_t len) {
   if (_poll) _poll();          // yield + feed the watchdog on every block
 
+  if (_stopped) return 0;
   if (_budget && (millis() - _start) > _budget) {
     _timeout = true;
     return 0;                  // short write - the only way to stop the loop
@@ -182,14 +186,17 @@ size_t NetScanSink::write(const uint8_t* data, size_t len) {
     _fill += take;
     done  += take;
     if (_fill == WIN) scanWindow();
+    if (_stopped) break;
   }
-  _total += len;
-  return len;
+  _total += done;
+  return _stopped ? 0 : len;
 }
 
 void NetScanSink::scanWindow() {
   _win[_fill] = '\0';
-  if (_cb) _cb(_win, _user);
+  if (_cb && !_cb(_win, _user)) {
+    _stopped = true;
+  }
   // Carry the tail so a token split across two windows is still seen whole.
   if (_fill > OVERLAP) {
     memmove(_win, _win + _fill - OVERLAP, OVERLAP);
@@ -198,7 +205,7 @@ void NetScanSink::scanWindow() {
 }
 
 void NetScanSink::finish() {
-  if (!_fill) return;
+  if (!_fill || _stopped) return;
   _win[_fill] = '\0';
   if (_cb) _cb(_win, _user);
   _fill = 0;
@@ -212,6 +219,9 @@ long Net_ScanBody(HTTPClient& http, NetScanFn cb, void* user, const char* tag,
   int ret = http.writeToStream(&sink);
   sink.finish();               // the last, partial window
 
+  if (sink.stoppedEarly()) {
+    return (long)sink.length();
+  }
   if (sink.timedOut()) {
     Serial.printf("%s: prenos prekrocil %lu ms, preruseno\n",
                   tag, (unsigned long)NET_BODY_BUDGET_MS);
