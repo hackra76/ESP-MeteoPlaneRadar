@@ -558,7 +558,7 @@ static void drawOverlay() {
 
     const int lx = 30, ly = 142, boxW = 96, boxH = 22 + 6 * 13 + 2;
     gfx->fillRect(lx - 2, ly - 2, boxW, boxH, C_BLACK);   // readability backing
-    const char* srcText = rv ? "RainViewer" : (shmu ? "SHMU" : "CHMU");
+    const char* srcText = rv ? "RainViewer" : (shmu ? "SHMÚ" : "ČHMÚ");
     uint16_t    srcCol  = rv ? C_CYAN : (shmu ? C_WHITE : C_GREEN);
     UI_Text(srcText, lx, ly, srcCol, 1);
     UI_Text("dBZ / mm/h", lx, ly + 10, C_GRAY, 1);
@@ -922,7 +922,8 @@ void ScreenWeather_Draw() {
     const int bw = 260, bh = 54;
     gfx->fillRoundRect(CX - bw / 2, CY - bh / 2, bw, bh, 12, C_DKGRAY);
     gfx->drawRoundRect(CX - bw / 2, CY - bh / 2, bw, bh, 12, C_CYAN);
-    UI_TextCentered(T(S_METEORADAR), CY - 16, C_WHITE, 1);
+    const char* prov = rvMode() ? "RainViewer" : (shmuMode() ? "SHMÚ" : "ČHMÚ");
+    UI_TextCentered(prov, CY - 16, C_WHITE, 1);
     const char* msg = (s_loading || RainViewer_Busy()) ? T(S_LOADING)
                     : s_wide ? T(S_FRAME_WIDE)
                     : (s_status == T(S_OK) ? T(S_LOADING) : s_status.c_str());

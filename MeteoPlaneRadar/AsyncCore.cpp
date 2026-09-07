@@ -66,7 +66,7 @@ void Async_LockRoute()     { if (s_mtxRoute) xSemaphoreTake(s_mtxRoute, pdMS_TO_
 void Async_UnlockRoute()   { if (s_mtxRoute) xSemaphoreGive(s_mtxRoute); }
 
 static SemaphoreHandle_t s_mtxI2c = NULL;
-void Async_LockI2C()       { if (!s_mtxI2c) s_mtxI2c = xSemaphoreCreateRecursiveMutex(); if (s_mtxI2c) xSemaphoreTakeRecursive(s_mtxI2c, pdMS_TO_TICKS(150)); }
+void Async_LockI2C()       { if (s_mtxI2c) xSemaphoreTakeRecursive(s_mtxI2c, pdMS_TO_TICKS(150)); }
 void Async_UnlockI2C()     { if (s_mtxI2c) xSemaphoreGiveRecursive(s_mtxI2c); }
 
 void Async_Pause()         { s_paused = true; }
@@ -247,6 +247,7 @@ void Async_Begin() {
   if (!s_mtxRadar)    s_mtxRadar    = xSemaphoreCreateMutex();
   if (!s_mtxForecast) s_mtxForecast = xSemaphoreCreateMutex();
   if (!s_mtxRoute)    s_mtxRoute    = xSemaphoreCreateMutex();
+  if (!s_mtxI2c)      s_mtxI2c      = xSemaphoreCreateRecursiveMutex();
 
   // Create background network worker task on Core 0 with 24KB stack
   BaseType_t res = xTaskCreatePinnedToCore(

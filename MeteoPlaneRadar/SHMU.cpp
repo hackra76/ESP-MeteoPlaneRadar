@@ -11,6 +11,7 @@
 #include "TimeUtil.h"
 #include "Outside.h"
 #include "NetSink.h"
+#include "Net.h"
 #include <string.h>      // strstr / memcmp
 
 static const char* NAME_PREFIX = "cmax.kruh.";
@@ -56,44 +57,15 @@ static String timeTextFromName(const String& name) {
 static bool downloadNameTo(const String& name, uint8_t* buf, size_t cap, size_t* outSize) {
   *outSize = 0;
   if (!buf) return false;
-  if (!Net_HeapOk("SHMU")) return false;
   String url = String(SHMU_BASE_URL) + name;
-  WiFiClientSecure client; client.setInsecure();
-  client.setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
-  HTTPClient http;
-  http.setConnectTimeout(6000);   // TCP connect only, NOT the TLS handshake
-  http.setTimeout(15000);
-  http.setUserAgent("Mozilla/5.0 (ESP-MeteoPlaneRadar)");
-  if (!http.begin(client, url)) {
-    client.stop();
-    return false;
-  }
-  int code = http.GET();
-  if (code != HTTP_CODE_OK) {
-    Serial.printf("SHMU: GET %s selhal (%d)\n", name.c_str(), code);
-    while (client.available()) client.read();
-    http.end();
-    client.stop();
-    return false;
-  }
-  int total = http.getSize();
-  if (total > (int)cap) {
-    Serial.printf("SHMU: %s prilis velky (%d > %u)\n", name.c_str(), total, (unsigned)cap);
-    while (client.available()) client.read();
-    http.end();
-    client.stop();
-    return false;
-  }
-  long got = Net_ReadBody(http, buf, cap, "SHMU", s_poll);
-  http.end();
-  client.stop();
-  if (got < 0) return false;
+  size_t got = 0;
+  if (!Net_GetBinary(url.c_str(), buf, cap, &got, "SHMU")) return false;
 
   if (got < 8 || memcmp(buf, "\x89PNG\r\n\x1a\n", 8) != 0) {
-    Serial.printf("SHMU: %s neni PNG (%ld B)\n", name.c_str(), got);
+    Serial.printf("SHMU: %s neni PNG (%u B)\n", name.c_str(), (unsigned)got);
     return false;
   }
-  *outSize = (size_t)got;
+  *outSize = got;
   return true;
 }
 
@@ -216,6 +188,7 @@ int SHMU_FetchAnim(int wantN) {
   int n = s_topCount < wantN ? s_topCount : wantN;
   int startIdx = s_topCount - n;
   int got = 0;
+  Net_SessionBegin();
   for (int i = 0; i < n; i++) {
     if (s_poll) s_poll();
     if (!ensureAnimBuffer(i)) break;
@@ -228,6 +201,7 @@ int SHMU_FetchAnim(int wantN) {
     if (s_poll) s_poll();
     delay(50);
   }
+  Net_SessionEnd();
   s_animCount = got;
   Serial.printf("SHMU meteoradar: %d ramcu\n", got);
   return got;

@@ -11,6 +11,7 @@
 #include "TimeUtil.h"
 #include "Outside.h"
 #include "NetSink.h"
+#include "Net.h"
 #include <string.h>      // strstr / memcmp
 
 static const char* NAME_PREFIX = "pacz2gmaps3.z_max3d.";
@@ -62,44 +63,18 @@ static String timeTextFromName(const String& name) {
 static bool downloadNameTo(const String& name, uint8_t* buf, size_t cap, size_t* outSize) {
   *outSize = 0;
   if (!buf) return false;
-  if (!Net_HeapOk("CHMU")) return false;
   String url = String(CHMU_INDEX_URL) + name;
-  WiFiClientSecure client; client.setInsecure();
-  client.setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
-  HTTPClient http;
-  http.setConnectTimeout(6000);   // TCP connect only, NOT the TLS handshake
-  http.setTimeout(15000);
-  if (!http.begin(client, url)) {
-    client.stop();
-    return false;
-  }
-  int code = http.GET();
-  if (code != HTTP_CODE_OK) {
-    while (client.available()) client.read();
-    http.end();
-    client.stop();
-    return false;
-  }
-  int total = http.getSize();
-  if (total > (int)cap) {
-    while (client.available()) client.read();
-    http.end();
-    client.stop();
-    return false;
-  }
-  long got = Net_ReadBody(http, buf, cap, "CHMU", s_poll);
-  http.end();
-  client.stop();
-  if (got < 0) return false;
+  size_t got = 0;
+  if (!Net_GetBinary(url.c_str(), buf, cap, &got, "CHMU")) return false;
 
   // A PNG that is not a PNG means we were handed an error page or something
   // re-encoded in transit. Checking the signature here stops the decoder from
   // being fed rubbish and drawing a corrupt frame over a good radar image.
   if (got < 8 || memcmp(buf, "\x89PNG\r\n\x1a\n", 8) != 0) {
-    Serial.printf("CHMU: %s neni PNG (%ld B)\n", name.c_str(), got);
+    Serial.printf("CHMU: %s neni PNG (%u B)\n", name.c_str(), (unsigned)got);
     return false;
   }
-  *outSize = (size_t)got;
+  *outSize = got;
   return true;
 }
 
@@ -201,6 +176,7 @@ int CHMU_FetchAnim(int wantN) {
   int n = s_topCount < wantN ? s_topCount : wantN;
   int startIdx = s_topCount - n;
   int got = 0;
+  Net_SessionBegin();
   for (int i = 0; i < n; i++) {
     if (s_poll) s_poll();
     if (!ensureAnimBuffer(i)) break;
@@ -213,6 +189,7 @@ int CHMU_FetchAnim(int wantN) {
     if (s_poll) s_poll();
     delay(100);
   }
+  Net_SessionEnd();
   s_animCount = got;
   Serial.printf("Meteoradar: %d ramcu\n", got);
   return got;

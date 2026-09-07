@@ -82,17 +82,63 @@ static void markDirty() { s_uiDirty = true; s_uiDirtyAt = millis(); }
 
 // Immediate write for the settings that are changed rarely and deliberately
 // (web UI, portal) rather than by dragging a finger.
+static int s_batchDepth = 0;
+
+void Settings_BatchBegin() {
+  if (s_batchDepth == 0) {
+    prefs.begin(NS, false);
+  }
+  s_batchDepth++;
+}
+
+void Settings_BatchEnd() {
+  if (s_batchDepth > 0) {
+    s_batchDepth--;
+    if (s_batchDepth == 0) {
+      prefs.end();
+    }
+  }
+}
+
 static void putU8(const char* k, uint8_t v) {
-  if (prefs.begin(NS, false)) { prefs.putUChar(k, v); prefs.end(); }
+  if (s_batchDepth > 0) {
+    prefs.putUChar(k, v);
+  } else if (prefs.begin(NS, false)) {
+    prefs.putUChar(k, v);
+    prefs.end();
+  }
+}
+static void putI8(const char* k, int8_t v) {
+  if (s_batchDepth > 0) {
+    prefs.putChar(k, v);
+  } else if (prefs.begin(NS, false)) {
+    prefs.putChar(k, v);
+    prefs.end();
+  }
 }
 static void putU16(const char* k, uint16_t v) {
-  if (prefs.begin(NS, false)) { prefs.putUShort(k, v); prefs.end(); }
+  if (s_batchDepth > 0) {
+    prefs.putUShort(k, v);
+  } else if (prefs.begin(NS, false)) {
+    prefs.putUShort(k, v);
+    prefs.end();
+  }
 }
 static void putBool(const char* k, bool v) {
-  if (prefs.begin(NS, false)) { prefs.putBool(k, v); prefs.end(); }
+  if (s_batchDepth > 0) {
+    prefs.putBool(k, v);
+  } else if (prefs.begin(NS, false)) {
+    prefs.putBool(k, v);
+    prefs.end();
+  }
 }
 static void putStr(const char* k, const char* v) {
-  if (prefs.begin(NS, false)) { prefs.putString(k, v); prefs.end(); }
+  if (s_batchDepth > 0) {
+    prefs.putString(k, v);
+  } else if (prefs.begin(NS, false)) {
+    prefs.putString(k, v);
+    prefs.end();
+  }
 }
 
 void Settings_Begin() {
@@ -139,16 +185,16 @@ void Settings_Begin() {
     s_altMax = prefs.getUShort("altHi", 60000);
     s_onlyCs = prefs.getBool("onlyCs", false);
     s_sqAlert = prefs.getBool("sqAl", true);
-    prefs.getString("watch", s_watch, sizeof(s_watch));
+    if (prefs.isKey("watch")) prefs.getString("watch", s_watch, sizeof(s_watch));
     s_rngP   = prefs.getUChar("rngP", 1);
     s_rngM   = prefs.getUChar("rngM", 1);
     s_scr    = prefs.getUChar("scr", SCREEN_PLANES_I);
     s_top    = prefs.getUShort("topb", 0);
     s_showLegends = prefs.getBool("sLeg", true);
     s_autoRotateBearing = prefs.getBool("autoRot", false);
-    prefs.getString("pw", s_pw, sizeof(s_pw));
-    prefs.getString("ssid", s_ssid, sizeof(s_ssid));
-    prefs.getString("wpass", s_wpass, sizeof(s_wpass));
+    if (prefs.isKey("pw"))    prefs.getString("pw", s_pw, sizeof(s_pw));
+    if (prefs.isKey("ssid"))  prefs.getString("ssid", s_ssid, sizeof(s_ssid));
+    if (prefs.isKey("wpass")) prefs.getString("wpass", s_wpass, sizeof(s_wpass));
     prefs.end();
   }
   if (s_altMax == 0) s_altMax = 60000;
@@ -188,7 +234,11 @@ bool   Settings_HasLocation() { return s_hasLoc; }
 
 void Settings_SetLocation(double lat, double lon) {
   s_lat = lat; s_lon = lon; s_hasLoc = true;
-  if (prefs.begin(NS, false)) {
+  if (s_batchDepth > 0) {
+    prefs.putDouble("lat", lat);
+    prefs.putDouble("lon", lon);
+    prefs.putBool("hasLoc", true);
+  } else if (prefs.begin(NS, false)) {
     prefs.putDouble("lat", lat);
     prefs.putDouble("lon", lon);
     prefs.putBool("hasLoc", true);
@@ -218,7 +268,7 @@ void   Settings_SetNightOffsetMin(int8_t m) {
   if (m >  NIGHT_OFFSET_MIN_LIMIT) m =  NIGHT_OFFSET_MIN_LIMIT;
   if (m < -NIGHT_OFFSET_MIN_LIMIT) m = -NIGHT_OFFSET_MIN_LIMIT;
   s_nightOff = m;
-  if (prefs.begin(NS, false)) { prefs.putChar("nOff", m); prefs.end(); }
+  putI8("nOff", m);
 }
 bool Settings_IsNight() { return s_isNight; }
 void Settings_SetNight(bool night) { s_isNight = night; }
@@ -314,9 +364,8 @@ uint16_t Settings_AltMaxFt() { return s_altMax; }
 void     Settings_SetAltRangeFt(uint16_t lo, uint16_t hi) {
   if (hi <= lo) { lo = 0; hi = 60000; }           // nonsense range = no filter
   s_altMin = lo; s_altMax = hi;
-  if (prefs.begin(NS, false)) {
-    prefs.putUShort("altLo", lo); prefs.putUShort("altHi", hi); prefs.end();
-  }
+  putU16("altLo", lo);
+  putU16("altHi", hi);
 }
 bool Settings_OnlyWithCallsign() { return s_onlyCs; }
 void Settings_SetOnlyWithCallsign(bool on) { s_onlyCs = on; putBool("onlyCs", on); }
@@ -437,6 +486,7 @@ void Settings_ToJson(JsonObject o) {
 }
 
 bool Settings_FromJson(JsonObjectConst in) {
+  Settings_BatchBegin();
   bool changed = false;
   auto setIf = [&](const char* key, auto fn) {
     JsonVariantConst v = in[key];
@@ -502,6 +552,7 @@ bool Settings_FromJson(JsonObjectConst in) {
       if (!v.isNull()) { Settings_SetScreenEnabled(m.idx, v.as<bool>()); changed = true; }
     }
   }
+  Settings_BatchEnd();
   return changed;
 }
 

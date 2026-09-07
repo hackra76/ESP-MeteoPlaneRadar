@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-SK%20%7C%20CZ%20%7C%20EN-green.svg)
-![Release](https://img.shields.io/badge/Release-v1.5.7-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v1.5.8-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunkčná meteo-radarová stanica, živý letecký radar, zrážkový meteoradar (SHMÚ, ČHMÚ, RainViewer), taktický kombinovaný radar a dizajnové hodiny na okrúhlom 2.1" IPS dotykovom displeji.**  
@@ -29,14 +29,14 @@ Vyvinuté pre hardvérovú dosku **Waveshare ESP32-S3-Touch-LCD-2.1** s moderný
 
 ---
 
-## 🌟 Kľúčové novinky vo verzii v1.5.7
+## 🌟 Kľúčové novinky vo verzii v1.5.8
 
-- 🚀 **Priama online aktualizácia firmvéru z GitHubu (GitHub OTA Updates):** Webové rozhranie na záložke *Systém* teraz obsahuje kartu priamej kontroly a inštalácie nových verzií priamo z GitHub repozitára `hackra76/ESP-MeteoPlaneRadar`. ESP32 cez bezpečné HTTPS stiahne `-ota.bin` balíček, s reálnym ukazovateľom priebehu v percentách zapíše firmvér do pamäte a automaticky reštartuje zariadenie.
-- 🖼️ **Celoobrazovkový náhľad fotografie lietadla (Fullscreen Aircraft Photo):** Ťuknutím na fotografiu lietadla v detaile sa snímka proporčne roztiahne cez celú plochu okrúhleho 480×480 displeja bez skreslenia pomeru strán.
-- 🇸🇰 **Oficiálny radar SHMÚ (Slovensko):** Priama natívna podpora sťahovania vysoko detailných radarových kompozitov CMAX priamo zo serverov Slovenského hydrometeorologického ústavu (SHMÚ) s oficiálnou farebnou škálou zrážok (dBZ / mm/h).
-- 🇨🇿 **Radar ČHMÚ & 🌍 Globálny RainViewer:** Okamžité prepínanie medzi poskytovateľmi zrážkových dát (SHMÚ, ČHMÚ, RainViewer) priamo cez dotykové menu, web alebo nastavenia.
-- 🎨 **Bilineárne vyhladzovanie zrážkového radaru (Anti-Aliasing):** Pri vysokom priblížení (zoom 25 km a 50 km) algoritmus bilineárnej interpolácie odstraňuje kockatý "pixel-art" efekt a vykresľuje zrážkové polia a búrkové bunky v hodvábne plynulých farebných prechodoch. Prepínač je dostupný v QuickControl, na obrazovke Nastavení aj na webe.
-- 📐 **Vyladený dizajn obrazoviek:** Dokonale vycentrovaná predpoveď počasia, 2×2 mriežka tlačidiel v Nastaveniach s čistým odstupom a optimalizované webové rozhranie s minimálnym zaťažením CPU.
+- ✈️ **Pokrytie celého vzdušného priestoru & 250 lietadiel:** Limit aktívnych lietadiel bol navýšený na 250 s inteligentným algoritmom prioritizácie podľa vzdialenosti k stredu radaru. Tým bol odstránený neduh chýbajúcich lietadiel vo východnej polovici Slovenska pri celoštátnom pohľade na taktickom radare.
+- 🌧️ **Dynamický indikátor poskytovateľa radaru:** Pri prepínaní a načítavaní radarových dát sa v informačnom rámčeku namiesto generického textu zobrazuje presný a prehľadný názov poskytovateľa (**SHMÚ**, **RainViewer**, **ČHMÚ**).
+- ⏱️ **Inteligentné automatické zatvorenie detailu a fotky (10 s):** Po zobrazení karty lietadla alebo celoobrazovkovej fotky sa pohľad po 10 sekundách automaticky vráti na radar. Odpočet sa bezpečne spúšťa až po dokončení sťahovania fotky zo servera.
+- ⚡ **TLS Session Reuse (Keep-Alive):** Sťahovanie sérií zrážkových snímok SHMÚ a ČHMÚ prebieha cez jediné perzistentné TLS spojenie, čo šetrí desiatky kilobajtov RAM a zrýchľuje sťahovanie animácie.
+- 💾 **Optimalizácia PSRAM & Dávkový zápis do NVS:** ADS-B JSON strom sa alokuje cez vlastný `SpiRamAllocator` priamo v 8 MB PSRAM, čím chráni internú SRAM. Ukladanie nastavení z webu využíva dávkový zápis (batch commit), čím šetrí životnosť internej flash pamäte.
+- 🚀 **Stabilné OTA s modernou knižnicou:** Prechod webservera na udržiavaný fork `mathieucarbou/ESPAsyncWebServer` zaručuje bezchybný priebeh nahrávania a OTA aktualizácií.
 
 ---
 

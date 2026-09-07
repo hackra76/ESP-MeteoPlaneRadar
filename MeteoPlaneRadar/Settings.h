@@ -164,5 +164,8 @@ void Settings_ToJson(JsonObject out);
 // true when at least one value changed.
 bool Settings_FromJson(JsonObjectConst in);
 
+void Settings_BatchBegin(); // hold single NVS transaction for bulk updates
+void Settings_BatchEnd();
+
 void Settings_Tick();       // call once per loop(); debounced NVS flush
 void Settings_ClearAll();

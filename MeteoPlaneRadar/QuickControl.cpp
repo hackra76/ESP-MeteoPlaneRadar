@@ -126,6 +126,25 @@ void QuickControl_Draw(int currentScreen) {
   UI_TextCenteredIn("^ potiahnutím hore zatvoríte ^", CW_X, CW_W, CW_Y + CW_H - 20, C_GRAY, 1);
 }
 
+static void switchRadarSource() {
+  uint8_t curSrc = Settings_RadarSource();
+  uint8_t nextSrc = (curSrc == RADAR_SRC_CHMU) ? RADAR_SRC_SHMU :
+                    (curSrc == RADAR_SRC_SHMU) ? RADAR_SRC_RAINVIEWER : RADAR_SRC_CHMU;
+  Settings_SetRadarSource(nextSrc);
+  if (nextSrc == RADAR_SRC_RAINVIEWER) {
+    CHMU_FreeBuffers();
+    SHMU_FreeBuffers();
+  } else if (nextSrc == RADAR_SRC_CHMU) {
+    RainViewer_FreeBuffers();
+    SHMU_FreeBuffers();
+  } else if (nextSrc == RADAR_SRC_SHMU) {
+    RainViewer_FreeBuffers();
+    CHMU_FreeBuffers();
+  }
+  ScreenWeather_FreeBuffers();
+  Async_RequestRadar();
+}
+
 bool QuickControl_HandleTap(int x, int y, int currentScreen) {
   if (!s_open) return false;
 
@@ -217,24 +236,7 @@ bool QuickControl_HandleTap(int x, int y, int currentScreen) {
         return true;
       }
       if (x >= CW_X + 186 && x <= CW_X + 344) {
-        uint8_t curSrc = Settings_RadarSource();
-        uint8_t nextSrc = (curSrc == RADAR_SRC_CHMU) ? RADAR_SRC_SHMU :
-                          (curSrc == RADAR_SRC_SHMU) ? RADAR_SRC_RAINVIEWER : RADAR_SRC_CHMU;
-        Settings_SetRadarSource(nextSrc);
-        if (nextSrc == RADAR_SRC_RAINVIEWER) {
-          CHMU_FreeBuffers();
-          SHMU_FreeBuffers();
-          ScreenWeather_FreeBuffers();
-        } else if (nextSrc == RADAR_SRC_CHMU) {
-          RainViewer_FreeBuffers();
-          SHMU_FreeBuffers();
-          ScreenWeather_FreeBuffers();
-        } else if (nextSrc == RADAR_SRC_SHMU) {
-          RainViewer_FreeBuffers();
-          CHMU_FreeBuffers();
-          ScreenWeather_FreeBuffers();
-        }
-        Async_RequestRadar();
+        switchRadarSource();
         return true;
       }
     }
@@ -251,24 +253,7 @@ bool QuickControl_HandleTap(int x, int y, int currentScreen) {
   } else if (currentScreen == SCREEN_METEO_I) {
     if (y >= y3 && y <= y3 + 34) {
       if (x >= CW_X + 16 && x <= CW_X + 174) {
-        uint8_t curSrc = Settings_RadarSource();
-        uint8_t nextSrc = (curSrc == RADAR_SRC_CHMU) ? RADAR_SRC_SHMU :
-                          (curSrc == RADAR_SRC_SHMU) ? RADAR_SRC_RAINVIEWER : RADAR_SRC_CHMU;
-        Settings_SetRadarSource(nextSrc);
-        if (nextSrc == RADAR_SRC_RAINVIEWER) {
-          CHMU_FreeBuffers();
-          SHMU_FreeBuffers();
-          ScreenWeather_FreeBuffers();
-        } else if (nextSrc == RADAR_SRC_CHMU) {
-          RainViewer_FreeBuffers();
-          SHMU_FreeBuffers();
-          ScreenWeather_FreeBuffers();
-        } else if (nextSrc == RADAR_SRC_SHMU) {
-          RainViewer_FreeBuffers();
-          CHMU_FreeBuffers();
-          ScreenWeather_FreeBuffers();
-        }
-        Async_RequestRadar();
+        switchRadarSource();
         return true;
       }
       if (x >= CW_X + 186 && x <= CW_X + 344) {
@@ -277,24 +262,7 @@ bool QuickControl_HandleTap(int x, int y, int currentScreen) {
       }
     }
     if (y >= y4 && y <= y4 + 34) {
-      uint8_t curSrc = Settings_RadarSource();
-      uint8_t nextSrc = (curSrc == RADAR_SRC_CHMU) ? RADAR_SRC_SHMU :
-                        (curSrc == RADAR_SRC_SHMU) ? RADAR_SRC_RAINVIEWER : RADAR_SRC_CHMU;
-      Settings_SetRadarSource(nextSrc);
-      if (nextSrc == RADAR_SRC_RAINVIEWER) {
-        CHMU_FreeBuffers();
-        SHMU_FreeBuffers();
-        ScreenWeather_FreeBuffers();
-      } else if (nextSrc == RADAR_SRC_CHMU) {
-        RainViewer_FreeBuffers();
-        SHMU_FreeBuffers();
-        ScreenWeather_FreeBuffers();
-      } else if (nextSrc == RADAR_SRC_SHMU) {
-        RainViewer_FreeBuffers();
-        CHMU_FreeBuffers();
-        ScreenWeather_FreeBuffers();
-      }
-      Async_RequestRadar();
+      switchRadarSource();
       return true;
     }
   } else if (currentScreen == SCREEN_CLOCK_I) {

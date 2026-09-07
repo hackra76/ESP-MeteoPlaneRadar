@@ -9,6 +9,28 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [1.5.8] - 2026-09-07
+
+### Pridané / Added
+- **Zvýšenie kapacity ADS-B a inteligentná prioritizácia podľa vzdialenosti (Full Airspace Coverage & Distance Prioritization):**
+  - Limit sledovaných lietadiel `ADSB_MAX` bol zvýšený zo 100 na 250 lietadiel.
+  - Vyriešený problém s chýbajúcimi lietadlami vo východnej polovici Slovenska pri zobrazení „Celé Slovensko“ (250 km polomer) na taktickom radare. Server `adsb.fi` posiela lietadlá zoradené od západu na východ, čo pri pôvodnom limite 100 lietadiel spôsobovalo odrezanie všetkých letov s dĺžkou > 19.4° E.
+  - Implementovaný inteligentný algoritmus nahradzovania podľa vzdialenosti: ak počet lietadiel v priestore presiahne kapacitu, prioritne sa zachovávajú lietadlá najbližšie k stredu obrazovky / pozícii používateľa.
+- **Dynamický indikátor radarového poskytovateľa (Weather Radar Provider Badge):**
+  - Pri prepínaní radarov a načítavaní sa v textovom rámčeku namiesto generického textu "Meteoradar" zobrazuje presný názov aktívneho poskytovateľa s plnou diakritikou (**SHMÚ**, **RainViewer**, **ČHMÚ**).
+  - Názvy poskytovateľov boli zjednotené aj v legende odrazivosti.
+- **Automatické zatvorenie detailu a fotky lietadla (10-Second Auto-Close):**
+  - Detailná karta lietadla aj zväčšená celoobrazovková fotografia sa po 10 sekundách automaticky zatvoria a vrátia používateľa na živý radar.
+  - 10-sekundový odpočet sa korektne spúšťa až po dokončení sťahovania fotografie lietadla (alebo potvrdení jej nedostupnosti), aby sa predišlo predčasnému zatvoreniu.
+- **Stabilita pamäte a optimalizácia prenosov (Memory & Network Optimizations):**
+  - Implementovaný **TLS Session Reuse** (keep-alive) pre ČHMÚ aj SHMÚ (`Net_SessionBegin()` / `Net_SessionEnd()`), eliminujúci 6 redundantných TLS handshakeov pri každom sťahovaní série snímok.
+  - Prechod knižnice `ESPAsyncWebServer` na moderný a udržiavaný fork (`mathieucarbou/ESPAsyncWebServer`), ktorý rieši stabilitu bufferov pri OTA aktualizáciách a webovom nahrávaní.
+  - Zavedený dávkový zápis nastavení do NVS flash (`Settings_BatchBegin()` / `Settings_BatchEnd()`), redukujúci desiatky samostatných flash commitov na jediný zápis.
+  - Implementovaný `SpiRamAllocator` pre `ArduinoJson v7`, ktorý smeruje dynamickú alokáciu JSON stromu ADS-B priamo do 8 MB PSRAM a šetrí internú SRAM.
+  - Odstránená race condition pri inicializácii rekurzívneho I2C mutexu a eliminované chybové boot výpisy `pw NOT_FOUND`.
+
+---
+
 ## [1.5.7] - 2026-09-04
 
 ### Pridané / Added

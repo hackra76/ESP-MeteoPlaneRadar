@@ -168,6 +168,27 @@ static long readBody(HTTPClient& http) {
   return Net_ReadBody(http, (uint8_t*)s_body, s_bodyCap, "ADSB", s_poll);
 }
 
+// Custom allocator directing ArduinoJson memory allocations directly to PSRAM,
+// preserving internal SRAM for network buffers and mbedTLS handshakes.
+class SpiRamAllocator : public ArduinoJson::Allocator {
+ public:
+  void* allocate(size_t size) override {
+    void* p = heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    return p ? p : malloc(size);
+  }
+  void deallocate(void* ptr) override {
+    free(ptr);
+  }
+  void* reallocate(void* ptr, size_t new_size) override {
+    void* p = heap_caps_realloc(ptr, new_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    return p ? p : realloc(ptr, new_size);
+  }
+  static SpiRamAllocator* instance() {
+    static SpiRamAllocator s_alloc;
+    return &s_alloc;
+  }
+};
+
 // Filter document: only the keys we actually use are kept, so the parsed
 // JsonDocument stays small no matter how much adsb.fi sends. alt_baro MUST stay
 // - it carries the literal "ground" used to detect aircraft on the ground.
@@ -296,7 +317,7 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
     // Filtered parse of the complete in-memory buffer.
     JsonDocument filter;
     buildFilter(filter);
-    JsonDocument doc;
+    JsonDocument doc(SpiRamAllocator::instance());
     DeserializationError err =
         deserializeJson(doc, s_body, (size_t)len, DeserializationOption::Filter(filter));
     if (err) {
@@ -326,7 +347,12 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
     }
 
     // Parse into the SCRATCH list; commit to the live list only on success.
+    static float s_tmpDistSq[ADSB_MAX];
     int n = 0;
+    int maxDistIdx = -1;
+    float maxDistSq = -1.0f;
+    const float cosLat = cosf((float)lat * 0.0174532925f);
+
     for (JsonObjectConst plane : ac) {
       float plat, plon;
       if (!readFloat(plane, "lat", &plat) || !readFloat(plane, "lon", &plon)) continue;
@@ -337,55 +363,81 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
       bool ground = ab.is<const char*>() && strcmp(ab.as<const char*>(), "ground") == 0;
       if (ground) continue;
 
-      if (n >= ADSB_MAX) break;
-      s_tmp[n].lat = plat;
-      s_tmp[n].lon = plon;
-      s_tmp[n].onGround = false;
+      float dLat = plat - (float)lat;
+      float dLon = (plon - (float)lon) * cosLat;
+      float distSq = dLat * dLat + dLon * dLon;
+
+      int slot = -1;
+      if (n < ADSB_MAX) {
+        slot = n;
+        n++;
+      } else {
+        // If buffer is full, replace the aircraft that is farthest from our target view
+        if (maxDistIdx < 0) {
+          maxDistIdx = 0;
+          maxDistSq = s_tmpDistSq[0];
+          for (int i = 1; i < ADSB_MAX; i++) {
+            if (s_tmpDistSq[i] > maxDistSq) {
+              maxDistSq = s_tmpDistSq[i];
+              maxDistIdx = i;
+            }
+          }
+        }
+        if (distSq < maxDistSq) {
+          slot = maxDistIdx;
+          maxDistIdx = -1; // invalidate to recompute on next replacement
+        }
+      }
+      if (slot < 0) continue; // plane is farther than all ADSB_MAX planes already in buffer
+
+      s_tmpDistSq[slot] = distSq;
+      s_tmp[slot].lat = plat;
+      s_tmp[slot].lon = plon;
+      s_tmp[slot].onGround = false;
       // Ground track - record whether it is present at all.
       float tr = 0;
       if (readFloat(plane, "track", &tr) || readFloat(plane, "true_heading", &tr)) {
-        s_tmp[n].track = tr;
-        s_tmp[n].hasTrack = true;
+        s_tmp[slot].track = tr;
+        s_tmp[slot].hasTrack = true;
       } else {
-        s_tmp[n].track = 0;
-        s_tmp[n].hasTrack = false;
+        s_tmp[slot].track = 0;
+        s_tmp[slot].hasTrack = false;
       }
       // Altitude (barometric), speed, climb rate.
       float f = 0;
-      s_tmp[n].altFt    = readFloat(plane, "alt_baro", &f) ? f : 0;
-      s_tmp[n].gsKt     = readFloat(plane, "gs", &f) ? f : 0;
-      s_tmp[n].baroRate = readFloat(plane, "baro_rate", &f) ? f : 0;
+      s_tmp[slot].altFt    = readFloat(plane, "alt_baro", &f) ? f : 0;
+      s_tmp[slot].gsKt     = readFloat(plane, "gs", &f) ? f : 0;
+      s_tmp[slot].baroRate = readFloat(plane, "baro_rate", &f) ? f : 0;
       // Aircraft type. ONLY "t" - that is the airframe type code ("A320").
       // "type" is the MESSAGE source ("adsb_icao", "mlat", "tisb_icao"), and
       // using it as a fallback is why aircraft missing from the database showed
       // "adsb_icao" in their detail panel. Left empty when adsb.fi does not
       // know the airframe; the detail panel then simply omits the row.
       const char* ty = plane["t"] | "";
-      strncpy(s_tmp[n].type, ty, sizeof(s_tmp[n].type) - 1);
-      s_tmp[n].type[sizeof(s_tmp[n].type) - 1] = '\0';
+      strncpy(s_tmp[slot].type, ty, sizeof(s_tmp[slot].type) - 1);
+      s_tmp[slot].type[sizeof(s_tmp[slot].type) - 1] = '\0';
       // Registration, same deal - "r" is carried in this very answer, so no
       // second API is needed to put "OK-TVU" next to the type.
       const char* rg = plane["r"] | "";
-      strncpy(s_tmp[n].reg, rg, sizeof(s_tmp[n].reg) - 1);
-      s_tmp[n].reg[sizeof(s_tmp[n].reg) - 1] = '\0';
+      strncpy(s_tmp[slot].reg, rg, sizeof(s_tmp[slot].reg) - 1);
+      s_tmp[slot].reg[sizeof(s_tmp[slot].reg) - 1] = '\0';
       // Squawk. adsb.fi sends it as a string; some feeds send a number, in
       // which case a leading zero would already be lost - pad it back so the
       // comparison against "7700" still works.
       {
         JsonVariantConst sq = plane["squawk"];
-        s_tmp[n].squawk[0] = '\0';
+        s_tmp[slot].squawk[0] = '\0';
         if (sq.is<const char*>()) {
           const char* s = sq.as<const char*>();
-          if (s) { strncpy(s_tmp[n].squawk, s, sizeof(s_tmp[n].squawk) - 1);
-                   s_tmp[n].squawk[sizeof(s_tmp[n].squawk) - 1] = '\0'; }
+          if (s) { strncpy(s_tmp[slot].squawk, s, sizeof(s_tmp[slot].squawk) - 1);
+                   s_tmp[slot].squawk[sizeof(s_tmp[slot].squawk) - 1] = '\0'; }
         } else if (sq.is<int>()) {
-          snprintf(s_tmp[n].squawk, sizeof(s_tmp[n].squawk), "%04d", sq.as<int>());
+          snprintf(s_tmp[slot].squawk, sizeof(s_tmp[slot].squawk), "%04d", sq.as<int>());
         }
       }
-      copyHex(&s_tmp[n], plane);
-      copyCallsign(&s_tmp[n], plane);
-      s_tmp[n].isMilitary = ((plane["dbFlags"] | 0) & 1) != 0;
-      n++;
+      copyHex(&s_tmp[slot], plane);
+      copyCallsign(&s_tmp[slot], plane);
+      s_tmp[slot].isMilitary = ((plane["dbFlags"] | 0) & 1) != 0;
     }
 
     // Commit the scratch snapshot to the live list in one go under mutex lock.

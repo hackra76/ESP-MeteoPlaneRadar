@@ -55,7 +55,7 @@
 // ---------------------------------------------------------------------------
 //  Aircraft radar (adsb.fi)
 // ---------------------------------------------------------------------------
-#define ADSB_MAX 100       // max aircraft held/drawn (airborne only)
+#define ADSB_MAX 250       // max aircraft held/drawn (airborne only)
 
 // Selectable ranges in km. Keep them ascending; the count is derived.
 #define PLANE_RANGES_KM { 10.0f, 25.0f, 50.0f, 100.0f, 200.0f }

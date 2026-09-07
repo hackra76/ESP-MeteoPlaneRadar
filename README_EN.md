@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20SK%20%7C%20CZ-green.svg)
-![Release](https://img.shields.io/badge/Release-v1.5.7-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v1.5.8-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, and designer clock faces on a round 2.1" IPS touchscreen.**  
@@ -29,14 +29,14 @@ Designed specifically for the **Waveshare ESP32-S3-Touch-LCD-2.1** development b
 
 ---
 
-## 🌟 Key Highlights in v1.5.7
+## 🌟 Key Highlights in v1.5.8
 
-- 🚀 **Direct Online GitHub OTA Updates:** The web dashboard (*System* tab) now features a dedicated card to automatically check for new releases on GitHub (`hackra76/ESP-MeteoPlaneRadar`). When available, the user can review release notes and trigger a one-click OTA upgrade. The ESP32 streams the `-ota.bin` image securely over HTTPS, flashes the memory with live progress %, and reboots.
-- 🖼️ **Fullscreen Aircraft Photo Mode:** Tapping an aircraft photo in the detail view smoothly expands it to fill the entire round 480×480 screen while preserving aspect ratio.
-- 🇸🇰 **Native SHMÚ Radar Support (Slovakia):** Direct integration of high-resolution CMAX radar composites from the Slovak Hydrometeorological Institute (SHMÚ) with authentic national reflectivity scales.
-- 🇨🇿 **ČHMÚ Radar (Czechia) & 🌍 Global RainViewer:** Instant live switching between national radar providers (SHMÚ, ČHMÚ) and worldwide RainViewer directly via Quick Control, Settings, or Web dashboard.
-- 🎨 **Bilinear Radar Anti-Aliasing (Smoothing):** Eliminates blocky pixelation on high zooms (25 km and 50 km). Renders silky smooth precipitation gradients and storm cells. Easily toggled on/off in Settings, QuickControl, or Web UI.
-- 📐 **Polished Round Display Layout:** Centered forecast display, 2×2 button layout on the Settings screen, and streamlined web interface for minimal CPU and RAM overhead.
+- ✈️ **Full Airspace ADS-B Coverage & 250 Aircraft:** Increased tracked aircraft limit to 250 with intelligent distance-based prioritization towards the radar center. Fixes the previous issue where eastern airspace was cut off during country-wide view on the tactical radar.
+- 🌧️ **Dynamic Radar Provider Badge:** Displays the active provider name (**SHMÚ**, **RainViewer**, **ČHMÚ**) with diacritics directly in the loading overlay badge and reflectivity legend.
+- ⏱️ **Intelligent 10-Second Auto-Close:** Aircraft detail cards and fullscreen photos automatically close after 10 seconds of viewing, starting the countdown only after the photo has fully downloaded.
+- ⚡ **Persistent TLS Keep-Alive:** Radar tile streaming for SHMÚ and ČHMÚ reuses a persistent TLS session (`Net_SessionBegin()` / `Net_SessionEnd()`), eliminating 6 redundant handshakes and saving heap memory.
+- 💾 **PSRAM Allocator & NVS Flash Batching:** ADS-B JSON trees are allocated directly in 8 MB PSRAM via `SpiRamAllocator` to preserve internal SRAM. Web settings updates are committed to NVS flash in a single atomic batch.
+- 🚀 **Robust WebServer & OTA:** Migrated to the actively maintained `mathieucarbou/ESPAsyncWebServer` fork for flawless OTA updates and buffer handling.
 
 ---
 

@@ -33,7 +33,7 @@ static bool IRAM_ATTR lcd_on_vsync(esp_lcd_panel_handle_t panel,
                                    const esp_lcd_rgb_panel_event_data_t* edata,
                                    void* user_ctx) {
   (void)panel; (void)edata; (void)user_ctx;
-  s_vsyncCount++;
+  s_vsyncCount = s_vsyncCount + 1;
   BaseType_t hp = pdFALSE;
   if (s_vsyncSem) xSemaphoreGiveFromISR(s_vsyncSem, &hp);
   return hp == pdTRUE;
