@@ -204,12 +204,15 @@ static void asyncWorkerTask(void* param) {
           }
           lastTlsTime = millis();
         }
-        // 3. ADS-B Aircraft Fetching (when on Planes or Tactical screen, or requested)
-        else if ((planesActive && (now - lastAdsbFetch >= adsbPeriod)) || s_reqAdsb) {
+        // 3. ADS-B Aircraft Fetching (when on Planes or Tactical screen, or periodic background scan for emergency squawks)
+        else if ((planesActive && (now - lastAdsbFetch >= adsbPeriod)) ||
+                 (!planesActive && Settings_SquawkAlert() && (now - lastAdsbFetch >= 25000)) ||
+                 s_reqAdsb) {
           s_reqAdsb = false;
           lastAdsbFetch = now;
-          double lat = s_targetLat, lon = s_targetLon;
-          float rng = s_targetRangeKm;
+          double lat = planesActive ? s_targetLat : Settings_Lat();
+          double lon = planesActive ? s_targetLon : Settings_Lon();
+          float rng = planesActive ? s_targetRangeKm : 250.0f;
           if (ADSB_Fetch(lat, lon, rng)) {
             s_adsbUpdated = true;
           }

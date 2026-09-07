@@ -834,6 +834,38 @@ void loop() {
 
   autoRotateTick();
 
+  // Auto-switch to Tactical screen when an emergency squawk (7500 / 7600 / 7700) is detected
+  if (Settings_SquawkAlert()) {
+    static char s_alertedEmergHex[10] = "";
+    Async_LockAdsb();
+    const Aircraft* emergPlane = ADSB_GetEmergencyAircraft();
+    if (emergPlane) {
+      if (strcmp(s_alertedEmergHex, emergPlane->hex) != 0) {
+        strncpy(s_alertedEmergHex, emergPlane->hex, sizeof(s_alertedEmergHex) - 1);
+        s_alertedEmergHex[sizeof(s_alertedEmergHex) - 1] = '\0';
+        const char* emCode = ADSB_EmergencyCode(*emergPlane);
+        Serial.printf("[EMERGENCY ALERT] Squawk %s on flight %s (%s)! Auto-switching to Tactical.\n",
+                      emCode ? emCode : emergPlane->squawk,
+                      emergPlane->callsign[0] ? emergPlane->callsign : "NO CALLSIGN",
+                      emergPlane->hex);
+
+        int targetScr = screenVisible(SCREEN_TACTICAL_I) ? SCREEN_TACTICAL_I
+                      : (screenVisible(SCREEN_PLANES_I)  ? SCREEN_PLANES_I : SCREEN_TACTICAL_I);
+        if (!screenVisible(targetScr)) Settings_SetScreenEnabled(targetScr, true);
+
+        if (s_screen != targetScr) {
+          if (activeModalOpen()) ScreenPlanes_CloseDetail();
+          gotoScreen(targetScr);
+        }
+        // Pause auto-rotation for 60 seconds so user can monitor the emergency flight
+        s_touchPauseUntil = millis() + 60000UL;
+      }
+    } else {
+      s_alertedEmergHex[0] = '\0';
+    }
+    Async_UnlockAdsb();
+  }
+
   // Cheap insurance for the display: one I2C read every few seconds that checks
   // the expander still holds LCD power and reset where we left them.
   static unsigned long lastExio = 0;

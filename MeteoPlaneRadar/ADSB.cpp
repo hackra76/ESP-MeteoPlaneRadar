@@ -60,6 +60,15 @@ const char* ADSB_EmergencyCode(const Aircraft& a) {
   return nullptr;
 }
 
+const Aircraft* ADSB_GetEmergencyAircraft() {
+  if (!s_list) return nullptr;
+  for (int i = 0; i < s_count; i++) {
+    if (s_list[i].onGround) continue;
+    if (ADSB_EmergencyCode(s_list[i])) return &s_list[i];
+  }
+  return nullptr;
+}
+
 int ADSB_FindByHex(const char* hex) {
   if (!hex || !hex[0] || !s_list) return -1;
   for (int i = 0; i < s_count; i++) {

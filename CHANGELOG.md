@@ -22,6 +22,12 @@ pohromadě v `MeteoPlaneRadar/Config.h`.
 - **Automatické zatvorenie detailu a fotky lietadla (10-Second Auto-Close):**
   - Detailná karta lietadla aj zväčšená celoobrazovková fotografia sa po 10 sekundách automaticky zatvoria a vrátia používateľa na živý radar.
   - 10-sekundový odpočet sa korektne spúšťa až po dokončení sťahovania fotografie lietadla (alebo potvrdení jej nedostupnosti), aby sa predišlo predčasnému zatvoreniu.
+- **Automatické prepnutie na Tactical pri núdzovom squawku (Emergency Squawk Auto-Switch & Background Scan):**
+  - Pri zachytení letu vysielajúceho kód núdze (Squawk `7500` - únos, `7600` - strata spojenia, `7700` - všeobecná núdza) zariadenie automaticky prepne obrazovku na taktický radar, vycentruje núdzové lietadlo, vykreslí výrazný červeno-biely výstražný kruh a pozastaví automatické striedanie obrazoviek na 60 sekúnd.
+  - Doplnený periodický scan núdzových squawkov na pozadí aj v čase, keď sa používateľ nachádza na obrazovkách Hodín alebo Predpovede počasia.
+- **Predvolený jazyk rozhrania (Default English on Clean Boot & Captive Portal):**
+  - Pri prvom zapnutí alebo čistom flashnutí je predvoleným jazykom angličtina (`LANG_EN`) namiesto pôvodnej češtiny.
+  - Obrazovka Wi-Fi AP a Captive Portalu sa po konfigurácii automaticky prispôsobí zvolenému jazyku používateľa (slovenčina / angličtina / čeština).
 - **Stabilita pamäte a optimalizácia prenosov (Memory & Network Optimizations):**
   - Implementovaný **TLS Session Reuse** (keep-alive) pre ČHMÚ aj SHMÚ (`Net_SessionBegin()` / `Net_SessionEnd()`), eliminujúci 6 redundantných TLS handshakeov pri každom sťahovaní série snímok.
   - Prechod knižnice `ESPAsyncWebServer` na moderný a udržiavaný fork (`mathieucarbou/ESPAsyncWebServer`), ktorý rieši stabilitu bufferov pri OTA aktualizáciách a webovom nahrávaní.

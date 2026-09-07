@@ -6,7 +6,7 @@
 // =============================================================================
 #include "Lang.h"
 
-static uint8_t s_lang = LANG_CZ;
+static uint8_t s_lang = LANG_EN;
 
 static const char* const CZ_DISP[STR_COUNT] = {
 #define X(id, cz, czw, sk, skw, en) cz,
@@ -39,7 +39,7 @@ static const char* const EN_ALL[STR_COUNT] = {
 #undef X
 };
 
-void    Lang_Set(uint8_t lang) { s_lang = (lang == LANG_EN || lang == LANG_SK) ? lang : LANG_CZ; }
+void    Lang_Set(uint8_t lang) { s_lang = (lang == LANG_CZ || lang == LANG_SK) ? lang : LANG_EN; }
 uint8_t Lang_Get()             { return s_lang; }
 
 const char* T(StrId id) {

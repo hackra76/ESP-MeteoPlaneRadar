@@ -31,7 +31,7 @@ static bool    s_isNight   = false;
 
 // --- Misc ---
 static bool    s_metric = false;
-static uint8_t s_lang   = LANG_CZ;
+static uint8_t s_lang   = LANG_EN;
 
 // Bit per data screen (bit 0 = clock ... bit 4 = forecast).
 static uint8_t s_scrMask = (1 << SCREEN_CLOCK_I) | (1 << SCREEN_PLANES_I) |
@@ -154,7 +154,7 @@ void Settings_Begin() {
     s_nightAuto = prefs.getBool("nAuto", true);
     s_nightOff  = (int8_t)prefs.getChar("nOff", 0);
     s_metric = prefs.getBool("metric", false);
-    s_lang   = prefs.getUChar("lang", LANG_CZ);
+    s_lang   = prefs.getUChar("lang", LANG_EN);
     s_scrMask = prefs.getUChar("scrM", s_scrMask);
     // Cycling interval moved from minutes to seconds - see Settings.h. The old
     // key is converted exactly once, so an updated device keeps its setting.
@@ -278,7 +278,7 @@ bool Settings_MetricUnits() { return s_metric; }
 void Settings_SetMetricUnits(bool metric) { s_metric = metric; putBool("metric", metric); }
 uint8_t Settings_Language() { return s_lang; }
 void    Settings_SetLanguage(uint8_t l) {
-  s_lang = (l == LANG_EN || l == LANG_SK) ? l : LANG_CZ;
+  s_lang = (l == LANG_CZ || l == LANG_SK) ? l : LANG_EN;
   Lang_Set(s_lang);
   putU8("lang", s_lang);
 }
@@ -576,7 +576,7 @@ void Settings_ClearAll() {
   if (prefs.begin(NS, false)) { prefs.clear(); prefs.end(); }
   s_lat = DEFAULT_LAT; s_lon = DEFAULT_LON; s_hasLoc = false;
   s_briDay = 80; s_briNight = 25; s_nightAuto = true; s_nightOff = 0; s_isNight = false;
-  s_metric = false; s_lang = LANG_CZ; Lang_Set(s_lang);
+  s_metric = false; s_lang = LANG_EN; Lang_Set(s_lang);
   s_scrMask = (1 << SCREEN_CLOCK_I) | (1 << SCREEN_PLANES_I) |
               (1 << SCREEN_METEO_I) | (1 << SCREEN_TACTICAL_I) | (1 << SCREEN_FORECAST_I);
   s_autoRot = 0; s_radarSrc = RADAR_SRC_CHMU; s_smoothRadar = true;

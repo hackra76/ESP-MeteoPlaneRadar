@@ -61,3 +61,6 @@ int    ADSB_FindByHex(const char* hex);
 //   7500 unlawful interference (hijack), 7600 radio failure, 7700 general
 // Returns the code, or nullptr when it is not one of them.
 const char* ADSB_EmergencyCode(const Aircraft& a);
+
+// Return pointer to first airborne aircraft squawking an emergency code (or nullptr)
+const Aircraft* ADSB_GetEmergencyAircraft();
