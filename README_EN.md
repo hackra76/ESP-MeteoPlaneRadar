@@ -31,11 +31,14 @@ Designed specifically for the **Waveshare ESP32-S3-Touch-LCD-2.1** development b
 
 ## 🌟 Key Highlights in v1.5.8
 
+- 🚨 **Emergency Squawk Auto-Switch & Background Scan:** When any aircraft in range broadcasts an emergency squawk code (**7500** hijack, **7600** radio loss, **7700** general emergency), the device automatically switches to the **Tactical Airspace Map**, centers on the aircraft, renders prominent red-and-white warning halos, and pauses auto-rotation for 60 seconds. Background scan runs every 25s even while on Clock or Forecast screens.
+- 🌐 **Default English on First Boot:** Clean/unconfigured firmware now defaults to **English (`LANG_EN`)** on initial boot and SoftAP QR code captive portal (`Scan with your phone:`, `Waiting for your network...`), while dynamically adapting to user language choice once configured.
 - ✈️ **Full Airspace ADS-B Coverage & 250 Aircraft:** Increased tracked aircraft limit to 250 with intelligent distance-based prioritization towards the radar center. Fixes the previous issue where eastern airspace was cut off during country-wide view on the tactical radar.
 - 🌧️ **Dynamic Radar Provider Badge:** Displays the active provider name (**SHMÚ**, **RainViewer**, **ČHMÚ**) with diacritics directly in the loading overlay badge and reflectivity legend.
 - ⏱️ **Intelligent 10-Second Auto-Close:** Aircraft detail cards and fullscreen photos automatically close after 10 seconds of viewing, starting the countdown only after the photo has fully downloaded.
 - ⚡ **Persistent TLS Keep-Alive:** Radar tile streaming for SHMÚ and ČHMÚ reuses a persistent TLS session (`Net_SessionBegin()` / `Net_SessionEnd()`), eliminating 6 redundant handshakes and saving heap memory.
 - 💾 **PSRAM Allocator & NVS Flash Batching:** ADS-B JSON trees are allocated directly in 8 MB PSRAM via `SpiRamAllocator` to preserve internal SRAM. Web settings updates are committed to NVS flash in a single atomic batch.
+- 📚 **Full GitHub Wiki Documentation:** Complete technical guides, pinouts, and operation references are available on the [GitHub Wiki](https://github.com/hackra76/ESP-MeteoPlaneRadar/wiki).
 - 🚀 **Robust WebServer & OTA:** Migrated to the actively maintained `mathieucarbou/ESPAsyncWebServer` fork for flawless OTA updates and buffer handling.
 
 ---

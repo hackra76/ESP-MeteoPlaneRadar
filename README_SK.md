@@ -31,11 +31,14 @@ Vyvinuté pre hardvérovú dosku **Waveshare ESP32-S3-Touch-LCD-2.1** s moderný
 
 ## 🌟 Kľúčové novinky vo verzii v1.5.8
 
+- 🚨 **Automatické prepnutie na Tactical pri núdzovom squawku:** Pri zachytení letu vysielajúceho núdzový kód (**Squawk 7500** únos, **7600** strata spojenia, **7700** všeobecná núdza) zariadenie automaticky prepne obrazovku na Taktický radar, vycentruje núdzový let, zobrazí červeno-biele výstražné kruhy a pozastaví automatické striedanie obrazoviek na 60 sekúnd. Scanovanie funguje na pozadí každých 25 s aj z obrazovky Hodín alebo Predpovede.
+- 🌐 **Predvolená angličtina pri prvom spustení:** Čistý firmvér a SoftAP QR obrazovka štartujú v angličtine (`Scan with your phone:`, `Waiting for your network...`). Po voľbe jazyka vo webovom rozhraní sa Captive Portal automaticky prispôsobí zvolenému jazyku používateľa.
 - ✈️ **Pokrytie celého vzdušného priestoru & 250 lietadiel:** Limit aktívnych lietadiel bol navýšený na 250 s inteligentným algoritmom prioritizácie podľa vzdialenosti k stredu radaru. Tým bol odstránený neduh chýbajúcich lietadiel vo východnej polovici Slovenska pri celoštátnom pohľade na taktickom radare.
 - 🌧️ **Dynamický indikátor poskytovateľa radaru:** Pri prepínaní a načítavaní radarových dát sa v informačnom rámčeku namiesto generického textu zobrazuje presný a prehľadný názov poskytovateľa (**SHMÚ**, **RainViewer**, **ČHMÚ**).
 - ⏱️ **Inteligentné automatické zatvorenie detailu a fotky (10 s):** Po zobrazení karty lietadla alebo celoobrazovkovej fotky sa pohľad po 10 sekundách automaticky vráti na radar. Odpočet sa bezpečne spúšťa až po dokončení sťahovania fotky zo servera.
 - ⚡ **TLS Session Reuse (Keep-Alive):** Sťahovanie sérií zrážkových snímok SHMÚ a ČHMÚ prebieha cez jediné perzistentné TLS spojenie, čo šetrí desiatky kilobajtov RAM a zrýchľuje sťahovanie animácie.
 - 💾 **Optimalizácia PSRAM & Dávkový zápis do NVS:** ADS-B JSON strom sa alokuje cez vlastný `SpiRamAllocator` priamo v 8 MB PSRAM, čím chráni internú SRAM. Ukladanie nastavení z webu využíva dávkový zápis (batch commit), čím šetrí životnosť internej flash pamäte.
+- 📚 **Kompletná GitHub Wiki:** Pre projekt bola vytvorená plnohodnotná technická dokumentácia na [GitHub Wiki](https://github.com/hackra76/ESP-MeteoPlaneRadar/wiki).
 - 🚀 **Stabilné OTA s modernou knižnicou:** Prechod webservera na udržiavaný fork `mathieucarbou/ESPAsyncWebServer` zaručuje bezchybný priebeh nahrávania a OTA aktualizácií.
 
 ---
