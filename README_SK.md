@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-SK%20%7C%20CZ%20%7C%20EN-green.svg)
-![Release](https://img.shields.io/badge/Release-v1.5.8-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v1.5.9-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunkčná meteo-radarová stanica, živý letecký radar, zrážkový meteoradar (SHMÚ, ČHMÚ, RainViewer), taktický kombinovaný radar a dizajnové hodiny na okrúhlom 2.1" IPS dotykovom displeji.**  
@@ -29,7 +29,12 @@ Vyvinuté pre hardvérovú dosku **Waveshare ESP32-S3-Touch-LCD-2.1** s moderný
 
 ---
 
-## 🌟 Kľúčové novinky vo verzii v1.5.8
+## 🌟 Kľúčové novinky vo verzii v1.5.9
+
+- 🖥️ **Moderné webové rozhranie orientované na obrazovky:** Navigácia webového rozhrania bola kompletne prepracovaná. V riadku pod názvom sa nachádzajú priamo jednotlivé obrazovky zariadenia (**Hodiny**, **Lietadlá**, **Meteoradar**, **Taktický radar**, **Predpoveď**) a ako samostatné posledné tlačidlo **Spoločné nastavenia**.
+- ▶ **Priame prepnutie displeja z webu:** Každá obrazovka na webe má vyhradené tlačidlo *▶ Zobraziť na displeji* a prepínač pre zaradenie do automatického cyklu.
+- ⚡ **Trvalo viditeľný panel Hardvér & Ovládač:** Hardvérové diagnostické informácie a diaľkový ovládač displeja (vrátane prepínania legiend a zmeny rozsahu radaru) sú teraz trvalo viditeľné nezávisle od zvolenej obrazovky (na desktopoch ako fixný pravý stĺpec).
+- 🎨 **Uprataná a zarovnaná hlavička s indikátorom displeja:** Čisté centrovanie názvu, odznaku H4CKR4 a verzie s pulzujúcim indikátorom práve zobrazenej obrazovky na okrúhlom displeji.
 
 - 🚨 **Automatické prepnutie na Tactical pri núdzovom squawku:** Pri zachytení letu vysielajúceho núdzový kód (**Squawk 7500** únos, **7600** strata spojenia, **7700** všeobecná núdza) zariadenie automaticky prepne obrazovku na Taktický radar, vycentruje núdzový let, zobrazí červeno-biele výstražné kruhy a pozastaví automatické striedanie obrazoviek na 60 sekúnd. Scanovanie funguje na pozadí každých 25 s aj z obrazovky Hodín alebo Predpovede.
 - 🌐 **Predvolená angličtina pri prvom spustení:** Čistý firmvér a SoftAP QR obrazovka štartujú v angličtine (`Scan with your phone:`, `Waiting for your network...`). Po voľbe jazyka vo webovom rozhraní sa Captive Portal automaticky prispôsobí zvolenému jazyku používateľa.

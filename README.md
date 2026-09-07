@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20SK%20%7C%20CZ-green.svg)
-![Release](https://img.shields.io/badge/Release-v1.5.8-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v1.5.9-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, and designer clock faces on a round 2.1" IPS touchscreen.**  
@@ -29,7 +29,12 @@ Designed specifically for the **Waveshare ESP32-S3-Touch-LCD-2.1** development b
 
 ---
 
-## 🌟 Key Highlights in v1.5.8
+## 🌟 Key Highlights in v1.5.9
+
+- 🖥️ **Screen-Centric Web Interface:** Navigation in the web dashboard has been completely restructured around actual device screens (**Clock**, **Aircraft**, **Weather Radar**, **Tactical Radar**, **Forecast**) with a dedicated **Shared Settings** tab.
+- ▶ **Direct Display Trigger:** Each screen tab features a prominent *▶ Show on display* button to instantly switch the physical IPS screen, alongside individual auto-rotation inclusion checkboxes.
+- ⚡ **Persistent Hardware & Remote Control Dashboard:** Hardware diagnostics and real-time remote controls (screen cycling, legend toggle, radar zoom) remain visible at all times across all tabs (as a sticky side panel on desktop).
+- 🎨 **Refined Aligned Header with Live Screen Indicator:** Clean brand typography, H4CKR4 badge, version pill, and a pulsating status badge displaying the currently active physical screen.
 
 - 🚨 **Emergency Squawk Auto-Switch & Background Scan:** When any aircraft in range broadcasts an emergency squawk code (**7500** hijack, **7600** radio loss, **7700** general emergency), the device automatically switches to the **Tactical Airspace Map**, centers on the aircraft, renders prominent red-and-white warning halos, and pauses auto-rotation for 60 seconds. Background scan runs every 25s even while on Clock or Forecast screens.
 - 🌐 **Default English on First Boot:** Clean/unconfigured firmware now defaults to **English (`LANG_EN`)** on initial boot and SoftAP QR code captive portal (`Scan with your phone:`, `Waiting for your network...`), while dynamically adapting to user language choice once configured.

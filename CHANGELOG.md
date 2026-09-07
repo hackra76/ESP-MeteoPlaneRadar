@@ -9,6 +9,23 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [1.5.9] - 2026-09-07
+
+### Pridané / Added
+- **Modernizované rozhranie orientované na obrazovky (Screen-Centric Web Interface):**
+  - Hlavný navigačný panel bol kompletne reorganizovaný: namiesto generických kategórií obsahuje priamo jednotlivé obrazovky zariadenia (**Hodiny**, **Lietadlá**, **Meteoradar**, **Taktický radar**, **Predpoveď**) a ako posledné samostatné tlačidlo **Spoločné nastavenia**.
+  - Každá obrazovka má na vrchu vlastný panel s tlačidlom **▶ Zobraziť na displeji** pre okamžité prepnutie TFT displeja zariadenia priamo z prehliadača a samostatný prepínač pre zahrnutie do automatického striedania obrazoviek.
+- **Trvalo viditeľný panel Hardvér & Ovládač (Persistent Hardware & Remote Dashboard):**
+  - Sekcia Hardvér a diaľkové ovládanie je trvalo zobrazená nezávisle od zvolenej obrazovky. Na počítačoch tvorí fixný pravý stĺpec, na mobiloch je dostupná hneď pod nastaveniami aktuálnej obrazovky.
+  - Zobrazuje v reálnom čase aktuálne zobrazenú obrazovku, diaľkový ovládač (krokovanie obrazoviek, prepínanie legiend/dvojklik, zmenu rozsahu radaru), vyťaženie CPU a teplotu ESP32-S3, stĺpcové grafy RAM Heap a PSRAM, 6-osový IMU senzor QMI8658, Hardware RTC PCF85063 so synchronizáciou času a I2C zbernicu.
+- **Uprataná a zarovnaná hlavička (Refined Header & Live Indicator):**
+  - Názov, odznak **H4CKR4** a štítok verzie firmvéru boli nanovo zarovnané s čistými rozostupmi a elegantným dizajnom.
+  - Doplnený živý indikátor s pulzujúcou zelenou bodkou zobrazujúci aktuálny stav fyzického displeja v reálnom čase.
+- **Synchronizácia legendy a gesta dvojkliku (Live Legend Remote Toggle):**
+  - Tlačidlo „🔄 Legenda“ v diaľkovom ovládači plne komunikuje s API endpointom `/api/toggle-legends` a okamžite synchronizuje prepnutie farebných stupníc a štýlov hodín v reálnom čase.
+
+---
+
 ## [1.5.8] - 2026-09-07
 
 ### Pridané / Added
