@@ -2,7 +2,6 @@
 //  MeteoPlaneRadar
 //  Screen 3: Tactical / Combined radar (live aircraft + live weather radar).
 //
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)
 // =============================================================================
 #include "ScreenTactical.h"
@@ -142,48 +141,8 @@ static uint16_t altColor(float altFt, bool known) {
   return PlaneTrail_AltColor(altFt, known);
 }
 
-static void drawPlane(int x, int y, float trackDeg, bool hasTrack, uint16_t col, bool isMilitary = false) {
-  if (!hasTrack) {
-    gfx->drawCircle(x, y, 7, isMilitary ? C_RED : col);
-    gfx->fillCircle(x, y, 2, isMilitary ? C_RED : col);
-    return;
-  }
-  float a = trackDeg * 0.0174532925f;
-  float ca = cosf(a), sa = sinf(a);
-  auto rot = [&](float right, float fwd, int* ox, int* oy) {
-    *ox = x + (int)(right * ca + fwd * sa);
-    *oy = y + (int)(right * sa - fwd * ca);
-  };
-
-  if (isMilitary) {
-    // Sharp delta-wing military fighter jet silhouette
-    const float P_MIL[10][2] = {
-      { 0,  14}, { 2,  5}, { 13, -6}, { 3, -4}, { 3, -13},
-      { 0, -10}, {-3, -13}, {-3, -4}, {-13, -6}, {-2,  5}
-    };
-    int px[10], py[10];
-    for (int i = 0; i < 10; i++) rot(P_MIL[i][0], P_MIL[i][1], &px[i], &py[i]);
-    for (int i = 0; i < 10; i++) {
-      int j = (i + 1) % 10;
-      gfx->fillTriangle(x, y, px[i], py[i], px[j], py[j], C_RED);
-    }
-    int cx, cy;
-    rot(0, 2, &cx, &cy);
-    gfx->fillCircle(cx, cy, 1, C_WHITE);
-    return;
-  }
-
-  const float P[10][2] = {
-    { 0,  12}, { 3,  1}, { 13, -8}, { 3, -5}, { 3, -7},
-    { 0, -12}, {-3, -7}, {-3, -5}, {-13, -8}, {-3,  1}
-  };
-  int px[10], py[10];
-  for (int i = 0; i < 10; i++) rot(P[i][0], P[i][1], &px[i], &py[i]);
-
-  for (int i = 0; i < 10; i++) {
-    int j = (i + 1) % 10;
-    gfx->fillTriangle(x, y, px[i], py[i], px[j], py[j], col);
-  }
+static void drawPlane(int x, int y, float trackDeg, bool hasTrack, uint16_t col, AircraftIconType iconType) {
+  Aircraft_DrawIcon(gfx, x, y, trackDeg, hasTrack, col, iconType);
 }
 
 static bool isWatched(const Aircraft& ac) {
@@ -196,6 +155,8 @@ static bool isWatched(const Aircraft& ac) {
 
 static bool passesFilter(const Aircraft& ac) {
   if (Settings_OnlyWithCallsign() && !ac.callsign[0]) return false;
+  AircraftIconType iconType = Aircraft_GetIconType(ac);
+  if (!Settings_PlaneTypeEnabled(iconType)) return false;
   if (ac.altFt > 0.0f) {
     if (ac.altFt < (float)Settings_AltMinFt()) return false;
     if (ac.altFt > (float)Settings_AltMaxFt()) return false;
@@ -650,7 +611,8 @@ void ScreenTactical_Draw() {
     }
 
     bool altKnown = (list[i].altFt > 0.0f);
-    bool isMil = list[i].isMilitary || (scat == SPEC_MILITARY);
+    AircraftIconType iconType = Aircraft_GetIconType(list[i]);
+    bool isMil = (iconType == ICON_MILITARY_JET) || (scat == SPEC_MILITARY);
     uint16_t col = (em || isMil) ? C_RED : altColor(list[i].altFt, altKnown);
 
     // Draw flight trajectory breadcrumb trail
@@ -660,7 +622,7 @@ void ScreenTactical_Draw() {
 
     float screenTrack = list[i].track - (float)s_topDeg;
     while (screenTrack < 0.0f) screenTrack += 360.0f;
-    drawPlane(sx, sy, screenTrack, list[i].hasTrack, col, isMil);
+    drawPlane(sx, sy, screenTrack, list[i].hasTrack, col, iconType);
 
     // Label with smart multi-positioning and size fallback
     if (Settings_ShowLegends() && emergIdx < 0) {

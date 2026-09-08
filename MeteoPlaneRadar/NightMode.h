@@ -9,8 +9,6 @@
 //  a room that goes dark before the sun is actually down.
 //
 //  Project: MeteoPlaneRadar - live aircraft radar on a round touchscreen
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
-//  Web:     https://chiptron.cz
 // =============================================================================
 #pragma once
 #include <Arduino.h>
@@ -26,3 +24,9 @@ void NightMode_Toggle();
 // Push the brightness for the current state to the panel. Call after the user
 // changes a brightness value so the effect is immediate.
 void NightMode_Apply();
+
+// Check if Ultra Night mode is currently active (dark red theme, minimal clock)
+bool NightMode_IsUltraNightActive();
+
+// Temporarily brighten the screen in Ultra Night mode (e.g. on touch/motion)
+void NightMode_WakeTemporary(uint32_t ms = 10000);

@@ -1,4 +1,4 @@
-// MeteoPlaneRadar - vyvoj / development: chiptron.cz
+//  MeteoPlaneRadar
 // =============================================================================
 //  MeteoPlaneRadar - meteoradar CHMU: stahovani do PSRAM (1 snimek + animace).
 // =============================================================================
@@ -71,7 +71,7 @@ static bool downloadNameTo(const String& name, uint8_t* buf, size_t cap, size_t*
   // re-encoded in transit. Checking the signature here stops the decoder from
   // being fed rubbish and drawing a corrupt frame over a good radar image.
   if (got < 8 || memcmp(buf, "\x89PNG\r\n\x1a\n", 8) != 0) {
-    Serial.printf("CHMU: %s neni PNG (%u B)\n", name.c_str(), (unsigned)got);
+    Serial.printf("CHMU: %s is not a PNG (%u B)\n", name.c_str(), (unsigned)got);
     return false;
   }
   *outSize = got;
@@ -164,15 +164,15 @@ int CHMU_FetchAnim(int wantN) {
     http.end();
     client.stop();
     if (ilen <= 0) return s_animCount;
-    Serial.printf("CHMU: index %ld B, nalezeno %d nazvu\n", ilen, s_topCount);
+    Serial.printf("CHMU: index %ld B, found %d filenames\n", ilen, s_topCount);
   }
   if (s_topCount == 0) return s_animCount;
 
-  // Kratky odpocinek a uvolneni sitovych struktur pred stahovanim PNG
+  // Brief pause to release network resources before downloading PNGs
   if (s_poll) s_poll();
   delay(150);
 
-  // 2) stahni N nejnovejsich (top pole je vzestupne, bereme konec)
+  // 2) Download N newest (top array is ascending, take the end)
   int n = s_topCount < wantN ? s_topCount : wantN;
   int startIdx = s_topCount - n;
   int got = 0;
@@ -191,7 +191,7 @@ int CHMU_FetchAnim(int wantN) {
   }
   Net_SessionEnd();
   s_animCount = got;
-  Serial.printf("Meteoradar: %d ramcu\n", got);
+  Serial.printf("CHMU radar: %d frames\n", got);
   return got;
 }
 

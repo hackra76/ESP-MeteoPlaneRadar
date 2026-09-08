@@ -8,8 +8,6 @@
 //  last screen and last range are also stored in NVS at runtime (Settings.*).
 //
 //  Project: MeteoPlaneRadar - live aircraft radar on a round touchscreen
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
-//  Web:     https://chiptron.cz
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)
 // =============================================================================
 #pragma once
@@ -224,7 +222,7 @@
 // pres addHeader() (to ji tise zahazuje, viz ADSB.cpp). Odkaz na web projektu
 // jako kontakt staci. Kdyz projekt forknete, dejte sem SVUJ - jinak pujdou
 // pripadne stiznosti na cizi adresu.
-#define HTTP_USER_AGENT "MeteoPlaneRadar/" FW_VERSION " (+https://chiptron.cz)"
+#define HTTP_USER_AGENT "MeteoPlaneRadar/" FW_VERSION
 
 // ---------------------------------------------------------------------------
 //  Aircraft detail
@@ -272,8 +270,9 @@
 #define SCREEN_METEO_I    2
 #define SCREEN_TACTICAL_I 3
 #define SCREEN_FORECAST_I 4
-#define SCREEN_SETTINGS_I 5
-#define SCREEN_N          6
+#define SCREEN_INFO_I     5
+#define SCREEN_SETTINGS_I 6
+#define SCREEN_N          7
 
 // Automatic screen cycling: 0 = off, otherwise SECONDS between switches (it was
 // minutes up to 0.6.0 - see Settings.h).
@@ -391,7 +390,7 @@
 //  captive setup portal while we are still an access point.
 // ---------------------------------------------------------------------------
 #define WEB_PORT       80
-#define WEB_HOSTNAME   "meteoplaneradar"   // -> http://meteoplaneradar.local/
+#define WEB_HOSTNAME   "MeteoPlaneRadar"   // -> http://MeteoPlaneRadar.local/
 #define WEB_ADMIN_USER "admin"
 
 // ---------------------------------------------------------------------------

@@ -5,7 +5,6 @@
 //  Decouples the rendering and touch pipeline (Core 1) from all network I/O,
 //  TLS handshakes, JSON parsing, PNG decoding, and WebServer serving (Core 0).
 //
-//  Author:  Petr / chiptron.cz & Antigravity
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (ESP32-S3R8, dual-core 240MHz)
 // =============================================================================
 #include "AsyncCore.h"
@@ -23,6 +22,7 @@
 #include "WiFiPortal.h"
 #include "NightMode.h"
 #include "Watchdog.h"
+#include "GithubOTA.h"
 #include <WiFi.h>
 
 static SemaphoreHandle_t s_mtxSettings = NULL;
@@ -161,6 +161,15 @@ static void asyncWorkerTask(void* param) {
         s_firstTimeReseed = true;
         Outside_Tick();
         lastTlsTime = millis();
+      }
+
+      // Background silent OTA release check (first check 45s after boot, then every 12 hours)
+      static unsigned long s_lastOtaAutoCheck = 0;
+      if (((s_lastOtaAutoCheck == 0 && now >= 45000UL) ||
+           (s_lastOtaAutoCheck > 0 && (now - s_lastOtaAutoCheck >= 12UL * 3600UL * 1000UL))) &&
+          !GithubOTA_IsBusy() && GithubOTA_GetState() != GH_OTA_CHECKING && !rvBusy) {
+        s_lastOtaAutoCheck = now;
+        GithubOTA_CheckAsync();
       }
 
       // 1. Radar Tile Download (RainViewer background stepping - highest priority when on radar)

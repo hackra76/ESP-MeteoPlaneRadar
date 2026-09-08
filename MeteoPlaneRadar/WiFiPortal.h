@@ -14,8 +14,6 @@
 //  just dropped the user onto an empty radar.
 //
 //  Project: MeteoPlaneRadar - live aircraft radar on a round touchscreen
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
-//  Web:     https://chiptron.cz
 // =============================================================================
 #pragma once
 #include <Arduino.h>
@@ -31,6 +29,7 @@ void WiFi_Loop();
 
 bool   WiFi_IsConnected();
 bool   WiFi_IsAP();
+bool   WiFi_TakeNeedsRedraw();
 String WiFi_SSID();
 String WiFi_IP();
 

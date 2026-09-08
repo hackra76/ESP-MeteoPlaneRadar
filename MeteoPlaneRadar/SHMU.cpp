@@ -1,4 +1,4 @@
-// MeteoPlaneRadar - vyvoj / development: chiptron.cz
+//  MeteoPlaneRadar
 // =============================================================================
 //  MeteoPlaneRadar - meteoradar SHMU: stahovani do PSRAM (1 snimek + animace).
 // =============================================================================
@@ -62,7 +62,7 @@ static bool downloadNameTo(const String& name, uint8_t* buf, size_t cap, size_t*
   if (!Net_GetBinary(url.c_str(), buf, cap, &got, "SHMU")) return false;
 
   if (got < 8 || memcmp(buf, "\x89PNG\r\n\x1a\n", 8) != 0) {
-    Serial.printf("SHMU: %s neni PNG (%u B)\n", name.c_str(), (unsigned)got);
+    Serial.printf("SHMU: %s is not a PNG (%u B)\n", name.c_str(), (unsigned)got);
     return false;
   }
   *outSize = got;
@@ -173,11 +173,11 @@ int SHMU_FetchAnim(int wantN) {
     http.end();
     client.stop();
     if (s_topCount == 0) {
-      Serial.printf("SHMU: API body %ld B, nenajdeny ziadny nazov\n", ilen);
+      Serial.printf("SHMU: API body %ld B, no filename found\n", ilen);
       return s_animCount;
     }
-    Serial.printf("SHMU: API body %ld B, najdenych %d snimkov (zastavene vcas: %s)\n",
-                  ilen, s_topCount, s_scanDone ? "ano" : "nie");
+    Serial.printf("SHMU: API body %ld B, found %d frames (stopped early: %s)\n",
+                  ilen, s_topCount, s_scanDone ? "yes" : "no");
   }
 
   // Kratky odpocinek a uvolneni sitovych struktur pred stahovanim PNG
@@ -203,7 +203,7 @@ int SHMU_FetchAnim(int wantN) {
   }
   Net_SessionEnd();
   s_animCount = got;
-  Serial.printf("SHMU meteoradar: %d ramcu\n", got);
+  Serial.printf("SHMU radar: %d frames\n", got);
   return got;
 }
 

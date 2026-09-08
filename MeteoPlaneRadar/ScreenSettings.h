@@ -9,8 +9,6 @@
 //  units, language - plus the address to reach the web UI at.
 //
 //  Project: MeteoPlaneRadar - live aircraft radar on a round touchscreen
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
-//  Web:     https://chiptron.cz
 // =============================================================================
 #pragma once
 #include <Arduino.h>
@@ -19,6 +17,10 @@ void ScreenSettings_Enter();
 void ScreenSettings_Draw();
 bool ScreenSettings_Tick();
 bool ScreenSettings_HandleTap(int x, int y);
+
+bool ScreenSettings_IsModalOpen();
+void ScreenSettings_CloseModal();
+void ScreenSettings_OpenOtaModal();
 
 // Tells main that the user asked to forget the network and go back to the
 // configuration access point.

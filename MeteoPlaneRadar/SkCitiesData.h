@@ -1,4 +1,4 @@
-// MeteoPlaneRadar - vyvoj / development: chiptron.cz & Antigravity
+//  MeteoPlaneRadar
 // =============================================================================
 //  Slovenske mesta - kompletny a optimalizovany zoznam.
 //

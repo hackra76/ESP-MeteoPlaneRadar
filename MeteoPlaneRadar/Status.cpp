@@ -2,7 +2,6 @@
 //  MeteoPlaneRadar
 //  Per-source status notes. See Status.h.
 //
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
 // =============================================================================
 #include "Status.h"
 #include "Lang.h"

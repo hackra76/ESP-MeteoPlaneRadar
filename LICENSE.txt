@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 Petr / chiptron.cz
+Copyright (c) 2026 MeteoPlaneRadar
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -33,22 +33,6 @@ Update class from the ESP32 core, so there is no copyleft dependency left and
 MIT applies to the whole thing.
 
 The data is a separate matter - see below.
-
----
-
-A KIND REQUEST (not a legal condition)
-
-The terms above already give you a lot of freedom, commercial use included.
-
-Beyond what the license requires, I would be genuinely glad if you kept the
-"chiptron.cz" credit visible on the settings screen - in the same size and
-color as in the original.
-
-It costs you nothing and it means a lot to me. But it is a request, not an
-obligation. If you decide otherwise, the license still applies in full.
-
-If you build something interesting on top of this, I would love to hear about
-it: https://chiptron.cz
 
 ---
 

@@ -8,12 +8,10 @@
 //  same string.
 //
 //  Project: MeteoPlaneRadar - live aircraft radar on a round touchscreen
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
-//  Web:     https://chiptron.cz
 // =============================================================================
 #pragma once
 
 // Bump this on every release (shown on the Settings screen, the web UI and in
 // the serial banner). Describe the change in CHANGELOG.md (repo root) - that
 // file is the single source of truth for the version history.
-#define FW_VERSION "1.5.9"
+#define FW_VERSION "1.6.0"

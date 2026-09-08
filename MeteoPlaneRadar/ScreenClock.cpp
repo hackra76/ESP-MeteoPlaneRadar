@@ -2,7 +2,6 @@
 //  MeteoPlaneRadar
 //  Screen: clock, date, current weather and a seconds ring.
 //
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)
 // =============================================================================
 #include "ScreenClock.h"
@@ -17,10 +16,17 @@
 #include "UI.h"
 #include "Display_ST7701.h"
 #include "Config.h"
+#include "ADSB.h"
+#include "Route.h"
+#include "Buzzer.h"
+#include "ScreenPlanes.h"
+#include "PrecipTracker.h"
 
 #include <time.h>
 #include <math.h>
 #include <stdio.h>
+
+extern void gotoScreen(int idx);
 
 #define CX (LCD_WIDTH / 2)
 #define CY (LCD_HEIGHT / 2)
@@ -38,6 +44,12 @@
 
 static int s_lastMin = -1;
 static int s_lastSec = -1;
+static bool s_overheadActive = false;
+static char s_overheadHex[8] = "";
+static char s_lastChirpHex[8] = "";
+static int  s_cardX = 75, s_cardY = 70, s_cardW = 330, s_cardH = 44;
+static bool s_precipActive = false;
+static int  s_precipCardX = 85, s_precipCardY = 66, s_precipCardW = 310, s_precipCardH = 40;
 
 void ScreenClock_Enter() { s_lastMin = -1; s_lastSec = -1; }
 
@@ -45,6 +57,11 @@ bool ScreenClock_Tick() {
   if (!Outside_TimeValid()) return false;
   time_t now = time(nullptr);
   struct tm lt; localtime_r(&now, &lt);
+  if (NightMode_IsUltraNightActive()) {
+    if (lt.tm_min == s_lastMin) return false;
+    s_lastMin = lt.tm_min;
+    return true;
+  }
   // In analog, orbital, hud, regulator modes or when seconds ring is active, update every second
   bool secTick = (Settings_ClockStyle() == CLOCK_STYLE_ANALOG ||
                   Settings_ClockStyle() == CLOCK_STYLE_ORBITAL ||
@@ -63,7 +80,16 @@ bool ScreenClock_Tick() {
 }
 
 bool ScreenClock_HandleTap(int x, int y) {
-  (void)x; (void)y;
+  if (s_overheadActive && x >= s_cardX && x <= s_cardX + s_cardW && y >= s_cardY && y <= s_cardY + s_cardH) {
+    ScreenPlanes_SelectHex(s_overheadHex);
+    gotoScreen(SCREEN_PLANES_I);
+    return true;
+  }
+  if (s_precipActive && x >= s_precipCardX && x <= s_precipCardX + s_precipCardW &&
+      y >= s_precipCardY && y <= s_precipCardY + s_precipCardH) {
+    gotoScreen(SCREEN_METEO_I);
+    return true;
+  }
   if (Settings_NightAuto()) return false;    // automatic mode owns the decision
   NightMode_Toggle();
   return true;
@@ -577,7 +603,7 @@ static void drawStackedClock(const struct tm* lt, time_t now) {
   UI_TextCentered(mbuf, 215, Settings_SecondsColor(), 9);
 
   // Top Date Pill
-  if (Settings_ClockShowDate()) {
+  if (!s_overheadActive && !s_precipActive && Settings_ClockShowDate()) {
     char date[40];
     snprintf(date, sizeof(date), "%s %d. %s",
              Lang_WeekdayShort(lt->tm_wday), lt->tm_mday, Lang_MonthName(lt->tm_mon));
@@ -619,7 +645,7 @@ static void drawStackedClock(const struct tm* lt, time_t now) {
 
 static void drawMinimalClock(const struct tm* lt, time_t now) {
   // Date above
-  if (Settings_ClockShowDate()) {
+  if (!s_overheadActive && Settings_ClockShowDate()) {
     char date[40];
     if (Lang_Get() == LANG_EN) {
       snprintf(date, sizeof(date), "%s %d %s",
@@ -691,7 +717,7 @@ static void drawHourlyForecastPills(int cy) {
 
 static void drawDigitalClock(const struct tm* lt, time_t now) {
   // --- Weekday and date (above the clock) ---
-  if (Settings_ClockShowDate()) {
+  if (!s_overheadActive && !s_precipActive && Settings_ClockShowDate()) {
     char date[40];
     if (Lang_Get() == LANG_EN) {
       snprintf(date, sizeof(date), "%s %d %s",
@@ -768,12 +794,119 @@ static void drawDigitalClock(const struct tm* lt, time_t now) {
   }
 }
 
+static void drawUltraNightClock(const struct tm* lt, time_t now) {
+  // Pure black background with soothing monochrome deep-crimson digits
+  const uint16_t cRed = 0xC800;     // Soft deep red
+  const uint16_t cDimRed = 0x6000;  // Dim dark red
+
+  char hhmm[8];
+  snprintf(hhmm, sizeof(hhmm), "%02d:%02d", lt->tm_hour, lt->tm_min);
+  UI_TextCentered(hhmm, CY - 40, cRed, 8);
+
+  char date[40];
+  if (Lang_Get() == LANG_EN) {
+    snprintf(date, sizeof(date), "%s, %s %d",
+             Lang_WeekdayShort(lt->tm_wday), Lang_MonthName(lt->tm_mon), lt->tm_mday);
+  } else {
+    snprintf(date, sizeof(date), "%s, %d. %s",
+             Lang_WeekdayShort(lt->tm_wday), lt->tm_mday, Lang_MonthName(lt->tm_mon));
+  }
+  UI_TextCentered(date, CY + 48, cDimRed, 2);
+
+  if (Settings_ClockShowMoon()) {
+    MoonInfo moon = Astro_GetMoon(now);
+    Astro_DrawMoonIcon(CX, CY + 110, 12, moon.phase);
+  }
+}
+
+static void drawOverheadWidget(const Aircraft* ac, float distKm) {
+  if (!ac) return;
+  const int w = 330;
+  const int h = 44;
+  const int x = CX - w / 2;
+  const int y = 70;
+  s_cardX = x; s_cardY = y; s_cardW = w; s_cardH = h;
+
+  // Background glassmorphism pill with subtle border
+  gfx->fillRoundRect(x, y, w, h, 10, 0x0948); // deep navy
+  gfx->drawRoundRect(x, y, w, h, 10, 0x2CF4); // cyan border
+
+  // Airplane icon
+  const int px = x + 18, py = y + 22;
+  gfx->fillTriangle(px - 7, py - 4, px + 7, py, px - 7, py + 4, C_CYAN);
+  gfx->fillTriangle(px - 11, py, px + 8, py, px - 7, py - 2, C_WHITE);
+  gfx->fillCircle(px + 8, py, 2, C_WHITE);
+
+  // Callsign or Hex
+  const char* cs = (ac->callsign[0] != '\0') ? ac->callsign : ac->hex;
+  UI_Text(cs, x + 36, y + 6, C_WHITE, 2);
+
+  // Route or Aircraft type
+  const RouteInfo* rt = Route_GetCached(ac->callsign);
+  char routeBuf[32];
+  if (rt && rt->iataFrom[0] && rt->iataTo[0]) {
+    snprintf(routeBuf, sizeof(routeBuf), "%s > %s", rt->iataFrom, rt->iataTo);
+  } else if (ac->type[0] != '\0') {
+    snprintf(routeBuf, sizeof(routeBuf), "%s", ac->type);
+  } else {
+    snprintf(routeBuf, sizeof(routeBuf), "OVERHEAD");
+  }
+  UI_Text(routeBuf, x + 36, y + 26, C_YELLOW, 1);
+
+  // Right side: Altitude and Distance
+  char altBuf[24];
+  if (Settings_MetricUnits()) {
+    snprintf(altBuf, sizeof(altBuf), "%.0f m", ac->altFt * 0.3048f);
+  } else {
+    if (ac->altFt >= 10000) snprintf(altBuf, sizeof(altBuf), "FL%d", (int)(ac->altFt / 100));
+    else snprintf(altBuf, sizeof(altBuf), "%d ft", (int)ac->altFt);
+  }
+  char distBuf[24];
+  snprintf(distBuf, sizeof(distBuf), "%.1f km", distKm);
+
+  int aw = Layout_TextW(altBuf, 2);
+  int dw = Layout_TextW(distBuf, 1);
+  UI_Text(altBuf, x + w - aw - 12, y + 6, C_CYAN, 2);
+  UI_Text(distBuf, x + w - dw - 12, y + 26, C_LTGRAY, 1);
+}
+
+static void drawPrecipWidget(const PrecipAlert* pa) {
+  if (!pa) return;
+  const int w = 310;
+  const int h = 40;
+  const int x = CX - w / 2;
+  const int y = s_overheadActive ? 370 : 66;
+  s_precipCardX = x; s_precipCardY = y; s_precipCardW = w; s_precipCardH = h;
+
+  uint16_t bg = (pa->type == PRECIP_HAIL_STORM) ? 0x2800 : ((pa->type == PRECIP_SNOW) ? 0x0113 : 0x0842);
+  uint16_t bcol = (pa->type == PRECIP_HAIL_STORM) ? C_RED : ((pa->type == PRECIP_SNOW) ? 0x7FFF : C_CYAN);
+
+  gfx->fillRoundRect(x, y, w, h, 10, bg);
+  gfx->drawRoundRect(x, y, w, h, 10, bcol);
+
+  // Weather symbol / icon indicator
+  int iconX = x + 18, iconY = y + 20;
+  if (pa->type == PRECIP_SNOW) {
+    gfx->fillCircle(iconX, iconY, 4, 0x7FFF);
+    gfx->drawFastHLine(iconX - 6, iconY, 13, C_WHITE);
+    gfx->drawFastVLine(iconX, iconY - 6, 13, C_WHITE);
+  } else if (pa->type == PRECIP_HAIL_STORM) {
+    gfx->fillTriangle(iconX, iconY - 8, iconX - 7, iconY + 6, iconX + 7, iconY + 6, C_YELLOW);
+    gfx->fillCircle(iconX, iconY + 1, 2, C_RED);
+  } else {
+    // Rain droplets
+    gfx->fillCircle(iconX - 3, iconY + 2, 3, C_CYAN);
+    gfx->fillCircle(iconX + 4, iconY - 1, 3, C_CYAN);
+  }
+
+  char pbuf[48];
+  PrecipTracker_GetStatusText(pbuf, sizeof(pbuf));
+  UI_Text(pbuf, x + 34, y + 12, C_WHITE, 2);
+}
+
 void ScreenClock_Draw() {
   gfx->fillScreen(C_BLACK);
   Layout_Begin();
-
-  // The screen dots at the top belong to the screen manager
-  Layout_ReserveBand(58 - 6, 12);
 
   if (!Outside_TimeValid()) {
     UI_TextCentered(T(S_WIFI_WAIT), CY - 8, C_YELLOW, 2);
@@ -782,6 +915,58 @@ void ScreenClock_Draw() {
 
   time_t now = time(nullptr);
   struct tm lt; localtime_r(&now, &lt);
+
+  if (NightMode_IsUltraNightActive()) {
+    drawUltraNightClock(&lt, now);
+    return;
+  }
+
+  // --- Check Overhead Flight ---
+  const Aircraft* overheadAc = nullptr;
+  float overheadDist = 0.0f;
+  if (Settings_ClockShowOverhead() && Settings_HasLocation()) {
+    overheadAc = ADSB_GetOverheadAircraft(Settings_OverheadRadiusKm(), &overheadDist);
+  }
+  if (overheadAc) {
+    s_overheadActive = true;
+    strncpy(s_overheadHex, overheadAc->hex, sizeof(s_overheadHex) - 1);
+    s_overheadHex[sizeof(s_overheadHex) - 1] = '\0';
+    if (strcmp(s_lastChirpHex, overheadAc->hex) != 0) {
+      strncpy(s_lastChirpHex, overheadAc->hex, sizeof(s_lastChirpHex) - 1);
+      s_lastChirpHex[sizeof(s_lastChirpHex) - 1] = '\0';
+      if (Settings_BuzzerOverhead()) {
+        Buzzer_Play(BEEP_OVERHEAD);
+      }
+    }
+    Route_Queue(overheadAc->callsign, overheadAc->lat, overheadAc->lon);
+  } else {
+    s_overheadActive = false;
+    s_overheadHex[0] = '\0';
+    s_lastChirpHex[0] = '\0';
+  }
+
+  // --- Check Approaching Precipitation ---
+  const PrecipAlert* precipAlert = nullptr;
+  if (Settings_PrecipAlert() && Settings_HasLocation()) {
+    const PrecipAlert* pa = PrecipTracker_GetAlert();
+    if (pa && (pa->status == PRECIP_STAT_APPROACHING || pa->status == PRECIP_STAT_CURRENTLY_ACTIVE)) {
+      precipAlert = pa;
+      s_precipActive = true;
+      if (pa->alertArmed) {
+        PrecipTracker_DismissAlert();
+        if (Settings_BuzzerPrecip()) {
+          Buzzer_Play(BEEP_PRECIP);
+        }
+      }
+    } else {
+      s_precipActive = false;
+    }
+  } else {
+    s_precipActive = false;
+  }
+
+  // The screen dots at the top belong to the screen manager
+  Layout_ReserveBand(58 - 6, 12);
 
   // --- Seconds ring (outermost, drawn first) ---
   drawSecondsRing(lt.tm_sec);
@@ -815,6 +1000,16 @@ void ScreenClock_Draw() {
     default:
       drawDigitalClock(&lt, now);
       break;
+  }
+
+  // --- Draw Overhead Flight Banner Overlay if detected ---
+  if (s_overheadActive && overheadAc) {
+    drawOverheadWidget(overheadAc, overheadDist);
+  }
+
+  // --- Draw Approaching Precipitation Banner Overlay if detected ---
+  if (s_precipActive && precipAlert) {
+    drawPrecipWidget(precipAlert);
   }
 
   // Night hint footer

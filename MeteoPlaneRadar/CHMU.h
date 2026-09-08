@@ -1,4 +1,4 @@
-// MeteoPlaneRadar - vyvoj / development: chiptron.cz
+//  MeteoPlaneRadar
 // =============================================================================
 //  MeteoPlaneRadar - meteoradar CHMU: stahovani srazkoveho kompozitu.
 //  Rozhrani + kalibrace geografickych okraju + animace (vice ramcu).

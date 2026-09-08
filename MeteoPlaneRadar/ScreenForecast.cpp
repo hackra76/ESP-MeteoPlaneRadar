@@ -2,7 +2,6 @@
 //  MeteoPlaneRadar
 //  Screen: weather forecast (Open-Meteo).
 //
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)
 // =============================================================================
 #include "ScreenForecast.h"

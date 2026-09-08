@@ -1,7 +1,7 @@
 // =============================================================================
 //  MeteoPlaneRadar
 //  Screen: CHMU precipitation radar (meteoradar) with a 6-frame animation.
-//  Adapted for MeteoPlaneRadar (chiptron.cz) and reworked to the ROUND 480x480 display:
+//  Adapted for MeteoPlaneRadar and reworked to the ROUND 480x480 display:
 //    - isotropic crop (aspect 1:1 instead of the rectangular 1.5:1),
 //    - the decoded image is masked to the display circle (nothing is drawn
 //      outside it),
@@ -13,7 +13,6 @@
 //  New frames are fetched only while the last frame is shown (in the pause) so
 //  the animation never tears. "Nacitam animaci..." is shown while downloading.
 //
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)
 // =============================================================================
 #include "ScreenWeather.h"
@@ -29,6 +28,8 @@
 #include "RainViewer.h"
 #include "Display_ST7701.h"
 #include "EuBorder.h"
+#include "PrecipTracker.h"
+#include "Forecast.h"
 
 #include <WiFi.h>
 #include <PNGdec.h>
@@ -77,6 +78,7 @@ static int       s_lineCap = 0;
 static uint16_t* s_frame565[ANIM_FRAMES] = {0};
 static int       s_frameCap[ANIM_FRAMES] = {0};
 static uint16_t* s_crop565 = nullptr;    // current target (pngDraw) / source (blit)
+static void updatePrecipTracker();
 static int       s_frameCount = 0;
 
 // Animation state.
@@ -457,7 +459,34 @@ static bool rebuildCrops() {
     okc++;
   }
   s_frameCount = okc;
+  if (okc >= 2) updatePrecipTracker();
   return okc > 0;
+}
+
+static void updatePrecipTracker() {
+  if (!Settings_PrecipAlert() || !Settings_HasLocation()) return;
+  float curTemp = Forecast_CurrentValid() ? Forecast_CurrentTemp() : 15.0f;
+  if (rvMode()) {
+    int cnt = RainViewer_Count();
+    if (cnt >= 2) {
+      const uint16_t* f0 = RainViewer_Frame(cnt - 2);
+      const uint16_t* f1 = RainViewer_Frame(cnt - 1);
+      float rng = RainViewer_EffectiveRadiusKm();
+      if (rng <= 0.0f) rng = 150.0f;
+      PrecipTracker_ProcessFrames(f0, f1, LCD_WIDTH, LCD_HEIGHT, rng, 10.0f,
+                                 Settings_Lat(), Settings_Lon(), curTemp);
+    }
+  } else {
+    if (s_frameCount >= 2) {
+      const uint16_t* f0 = s_frame565[s_frameCount - 2];
+      const uint16_t* f1 = s_frame565[s_frameCount - 1];
+      int cw = cropW(), ch = cropH();
+      float rng = currentRange();
+      if (rng <= 0.0f) rng = 150.0f;
+      PrecipTracker_ProcessFrames(f0, f1, cw, ch, rng, 5.0f,
+                                 Settings_Lat(), Settings_Lon(), curTemp);
+    }
+  }
 }
 
 void ScreenWeather_FreeBuffers() {
@@ -499,7 +528,10 @@ static void loadAndBuild() {
 
   s_loading  = false;
   s_lastFail = !ok;
-  if (ok) s_status = T(S_OK);
+  if (ok) {
+    s_status = T(S_OK);
+    updatePrecipTracker();
+  }
   else if (s_wide) s_status = T(S_FRAME_WIDE);
   else s_status = (s_frameCount > 0) ? T(S_OK) : T(S_ERROR);
 
@@ -600,6 +632,19 @@ static void drawOverlay() {
     if (note) {
       gfx->fillRect(CX - 160, LY_NOTE, 320, 10, C_BLACK);
       UI_TextCenteredIn(note, 0, LCD_WIDTH, LY_NOTE, C_YELLOW, 1);
+    } else if (Settings_PrecipAlert()) {
+      const PrecipAlert* pa = PrecipTracker_GetAlert();
+      if (pa && (pa->status == PRECIP_STAT_APPROACHING || pa->status == PRECIP_STAT_CURRENTLY_ACTIVE)) {
+        char pbuf[48];
+        PrecipTracker_GetStatusText(pbuf, sizeof(pbuf));
+        uint16_t bg = (pa->type == PRECIP_HAIL_STORM) ? 0x3000 : ((pa->type == PRECIP_SNOW) ? 0x0113 : 0x0842);
+        uint16_t bcol = (pa->type == PRECIP_HAIL_STORM) ? C_RED : ((pa->type == PRECIP_SNOW) ? 0x7FFF : C_CYAN);
+        const int bw = 240, bh = 18;
+        const int bx = CX - bw / 2, by = LY_NOTE - 4;
+        gfx->fillRoundRect(bx, by, bw, bh, 6, bg);
+        gfx->drawRoundRect(bx, by, bw, bh, 6, bcol);
+        UI_TextCenteredIn(pbuf, bx, bw, by + 5, C_WHITE, 1);
+      }
     }
   }
 
@@ -723,6 +768,7 @@ static bool tickRainViewer() {
     s_lastStep = now;
     Status_Set(ST_RADAR, s_lastFail ? "RainViewer: chyba"
                                     : "RainViewer: %d snimku", RainViewer_Count());
+    if (RainViewer_Count() >= 2) updatePrecipTracker();
     return true;
   }
 

@@ -9,6 +9,37 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [1.6.0] - 2026-09-08
+
+### Pridané / Added
+- **Detekcia blížiacich sa zrážok (Nowcasting & Vector Motion Tracking):**
+  - Pokročilá 2D priestorová krížová korelácia (metóda TREC) na downsamplovanej mriežke 32×32 pre výpočet vektora rýchlosti a smeru pohybu zrážkového frontu.
+  - **Striktná podmienka príchodu:** Výstraha sa aktivuje **iba a výhradne vtedy**, ak zrážky smerujú k pozícii stanice (radiálna rýchlosť $v_{radial} > 0$, bočné minutie $d_\perp \le 15\text{ km}$, $\text{ETA} \le 60\text{ min}$). Zabraňuje falošným poplachom pri obchádzaní alebo vzďaľovaní frontu.
+  - Automatická klasifikácia zrážok podľa teploty a odrazivosti: **Dážď**, **Dážď so snehom** (1 až 3 °C), **Sneh** ($\le 1$ °C), **Krúpy** ($> 50\text{ dBZ}$).
+  - Kompaktný varovný widget na obrazovke **Hodín** s farebnou ikonou, typom zrážok, vzdialenosťou, smerom a odpočtom ETA (vrátane tap-to-radar navigácie).
+  - Výstražný horný banner na obrazovke **Meteoradaru** a dynamická vektorová šípka ukazujúca smer a rýchlosť pohybu frontu.
+  - Akustická výstraha bzučiakom (`BEEP_PRECIP`) pri zachytení prichádzajúceho frontu.
+  - Karta živého nowcastingu vo webovom rozhraní s real-time telemetriou cez `/api/status`.
+- **Denná štatistika letov & Samostatná obrazovka Info (`SCREEN_INFO_I`):**
+  - Nová 6. obrazovka v rotačnom cykle venovaná štatistike leteckej prevádzky v dosahu prijímača.
+  - Zaznamenáva v PSRAM kruhovom bufferi: počet unikátnych lietadiel za deň, rekordnú rýchlosť (km/h alebo kt) s volacím znakom, maximálnu vzdialenosť (km alebo NM) s volacím znakom, rozpätie letových hladín (FL min/max) a celkový počet prijatých ADS-B správ.
+  - Automatický denný reset o polnoci a možnosť manuálneho resetu cez webové rozhranie.
+- **Widget preletu nad hlavou (Overhead Aircraft Widget & Alert):**
+  - Monitorovanie lietadiel vo valcovom priestore priamo nad stanicou s nastaviteľným polomerom (1 až 50 km, predvolene 10 km).
+  - Informačný widget na obrazovke hodín a voliteľná akustická výstraha bzučiaka pri prelete.
+- **Komplexný systém akustických výstrah (Active Buzzer System):**
+  - Modul bzučiaka s podporou pre núdzové squawky (7700, 7600, 7500), sledovaný let (watchlist), prelet nad hlavou, prichádzajúce zrážky, pípnutie na celú hodinu (chime), dotykovú odozvu na displej a režim nočného kľudu.
+- **Ultra Night režim (Deep Red Sleep Monochrome):**
+  - Špeciálny nočný monochromatický režim s hlbokou červenou farbou a minimálnym podsvietením (0.5%), ktorý nenarúša nočné videnie ani spánok.
+- **Náhľad displeja & Screenshot Tool (Web Framebuffer Screen Capture):**
+  - Funkcia okamžitého zachytenia obrazovky priamo z framebufferu ST7701 (konverzia RGB565 na nekomprimovaný 24-bitový BMP).
+  - Zobrazenie náhľadu vo webovom rozhraní a stiahnutie BMP obrázka jedným kliknutím.
+- **Lokalizácia & Čistenie:**
+  - Sériový monitor komunikuje výhradne v angličtine.
+  - Odstránené staré referencie tretích strán, pridané korektné a čisté uvedenie pôvodného upstream repozitára `petus/MeteoPlaneRadar`.
+
+---
+
 ## [1.5.9] - 2026-09-07
 
 ### Pridané / Added
@@ -660,7 +691,7 @@ funguje i mimo ČR.
 > Verze 0.4 mění **rozdělení paměti** (dvě aplikační oblasti, aby bylo kam
 > nahrát bezdrátovou aktualizaci). Proto se na ni **z verze 0.3 a nižší nedá
 > přejít přes OTA** — je nutné jednou nahrát soubor `*.merged.bin` přes
-> [esp32flasher.chiptron.cz](https://esp32flasher.chiptron.cz) a USB kabel.
+> web flasher a USB kabel.
 > Od 0.4 dál už aktualizace probíhá bezdrátově.
 
 ### Přidáno

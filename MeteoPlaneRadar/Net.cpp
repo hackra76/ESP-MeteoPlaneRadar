@@ -2,7 +2,6 @@
 //  MeteoPlaneRadar
 //  Shared HTTPS fetch helper. See Net.h.
 //
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
 // =============================================================================
 #include "Net.h"
 #include "Config.h"
@@ -50,7 +49,7 @@ static size_t s_txtCap = 0;
 static bool txtReserve(size_t need) {
   if (need <= s_txtCap) return true;
   char* nb = (char*)heap_caps_realloc(s_txt, need, MALLOC_CAP_SPIRAM);
-  if (!nb) { Serial.println("NET: telo se nevejde do PSRAM"); return false; }
+  if (!nb) { Serial.println("NET: body does not fit into PSRAM"); return false; }
   s_txt = nb; s_txtCap = need;
   return true;
 }
@@ -79,7 +78,7 @@ bool Net_GetString(const char* url, String& out, const char* tag) {
   http.setConnectTimeout(6000);
   http.setTimeout(10000);
   http.setReuse(false);
-  if (!http.begin(client, url)) { Serial.printf("%s: begin() selhalo\n", tag); return false; }
+  if (!http.begin(client, url)) { Serial.printf("%s: begin() failed\n", tag); return false; }
   http.collectHeaders(DATE_HDR, 1);
 
   poll();
@@ -94,7 +93,7 @@ bool Net_GetString(const char* url, String& out, const char* tag) {
 
   int declared = http.getSize();               // -1 when chunked / unknown
   if (declared > (int)NET_MAX_TEXT) {
-    Serial.printf("%s: odpoved %d B, strop je %u B\n",
+    Serial.printf("%s: response %d B, limit is %u B\n",
                   tag, declared, (unsigned)NET_MAX_TEXT);
     http.end();
     return false;
@@ -108,7 +107,7 @@ bool Net_GetString(const char* url, String& out, const char* tag) {
   http.end();
   poll();
 
-  if (len <= 0) { Serial.printf("%s: prazdna odpoved\n", tag); return false; }
+  if (len <= 0) { Serial.printf("%s: empty response\n", tag); return false; }
   out = s_txt;
   return true;
 }
@@ -146,7 +145,7 @@ bool Net_GetBinary(const char* url, uint8_t* buf, size_t cap, size_t* outLen,
 
   int declared = http.getSize();
   if (declared > 0 && (size_t)declared > cap) {
-    Serial.printf("%s: odpoved %d B se nevejde do %u B\n", tag, declared, (unsigned)cap);
+    Serial.printf("%s: response %d B does not fit into %u B\n", tag, declared, (unsigned)cap);
     http.end();
     return false;
   }
@@ -161,7 +160,7 @@ bool Net_GetBinary(const char* url, uint8_t* buf, size_t cap, size_t* outLen,
 
 bool Net_TouchDate(const char* url) {
   if (WiFi.status() != WL_CONNECTED) return false;
-  if (!Net_HeapOk("HODINY")) return false;
+  if (!Net_HeapOk("CLOCK")) return false;
 
   WiFiClientSecure client;
   client.setInsecure();

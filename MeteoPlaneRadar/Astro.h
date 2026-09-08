@@ -2,7 +2,6 @@
 //  MeteoPlaneRadar
 //  Astro.h - Astronomical engine: Moon phase, solar position & twilight arcs.
 //
-//  Author:  Petr / chiptron.cz & Antigravity
 // =============================================================================
 #pragma once
 #include <Arduino.h>

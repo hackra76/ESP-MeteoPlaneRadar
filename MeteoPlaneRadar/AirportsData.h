@@ -11,7 +11,6 @@
 //  Tier 3 = domestic/small (shown at <= 100 km)
 //
 //  Project: MeteoPlaneRadar - live aircraft radar on a round touchscreen
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
 // =============================================================================
 #pragma once
 #include <Arduino.h>

@@ -3,8 +3,6 @@
 //  Map underlay data: European country outlines and cities.
 //
 //  Project: MeteoPlaneRadar - live aircraft radar on a round touchscreen
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
-//  Web:     https://chiptron.cz
 //
 //  GENERATED FILE - do not edit by hand.
 //

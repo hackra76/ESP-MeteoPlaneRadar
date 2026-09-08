@@ -2,7 +2,6 @@
 //  MeteoPlaneRadar
 //  The configuration web server. See WebConfig.h.
 //
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
 // =============================================================================
 #include "WebConfig.h"
 #include "WebPage.h"
@@ -27,6 +26,11 @@
 #include "AsyncCore.h"
 #include "PCF85063.h"
 #include "Outside.h"
+#include "TimeUtil.h"
+#include "Buzzer.h"
+#include "GithubOTA.h"
+#include "FlightStats.h"
+#include "PrecipTracker.h"
 #include <Wire.h>
 
 #include <WiFi.h>
@@ -55,7 +59,7 @@ static int s_reqScreenStep = 0;
 static int s_reqRangeStep  = 0;
 static bool s_reqRedraw    = false;
 
-bool WebConfig_UpdateBusy()        { return s_updating; }
+bool WebConfig_UpdateBusy()        { return s_updating || GithubOTA_IsBusy(); }
 bool WebConfig_WantsWifiConnect()  { return s_wantConnect; }
 void WebConfig_ClearWifiConnect()  { s_wantConnect = false; }
 bool WebConfig_WantsRestart()      { return s_wantRestart; }
@@ -140,7 +144,8 @@ static void handlePostConfig() {
                           (Settings_ScreenEnabled(SCREEN_PLANES_I) << 1) |
                           (Settings_ScreenEnabled(SCREEN_METEO_I) << 2) |
                           (Settings_ScreenEnabled(SCREEN_TACTICAL_I) << 3) |
-                          (Settings_ScreenEnabled(SCREEN_FORECAST_I) << 4);
+                          (Settings_ScreenEnabled(SCREEN_FORECAST_I) << 4) |
+                          (Settings_ScreenEnabled(SCREEN_INFO_I) << 5);
 
   Settings_FromJson(doc.as<JsonObjectConst>());
   s_reqRedraw = true;
@@ -153,7 +158,8 @@ static void handlePostConfig() {
                           (Settings_ScreenEnabled(SCREEN_PLANES_I) << 1) |
                           (Settings_ScreenEnabled(SCREEN_METEO_I) << 2) |
                           (Settings_ScreenEnabled(SCREEN_TACTICAL_I) << 3) |
-                          (Settings_ScreenEnabled(SCREEN_FORECAST_I) << 4);
+                          (Settings_ScreenEnabled(SCREEN_FORECAST_I) << 4) |
+                          (Settings_ScreenEnabled(SCREEN_INFO_I) << 5);
   const bool moved = (fabs(oldLat - Settings_Lat()) > 1e-6) ||
                      (fabs(oldLon - Settings_Lon()) > 1e-6);
   if (moved) Forecast_Invalidate();
@@ -255,6 +261,18 @@ static void handleStatus() {
   Status_Text(ST_ADSB, b, sizeof(b));     doc["adsb"] = b;
   Status_Text(ST_RADAR, b, sizeof(b));    doc["radar"] = b;
   Status_Text(ST_FORECAST, b, sizeof(b)); doc["forecast"] = b;
+
+  char pb[64] = "";
+  PrecipTracker_GetStatusText(pb, sizeof(pb));
+  doc["precip"] = pb;
+  const PrecipAlert* pa = PrecipTracker_GetAlert();
+  doc["precipStatus"]  = pa ? (int)pa->status : 0;
+  doc["precipType"]    = pa ? (int)pa->type : 0;
+  doc["precipEta"]     = pa ? pa->etaMin : 0;
+  doc["precipDist"]    = pa ? (int)roundf(pa->distKm) : 0;
+  doc["precipSpeed"]   = pa ? (int)roundf(pa->speedKmh) : 0;
+  doc["precipBearing"] = pa ? PrecipTracker_GetBearingStr(pa->bearingDeg) : "-";
+
   sendJson(200, doc);
 }
 
@@ -305,13 +323,41 @@ static void handleHardware() {
   doc["touchDriver"] = "CHSC6540 / CST820 (I2C)";
   doc["expander"] = "TCA9554 (I2C 0x20 / 0x43)";
 
-  // RTC PCF85063 details
+  // Local time and timezone offset details
+  time_t now = time(nullptr);
+  struct tm localTm;
+  localtime_r(&now, &localTm);
+  char locBuf[36];
+  snprintf(locBuf, sizeof(locBuf), "%02d:%02d:%02d (%02d.%02d.%04d)",
+           localTm.tm_hour, localTm.tm_min, localTm.tm_sec,
+           localTm.tm_mday, localTm.tm_mon + 1, localTm.tm_year + 1900);
+  doc["localTime"] = locBuf;
+
+  // Calculate local timezone offset vs UTC
+  time_t localAsUtc = TimeUtil_UtcToEpoch(localTm.tm_year + 1900, localTm.tm_mon + 1, localTm.tm_mday,
+                                          localTm.tm_hour, localTm.tm_min, localTm.tm_sec);
+  long offsetSec = (long)(localAsUtc - now);
+  int offHours = offsetSec / 3600;
+  int offMins = abs((offsetSec % 3600) / 60);
+  char offStr[40];
+  const char* tzAbbr = tzname[localTm.tm_isdst > 0 ? 1 : 0];
+  if (tzAbbr && *tzAbbr) {
+    snprintf(offStr, sizeof(offStr), "UTC%+03d:%02d (%s%s)",
+             offHours, offMins, tzAbbr, localTm.tm_isdst > 0 ? " - letný čas" : "");
+  } else {
+    snprintf(offStr, sizeof(offStr), "UTC%+03d:%02d%s",
+             offHours, offMins, localTm.tm_isdst > 0 ? " (letný čas)" : "");
+  }
+  doc["tzOffset"] = offStr;
+  doc["isDst"] = (localTm.tm_isdst > 0);
+
+  // RTC PCF85063 details (stores UTC)
   doc["rtcDetected"] = PCF85063_IsDetected();
   doc["rtcOscStopped"] = PCF85063_IsOscillatorStopped();
   struct tm rtcTm;
   if (PCF85063_ReadTime(&rtcTm)) {
-    char rtcBuf[32];
-    snprintf(rtcBuf, sizeof(rtcBuf), "%02d:%02d:%02d (%d.%d.%04d)",
+    char rtcBuf[40];
+    snprintf(rtcBuf, sizeof(rtcBuf), "%02d:%02d:%02d (%02d.%02d.%04d) UTC",
              rtcTm.tm_hour, rtcTm.tm_min, rtcTm.tm_sec,
              rtcTm.tm_mday, rtcTm.tm_mon + 1, rtcTm.tm_year + 1900);
     doc["rtcTime"] = rtcBuf;
@@ -417,6 +463,17 @@ static void handleWifi() {
   sendJson(200, res);
 }
 
+static void handleWifiDelete() {
+  JsonDocument doc;
+  if (!readBody(doc)) { s_srv.send(400, "application/json", "{\"error\":\"json\"}"); return; }
+  if (!authed(doc)) return;
+  const char* ssid = doc["ssid"] | "";
+  if (!*ssid) { s_srv.send(400, "application/json", "{\"error\":\"ssid\"}"); return; }
+  bool ok = Settings_DeleteWifiNetworkBySsid(ssid);
+  JsonDocument res; res["ok"] = ok;
+  sendJson(200, res);
+}
+
 // Town name -> coordinates, so nobody has to look up their latitude by hand.
 // Proxied through the device because the page is served from the device and a
 // browser would refuse the cross-origin call.
@@ -502,6 +559,100 @@ static void handleInput() {
   res["legends"] = Settings_ShowLegends();
   res["clockStyle"] = Settings_ClockStyle();
   sendJson(200, res);
+}
+
+static void handleBuzzerTest() {
+  Buzzer_Play(BEEP_WATCHED);
+  s_srv.send(200, "application/json", "{\"ok\":true}");
+}
+
+static void handleScreenshot() {
+  const uint16_t* fb = LCD_GetActiveBuffer();
+  if (!fb) {
+    s_srv.send(503, "text/plain", "Display buffer not available");
+    return;
+  }
+  WiFiClient client = s_srv.client();
+  if (!client) {
+    s_srv.send(500, "text/plain", "Client error");
+    return;
+  }
+
+  const uint32_t width = LCD_WIDTH;
+  const uint32_t height = LCD_HEIGHT;
+  const uint32_t rowSize = width * 3;
+  const uint32_t imageSize = rowSize * height;
+  const uint32_t fileSize = 54 + imageSize;
+
+  uint8_t header[54];
+  memset(header, 0, 54);
+  header[0] = 'B';
+  header[1] = 'M';
+  header[2] = (uint8_t)(fileSize);
+  header[3] = (uint8_t)(fileSize >> 8);
+  header[4] = (uint8_t)(fileSize >> 16);
+  header[5] = (uint8_t)(fileSize >> 24);
+  header[10] = 54;
+
+  header[14] = 40; // biSize
+  header[18] = (uint8_t)(width);
+  header[19] = (uint8_t)(width >> 8);
+  header[20] = (uint8_t)(width >> 16);
+  header[21] = (uint8_t)(width >> 24);
+  header[22] = (uint8_t)(height);
+  header[23] = (uint8_t)(height >> 8);
+  header[24] = (uint8_t)(height >> 16);
+  header[25] = (uint8_t)(height >> 24);
+  header[26] = 1;  // planes
+  header[28] = 24; // bits per pixel
+  header[34] = (uint8_t)(imageSize);
+  header[35] = (uint8_t)(imageSize >> 8);
+  header[36] = (uint8_t)(imageSize >> 16);
+  header[37] = (uint8_t)(imageSize >> 24);
+
+  s_srv.sendHeader("Content-Disposition", "inline; filename=\"screenshot.bmp\"");
+  s_srv.setContentLength(fileSize);
+  s_srv.send(200, "image/bmp", "");
+
+  client.write(header, 54);
+
+  static uint8_t rowBuf[1440];
+  for (int y = (int)height - 1; y >= 0; y--) {
+    const uint16_t* src = fb + (y * width);
+    int p = 0;
+    for (uint32_t x = 0; x < width; x++) {
+      uint16_t c = src[x];
+      // RGB565 -> BGR888
+      uint8_t r = ((c >> 11) & 0x1F) * 255 / 31;
+      uint8_t g = ((c >> 5) & 0x3F) * 255 / 63;
+      uint8_t b = (c & 0x1F) * 255 / 31;
+      rowBuf[p++] = b;
+      rowBuf[p++] = g;
+      rowBuf[p++] = r;
+    }
+    client.write(rowBuf, rowSize);
+    if ((y & 15) == 0) Watchdog_Feed();
+  }
+}
+
+static void handleStats() {
+  FlightStats_CheckMidnight();
+  JsonDocument doc;
+  doc["todayCount"] = FlightStats_TodayCount();
+  doc["maxDistKm"] = FlightStats_MaxDistKm();
+  doc["maxSpeedKt"] = FlightStats_MaxSpeedKt();
+  doc["maxSpeedCallsign"] = FlightStats_MaxSpeedCallsign();
+  doc["maxAltFt"] = FlightStats_MaxAltFt();
+  doc["minAltFt"] = (FlightStats_MinAltFt() > 900000.0f) ? 0.0f : FlightStats_MinAltFt();
+  doc["totalSightings"] = FlightStats_TotalSightings();
+  sendJson(200, doc);
+}
+
+static void handleStatsReset() {
+  FlightStats_Reset();
+  JsonDocument doc;
+  doc["ok"] = true;
+  sendJson(200, doc);
 }
 
 static void handleExport() {
@@ -592,246 +743,18 @@ static void otaEnd(bool ok) {
 }
 
 // --- GitHub Online OTA ------------------------------------------------------
-enum OtaState : uint8_t {
-  OTA_IDLE = 0,
-  OTA_CHECKING,
-  OTA_DOWNLOADING,
-  OTA_FLASHING,
-  OTA_SUCCESS,
-  OTA_ERROR
-};
-static volatile OtaState s_otaState = OTA_IDLE;
-static volatile int      s_otaProgress = 0;
-static String            s_otaError = "";
-static String            s_targetOtaUrl = "";
-static String            s_targetOtaTag = "";
-static TaskHandle_t      s_otaTaskHandle = nullptr;
-
-static void githubOtaTask(void* param) {
-  (void)param;
-  s_otaState = OTA_DOWNLOADING;
-  s_otaProgress = 0;
-  s_otaError = "";
-
-  otaStart();
-
-  String currentUrl = s_targetOtaUrl;
-  WiFiClientSecure client;
-  client.setInsecure();
-  client.setHandshakeTimeout(15);
-  HTTPClient http;
-  http.setConnectTimeout(10000);
-  http.setTimeout(30000);
-  http.setUserAgent(HTTP_USER_AGENT);
-  static const char* WANTED_HEADERS[] = { "Location", "Content-Length" };
-  http.collectHeaders(WANTED_HEADERS, 2);
-
-  bool connected = false;
-  int redirects = 0;
-  while (redirects < 5) {
-    Watchdog_Feed();
-    if (!http.begin(client, currentUrl)) {
-      s_otaError = "Connection failed";
-      break;
-    }
-    int code = http.GET();
-    if (code == 301 || code == 302 || code == 307 || code == 308) {
-      String newLoc = http.header("Location");
-      while (client.available()) client.read();
-      http.end();
-      client.stop();
-      delay(50);
-      if (newLoc.length() == 0) {
-        s_otaError = "Empty redirect";
-        break;
-      }
-      currentUrl = newLoc;
-      redirects++;
-      continue;
-    }
-    if (code == HTTP_CODE_OK) {
-      connected = true;
-      break;
-    }
-    s_otaError = "HTTP " + String(code);
-    while (client.available()) client.read();
-    http.end();
-    client.stop();
-    break;
-  }
-
-  if (!connected) {
-    s_otaState = OTA_ERROR;
-    otaEnd(false);
-    s_otaTaskHandle = nullptr;
-    vTaskDelete(NULL);
-    return;
-  }
-
-  int totalLen = http.getSize();
-  size_t updateSize = (totalLen > 0) ? (size_t)totalLen : UPDATE_SIZE_UNKNOWN;
-  if (!Update.begin(updateSize)) {
-    s_otaError = Update.errorString();
-    while (client.available()) client.read();
-    http.end();
-    client.stop();
-    s_otaState = OTA_ERROR;
-    otaEnd(false);
-    s_otaTaskHandle = nullptr;
-    vTaskDelete(NULL);
-    return;
-  }
-
-  WiFiClient* stream = http.getStreamPtr();
-  const size_t BUF_SZ = 4096;
-  // Flash writes suspend the PSRAM cache on ESP32-S3, so this buffer MUST reside in internal RAM!
-  uint8_t* buf = (uint8_t*)heap_caps_malloc(BUF_SZ, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-  if (!buf) buf = (uint8_t*)malloc(BUF_SZ);
-  if (!buf) {
-    s_otaError = "No memory for buffer";
-    Update.abort();
-    while (client.available()) client.read();
-    http.end();
-    client.stop();
-    s_otaState = OTA_ERROR;
-    otaEnd(false);
-    s_otaTaskHandle = nullptr;
-    vTaskDelete(NULL);
-    return;
-  }
-
-  size_t written = 0;
-  unsigned long lastFeed = millis();
-  while (http.connected() && (totalLen <= 0 || written < (size_t)totalLen)) {
-    size_t avail = stream ? stream->available() : 0;
-    if (avail) {
-      size_t toRead = avail > BUF_SZ ? BUF_SZ : avail;
-      int r = stream->readBytes(buf, toRead);
-      if (r > 0) {
-        if (Update.write(buf, (size_t)r) != (size_t)r) {
-          s_otaError = Update.errorString();
-          Update.abort();
-          break;
-        }
-        written += (size_t)r;
-        if (totalLen > 0) {
-          s_otaProgress = (int)(written * 100 / (size_t)totalLen);
-        }
-      }
-    } else {
-      delay(10);
-    }
-    if (millis() - lastFeed > 1000) {
-      Watchdog_Feed();
-      lastFeed = millis();
-    }
-  }
-
-  if (buf) {
-    if (esp_ptr_external_ram(buf)) heap_caps_free(buf);
-    else free(buf);
-  }
-  while (client.available()) client.read();
-  http.end();
-  client.stop();
-
-  if (s_otaError.length() == 0 && Update.end(true)) {
-    s_otaProgress = 100;
-    s_otaState = OTA_SUCCESS;
-    otaEnd(true);
-    Serial.printf("OTA: GitHub update to %s successful (%u B)\n", s_targetOtaTag.c_str(), (unsigned)written);
-    vTaskDelay(pdMS_TO_TICKS(1500));
-    ESP.restart();
-  } else {
-    if (s_otaError.length() == 0) s_otaError = Update.errorString();
-    s_otaState = OTA_ERROR;
-    otaEnd(false);
-  }
-
-  s_otaTaskHandle = nullptr;
-  vTaskDelete(NULL);
-}
-
 static void handleOtaCheck() {
-  WiFiClientSecure client;
-  client.setInsecure();
-  client.setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
-  HTTPClient http;
-  http.setConnectTimeout(8000);
-  http.setTimeout(15000);
-  http.setUserAgent(HTTP_USER_AGENT);
-
-  String url = "https://api.github.com/repos/" GITHUB_REPO "/releases/latest";
-  if (!http.begin(client, url)) {
-    client.stop();
-    s_srv.send(500, "application/json", "{\"error\":\"begin_failed\"}");
-    return;
+  if (GithubOTA_GetState() == GH_OTA_IDLE) {
+    GithubOTA_CheckSync();
   }
-  http.addHeader("Accept", "application/vnd.github.v3+json");
-  int code = http.GET();
-  if (code != HTTP_CODE_OK) {
-    while (client.available()) client.read();
-    http.end();
-    client.stop();
-    char errJson[64];
-    snprintf(errJson, sizeof(errJson), "{\"error\":\"github_http_%d\"}", code);
-    s_srv.send(code > 0 ? code : 502, "application/json", errJson);
-    return;
-  }
-
-  JsonDocument filter;
-  filter["tag_name"] = true;
-  filter["name"] = true;
-  filter["body"] = true;
-  filter["assets"][0]["name"] = true;
-  filter["assets"][0]["browser_download_url"] = true;
-
-  JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, http.getStream(), DeserializationOption::Filter(filter));
-  while (client.available()) client.read();
-  http.end();
-  client.stop();
-
-  if (err) {
-    s_srv.send(500, "application/json", "{\"error\":\"json_parse_failed\"}");
-    return;
-  }
-
-  const char* tag = doc["tag_name"] | "";
-  const char* title = doc["name"] | "";
-  const char* body = doc["body"] | "";
-  String otaUrl = "";
-
-  JsonArrayConst assets = doc["assets"].as<JsonArrayConst>();
-  for (JsonObjectConst a : assets) {
-    const char* aname = a["name"] | "";
-    if (strstr(aname, "-ota.bin") || strstr(aname, "ota.bin")) {
-      otaUrl = a["browser_download_url"] | "";
-      break;
-    }
-  }
-
-  const char* cur = FW_VERSION;
-  const char* lat = tag;
-  if (lat[0] == 'v' || lat[0] == 'V') lat++;
-
-  int curMaj = 0, curMin = 0, curPat = 0;
-  int latMaj = 0, latMin = 0, latPat = 0;
-  sscanf(cur, "%d.%d.%d", &curMaj, &curMin, &curPat);
-  sscanf(lat, "%d.%d.%d", &latMaj, &latMin, &latPat);
-
-  bool updateAvail = false;
-  if (latMaj > curMaj) updateAvail = true;
-  else if (latMaj == curMaj && latMin > curMin) updateAvail = true;
-  else if (latMaj == curMaj && latMin == curMin && latPat > curPat) updateAvail = true;
 
   JsonDocument out;
   out["current"] = FW_VERSION;
-  out["latest"] = tag;
-  out["updateAvailable"] = updateAvail;
-  out["name"] = title;
-  out["body"] = body;
-  out["url"] = otaUrl;
+  out["latest"] = GithubOTA_GetLatestVersion();
+  out["updateAvailable"] = GithubOTA_IsUpdateAvailable();
+  out["name"] = GithubOTA_GetReleaseTitle();
+  out["body"] = GithubOTA_GetReleaseBody();
+  out["url"] = GithubOTA_GetDownloadUrl();
 
   String resp;
   serializeJson(out, resp);
@@ -839,20 +762,10 @@ static void handleOtaCheck() {
 }
 
 static void handleOtaStatus() {
-  const char* stStr = "idle";
-  switch (s_otaState) {
-    case OTA_CHECKING:    stStr = "checking"; break;
-    case OTA_DOWNLOADING: stStr = "downloading"; break;
-    case OTA_FLASHING:    stStr = "flashing"; break;
-    case OTA_SUCCESS:     stStr = "success"; break;
-    case OTA_ERROR:       stStr = "error"; break;
-    default:              stStr = "idle"; break;
-  }
-
   char buf[256];
   snprintf(buf, sizeof(buf),
            "{\"state\":\"%s\",\"progress\":%d,\"error\":\"%s\"}",
-           stStr, s_otaProgress, s_otaError.c_str());
+           GithubOTA_GetStateStr(), GithubOTA_GetProgress(), GithubOTA_GetError());
   s_srv.send(200, "application/json", buf);
 }
 
@@ -865,7 +778,7 @@ static void handleOtaStart() {
   }
   if (!authed(doc)) return;
 
-  if (s_otaState == OTA_DOWNLOADING || s_otaState == OTA_FLASHING) {
+  if (GithubOTA_IsBusy() || s_updating) {
     s_srv.send(409, "application/json", "{\"error\":\"already_running\"}");
     return;
   }
@@ -873,19 +786,8 @@ static void handleOtaStart() {
   String url = doc["url"] | "";
   String tag = doc["tag"] | "";
 
-  if (url.length() == 0) {
-    s_srv.send(400, "application/json", "{\"error\":\"missing_url\"}");
-    return;
-  }
-
-  s_targetOtaUrl = url;
-  s_targetOtaTag = tag;
-  s_otaError = "";
-  s_otaProgress = 0;
-
-  BaseType_t ret = xTaskCreatePinnedToCore(githubOtaTask, "GhOta", 20480, NULL, 5, &s_otaTaskHandle, 0);
-  if (ret != pdPASS) {
-    s_srv.send(500, "application/json", "{\"error\":\"task_create_failed\"}");
+  if (!GithubOTA_StartUpdateAsync(url.length() ? url.c_str() : nullptr, tag.length() ? tag.c_str() : nullptr)) {
+    s_srv.send(500, "application/json", "{\"error\":\"start_failed\"}");
     return;
   }
 
@@ -1018,7 +920,7 @@ static void handleUpdateUpload() {
       if (s_updErr.length()) return;
       if (Update.isRunning() && Update.end(true)) {
         s_updOk = true;
-        Serial.printf("OTA: hotovo, %u B\n", (unsigned)up.totalSize);
+        Serial.printf("OTA: done, %u B\n", (unsigned)up.totalSize);
         otaEnd(true);
       } else {
         s_updErr = Update.errorString();
@@ -1065,9 +967,10 @@ void WebConfig_Begin(bool apMode) {
       s_dns.start(53, "*", WiFi.softAPIP());
     } else {
       s_dns.stop();
-      if (MDNS.begin(WEB_HOSTNAME)) MDNS.addService("http", "tcp", WEB_PORT);
-      Serial.printf("Web: http://%s.local/ nebo http://%s/\n",
-                    WEB_HOSTNAME, WiFi.localIP().toString().c_str());
+      MDNS.end();
+      if (MDNS.begin(Settings_Hostname())) MDNS.addService("http", "tcp", WEB_PORT);
+      Serial.printf("Web: http://%s.local/ or http://%s/\n",
+                    Settings_Hostname(), WiFi.localIP().toString().c_str());
     }
     return;
   }
@@ -1080,13 +983,18 @@ void WebConfig_Begin(bool apMode) {
   s_srv.on("/api/rtc/sync_ntp", HTTP_POST, handleRtcSyncNtp);
   s_srv.on("/api/rtc/sync_browser", HTTP_POST, handleRtcSyncBrowser);
   s_srv.on("/api/toggle-legends", HTTP_POST, handleToggleLegends);
+  s_srv.on("/api/buzzer/test", HTTP_POST, handleBuzzerTest);
   s_srv.on("/api/input", HTTP_POST, handleInput);
   s_srv.on("/api/screen", HTTP_POST, handleScreen);
   s_srv.on("/api/range", HTTP_POST, handleRange);
   s_srv.on("/api/scan", HTTP_GET, handleScan);
   s_srv.on("/api/wifi", HTTP_POST, handleWifi);
+  s_srv.on("/api/wifi/delete", HTTP_POST, handleWifiDelete);
   s_srv.on("/api/geocode", HTTP_GET, handleGeocode);
   s_srv.on("/api/export", HTTP_GET, handleExport);
+  s_srv.on("/api/screenshot.bmp", HTTP_GET, handleScreenshot);
+  s_srv.on("/api/stats", HTTP_GET, handleStats);
+  s_srv.on("/api/stats/reset", HTTP_POST, handleStatsReset);
   s_srv.on("/api/import", HTTP_POST, handleImport);
   s_srv.on("/api/reboot", HTTP_POST, handleReboot);
   s_srv.on("/api/reset", HTTP_POST, handleReset);
@@ -1105,14 +1013,14 @@ void WebConfig_Begin(bool apMode) {
   if (apMode) {
     s_dns.setErrorReplyCode(DNSReplyCode::NoError);
     s_dns.start(53, "*", WiFi.softAPIP());
-    Serial.printf("Web: portal na http://%s/\n", WiFi.softAPIP().toString().c_str());
+    Serial.printf("Web: portal at http://%s/\n", WiFi.softAPIP().toString().c_str());
   } else {
-    if (MDNS.begin(WEB_HOSTNAME)) {
+    if (MDNS.begin(Settings_Hostname())) {
       MDNS.addService("http", "tcp", WEB_PORT);
-      Serial.printf("Web: http://%s.local/ nebo http://%s/\n",
-                    WEB_HOSTNAME, WiFi.localIP().toString().c_str());
+      Serial.printf("Web: http://%s.local/ or http://%s/\n",
+                    Settings_Hostname(), WiFi.localIP().toString().c_str());
     } else {
-      Serial.printf("Web: http://%s/  (mDNS se nespustilo)\n",
+      Serial.printf("Web: http://%s/  (mDNS failed to start)\n",
                     WiFi.localIP().toString().c_str());
     }
   }

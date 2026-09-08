@@ -2,7 +2,6 @@
 //  MeteoPlaneRadar
 //  Layout - reservations and collision checking. See Layout.h for the why.
 //
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
 // =============================================================================
 #include "Layout.h"
 #include "Config.h"
@@ -103,7 +102,7 @@ void Layout_SelfTest() {
   };
   const int n = sizeof(B) / sizeof(B[0]);
   int clashes = 0;
-  Serial.println("LAYOUT: kontrola pasu");
+  Serial.println("LAYOUT: band check");
   for (int i = 0; i < n; i++) {
     // Vertical overlap between bands - they all span the width, so touching in
     // y is enough to be a real collision.
@@ -111,17 +110,17 @@ void Layout_SelfTest() {
       int a0 = B[i].y, a1 = B[i].y + B[i].h - 1;
       int b0 = B[j].y, b1 = B[j].y + B[j].h - 1;
       if (a0 <= b1 && a1 >= b0) {
-        Serial.printf("  KOLIZE: %s (%d..%d) x %s (%d..%d)\n",
+        Serial.printf("  COLLISION: %s (%d..%d) x %s (%d..%d)\n",
                       B[i].name, a0, a1, B[j].name, b0, b1);
         clashes++;
       }
     }
     // And each band has to fit inside the circle at its own height.
     if (Layout_ChordHalf(B[i].y) < 40 || Layout_ChordHalf(B[i].y + B[i].h - 1) < 40) {
-      Serial.printf("  UZKE: %s je moc blizko okraje kruhu\n", B[i].name);
+      Serial.printf("  TOO NARROW: %s is too close to circle edge\n", B[i].name);
       clashes++;
     }
   }
-  Serial.printf("LAYOUT: %s (%d pasu)\n", clashes ? "NALEZENY KOLIZE" : "OK", n);
+  Serial.printf("LAYOUT: %s (%d bands)\n", clashes ? "COLLISIONS FOUND" : "OK", n);
 #endif
 }

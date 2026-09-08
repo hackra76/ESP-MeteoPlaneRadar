@@ -26,8 +26,6 @@
 //  odpovedi, kterou stahujeme kvuli polohe (pole "r" a "t"), viz ADSB.h.
 //
 //  Project: MeteoPlaneRadar - live aircraft radar on a round touchscreen
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
-//  Web:     https://chiptron.cz
 // =============================================================================
 #pragma once
 #include <Arduino.h>

@@ -178,7 +178,9 @@ const char* AircraftType_Format(const char* icaoType) {
 
 #include "ADSB.h"
 #include "Settings.h"
+#include "UI.h"
 #include <stdio.h>
+#include <math.h>
 
 #define COL_RESCUE      0x07E0   // Vibrant green
 #define COL_GOVERNMENT  0xFDE0   // Gold / Amber
@@ -272,5 +274,243 @@ SpecialCategory Aircraft_Classify(const Aircraft& ac, char* labelOut, size_t lab
   }
 
   return SPEC_NONE;
+}
+
+AircraftIconType Aircraft_GetIconType(const Aircraft& ac) {
+  // 1. Military fighter jet
+  if (ac.isMilitary || startsWithCase(ac.callsign, "NATO") || startsWithCase(ac.callsign, "JAS") ||
+      startsWithCase(ac.callsign, "ALCA") || startsWithCase(ac.callsign, "TIGER") ||
+      startsWithCase(ac.callsign, "VIPER") || startsWithCase(ac.callsign, "GHOST") ||
+      strcasecmp(ac.type, "L39") == 0 || strcasecmp(ac.type, "L159") == 0 ||
+      strcasecmp(ac.type, "JAS3") == 0 || strcasecmp(ac.type, "EUFI") == 0 ||
+      strcasecmp(ac.type, "F16") == 0 || strcasecmp(ac.type, "F35") == 0 ||
+      strcasecmp(ac.type, "F18") == 0 || strcasecmp(ac.type, "MIG29") == 0) {
+    return ICON_MILITARY_JET;
+  }
+
+  // 2. Helicopters / Rotorcraft
+  if (startsWithCase(ac.callsign, "ATE") || startsWithCase(ac.callsign, "KRY") ||
+      startsWithCase(ac.callsign, "HZS") || startsWithCase(ac.callsign, "SAR") ||
+      startsWithCase(ac.callsign, "HEMS") || startsWithCase(ac.callsign, "LZZ") ||
+      startsWithCase(ac.callsign, "MEDIC") || startsWithCase(ac.callsign, "RESCUE") ||
+      startsWithCase(ac.reg, "OM-AT") || startsWithCase(ac.reg, "OK-AT") ||
+      strcasecmp(ac.type, "EC35") == 0 || strcasecmp(ac.type, "EC45") == 0 ||
+      strcasecmp(ac.type, "EC20") == 0 || strcasecmp(ac.type, "EC30") == 0 ||
+      strcasecmp(ac.type, "H135") == 0 || strcasecmp(ac.type, "H145") == 0 ||
+      strcasecmp(ac.type, "H125") == 0 || strcasecmp(ac.type, "H130") == 0 ||
+      strcasecmp(ac.type, "H160") == 0 || strcasecmp(ac.type, "H175") == 0 ||
+      strcasecmp(ac.type, "AS50") == 0 || strcasecmp(ac.type, "AS55") == 0 ||
+      strcasecmp(ac.type, "AS32") == 0 || strcasecmp(ac.type, "A109") == 0 ||
+      strcasecmp(ac.type, "A119") == 0 || strcasecmp(ac.type, "A139") == 0 ||
+      strcasecmp(ac.type, "A169") == 0 || strcasecmp(ac.type, "A189") == 0 ||
+      strcasecmp(ac.type, "AW09") == 0 || strcasecmp(ac.type, "B06") == 0 ||
+      strcasecmp(ac.type, "B407") == 0 || strcasecmp(ac.type, "B429") == 0 ||
+      strcasecmp(ac.type, "B412") == 0 || strcasecmp(ac.type, "B212") == 0 ||
+      strcasecmp(ac.type, "R22") == 0 || strcasecmp(ac.type, "R44") == 0 ||
+      strcasecmp(ac.type, "R66") == 0 || strcasecmp(ac.type, "MI8") == 0 ||
+      strcasecmp(ac.type, "MI17") == 0 || strcasecmp(ac.type, "MI24") == 0 ||
+      strcasecmp(ac.type, "UH60") == 0 || strcasecmp(ac.type, "S76") == 0 ||
+      strcasecmp(ac.type, "S92") == 0 || strcasecmp(ac.type, "MD52") == 0 ||
+      strcasecmp(ac.type, "G2CA") == 0) {
+    return ICON_HELICOPTER;
+  }
+
+  // 3. Gliders / Sailplanes / Balloons
+  if (strcasecmp(ac.type, "GLID") == 0 || strcasecmp(ac.type, "BALL") == 0 ||
+      strcasecmp(ac.type, "PARA") == 0 || strcasecmp(ac.type, "AS21") == 0 ||
+      strcasecmp(ac.type, "DG10") == 0 || strcasecmp(ac.type, "DG50") == 0 ||
+      strcasecmp(ac.type, "DG80") == 0 || strcasecmp(ac.type, "DISC") == 0 ||
+      strcasecmp(ac.type, "DUOD") == 0 || strcasecmp(ac.type, "VENT") == 0 ||
+      strcasecmp(ac.type, "LS4") == 0 || strcasecmp(ac.type, "LS8") == 0) {
+    return ICON_GLIDER;
+  }
+
+  // 4. Heavy Giants
+  if (strcasecmp(ac.type, "A388") == 0 || strcasecmp(ac.type, "B744") == 0 ||
+      strcasecmp(ac.type, "B748") == 0 || strcasecmp(ac.type, "B742") == 0 ||
+      strcasecmp(ac.type, "B741") == 0 || strcasecmp(ac.type, "B743") == 0 ||
+      strcasecmp(ac.type, "A124") == 0 || strcasecmp(ac.type, "A225") == 0 ||
+      strcasecmp(ac.type, "A3ST") == 0 || strcasecmp(ac.type, "A337") == 0 ||
+      strcasecmp(ac.type, "C5") == 0) {
+    return ICON_HEAVY;
+  }
+
+  // 5. Small / Light General Aviation & Ultralights
+  if (strcasecmp(ac.type, "C150") == 0 || strcasecmp(ac.type, "C152") == 0 ||
+      strcasecmp(ac.type, "C172") == 0 || strcasecmp(ac.type, "C182") == 0 ||
+      strcasecmp(ac.type, "C206") == 0 || strcasecmp(ac.type, "C210") == 0 ||
+      strcasecmp(ac.type, "C208") == 0 || strcasecmp(ac.type, "PA28") == 0 ||
+      strcasecmp(ac.type, "P28A") == 0 || strcasecmp(ac.type, "P28R") == 0 ||
+      strcasecmp(ac.type, "P28T") == 0 || strcasecmp(ac.type, "PA34") == 0 ||
+      strcasecmp(ac.type, "PA44") == 0 || strcasecmp(ac.type, "PA32") == 0 ||
+      strcasecmp(ac.type, "PA18") == 0 || strcasecmp(ac.type, "PA38") == 0 ||
+      strcasecmp(ac.type, "SR20") == 0 || strcasecmp(ac.type, "SR22") == 0 ||
+      strcasecmp(ac.type, "SF50") == 0 || strcasecmp(ac.type, "DA40") == 0 ||
+      strcasecmp(ac.type, "DA42") == 0 || strcasecmp(ac.type, "DA62") == 0 ||
+      strcasecmp(ac.type, "DA20") == 0 || strcasecmp(ac.type, "DV20") == 0 ||
+      strcasecmp(ac.type, "PC12") == 0 || strcasecmp(ac.type, "BE36") == 0 ||
+      strcasecmp(ac.type, "BE58") == 0 || strcasecmp(ac.type, "BE33") == 0 ||
+      strcasecmp(ac.type, "AA5") == 0  || strcasecmp(ac.type, "AT3") == 0  ||
+      strcasecmp(ac.type, "P92") == 0  || strcasecmp(ac.type, "P200") == 0 ||
+      strcasecmp(ac.type, "P06T") == 0 || strcasecmp(ac.type, "Z42") == 0  ||
+      strcasecmp(ac.type, "Z43") == 0  || strcasecmp(ac.type, "Z26") == 0  ||
+      strcasecmp(ac.type, "Z50") == 0  || strcasecmp(ac.type, "WT9") == 0  ||
+      strcasecmp(ac.type, "VL3") == 0  || strcasecmp(ac.type, "EV97") == 0 ||
+      strcasecmp(ac.type, "TL20") == 0 || strcasecmp(ac.type, "TL30") == 0 ||
+      strcasecmp(ac.type, "ULAC") == 0) {
+    return ICON_LIGHT;
+  }
+
+  return ICON_AIRLINER;
+}
+
+void Aircraft_DrawIcon(Arduino_GFX* g, int x, int y, float trackDeg, bool hasTrack, uint16_t col, AircraftIconType iconType) {
+  if (!g) return;
+
+  if (!hasTrack) {
+    // Track unknown - circle with center dot (orientation cannot be determined)
+    uint16_t ringCol = (iconType == ICON_MILITARY_JET) ? C_RED : col;
+    g->drawCircle(x, y, 7, ringCol);
+    g->fillCircle(x, y, 2, ringCol);
+    return;
+  }
+
+  float a = trackDeg * 0.0174532925f;
+  float ca = cosf(a), sa = sinf(a);
+  auto rot = [&](float right, float fwd, int* ox, int* oy) {
+    *ox = x + (int)(right * ca + fwd * sa);
+    *oy = y + (int)(right * sa - fwd * ca);
+  };
+
+  switch (iconType) {
+    case ICON_HELICOPTER: {
+      // --- Helicopter (Droplet cabin, tail boom, main & tail rotors) ---
+      const float P_HELI[10][2] = {
+        { 0.0f,   7.0f}, { 2.8f,  3.0f}, { 2.5f, -2.0f}, { 1.0f, -5.0f}, { 0.7f, -12.0f},
+        { 0.0f, -13.0f}, {-0.7f, -12.0f}, {-1.0f, -5.0f}, {-2.5f, -2.0f}, {-2.8f,  3.0f}
+      };
+      int px[10], py[10];
+      for (int i = 0; i < 10; i++) rot(P_HELI[i][0], P_HELI[i][1], &px[i], &py[i]);
+      for (int i = 0; i < 10; i++) {
+        int j = (i + 1) % 10;
+        g->fillTriangle(x, y, px[i], py[i], px[j], py[j], col);
+      }
+      // Main 2-blade rotor across fuselage
+      int r1x, r1y, r2x, r2y;
+      rot(-11.0f, 1.0f, &r1x, &r1y);
+      rot( 11.0f, 1.0f, &r2x, &r2y);
+      g->drawLine(r1x, r1y, r2x, r2y, col);
+      // Cross rotor blade along fuselage
+      int r3x, r3y, r4x, r4y;
+      rot(0.0f,  11.0f, &r3x, &r3y);
+      rot(0.0f,  -9.0f, &r4x, &r4y);
+      g->drawLine(r3x, r3y, r4x, r4y, col);
+      // Rotor mast hub
+      int hx, hy;
+      rot(0.0f, 1.0f, &hx, &hy);
+      g->fillCircle(hx, hy, 2, col);
+      g->fillCircle(hx, hy, 1, C_WHITE);
+      // Tail rotor
+      int t1x, t1y, t2x, t2y;
+      rot(0.5f, -12.0f, &t1x, &t1y);
+      rot(4.5f, -12.0f, &t2x, &t2y);
+      g->drawLine(t1x, t1y, t2x, t2y, col);
+      break;
+    }
+
+    case ICON_LIGHT: {
+      // --- Light aircraft / GA prop (Cessna / Piper) ---
+      // Shorter fuselage, straight wings, small nose spinner, compact tail
+      const float P_LIGHT[14][2] = {
+        { 0.0f,  8.0f}, { 1.5f,  3.0f}, { 9.0f,  2.0f}, { 9.0f, -0.5f}, { 1.5f,  0.0f},
+        { 1.0f, -5.0f}, { 4.0f, -6.0f}, { 0.0f, -8.0f}, {-4.0f, -6.0f}, {-1.0f, -5.0f},
+        {-1.5f,  0.0f}, {-9.0f, -0.5f}, {-9.0f,  2.0f}, {-1.5f,  3.0f}
+      };
+      int px[14], py[14];
+      for (int i = 0; i < 14; i++) rot(P_LIGHT[i][0], P_LIGHT[i][1], &px[i], &py[i]);
+      for (int i = 0; i < 14; i++) {
+        int j = (i + 1) % 14;
+        g->fillTriangle(x, y, px[i], py[i], px[j], py[j], col);
+      }
+      break;
+    }
+
+    case ICON_MILITARY_JET: {
+      // --- Sharp delta-wing military fighter jet ---
+      const float P_MIL[10][2] = {
+        { 0.0f,  14.0f}, { 2.0f,  5.0f}, { 13.0f, -6.0f}, { 3.0f, -4.0f}, { 3.0f, -13.0f},
+        { 0.0f, -10.0f}, {-3.0f, -13.0f}, {-3.0f, -4.0f}, {-13.0f, -6.0f}, {-2.0f,  5.0f}
+      };
+      int px[10], py[10];
+      for (int i = 0; i < 10; i++) rot(P_MIL[i][0], P_MIL[i][1], &px[i], &py[i]);
+      for (int i = 0; i < 10; i++) {
+        int j = (i + 1) % 10;
+        g->fillTriangle(x, y, px[i], py[i], px[j], py[j], C_RED);
+      }
+      int cx, cy;
+      rot(0.0f, 2.0f, &cx, &cy);
+      g->fillCircle(cx, cy, 1, C_WHITE);
+      break;
+    }
+
+    case ICON_HEAVY: {
+      // --- Heavy Giant (A380, B747, Antonov) ---
+      // Larger swept wings, wide fuselage, 4-engine markers
+      const float P_HEAVY[14][2] = {
+        { 0.0f,  16.0f}, { 4.0f,  2.0f}, { 16.0f, -9.0f}, { 16.0f, -12.0f}, { 4.0f, -7.0f},
+        { 4.0f, -11.0f}, { 8.0f, -14.0f}, {  0.0f, -16.0f}, {-8.0f, -14.0f}, {-4.0f, -11.0f},
+        {-4.0f,  -7.0f}, {-16.0f, -12.0f}, {-16.0f, -9.0f}, {-4.0f,  2.0f}
+      };
+      int px[14], py[14];
+      for (int i = 0; i < 14; i++) rot(P_HEAVY[i][0], P_HEAVY[i][1], &px[i], &py[i]);
+      for (int i = 0; i < 14; i++) {
+        int j = (i + 1) % 14;
+        g->fillTriangle(x, y, px[i], py[i], px[j], py[j], col);
+      }
+      // 4 white engine nacelle dots
+      int e1x, e1y, e2x, e2y, e3x, e3y, e4x, e4y;
+      rot( 7.0f, -4.5f, &e1x, &e1y);
+      rot(11.5f, -7.5f, &e2x, &e2y);
+      rot(-7.0f, -4.5f, &e3x, &e3y);
+      rot(-11.5f, -7.5f, &e4x, &e4y);
+      g->fillCircle(e1x, e1y, 1, C_WHITE);
+      g->fillCircle(e2x, e2y, 1, C_WHITE);
+      g->fillCircle(e3x, e3y, 1, C_WHITE);
+      g->fillCircle(e4x, e4y, 1, C_WHITE);
+      break;
+    }
+
+    case ICON_GLIDER: {
+      // --- Sailplane / Glider (Extremely slender long wings, T-tail) ---
+      const float P_GLID[14][2] = {
+        { 0.0f,  10.0f}, { 1.0f,  2.0f}, { 15.0f,  1.5f}, { 15.0f, -0.5f}, { 1.0f,  0.0f},
+        { 0.8f, -10.0f}, { 4.0f, -11.5f}, { 0.0f, -13.0f}, {-4.0f, -11.5f}, {-0.8f, -10.0f},
+        {-1.0f,  0.0f}, {-15.0f, -0.5f}, {-15.0f,  1.5f}, {-1.0f,  2.0f}
+      };
+      int px[14], py[14];
+      for (int i = 0; i < 14; i++) rot(P_GLID[i][0], P_GLID[i][1], &px[i], &py[i]);
+      for (int i = 0; i < 14; i++) {
+        int j = (i + 1) % 14;
+        g->fillTriangle(x, y, px[i], py[i], px[j], py[j], col);
+      }
+      break;
+    }
+
+    case ICON_AIRLINER:
+    default: {
+      // --- Civil commercial airliner ---
+      const float P[10][2] = {
+        { 0.0f,  12.0f}, { 3.0f,  1.0f}, { 13.0f, -8.0f}, { 3.0f, -5.0f}, { 3.0f, -7.0f},
+        { 0.0f, -12.0f}, {-3.0f, -7.0f}, {-3.0f, -5.0f}, {-13.0f, -8.0f}, {-3.0f,  1.0f}
+      };
+      int px[10], py[10];
+      for (int i = 0; i < 10; i++) rot(P[i][0], P[i][1], &px[i], &py[i]);
+      for (int i = 0; i < 10; i++) {
+        int j = (i + 1) % 10;
+        g->fillTriangle(x, y, px[i], py[i], px[j], py[j], col);
+      }
+      break;
+    }
+  }
 }
 

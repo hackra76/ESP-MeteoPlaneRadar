@@ -1,4 +1,4 @@
-// MeteoPlaneRadar - vyvoj / development: chiptron.cz
+//  MeteoPlaneRadar
 // =============================================================================
 //  MeteoPlaneRadar - meteoradar SHMU: stahovani srazkoveho kompozitu (Slovensko).
 //  Rozhrani + kalibrace geografickych okraju + animace (vice ramcu).

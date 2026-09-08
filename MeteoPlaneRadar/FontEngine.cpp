@@ -2,7 +2,6 @@
 //  MeteoPlaneRadar
 //  FontEngine.cpp - High-quality smooth UTF-8 typography engine using U8g2 fonts.
 //
-//  Author:  Petr / chiptron.cz & Antigravity
 // =============================================================================
 #include "FontEngine.h"
 #include <Adafruit_GFX.h>

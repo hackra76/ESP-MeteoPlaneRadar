@@ -19,7 +19,6 @@
 //  wall-clock budget, because writeToStreamDataBlock() spins on delay(1) with no
 //  timeout of its own.
 //
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
 // =============================================================================
 #pragma once
 #include <Arduino.h>

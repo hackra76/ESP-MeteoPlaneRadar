@@ -5,7 +5,6 @@
 //  Hardware: QMI8658 6-axis IMU on Waveshare ESP32-S3-Touch-LCD-2.1 (I2C 0x6B/0x6A)
 //  Features: Knock / Double-Tap detection, Tilt / Orientation (Pitch/Roll).
 //
-//  Author:  Petr / chiptron.cz & Antigravity
 // =============================================================================
 #pragma once
 #include <Arduino.h>

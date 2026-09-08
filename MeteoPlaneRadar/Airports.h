@@ -3,7 +3,6 @@
 //  Airports - draw airport symbols and IATA labels on the radar map.
 //
 //  Project: MeteoPlaneRadar - live aircraft radar on a round touchscreen
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
 // =============================================================================
 #pragma once
 #include <Arduino.h>

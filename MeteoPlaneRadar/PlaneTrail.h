@@ -5,7 +5,6 @@
 //  Maintains a ring buffer of recent geographic positions for each active
 //  aircraft to draw fading breadcrumb trails on radar screens.
 //
-//  Author:  Petr / chiptron.cz & Antigravity
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)
 // =============================================================================
 #pragma once

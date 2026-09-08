@@ -2,7 +2,6 @@
 //  MeteoPlaneRadar - trasa letu z adsb.lol (poloha + priznak verohodnosti).
 //  Duvody, proc prave takhle, jsou v Route.h.
 //
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
 // =============================================================================
 #include "Route.h"
 #include "AsyncCore.h"
@@ -351,7 +350,7 @@ void Route_Tick() {
       cur->stamp = millis();
     }
     Async_UnlockRoute();
-    Serial.printf("TRASA %s: dotaz selhal (%d), odlozeno o 1 min\n", s_wantKey, code);
+    Serial.printf("ROUTE %s: query failed (%d), postponed 1 min\n", s_wantKey, code);
     return;
   }
 
@@ -366,9 +365,9 @@ void Route_Tick() {
     Entry* cur = find(s_wantKey);
     if (cur) { cur->state = ROUTE_NONE; cur->stamp = millis(); }
     Async_UnlockRoute();
-    Serial.printf("TRASA %s: %s\n", s_wantKey,
-                  strcmp(codes, "unknown") == 0 ? "neni v databazi"
-                                                : "nalezena, ale neverohodna k poloze");
+    Serial.printf("ROUTE %s: %s\n", s_wantKey,
+                  strcmp(codes, "unknown") == 0 ? "not in database"
+                                                : "found, but implausible for position");
     return;
   }
 
@@ -379,7 +378,7 @@ void Route_Tick() {
     Entry* cur = find(s_wantKey);
     if (cur) { cur->state = ROUTE_NONE; cur->stamp = millis(); }
     Async_UnlockRoute();
-    Serial.printf("TRASA %s: %s (letiste chybi)\n", s_wantKey, codes);
+    Serial.printf("ROUTE %s: %s (airports missing)\n", s_wantKey, codes);
     return;
   }
 
@@ -413,7 +412,7 @@ void Route_Tick() {
   }
   Async_UnlockRoute();
 
-  Serial.printf("TRASA %s: %s -> %s [%s>%s] (%s, usek %d/%d)\n", s_wantKey,
+  Serial.printf("ROUTE %s: %s -> %s [%s>%s] (%s, leg %d/%d)\n", s_wantKey,
                 info.from[0] ? info.from : "?",
                 info.to[0]   ? info.to   : "?",
                 info.iataFrom[0] ? info.iataFrom : "?",

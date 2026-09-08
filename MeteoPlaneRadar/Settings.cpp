@@ -2,7 +2,6 @@
 //  MeteoPlaneRadar
 //  Persisted settings - storage in NVS + JSON serialisation for the web UI.
 //
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
 // =============================================================================
 #include "Settings.h"
 #include "Lang.h"
@@ -16,6 +15,9 @@ static const char* NS = "planeradar";
 // --- WiFi ---
 static char s_ssid[33] = "";
 static char s_wpass[65] = "";
+static WifiCredential s_wifiNets[MAX_WIFI_NETWORKS];
+static int s_wifiNetCount = 0;
+static char s_hostname[33] = WEB_HOSTNAME;
 
 // --- Location ---
 static double  s_lat = DEFAULT_LAT;
@@ -32,11 +34,12 @@ static bool    s_isNight   = false;
 // --- Misc ---
 static bool    s_metric = false;
 static uint8_t s_lang   = LANG_EN;
+static char    s_tz[64] = TZ_INFO;
 
-// Bit per data screen (bit 0 = clock ... bit 4 = forecast).
+// Bit per data screen (bit 0 = clock ... bit 5 = info).
 static uint8_t s_scrMask = (1 << SCREEN_CLOCK_I) | (1 << SCREEN_PLANES_I) |
                            (1 << SCREEN_METEO_I) | (1 << SCREEN_TACTICAL_I) |
-                           (1 << SCREEN_FORECAST_I);
+                           (1 << SCREEN_FORECAST_I) | (1 << SCREEN_INFO_I);
 static uint16_t s_autoRot = 0;
 static uint8_t s_radarSrc = RADAR_SRC_CHMU;
 static bool    s_smoothRadar = true;
@@ -52,6 +55,9 @@ static bool     s_clkShowWind= true;
 static bool     s_clkShowMoon= true;
 static bool     s_clkShowAstro= true;
 static bool     s_nightClockOnly= false;
+static bool     s_ultraNight    = false;
+static bool     s_clkShowOverhead = true;
+static float    s_overheadRadiusKm = 10.0f;
 
 static bool     s_radShowTrails  = true;
 static bool     s_radShowNearest = true;
@@ -64,6 +70,18 @@ static uint16_t s_altMax = 60000;
 static bool     s_onlyCs = false;
 static bool     s_sqAlert = true;
 static char     s_watch[10] = "";
+static uint8_t  s_typeFilterMask = 0x3F;
+
+// --- Buzzer / Audio alerts ---
+static bool     s_bzOn     = true;
+static bool     s_bzEm     = true;
+static bool     s_bzWatch  = true;
+static bool     s_bzOverhead = false;
+static bool     s_bzPrecip = false;
+static bool     s_bzTouch  = false;
+static bool     s_bzHour   = false;
+static bool     s_bzNMute  = true;
+static bool     s_precipAlert = true;
 
 // --- UI state ---
 static uint8_t  s_rngP = 1;
@@ -156,6 +174,10 @@ void Settings_Begin() {
     s_metric = prefs.getBool("metric", false);
     s_lang   = prefs.getUChar("lang", LANG_EN);
     s_scrMask = prefs.getUChar("scrM", s_scrMask);
+    if (!prefs.isKey("infoScrInit")) {
+      s_scrMask |= (1 << SCREEN_INFO_I);
+      prefs.putBool("infoScrInit", true);
+    }
     // Cycling interval moved from minutes to seconds - see Settings.h. The old
     // key is converted exactly once, so an updated device keeps its setting.
     if (prefs.isKey("autoRS")) {
@@ -177,6 +199,9 @@ void Settings_Begin() {
     s_clkShowMoon = prefs.getBool("cMoon", true);
     s_clkShowAstro= prefs.getBool("cAstro", true);
     s_nightClockOnly = prefs.getBool("nClkOn", false);
+    s_ultraNight     = prefs.getBool("uNight", false);
+    s_clkShowOverhead = prefs.getBool("cOver", true);
+    s_overheadRadiusKm = prefs.getFloat("ovRad", 10.0f);
     s_radShowTrails  = prefs.getBool("rTrl", true);
     s_radShowNearest = prefs.getBool("rNear", true);
     s_radShowAirports= prefs.getBool("rAirp", true);
@@ -185,6 +210,16 @@ void Settings_Begin() {
     s_altMax = prefs.getUShort("altHi", 60000);
     s_onlyCs = prefs.getBool("onlyCs", false);
     s_sqAlert = prefs.getBool("sqAl", true);
+    s_typeFilterMask = prefs.getUChar("acMask", 0x3F);
+    s_bzOn    = prefs.getBool("bzOn", true);
+    s_bzEm    = prefs.getBool("bzEm", true);
+    s_bzWatch = prefs.getBool("bzWatch", true);
+    s_bzOverhead = prefs.getBool("bzOver", false);
+    s_bzPrecip = prefs.getBool("bzPrecip", false);
+    s_bzTouch = prefs.getBool("bzTouch", false);
+    s_bzHour  = prefs.getBool("bzHour", false);
+    s_bzNMute = prefs.getBool("bzNMute", true);
+    s_precipAlert = prefs.getBool("cPrecip", true);
     if (prefs.isKey("watch")) prefs.getString("watch", s_watch, sizeof(s_watch));
     s_rngP   = prefs.getUChar("rngP", 1);
     s_rngM   = prefs.getUChar("rngM", 1);
@@ -193,8 +228,42 @@ void Settings_Begin() {
     s_showLegends = prefs.getBool("sLeg", true);
     s_autoRotateBearing = prefs.getBool("autoRot", false);
     if (prefs.isKey("pw"))    prefs.getString("pw", s_pw, sizeof(s_pw));
-    if (prefs.isKey("ssid"))  prefs.getString("ssid", s_ssid, sizeof(s_ssid));
-    if (prefs.isKey("wpass")) prefs.getString("wpass", s_wpass, sizeof(s_wpass));
+    s_wifiNetCount = 0;
+    for (int i = 0; i < MAX_WIFI_NETWORKS; i++) {
+      char ks[8], kp[8];
+      snprintf(ks, sizeof(ks), "w_s%d", i);
+      snprintf(kp, sizeof(kp), "w_p%d", i);
+      if (prefs.isKey(ks)) {
+        prefs.getString(ks, s_wifiNets[s_wifiNetCount].ssid, sizeof(s_wifiNets[s_wifiNetCount].ssid));
+        prefs.getString(kp, s_wifiNets[s_wifiNetCount].pass, sizeof(s_wifiNets[s_wifiNetCount].pass));
+        if (s_wifiNets[s_wifiNetCount].ssid[0] != '\0') {
+          s_wifiNetCount++;
+        }
+      }
+    }
+    // Migration from legacy single-profile "ssid" and "wpass"
+    if (s_wifiNetCount == 0 && prefs.isKey("ssid")) {
+      char legSsid[33] = "";
+      char legPass[65] = "";
+      prefs.getString("ssid", legSsid, sizeof(legSsid));
+      prefs.getString("wpass", legPass, sizeof(legPass));
+      if (legSsid[0] != '\0') {
+        strncpy(s_wifiNets[0].ssid, legSsid, sizeof(s_wifiNets[0].ssid) - 1);
+        strncpy(s_wifiNets[0].pass, legPass, sizeof(s_wifiNets[0].pass) - 1);
+        s_wifiNetCount = 1;
+      }
+    }
+    if (s_wifiNetCount > 0) {
+      strncpy(s_ssid, s_wifiNets[0].ssid, sizeof(s_ssid) - 1);
+      s_ssid[sizeof(s_ssid) - 1] = '\0';
+      strncpy(s_wpass, s_wifiNets[0].pass, sizeof(s_wpass) - 1);
+      s_wpass[sizeof(s_wpass) - 1] = '\0';
+    } else {
+      s_ssid[0] = '\0';
+      s_wpass[0] = '\0';
+    }
+    if (prefs.isKey("tz"))    prefs.getString("tz", s_tz, sizeof(s_tz));
+    if (prefs.isKey("host"))  prefs.getString("host", s_hostname, sizeof(s_hostname));
     prefs.end();
   }
   if (s_altMax == 0) s_altMax = 60000;
@@ -203,29 +272,163 @@ void Settings_Begin() {
     prefs.putUShort("autoRS", s_autoRot);
     prefs.remove("autoR");           // the old key would only confuse later
     prefs.end();
-    if (s_autoRot) Serial.printf("Nastaveni: stridani prevedeno na %u s\n", s_autoRot);
+    if (s_autoRot) Serial.printf("Settings: auto-rotation migrated to %u s\n", s_autoRot);
   }
   Lang_Set(s_lang);
+  Settings_ApplyTimezone();
 }
 
 // --- WiFi -------------------------------------------------------------------
-const char* Settings_WifiSsid() { return s_ssid; }
-const char* Settings_WifiPass() { return s_wpass; }
-bool        Settings_HasWifi()  { return s_ssid[0] != '\0'; }
-
-void Settings_SetWifi(const char* ssid, const char* pass) {
-  if (!ssid) ssid = "";
-  if (!pass) pass = "";
-  strncpy(s_ssid,  ssid, sizeof(s_ssid) - 1);   s_ssid[sizeof(s_ssid) - 1] = '\0';
-  strncpy(s_wpass, pass, sizeof(s_wpass) - 1);  s_wpass[sizeof(s_wpass) - 1] = '\0';
+static void saveWifiNets() {
   if (prefs.begin(NS, false)) {
-    prefs.putString("ssid", s_ssid);
-    prefs.putString("wpass", s_wpass);
+    for (int i = 0; i < MAX_WIFI_NETWORKS; i++) {
+      char ks[8], kp[8];
+      snprintf(ks, sizeof(ks), "w_s%d", i);
+      snprintf(kp, sizeof(kp), "w_p%d", i);
+      if (i < s_wifiNetCount) {
+        prefs.putString(ks, s_wifiNets[i].ssid);
+        prefs.putString(kp, s_wifiNets[i].pass);
+      } else {
+        if (prefs.isKey(ks)) prefs.remove(ks);
+        if (prefs.isKey(kp)) prefs.remove(kp);
+      }
+    }
+    if (s_wifiNetCount > 0) {
+      strncpy(s_ssid, s_wifiNets[0].ssid, sizeof(s_ssid) - 1);
+      s_ssid[sizeof(s_ssid) - 1] = '\0';
+      strncpy(s_wpass, s_wifiNets[0].pass, sizeof(s_wpass) - 1);
+      s_wpass[sizeof(s_wpass) - 1] = '\0';
+      prefs.putString("ssid", s_ssid);
+      prefs.putString("wpass", s_wpass);
+    } else {
+      s_ssid[0] = '\0';
+      s_wpass[0] = '\0';
+      if (prefs.isKey("ssid")) prefs.remove("ssid");
+      if (prefs.isKey("wpass")) prefs.remove("wpass");
+    }
     prefs.end();
   }
 }
 
-void Settings_ClearWifi() { Settings_SetWifi("", ""); }
+const char* Settings_WifiSsid() {
+  return (s_wifiNetCount > 0) ? s_wifiNets[0].ssid : "";
+}
+
+const char* Settings_WifiPass() {
+  return (s_wifiNetCount > 0) ? s_wifiNets[0].pass : "";
+}
+
+bool Settings_HasWifi() {
+  return s_wifiNetCount > 0 && s_wifiNets[0].ssid[0] != '\0';
+}
+
+void Settings_SetWifi(const char* ssid, const char* pass) {
+  Settings_AddOrUpdateWifi(ssid, pass);
+}
+
+void Settings_ClearWifi() {
+  s_wifiNetCount = 0;
+  saveWifiNets();
+}
+
+int Settings_WifiNetworkCount() {
+  return s_wifiNetCount;
+}
+
+bool Settings_GetWifiNetwork(int idx, WifiCredential* out) {
+  if (idx < 0 || idx >= s_wifiNetCount || !out) return false;
+  *out = s_wifiNets[idx];
+  return true;
+}
+
+void Settings_AddOrUpdateWifi(const char* ssid, const char* pass) {
+  if (!ssid || !*ssid) return;
+
+  int foundIdx = -1;
+  for (int i = 0; i < s_wifiNetCount; i++) {
+    if (strcmp(s_wifiNets[i].ssid, ssid) == 0) {
+      foundIdx = i;
+      break;
+    }
+  }
+
+  WifiCredential cred;
+  memset(&cred, 0, sizeof(cred));
+  strncpy(cred.ssid, ssid, sizeof(cred.ssid) - 1);
+  if (pass && *pass) {
+    strncpy(cred.pass, pass, sizeof(cred.pass) - 1);
+  } else if (foundIdx >= 0) {
+    strncpy(cred.pass, s_wifiNets[foundIdx].pass, sizeof(cred.pass) - 1);
+  }
+
+  if (foundIdx >= 0) {
+    for (int i = foundIdx; i > 0; i--) {
+      s_wifiNets[i] = s_wifiNets[i - 1];
+    }
+    s_wifiNets[0] = cred;
+  } else {
+    int limit = (s_wifiNetCount < MAX_WIFI_NETWORKS) ? s_wifiNetCount : (MAX_WIFI_NETWORKS - 1);
+    for (int i = limit; i > 0; i--) {
+      s_wifiNets[i] = s_wifiNets[i - 1];
+    }
+    s_wifiNets[0] = cred;
+    if (s_wifiNetCount < MAX_WIFI_NETWORKS) s_wifiNetCount++;
+  }
+  saveWifiNets();
+}
+
+bool Settings_DeleteWifiNetwork(int idx) {
+  if (idx < 0 || idx >= s_wifiNetCount) return false;
+  for (int i = idx; i < s_wifiNetCount - 1; i++) {
+    s_wifiNets[i] = s_wifiNets[i + 1];
+  }
+  s_wifiNetCount--;
+  saveWifiNets();
+  return true;
+}
+
+bool Settings_DeleteWifiNetworkBySsid(const char* ssid) {
+  if (!ssid || !*ssid) return false;
+  for (int i = 0; i < s_wifiNetCount; i++) {
+    if (strcmp(s_wifiNets[i].ssid, ssid) == 0) {
+      return Settings_DeleteWifiNetwork(i);
+    }
+  }
+  return false;
+}
+
+void Settings_SetActiveWifi(int idx) {
+  if (idx <= 0 || idx >= s_wifiNetCount) return;
+  WifiCredential temp = s_wifiNets[idx];
+  for (int i = idx; i > 0; i--) {
+    s_wifiNets[i] = s_wifiNets[i - 1];
+  }
+  s_wifiNets[0] = temp;
+  saveWifiNets();
+}
+
+const char* Settings_Hostname() {
+  if (s_hostname[0] == '\0') return WEB_HOSTNAME;
+  return s_hostname;
+}
+
+void Settings_SetHostname(const char* name) {
+  if (!name || !*name) {
+    strncpy(s_hostname, WEB_HOSTNAME, sizeof(s_hostname) - 1);
+  } else {
+    int j = 0;
+    for (int i = 0; name[i] && j < (int)sizeof(s_hostname) - 1; i++) {
+      char c = name[i];
+      if (isalnum((unsigned char)c) || c == '-' || c == '_') {
+        s_hostname[j++] = c;
+      }
+    }
+    s_hostname[j] = '\0';
+    if (j == 0) strncpy(s_hostname, WEB_HOSTNAME, sizeof(s_hostname) - 1);
+  }
+  s_hostname[sizeof(s_hostname) - 1] = '\0';
+  putStr("host", s_hostname);
+}
 
 // --- Location ---------------------------------------------------------------
 double Settings_Lat() { return s_lat; }
@@ -281,6 +484,27 @@ void    Settings_SetLanguage(uint8_t l) {
   s_lang = (l == LANG_CZ || l == LANG_SK) ? l : LANG_EN;
   Lang_Set(s_lang);
   putU8("lang", s_lang);
+}
+
+const char* Settings_Timezone() { return s_tz; }
+void Settings_SetTimezone(const char* tz) {
+  if (!tz || !*tz) tz = TZ_INFO;
+  strncpy(s_tz, tz, sizeof(s_tz) - 1);
+  s_tz[sizeof(s_tz) - 1] = '\0';
+  if (s_batchDepth > 0) {
+    prefs.putString("tz", s_tz);
+  } else if (prefs.begin(NS, false)) {
+    prefs.putString("tz", s_tz);
+    prefs.end();
+  }
+  Settings_ApplyTimezone();
+}
+
+void Settings_ApplyTimezone() {
+  const char* tz = s_tz;
+  if (!tz || !*tz) tz = TZ_INFO;
+  setenv("TZ", tz, 1);
+  tzset();
 }
 
 // --- Screens ----------------------------------------------------------------
@@ -347,6 +571,22 @@ bool     Settings_ClockShowAstro() { return s_clkShowAstro; }
 void     Settings_SetClockShowAstro(bool on) { s_clkShowAstro = on; putBool("cAstro", on); }
 bool     Settings_NightClockOnly() { return s_nightClockOnly; }
 void     Settings_SetNightClockOnly(bool on) { s_nightClockOnly = on; putBool("nClkOn", on); }
+bool     Settings_UltraNight() { return s_ultraNight; }
+void     Settings_SetUltraNight(bool on) { s_ultraNight = on; putBool("uNight", on); }
+bool     Settings_ClockShowOverhead() { return s_clkShowOverhead; }
+void     Settings_SetClockShowOverhead(bool on) { s_clkShowOverhead = on; putBool("cOver", on); }
+float    Settings_OverheadRadiusKm() { return s_overheadRadiusKm; }
+void     Settings_SetOverheadRadiusKm(float r) {
+  if (r < 1.0f) r = 1.0f;
+  if (r > 50.0f) r = 50.0f;
+  s_overheadRadiusKm = r;
+  if (s_batchDepth > 0) {
+    prefs.putFloat("ovRad", r);
+  } else if (prefs.begin(NS, false)) {
+    prefs.putFloat("ovRad", r);
+    prefs.end();
+  }
+}
 
 // --- Radar widget toggles ---
 bool     Settings_RadarShowTrails() { return s_radShowTrails; }
@@ -381,6 +621,41 @@ void Settings_SetWatchCallsign(const char* s) {
   for (char* p = s_watch; *p; p++) *p = toupper((unsigned char)*p);
   putStr("watch", s_watch);
 }
+uint8_t Settings_PlaneTypeMask() { return s_typeFilterMask; }
+void Settings_SetPlaneTypeMask(uint8_t mask) {
+  s_typeFilterMask = mask;
+  putU8("acMask", mask);
+}
+bool Settings_PlaneTypeEnabled(AircraftIconType type) {
+  return (s_typeFilterMask & (1 << (uint8_t)type)) != 0;
+}
+void Settings_SetPlaneTypeEnabled(AircraftIconType type, bool on) {
+  uint8_t bit = (1 << (uint8_t)type);
+  if (on) s_typeFilterMask |= bit;
+  else    s_typeFilterMask &= ~bit;
+  putU8("acMask", s_typeFilterMask);
+}
+
+// --- Buzzer / Audio alerts --------------------------------------------------
+bool Settings_BuzzerEnabled() { return s_bzOn; }
+void Settings_SetBuzzerEnabled(bool on) { s_bzOn = on; putBool("bzOn", on); }
+bool Settings_BuzzerEmergency() { return s_bzEm; }
+void Settings_SetBuzzerEmergency(bool on) { s_bzEm = on; putBool("bzEm", on); }
+bool Settings_BuzzerWatch() { return s_bzWatch; }
+void Settings_SetBuzzerWatch(bool on) { s_bzWatch = on; putBool("bzWatch", on); }
+bool Settings_BuzzerOverhead() { return s_bzOverhead; }
+void Settings_SetBuzzerOverhead(bool on) { s_bzOverhead = on; putBool("bzOver", on); }
+bool Settings_BuzzerPrecip() { return s_bzPrecip; }
+void Settings_SetBuzzerPrecip(bool on) { s_bzPrecip = on; putBool("bzPrecip", on); }
+bool Settings_BuzzerTouch() { return s_bzTouch; }
+void Settings_SetBuzzerTouch(bool on) { s_bzTouch = on; putBool("bzTouch", on); }
+bool Settings_BuzzerHourly() { return s_bzHour; }
+void Settings_SetBuzzerHourly(bool on) { s_bzHour = on; putBool("bzHour", on); }
+bool Settings_BuzzerNightMute() { return s_bzNMute; }
+void Settings_SetBuzzerNightMute(bool on) { s_bzNMute = on; putBool("bzNMute", on); }
+
+bool Settings_PrecipAlert() { return s_precipAlert; }
+void Settings_SetPrecipAlert(bool on) { s_precipAlert = on; putBool("cPrecip", on); }
 
 // --- UI state ---------------------------------------------------------------
 uint8_t Settings_PlaneRange() { return s_rngP; }
@@ -466,6 +741,9 @@ void Settings_ToJson(JsonObject o) {
   o["cMoon"] = s_clkShowMoon;
   o["cAstro"] = s_clkShowAstro;
   o["nightClockOnly"] = s_nightClockOnly;
+  o["ultraNight"] = s_ultraNight;
+  o["cOver"] = s_clkShowOverhead;
+  o["ovRad"] = s_overheadRadiusKm;
   o["rTrails"] = s_radShowTrails;
   o["rNearest"] = s_radShowNearest;
   o["rAirports"] = s_radShowAirports;
@@ -475,14 +753,40 @@ void Settings_ToJson(JsonObject o) {
   o["onlyCallsign"] = s_onlyCs;
   o["squawkAlert"] = s_sqAlert;
   o["watch"] = s_watch;
+  o["typeAirliner"] = Settings_PlaneTypeEnabled(ICON_AIRLINER);
+  o["typeLight"]    = Settings_PlaneTypeEnabled(ICON_LIGHT);
+  o["typeHeli"]     = Settings_PlaneTypeEnabled(ICON_HELICOPTER);
+  o["typeMilitary"] = Settings_PlaneTypeEnabled(ICON_MILITARY_JET);
+  o["typeHeavy"]    = Settings_PlaneTypeEnabled(ICON_HEAVY);
+  o["typeGlider"]   = Settings_PlaneTypeEnabled(ICON_GLIDER);
+  o["buzzerOn"]        = s_bzOn;
+  o["buzzerEmergency"] = s_bzEm;
+  o["buzzerWatch"]     = s_bzWatch;
+  o["buzzerOverhead"]  = s_bzOverhead;
+  o["buzzerPrecip"]    = s_bzPrecip;
+  o["buzzerTouch"]     = s_bzTouch;
+  o["buzzerHourly"]    = s_bzHour;
+  o["buzzerNightMute"] = s_bzNMute;
+  o["cPrecip"]         = s_precipAlert;
   o["showLegends"] = s_showLegends;
   o["hasPassword"] = Settings_HasAdminPassword();
+  o["timezone"] = s_tz;
+  o["hostname"] = Settings_Hostname();
+
+  JsonArray wArr = o["wifiNetworks"].to<JsonArray>();
+  for (int i = 0; i < s_wifiNetCount; i++) {
+    JsonObject w = wArr.add<JsonObject>();
+    w["ssid"] = s_wifiNets[i].ssid;
+    w["active"] = (i == 0);
+  }
+
   JsonObject scr = o["screens"].to<JsonObject>();
   scr["clock"]    = Settings_ScreenEnabled(SCREEN_CLOCK_I);
   scr["planes"]   = Settings_ScreenEnabled(SCREEN_PLANES_I);
   scr["meteo"]    = Settings_ScreenEnabled(SCREEN_METEO_I);
   scr["tactical"] = Settings_ScreenEnabled(SCREEN_TACTICAL_I);
   scr["forecast"] = Settings_ScreenEnabled(SCREEN_FORECAST_I);
+  scr["info"]     = Settings_ScreenEnabled(SCREEN_INFO_I);
 }
 
 bool Settings_FromJson(JsonObjectConst in) {
@@ -522,14 +826,34 @@ bool Settings_FromJson(JsonObjectConst in) {
   setIf("cMoon",        [](JsonVariantConst v){ Settings_SetClockShowMoon(v.as<bool>()); });
   setIf("cAstro",       [](JsonVariantConst v){ Settings_SetClockShowAstro(v.as<bool>()); });
   setIf("nightClockOnly",[](JsonVariantConst v){ Settings_SetNightClockOnly(v.as<bool>()); });
+  setIf("ultraNight",    [](JsonVariantConst v){ Settings_SetUltraNight(v.as<bool>()); });
+  setIf("cOver",         [](JsonVariantConst v){ Settings_SetClockShowOverhead(v.as<bool>()); });
+  setIf("ovRad",         [](JsonVariantConst v){ Settings_SetOverheadRadiusKm(v.as<float>()); });
   setIf("rTrails",      [](JsonVariantConst v){ Settings_SetRadarShowTrails(v.as<bool>()); });
   setIf("rNearest",     [](JsonVariantConst v){ Settings_SetRadarShowNearest(v.as<bool>()); });
   setIf("rAirports",    [](JsonVariantConst v){ Settings_SetRadarShowAirports(v.as<bool>()); });
+  setIf("hostname",     [](JsonVariantConst v){ Settings_SetHostname(v.as<const char*>()); });
   setIf("rRings",       [](JsonVariantConst v){ Settings_SetRadarShowRings(v.as<bool>()); });
   setIf("showLegends",  [](JsonVariantConst v){ Settings_SetShowLegends(v.as<bool>()); });
   setIf("onlyCallsign", [](JsonVariantConst v){ Settings_SetOnlyWithCallsign(v.as<bool>()); });
   setIf("squawkAlert",  [](JsonVariantConst v){ Settings_SetSquawkAlert(v.as<bool>()); });
   setIf("watch",        [](JsonVariantConst v){ Settings_SetWatchCallsign(v.as<const char*>()); });
+  setIf("timezone",     [](JsonVariantConst v){ Settings_SetTimezone(v.as<const char*>()); });
+  setIf("typeAirliner", [](JsonVariantConst v){ Settings_SetPlaneTypeEnabled(ICON_AIRLINER, v.as<bool>()); });
+  setIf("typeLight",    [](JsonVariantConst v){ Settings_SetPlaneTypeEnabled(ICON_LIGHT, v.as<bool>()); });
+  setIf("typeHeli",     [](JsonVariantConst v){ Settings_SetPlaneTypeEnabled(ICON_HELICOPTER, v.as<bool>()); });
+  setIf("typeMilitary", [](JsonVariantConst v){ Settings_SetPlaneTypeEnabled(ICON_MILITARY_JET, v.as<bool>()); });
+  setIf("typeHeavy",    [](JsonVariantConst v){ Settings_SetPlaneTypeEnabled(ICON_HEAVY, v.as<bool>()); });
+  setIf("typeGlider",   [](JsonVariantConst v){ Settings_SetPlaneTypeEnabled(ICON_GLIDER, v.as<bool>()); });
+  setIf("buzzerOn",        [](JsonVariantConst v){ Settings_SetBuzzerEnabled(v.as<bool>()); });
+  setIf("buzzerEmergency", [](JsonVariantConst v){ Settings_SetBuzzerEmergency(v.as<bool>()); });
+  setIf("buzzerWatch",     [](JsonVariantConst v){ Settings_SetBuzzerWatch(v.as<bool>()); });
+  setIf("buzzerOverhead",  [](JsonVariantConst v){ Settings_SetBuzzerOverhead(v.as<bool>()); });
+  setIf("buzzerPrecip",    [](JsonVariantConst v){ Settings_SetBuzzerPrecip(v.as<bool>()); });
+  setIf("buzzerTouch",     [](JsonVariantConst v){ Settings_SetBuzzerTouch(v.as<bool>()); });
+  setIf("buzzerHourly",    [](JsonVariantConst v){ Settings_SetBuzzerHourly(v.as<bool>()); });
+  setIf("buzzerNightMute", [](JsonVariantConst v){ Settings_SetBuzzerNightMute(v.as<bool>()); });
+  setIf("cPrecip",         [](JsonVariantConst v){ Settings_SetPrecipAlert(v.as<bool>()); });
 
   if (!in["altMin"].isNull() || !in["altMax"].isNull()) {
     uint16_t lo = in["altMin"].isNull() ? s_altMin : in["altMin"].as<uint16_t>();
@@ -546,6 +870,7 @@ bool Settings_FromJson(JsonObjectConst in) {
       { "meteo",    SCREEN_METEO_I },
       { "tactical", SCREEN_TACTICAL_I },
       { "forecast", SCREEN_FORECAST_I },
+      { "info",     SCREEN_INFO_I },
     };
     for (auto& m : M) {
       JsonVariantConst v = scr[m.key];
@@ -578,12 +903,20 @@ void Settings_ClearAll() {
   s_briDay = 80; s_briNight = 25; s_nightAuto = true; s_nightOff = 0; s_isNight = false;
   s_metric = false; s_lang = LANG_EN; Lang_Set(s_lang);
   s_scrMask = (1 << SCREEN_CLOCK_I) | (1 << SCREEN_PLANES_I) |
-              (1 << SCREEN_METEO_I) | (1 << SCREEN_TACTICAL_I) | (1 << SCREEN_FORECAST_I);
+              (1 << SCREEN_METEO_I) | (1 << SCREEN_TACTICAL_I) |
+              (1 << SCREEN_FORECAST_I) | (1 << SCREEN_INFO_I);
   s_autoRot = 0; s_radarSrc = RADAR_SRC_CHMU; s_smoothRadar = true;
   s_secStyle = SEC_STYLE_DOTS; s_clockCol = 0xFFFF; s_secCol = 0x05FF;
+  s_clkShowOverhead = true; s_overheadRadiusKm = 10.0f;
+  s_precipAlert = true;
   s_altMin = 0; s_altMax = 60000; s_onlyCs = false; s_sqAlert = true; s_watch[0] = '\0';
+  s_typeFilterMask = 0x3F;
+  s_bzOn = true; s_bzEm = true; s_bzWatch = true; s_bzOverhead = false; s_bzPrecip = false; s_bzTouch = false; s_bzHour = false; s_bzNMute = true;
   s_rngP = 1; s_rngM = 1; s_scr = SCREEN_PLANES_I; s_top = 0;
   s_pw[0] = '\0';
   s_ssid[0] = '\0'; s_wpass[0] = '\0';
+  s_wifiNetCount = 0;
+  memset(s_wifiNets, 0, sizeof(s_wifiNets));
+  strncpy(s_hostname, WEB_HOSTNAME, sizeof(s_hostname) - 1);
   s_uiDirty = false;
 }

@@ -2,7 +2,6 @@
 //  MeteoPlaneRadar
 //  PlanePhoto.cpp - Aircraft thumbnail photos fetched from Planespotters.net API
 //
-//  Author:  Petr / chiptron.cz & Antigravity
 // =============================================================================
 #include "PlanePhoto.h"
 #include "Config.h"

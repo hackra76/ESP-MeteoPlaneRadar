@@ -4,8 +4,6 @@
 //  RainViewer) and a weather forecast (Open-Meteo) on a round touchscreen.
 // =============================================================================
 //
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
-//  Web:     https://chiptron.cz
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1
 //           - ESP32-S3R8 (8 MB PSRAM, 16 MB flash)
 //           - round 480x480 display, ST7701 controller (RGB interface)
@@ -66,6 +64,7 @@
 #include "esp_system.h"
 
 #include "TCA9554.h"
+#include "Buzzer.h"
 #include "Display_ST7701.h"
 #include "Canvas16.h"
 #include "Touch_CST820.h"
@@ -89,6 +88,9 @@
 #include "ScreenTactical.h"
 #include "ScreenClock.h"
 #include "ScreenForecast.h"
+#include "ScreenInfo.h"
+#include "FlightStats.h"
+#include "PrecipTracker.h"
 #include "ScreenSettings.h"
 #include "QuickControl.h"
 #include "Forecast.h"
@@ -99,6 +101,7 @@
 #include "AsyncCore.h"
 #include "QMI8658.h"
 #include "FontEngine.h"
+#include "GithubOTA.h"
 
 // gfx = single off-screen canvas in PSRAM. Everything is drawn here, then
 // flush() pushes the whole frame to the panel in one shot -> no flicker.
@@ -195,7 +198,7 @@ static void touchPump() {
   const bool smallMove = (abs(dx) < 35 && abs(dy) < 35);
 
 #if TOUCH_DEBUG
-  Serial.printf("TOUCH: start=(%d,%d) konec=(%d,%d) dx=%d dy=%d %lums\n",
+  Serial.printf("TOUCH: start=(%d,%d) end=(%d,%d) dx=%d dy=%d %lums\n",
                 s_startX, s_startY, s_lastX, s_lastY, dx, dy, (unsigned long)dur);
 #endif
 
@@ -267,6 +270,7 @@ static int visibleList(int* out) {
 }
 
 static void drawScreenDots() {
+  if (NightMode_IsUltraNightActive()) return;
   int vis[SCREEN_N];
   const int n = visibleList(vis);
   if (n <= 1) return;                    // one screen - a single dot says nothing
@@ -289,6 +293,7 @@ static void drawActive() {
     case SCREEN_METEO_I:    ScreenWeather_Draw();  break;
     case SCREEN_TACTICAL_I: ScreenTactical_Draw(); break;
     case SCREEN_FORECAST_I: ScreenForecast_Draw(); break;
+    case SCREEN_INFO_I:     ScreenInfo_Draw();     break;
     case SCREEN_SETTINGS_I: ScreenSettings_Draw(); break;
   }
   drawScreenDots();
@@ -305,6 +310,7 @@ static void enterActive() {
     case SCREEN_METEO_I:    ScreenWeather_Enter();  break;
     case SCREEN_TACTICAL_I: ScreenTactical_Enter(); break;
     case SCREEN_FORECAST_I: ScreenForecast_Enter(); break;
+    case SCREEN_INFO_I:     ScreenInfo_Enter();     break;
     case SCREEN_SETTINGS_I: ScreenSettings_Enter(); break;
   }
   drawActive();
@@ -346,6 +352,7 @@ static void switchScreen(int dir) {
     case SCREEN_METEO_I:    ScreenWeather_Enter();  break;
     case SCREEN_TACTICAL_I: ScreenTactical_Enter(); break;
     case SCREEN_FORECAST_I: ScreenForecast_Enter(); break;
+    case SCREEN_INFO_I:     ScreenInfo_Enter();     break;
     case SCREEN_SETTINGS_I: ScreenSettings_Enter(); break;
   }
 
@@ -355,6 +362,7 @@ static void switchScreen(int dir) {
     case SCREEN_METEO_I:    ScreenWeather_Draw();  break;
     case SCREEN_TACTICAL_I: ScreenTactical_Draw(); break;
     case SCREEN_FORECAST_I: ScreenForecast_Draw(); break;
+    case SCREEN_INFO_I:     ScreenInfo_Draw();     break;
     case SCREEN_SETTINGS_I: ScreenSettings_Draw(); break;
   }
   drawScreenDots();
@@ -383,6 +391,7 @@ static void switchScreen(int dir) {
           }
         }
         LCD_Flush(drawFb);
+        Buzzer_Tick();
       }
     }
   }
@@ -410,6 +419,7 @@ static bool activeTick() {
     case SCREEN_METEO_I:    return ScreenWeather_Tick();
     case SCREEN_TACTICAL_I: return ScreenTactical_Tick();
     case SCREEN_FORECAST_I: return ScreenForecast_Tick();
+    case SCREEN_INFO_I:     return ScreenInfo_Tick();
     case SCREEN_SETTINGS_I: return ScreenSettings_Tick();
   }
   return false;
@@ -436,16 +446,18 @@ static bool activeTap(int x, int y) {
     case SCREEN_CLOCK_I:    return ScreenClock_HandleTap(x, y);
     case SCREEN_PLANES_I:   return ScreenPlanes_HandleTap(x, y);
     case SCREEN_TACTICAL_I: return ScreenTactical_HandleTap(x, y);
+    case SCREEN_INFO_I:     return ScreenInfo_HandleTap(x, y);
     case SCREEN_SETTINGS_I: return ScreenSettings_HandleTap(x, y);
     default: return false;
   }
 }
 
-// Is a modal (aircraft detail or QuickControl) open?
+// Is a modal (aircraft detail, QuickControl, or OTA modal) open?
 static bool activeModalOpen() {
   if (QuickControl_IsOpen())         return true;
   if (s_screen == SCREEN_PLANES_I)   return ScreenPlanes_DetailOpen();
   if (s_screen == SCREEN_TACTICAL_I) return ScreenTactical_DetailOpen();
+  if (s_screen == SCREEN_SETTINGS_I) return ScreenSettings_IsModalOpen();
   return false;
 }
 
@@ -461,6 +473,7 @@ static void closeModal() {
   }
   if (s_screen == SCREEN_PLANES_I)        ScreenPlanes_CloseDetail();
   else if (s_screen == SCREEN_TACTICAL_I) ScreenTactical_CloseDetail();
+  else if (s_screen == SCREEN_SETTINGS_I) ScreenSettings_CloseModal();
 }
 
 // Act on a gesture captured earlier (possibly during a download). Called only
@@ -470,6 +483,14 @@ static void dispatchTouch() {
   const PendKind kind = s_pendKind;
   const int a = s_pendA, b = s_pendB;
   s_pendKind = PEND_NONE;
+
+  if (NightMode_IsUltraNightActive()) {
+    NightMode_WakeTemporary(10000);
+    drawActive();
+    return;
+  }
+
+  if (Settings_BuzzerTouch()) Buzzer_Play(BEEP_CLICK);
 
   switch (kind) {
     case PEND_PULL_DOWN:
@@ -529,8 +550,8 @@ static void autoRotateTick() {
   if (secs == 0) return;
   if (s_screen == SCREEN_SETTINGS_I) return;      // never cycle away from settings
 
-  // Night clock-only mode: stay on clock screen all night
-  if (Settings_NightClockOnly() && Settings_IsNight()) {
+  // Night clock-only mode or Ultra Night mode: stay on clock screen all night
+  if ((Settings_NightClockOnly() || Settings_UltraNight()) && Settings_IsNight()) {
     if (s_screen != SCREEN_CLOCK_I) {
       gotoScreen(SCREEN_CLOCK_I);
     }
@@ -562,34 +583,32 @@ static void autoRotateTick() {
 
 static const char* resetReasonText() {
   switch (esp_reset_reason()) {
-    case ESP_RST_POWERON:   return "zapnuti napajeni";
-    case ESP_RST_EXT:       return "externi reset (tlacitko)";
-    case ESP_RST_SW:        return "softwarovy restart (napr. po OTA)";
-    case ESP_RST_PANIC:     return "PANIC - vyjimka v programu";
-    case ESP_RST_INT_WDT:   return "WATCHDOG (preruseni)";
-    case ESP_RST_TASK_WDT:  return "WATCHDOG (zaseknuta smycka)";
-    case ESP_RST_WDT:       return "WATCHDOG (jiny)";
-    case ESP_RST_DEEPSLEEP: return "probuzeni z deep sleep";
-    case ESP_RST_BROWNOUT:  return "BROWNOUT - podpeti napajeni";
+    case ESP_RST_POWERON:   return "Power-on";
+    case ESP_RST_EXT:       return "External reset (button)";
+    case ESP_RST_SW:        return "Software restart (e.g. after OTA)";
+    case ESP_RST_PANIC:     return "PANIC - software exception";
+    case ESP_RST_INT_WDT:   return "WATCHDOG (interrupt)";
+    case ESP_RST_TASK_WDT:  return "WATCHDOG (task stall)";
+    case ESP_RST_WDT:       return "WATCHDOG (other)";
+    case ESP_RST_DEEPSLEEP: return "Wake from deep sleep";
+    case ESP_RST_BROWNOUT:  return "BROWNOUT - voltage drop";
     case ESP_RST_SDIO:      return "SDIO";
-    default:                return "neznamy";
+    default:                return "Unknown";
   }
 }
 
-// The time zone has to be in the environment even though there is no NTP
-// client: CHMU.cpp and the clock screen convert UTC with localtime_r(), and
-// without TZ that quietly hands back UTC - labels an hour or two out.
+// The time zone is read from persisted settings (Settings_Timezone).
+// Applied to the environment so localtime_r() produces correct local time.
 static void applyTimezone() {
-  setenv("TZ", TZ_INFO, 1);
-  tzset();
+  Settings_ApplyTimezone();
 }
 
 void setup() {
   Serial.begin(115200);
   delay(300);
   Serial.printf("\n=== MeteoPlaneRadar v%s ===\n", FW_VERSION);
-  Serial.printf("Duvod restartu: %s\n", resetReasonText());
-  Serial.printf("Volna pamet: internal %u B, PSRAM %u B\n", (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getFreePsram());
+  Serial.printf("Reset reason: %s\n", resetReasonText());
+  Serial.printf("Free memory: internal %u B, PSRAM %u B\n", (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getFreePsram());
 
   Watchdog_Begin();          // initialize hardware task watchdog early
   Settings_Begin();          // also sets the interface language
@@ -599,15 +618,17 @@ void setup() {
   Wire.begin(I2C_SDA, I2C_SCL, 400000);
   delay(50);
   TCA9554_Init();
-  TCA9554_SetPin(EXIO_LCD_PWR, false);
+  Buzzer_Init();
   delay(10);
   Outside_Init();
+  FlightStats_Init();
+  PrecipTracker_Init();
 
   Backlight_Init();
   // Backlight stays off for now. The panel powers up with random memory
   // content, so lighting it before the first frame shows a white flash.
   if (!ST7701_Init()) {
-    Serial.println("Displej se nepodarilo inicializovat, restartuji za 5 s");
+    Serial.println("Display initialization failed, restarting in 5 s");
     delay(5000);
     ESP.restart();
   }
@@ -618,7 +639,7 @@ void setup() {
   uint16_t* fb1 = LCD_FrameBuffer(1);
   if (fb1) {
     canvas->useExternalBuffer(fb1, 1);
-    Serial.println("Displej: dvojity framebuffer, kresleni bez kopirovani");
+    Serial.println("Display: double framebuffer, zero-copy direct rendering");
   } else if (!canvas->begin()) {
     Serial.println("FATAL: canvas alloc failed (check OPI PSRAM)");
     while (true) delay(1000);
@@ -633,12 +654,18 @@ void setup() {
   if (!Touch_Init()) {
     // Not fatal - the screens keep running, they just cannot be operated. Worth
     // knowing about, because from the outside it looks like a frozen board.
-    Serial.println("VAROVANI: dotyk se neinicializoval, ovladani nebude fungovat");
+    Serial.println("WARNING: touch controller did not initialize, touch input disabled");
   }
 
   // 6-Axis IMU (accelerometer / gyroscope for gestures and tilt)
   if (QMI8658_Init()) {
     QMI8658_OnDoubleTap([]() {
+      if (Settings_BuzzerTouch()) Buzzer_Play(BEEP_CLICK);
+      if (NightMode_IsUltraNightActive()) {
+        NightMode_WakeTemporary(10000);
+        drawActive();
+        return;
+      }
       if (s_screen == SCREEN_CLOCK_I) {
         uint8_t nextStyle = (Settings_ClockStyle() + 1) % (CLOCK_STYLE_MAX + 1);
         Settings_SetClockStyle(nextStyle);
@@ -718,13 +745,13 @@ static void displayWatchdog() {
   unsigned long stalled = ms - lastMove;
   if (!repaired && stalled >= DISPLAY_WD_DEAD_MS) {
     repaired = true;
-    Serial.printf("DISPLEJ: zadny snimek %lu ms, zkousim opravu\n", stalled);
+    Serial.printf("DISPLAY: no frame for %lu ms, attempting recovery\n", stalled);
     TCA9554_Verify();
     TCA9554_SetPin(EXIO_LCD_PWR, false);
     TCA9554_SetPin(EXIO_LCD_RST, true);
     Set_Backlight(Settings_Backlight());
   } else if (stalled >= DISPLAY_WD_REBOOT_MS) {
-    Serial.printf("DISPLEJ: panel neobnoven po %lu ms, restartuji\n", stalled);
+    Serial.printf("DISPLAY: panel not recovered after %lu ms, restarting\n", stalled);
     Serial.flush();
     ESP.restart();
   }
@@ -743,6 +770,7 @@ void loop() {
 
   // Touch: sample and act.
   touchPump();
+  Buzzer_Tick();
 
   // --- Access point: the portal owns the display ----------------------------
   static bool s_apOwnsScreen = false;
@@ -759,7 +787,7 @@ void loop() {
     WiFi_Loop();                         // may accept credentials and leave AP mode
     WebConfig_Loop();
     if (WebConfig_WantsRestart()) {
-      Serial.println("Nastaveni zmeneno, restartuji");
+      Serial.println("Settings changed, restarting...");
       Serial.flush();
       delay(400);
       ESP.restart();
@@ -776,6 +804,20 @@ void loop() {
     // from now, so the first switch comes a full interval after setup ends.
     s_apOwnsScreen = false;
     s_apLang = 0xFF;
+    s_lastRotate = millis();
+    s_touchPauseUntil = 0;
+    s_pendKind = PEND_NONE;
+    enterActive();
+  }
+
+  // If WiFi reconnected or finished switching networks in background, immediately restore the screen
+  if (WiFi_TakeNeedsRedraw()) {
+    if (s_screen == SCREEN_SETTINGS_I) {
+      s_screen = SCREEN_CLOCK_I;
+      for (int i = 0; i < SCREEN_N; i++) {
+        if (screenVisible(i) && i != SCREEN_SETTINGS_I) { s_screen = i; break; }
+      }
+    }
     s_lastRotate = millis();
     s_touchPauseUntil = 0;
     s_pendKind = PEND_NONE;
@@ -818,7 +860,7 @@ void loop() {
 
   // Some settings only take effect from a clean start
   if (WebConfig_WantsRestart()) {
-    Serial.println("Nastaveni zmeneno, restartuji");
+    Serial.println("Settings changed, restarting...");
     Serial.flush();
     delay(400);
     ESP.restart();
@@ -833,6 +875,12 @@ void loop() {
   }
 
   autoRotateTick();
+
+  // If an OTA update was triggered, auto-switch to Settings screen and open the OTA modal
+  if (GithubOTA_IsBusy() && s_screen != SCREEN_SETTINGS_I) {
+    gotoScreen(SCREEN_SETTINGS_I);
+    ScreenSettings_OpenOtaModal();
+  }
 
   // Auto-switch to Tactical screen when an emergency squawk (7500 / 7600 / 7700) is detected
   if (Settings_SquawkAlert()) {
@@ -857,6 +905,8 @@ void loop() {
           if (activeModalOpen()) ScreenPlanes_CloseDetail();
           gotoScreen(targetScr);
         }
+        // Audio alert for emergency flight
+        Buzzer_Play(BEEP_EMERGENCY);
         // Pause auto-rotation for 60 seconds so user can monitor the emergency flight
         s_touchPauseUntil = millis() + 60000UL;
       }
@@ -864,6 +914,48 @@ void loop() {
       s_alertedEmergHex[0] = '\0';
     }
     Async_UnlockAdsb();
+  }
+
+  // Alert when a watched aircraft enters range
+  const char* watchCs = Settings_WatchCallsign();
+  if (watchCs && watchCs[0] && Settings_BuzzerWatch()) {
+    static char s_alertedWatchHex[10] = "";
+    Async_LockAdsb();
+    const Aircraft* wPlane = nullptr;
+    const Aircraft* list = ADSB_List();
+    int count = ADSB_Count();
+    for (int i = 0; i < count; i++) {
+      const Aircraft& a = list[i];
+      if ((a.callsign[0] && strncasecmp(a.callsign, watchCs, strlen(watchCs)) == 0) ||
+          (a.hex[0] && strcasecmp(a.hex, watchCs) == 0)) {
+        wPlane = &a;
+        break;
+      }
+    }
+    if (wPlane) {
+      if (strcmp(s_alertedWatchHex, wPlane->hex) != 0) {
+        strncpy(s_alertedWatchHex, wPlane->hex, sizeof(s_alertedWatchHex) - 1);
+        s_alertedWatchHex[sizeof(s_alertedWatchHex) - 1] = '\0';
+        Serial.printf("[WATCH ALERT] Watched flight %s (%s) detected in range!\n",
+                      wPlane->callsign[0] ? wPlane->callsign : "NO CALLSIGN", wPlane->hex);
+        Buzzer_Play(BEEP_WATCHED);
+      }
+    } else {
+      s_alertedWatchHex[0] = '\0';
+    }
+    Async_UnlockAdsb();
+  }
+
+  // Hourly chime
+  if (Settings_BuzzerHourly()) {
+    static int s_lastChimedHour = -1;
+    time_t nowSec = time(nullptr);
+    struct tm ti;
+    localtime_r(&nowSec, &ti);
+    if (ti.tm_min == 0 && ti.tm_sec < 2 && ti.tm_hour != s_lastChimedHour) {
+      s_lastChimedHour = ti.tm_hour;
+      Buzzer_Play(BEEP_HOURLY);
+    }
   }
 
   // Cheap insurance for the display: one I2C read every few seconds that checks

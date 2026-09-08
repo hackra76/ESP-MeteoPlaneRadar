@@ -3,8 +3,6 @@
 //  ST7701 display driver (RGB panel + SPI init sequence).
 //
 //  Project: MeteoPlaneRadar - live aircraft radar on a round touchscreen
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
-//  Web:     https://chiptron.cz
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)
 // =============================================================================
 #include "Display_ST7701.h"
@@ -156,7 +154,7 @@ bool ST7701_Init() {
   buscfg.max_transfer_sz = 64;
   esp_err_t err = spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO);
   if (err != ESP_OK) {
-    Serial.printf("FATAL: spi_bus_initialize selhalo (0x%x)\n", err);
+    Serial.printf("FATAL: spi_bus_initialize failed (0x%x)\n", err);
     return false;
   }
 
@@ -169,7 +167,7 @@ bool ST7701_Init() {
   devcfg.queue_size = 1;
   err = spi_bus_add_device(SPI2_HOST, &devcfg, &s_spi);
   if (err != ESP_OK) {
-    Serial.printf("FATAL: spi_bus_add_device selhalo (0x%x)\n", err);
+    Serial.printf("FATAL: spi_bus_add_device failed (0x%x)\n", err);
     return false;
   }
 
@@ -231,8 +229,7 @@ bool ST7701_Init() {
   err = esp_lcd_new_rgb_panel(&rgb, &panel_handle);
   if (err != ESP_OK || !panel_handle) {
     panel_handle = nullptr;
-    Serial.printf("FATAL: esp_lcd_new_rgb_panel selhalo (0x%x) - je PSRAM v IDE "
-                  "nastavena na OPI PSRAM?\n", err);
+    Serial.printf("FATAL: esp_lcd_new_rgb_panel failed (0x%x) - is PSRAM set to OPI PSRAM?\n", err);
     return false;
   }
   esp_lcd_panel_reset(panel_handle);

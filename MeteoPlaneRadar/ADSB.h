@@ -3,8 +3,6 @@
 //  ADS-B client - interface (Aircraft struct, fetching).
 //
 //  Project: MeteoPlaneRadar - live aircraft radar on a round touchscreen
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
-//  Web:     https://chiptron.cz
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)
 // =============================================================================
 #pragma once
@@ -64,3 +62,6 @@ const char* ADSB_EmergencyCode(const Aircraft& a);
 
 // Return pointer to first airborne aircraft squawking an emergency code (or nullptr)
 const Aircraft* ADSB_GetEmergencyAircraft();
+
+// Return pointer to closest airborne aircraft within maxDistKm from home (or nullptr)
+const Aircraft* ADSB_GetOverheadAircraft(float maxDistKm, float* outDistKm = nullptr);

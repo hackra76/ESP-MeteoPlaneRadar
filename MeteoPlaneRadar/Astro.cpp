@@ -2,7 +2,6 @@
 //  MeteoPlaneRadar
 //  Astro.cpp - Astronomical engine: Moon phase, solar position & twilight arcs.
 //
-//  Author:  Petr / chiptron.cz & Antigravity
 // =============================================================================
 #include "Astro.h"
 #include "Settings.h"

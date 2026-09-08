@@ -2,7 +2,6 @@
 //  MeteoPlaneRadar
 //  PlanePhoto.h - Aircraft thumbnail photos fetched from Planespotters.net API
 //
-//  Author:  Petr / chiptron.cz & Antigravity
 // =============================================================================
 #pragma once
 #include <Arduino.h>

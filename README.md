@@ -11,7 +11,7 @@
 Designed specifically for the **Waveshare ESP32-S3-Touch-LCD-2.1** development board with modern smartphone-like touch gestures, a pull-down Control Center, live aircraft photos, bilinear radar smoothing, and a responsive web dashboard for remote control and complete configuration.
 
 > 🇸🇰 Slovenská dokumentácia: **[README_SK.md](README_SK.md)**  
-> 📌 Forked and significantly enhanced from the original project **[petus/MeteoPlaneRadar](https://github.com/petus/MeteoPlaneRadar)** by **[chiptron.cz](https://chiptron.cz)**.
+> 📌 Forked and significantly enhanced from the original project **[petus/MeteoPlaneRadar](https://github.com/petus/MeteoPlaneRadar)**.
 
 ---
 
@@ -29,22 +29,25 @@ Designed specifically for the **Waveshare ESP32-S3-Touch-LCD-2.1** development b
 
 ---
 
+## 🌟 Key Highlights in v1.6.0
+
+- 🌧️ **Approaching Precipitation Detection & Nowcasting (TREC):** 2D spatial cross-correlation vector analysis tracks precipitation movements across radar frames. Strictly alerts **only when precipitation is heading towards your location** ($v_{radial} > 0$, miss distance $\le 15\text{ km}$, $\text{ETA} \le 60\text{ min}$) to eliminate false alarms. Displays ETA countdown and bearing arrow on radar, and a compact warning widget on the Clock face with tap-to-radar navigation.
+- ❄️ **Automatic Precipitation Typing:** Dynamically categorizes incoming fronts into **Rain**, **Sleet** ($1^\circ\text{C}\dots3^\circ\text{C}$), **Snow** ($\le 1^\circ\text{C}$), or severe **Hail** ($>50\text{ dBZ}$) using radar reflectivity and local temperature telemetry.
+- ✈️ **Daily Flight Traffic Statistics & Info Screen (`SCREEN_INFO_I`):** Dedicated 6th display screen tracking 24-hour airspace activity in PSRAM: unique aircraft count, peak ground speed with callsign, maximum detection distance with callsign, altitude flight level span (FL min/max), and total ADS-B reports received. Auto-resets at midnight.
+- 🛩️ **Overhead Aircraft Widget & Proximity Alert:** Monitors aircraft passing directly overhead in a customizable radius (1–50 km, default 10 km) with altitude and distance badges on the Clock face.
+- 🔊 **Comprehensive Active Buzzer System:** Onboard active buzzer integration for emergency squawks (7700/7600/7500), watched aircraft entry, overhead passes, approaching precipitation alerts, hourly chimes, touch clicks, and automatic night-time muting.
+- 🌙 **Ultra Night Mode:** Deep-red sleep monochrome mode running at ultra-low backlight brightness (0.5%) to preserve dark-adapted vision and eliminate room glow.
+- 📸 **Remote Screen Capture Tool:** One-click uncompressed 24-bit BMP screenshot capture directly from the display framebuffer over the web interface.
+- 🌐 **All-English Serial Monitor & Clean Credits:** Standardized all serial monitor console logging to English, cleaned legacy branding, and explicitly credited the original upstream project `petus/MeteoPlaneRadar`.
+
+---
+
 ## 🌟 Key Highlights in v1.5.9
 
 - 🖥️ **Screen-Centric Web Interface:** Navigation in the web dashboard has been completely restructured around actual device screens (**Clock**, **Aircraft**, **Weather Radar**, **Tactical Radar**, **Forecast**) with a dedicated **Shared Settings** tab.
 - ▶ **Direct Display Trigger:** Each screen tab features a prominent *▶ Show on display* button to instantly switch the physical IPS screen, alongside individual auto-rotation inclusion checkboxes.
 - ⚡ **Persistent Hardware & Remote Control Dashboard:** Hardware diagnostics and real-time remote controls (screen cycling, legend toggle, radar zoom) remain visible at all times across all tabs (as a sticky side panel on desktop).
 - 🎨 **Refined Aligned Header with Live Screen Indicator:** Clean brand typography, H4CKR4 badge, version pill, and a pulsating status badge displaying the currently active physical screen.
-
-- 🚨 **Emergency Squawk Auto-Switch & Background Scan:** When any aircraft in range broadcasts an emergency squawk code (**7500** hijack, **7600** radio loss, **7700** general emergency), the device automatically switches to the **Tactical Airspace Map**, centers on the aircraft, renders prominent red-and-white warning halos, and pauses auto-rotation for 60 seconds. Background scan runs every 25s even while on Clock or Forecast screens.
-- 🌐 **Default English on First Boot:** Clean/unconfigured firmware now defaults to **English (`LANG_EN`)** on initial boot and SoftAP QR code captive portal (`Scan with your phone:`, `Waiting for your network...`), while dynamically adapting to user language choice once configured.
-- ✈️ **Full Airspace ADS-B Coverage & 250 Aircraft:** Increased tracked aircraft limit to 250 with intelligent distance-based prioritization towards the radar center. Fixes the previous issue where eastern airspace was cut off during country-wide view on the tactical radar.
-- 🌧️ **Dynamic Radar Provider Badge:** Displays the active provider name (**SHMÚ**, **RainViewer**, **ČHMÚ**) with diacritics directly in the loading overlay badge and reflectivity legend.
-- ⏱️ **Intelligent 10-Second Auto-Close:** Aircraft detail cards and fullscreen photos automatically close after 10 seconds of viewing, starting the countdown only after the photo has fully downloaded.
-- ⚡ **Persistent TLS Keep-Alive:** Radar tile streaming for SHMÚ and ČHMÚ reuses a persistent TLS session (`Net_SessionBegin()` / `Net_SessionEnd()`), eliminating 6 redundant handshakes and saving heap memory.
-- 💾 **PSRAM Allocator & NVS Flash Batching:** ADS-B JSON trees are allocated directly in 8 MB PSRAM via `SpiRamAllocator` to preserve internal SRAM. Web settings updates are committed to NVS flash in a single atomic batch.
-- 📚 **Full GitHub Wiki Documentation:** Complete technical guides, pinouts, and operation references are available on the [GitHub Wiki](https://github.com/hackra76/ESP-MeteoPlaneRadar/wiki).
-- 🚀 **Robust WebServer & OTA:** Migrated to the actively maintained `mathieucarbou/ESPAsyncWebServer` fork for flawless OTA updates and buffer handling.
 
 ---
 
@@ -182,5 +185,5 @@ Integrate easily with **Home Assistant**, **Node-RED**, or terminal scripts via 
 ## 📜 License & Credits
 
 Distributed under the **MIT License**.
-- Original base project: **Petr / [chiptron.cz](https://chiptron.cz)** ([petus/MeteoPlaneRadar](https://github.com/petus/MeteoPlaneRadar)).
+- Original base project: **[petus/MeteoPlaneRadar](https://github.com/petus/MeteoPlaneRadar)**.
 - Enhancements, Slovak localization, SHMÚ radar integration, bilinear anti-aliasing, Planespotters aircraft photos, tactical combined radar, expanded watchfaces, RTC driver, IMU gestures, touch navigation, Quick Control Center, flight watchlist, and multi-core stabilization: **Rado & Antigravity AI**.

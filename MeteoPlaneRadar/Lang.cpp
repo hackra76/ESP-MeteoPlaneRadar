@@ -2,7 +2,6 @@
 //  MeteoPlaneRadar
 //  Interface language - the string tables.
 //
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
 // =============================================================================
 #include "Lang.h"
 

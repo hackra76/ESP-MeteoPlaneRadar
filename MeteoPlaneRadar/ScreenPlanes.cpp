@@ -3,8 +3,6 @@
 //  Screen 1: aircraft radar (adsb.fi) + aircraft detail.
 //
 //  Project: MeteoPlaneRadar - live aircraft radar on a round touchscreen
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
-//  Web:     https://chiptron.cz
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)
 // =============================================================================
 #include "ScreenPlanes.h"
@@ -91,7 +89,7 @@ bool ScreenPlanes_DetailOpen() { return s_selectedHex[0] != '\0'; }
 // (user tap vs. the aircraft disappearing from the data).
 static void selectNone(const char* reason) {
 #if TOUCH_DEBUG
-  if (s_selectedHex[0]) Serial.printf("SEL: zavreno (%s) hex=%s\n", reason, s_selectedHex);
+  if (s_selectedHex[0]) Serial.printf("SEL: closed (%s) hex=%s\n", reason, s_selectedHex);
 #else
   (void)reason;
 #endif
@@ -112,7 +110,7 @@ static void selectHex(const char* hex) {
   s_detailOpenMs = 0;
   s_detailSelectMs = millis();
 #if TOUCH_DEBUG
-  Serial.printf("SEL: vybrano hex=%s\n", s_selectedHex);
+  Serial.printf("SEL: selected hex=%s\n", s_selectedHex);
 #endif
 }
 
@@ -172,55 +170,10 @@ static uint16_t altColor(float altFt, bool known) {
   return PlaneTrail_AltColor(altFt, known);
 }
 
-// Aircraft icon - a winged arrow, rotated to match the ground track.
-// Filled polygon; the nose points "forward" (locally up, fwd positive).
-// When the track is unknown (hasTrack=false), a circle is drawn instead.
-static void drawPlane(int x, int y, float trackDeg, bool hasTrack, uint16_t col, bool isMilitary = false) {
-  if (!hasTrack) {
-    // Track unknown - circle with a dot (orientation cannot be determined).
-    gfx->drawCircle(x, y, 7, isMilitary ? C_RED : col);
-    gfx->fillCircle(x, y, 2, isMilitary ? C_RED : col);
-    return;
-  }
-  float a = trackDeg * 0.0174532925f;
-  float ca = cosf(a), sa = sinf(a);
-  auto rot = [&](float right, float fwd, int* ox, int* oy) {
-    *ox = x + (int)(right * ca + fwd * sa);
-    *oy = y + (int)(right * sa - fwd * ca);
-  };
-
-  if (isMilitary) {
-    // Sharp delta-wing military fighter jet silhouette
-    const float P_MIL[10][2] = {
-      { 0,  14}, { 2,  5}, { 13, -6}, { 3, -4}, { 3, -13},
-      { 0, -10}, {-3, -13}, {-3, -4}, {-13, -6}, {-2,  5}
-    };
-    int px[10], py[10];
-    for (int i = 0; i < 10; i++) rot(P_MIL[i][0], P_MIL[i][1], &px[i], &py[i]);
-    for (int i = 0; i < 10; i++) {
-      int j = (i + 1) % 10;
-      gfx->fillTriangle(x, y, px[i], py[i], px[j], py[j], C_RED);
-    }
-    // High-contrast center point
-    int cx, cy;
-    rot(0, 2, &cx, &cy);
-    gfx->fillCircle(cx, cy, 1, C_WHITE);
-    return;
-  }
-
-  // Civil commercial airliner
-  const float P[10][2] = {
-    { 0,  12}, { 3,  1}, { 13, -8}, { 3, -5}, { 3, -7},
-    { 0, -12}, {-3, -7}, {-3, -5}, {-13, -8}, {-3,  1}
-  };
-  int px[10], py[10];
-  for (int i = 0; i < 10; i++) rot(P[i][0], P[i][1], &px[i], &py[i]);
-
-  // Fill as a triangle fan from the centre of the icon.
-  for (int i = 0; i < 10; i++) {
-    int j = (i + 1) % 10;
-    gfx->fillTriangle(x, y, px[i], py[i], px[j], py[j], col);
-  }
+// Aircraft icon - delegates to Aircraft_DrawIcon which renders category-specific
+// vector silhouettes (airliner, GA light, helicopter, military jet, heavy, glider).
+static void drawPlane(int x, int y, float trackDeg, bool hasTrack, uint16_t col, AircraftIconType iconType) {
+  Aircraft_DrawIcon(gfx, x, y, trackDeg, hasTrack, col, iconType);
 }
 
 // --- Filters ----------------------------------------------------------------
@@ -233,6 +186,8 @@ static void drawPlane(int x, int y, float trackDeg, bool hasTrack, uint16_t col,
 // emergency because of an altitude filter would be a nasty surprise.
 static bool passesFilter(const Aircraft& a) {
   if (Settings_OnlyWithCallsign() && !a.callsign[0]) return false;
+  AircraftIconType iconType = Aircraft_GetIconType(a);
+  if (!Settings_PlaneTypeEnabled(iconType)) return false;
   const uint16_t lo = Settings_AltMinFt(), hi = Settings_AltMaxFt();
   if (lo == 0 && hi >= 60000) return true;          // filter off
   if (a.altFt <= 0) return true;                    // unknown altitude - keep it
@@ -355,7 +310,12 @@ void ScreenPlanes_RangeText(char* out, size_t cap) {
 }
 
 // Close the detail panel (called on the long-press screen switch).
-void ScreenPlanes_CloseDetail() { selectNone("dlouhy stisk / prepnuti obrazovky"); }
+void ScreenPlanes_CloseDetail() { selectNone("screen switch"); }
+
+void ScreenPlanes_SelectHex(const char* hex) {
+  if (hex && hex[0]) selectHex(hex);
+  else selectNone("manual");
+}
 
 void ScreenPlanes_Draw() {
   gfx->fillScreen(C_BLACK);
@@ -530,7 +490,8 @@ void ScreenPlanes_Draw() {
     }
 
     bool altKnown = (list[i].altFt > 0.0f);
-    bool isMil = list[i].isMilitary || (scat == SPEC_MILITARY);
+    AircraftIconType iconType = Aircraft_GetIconType(list[i]);
+    bool isMil = (iconType == ICON_MILITARY_JET) || (scat == SPEC_MILITARY);
     uint16_t col = (em || isMil) ? C_RED : altColor(list[i].altFt, altKnown);
 
     // Draw flight trajectory breadcrumb trail
@@ -540,7 +501,7 @@ void ScreenPlanes_Draw() {
 
     float screenTrack = list[i].track - (float)s_topDeg;
     while (screenTrack < 0.0f) screenTrack += 360.0f;
-    drawPlane(sx, sy, screenTrack, list[i].hasTrack, col, isMil);
+    drawPlane(sx, sy, screenTrack, list[i].hasTrack, col, iconType);
 
     // Label with smart multi-positioning and size fallback
     if (Settings_ShowLegends() && emergIdx < 0) {

@@ -3,8 +3,6 @@
 //  Calendar helper shared by the weather frames and the clock.
 //
 //  Project: MeteoPlaneRadar - live aircraft radar on a round touchscreen
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
-//  Web:     https://chiptron.cz
 // =============================================================================
 #pragma once
 #include <Arduino.h>

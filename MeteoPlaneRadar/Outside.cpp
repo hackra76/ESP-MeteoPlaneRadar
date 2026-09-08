@@ -2,7 +2,6 @@
 //  MeteoPlaneRadar - clock (from HTTP Date) + outside temperature (Open-Meteo).
 //  See Outside.h for why there is no NTP client here.
 //
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
 // =============================================================================
 #include "Outside.h"
 #include "TimeUtil.h"
@@ -32,7 +31,7 @@ void Outside_Init() {
       settimeofday(&tv, nullptr);
       s_timeOk = true;
       struct tm lt; localtime_r(&utc, &lt);
-      Serial.printf("RTC: Cas nacten z PCF85063: %02d:%02d:%02d\n", lt.tm_hour, lt.tm_min, lt.tm_sec);
+      Serial.printf("RTC: Time read from PCF85063: %02d:%02d:%02d\n", lt.tm_hour, lt.tm_min, lt.tm_sec);
     }
   }
 }
@@ -63,7 +62,7 @@ void Outside_NoteHttpDate(const char* date) {
   if (!s_timeOk) {
     s_timeOk = true;
     struct tm lt; localtime_r(&utc, &lt);
-    Serial.printf("Cas nastaven z hlavicky Date: %02d:%02d\n", lt.tm_hour, lt.tm_min);
+    Serial.printf("Time set from Date header: %02d:%02d\n", lt.tm_hour, lt.tm_min);
   }
   PCF85063_SetTime(utc);
 }
@@ -107,13 +106,13 @@ static bool fetchTemp() {
   JsonDocument doc;
   DeserializationError err = deserializeJson(doc, body,
                                              DeserializationOption::Filter(filter));
-  if (err) { Serial.printf("TEPLOTA: JSON %s\n", err.c_str()); return false; }
+  if (err) { Serial.printf("TEMP: JSON %s\n", err.c_str()); return false; }
 
   JsonVariant t = doc["current"]["temperature_2m"];
-  if (t.isNull()) { Serial.println("TEPLOTA: v odpovedi neni temperature_2m"); return false; }
+  if (t.isNull()) { Serial.println("TEMP: temperature_2m not in response"); return false; }
   s_tempC = t.as<float>();
   s_tempOk = true;
-  Serial.printf("Teplota: %.1f C\n", s_tempC);
+  Serial.printf("Temperature: %.1f C\n", s_tempC);
   return true;
 }
 
@@ -154,7 +153,7 @@ void Outside_Tick() {
   s_everTried = true;
   s_lastTry = now;
   if (!fetchTemp() && !s_tempOk)
-    Serial.println("TEPLOTA: zatim se nepodarilo, zkusim za minutu");
+    Serial.println("TEMP: fetch failed, retrying in 1 minute");
 }
 
 // --- Readout ----------------------------------------------------------------

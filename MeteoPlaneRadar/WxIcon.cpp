@@ -2,7 +2,6 @@
 //  MeteoPlaneRadar
 //  Vector weather icons. See WxIcon.h.
 //
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
 // =============================================================================
 #include "WxIcon.h"
 #include "UI.h"

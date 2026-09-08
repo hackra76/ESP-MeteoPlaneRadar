@@ -7,7 +7,6 @@
 //  if it would spill outside the radar circle). Airports are rendered as
 //  underlay - they do NOT call Layout_Claim, so aircraft callsigns always win.
 //
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
 // =============================================================================
 #include "Airports.h"
 #include "AirportsData.h"

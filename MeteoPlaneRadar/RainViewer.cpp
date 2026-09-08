@@ -2,7 +2,6 @@
 //  MeteoPlaneRadar
 //  RainViewer tile radar. See RainViewer.h for the design notes.
 //
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
 // =============================================================================
 #include "RainViewer.h"
 #include "Net.h"
@@ -262,7 +261,7 @@ static bool fetchIndex(int wantFrames) {
 
   JsonArrayConst past = doc["radar"]["past"];
   if (past.isNull() || past.size() == 0) {
-    Serial.println("RAINVIEWER: zadne snimky v indexu");
+    Serial.println("RAINVIEWER: no frames in index");
     return false;
   }
 
@@ -315,7 +314,7 @@ static void computeGrid() {
   s_tyN = ty1 - s_ty0 + 1;
   if (s_txN < 1) s_txN = 1;
   if (s_tyN < 1) s_tyN = 1;
-  Serial.printf("RainViewer: zoom %d, zvetseni %dx, %dx%d dlazdic, polomer %.0f km\n",
+  Serial.printf("RainViewer: zoom %d, scale %dx, %dx%d tiles, radius %.0f km\n",
                 s_zoom, s_scale, s_txN, s_tyN, s_effRadiusKm);
 }
 
@@ -344,7 +343,7 @@ static bool fetchOneTile(int frameIdx, int tileIdx) {
   s_dstFrame = s_fr[frameIdx].px;
 
   if (!s_decoder || s_decoder->openRAM(s_png, s_pngLen, rvPngDraw) != PNG_SUCCESS) {
-    Serial.println("RAINVIEWER: dlazdice se neda dekodovat");
+    Serial.println("RAINVIEWER: failed to decode tile");
     return false;
   }
   s_decoder->decode(nullptr, 0);
@@ -373,7 +372,7 @@ void RainViewer_Begin(double lat, double lon, float radiusKm, int wantFrames) {
   int want = wantFrames;
   if (want > RV_ANIM_MAX) want = RV_ANIM_MAX;
   if (!ensureBuffers(want)) {
-    Serial.println("RAINVIEWER: nedostatek PSRAM na snimky");
+    Serial.println("RAINVIEWER: insufficient PSRAM for frames");
     s_state = RV_DONE;
     s_failed = true;
     Async_UnlockRadar();
@@ -493,7 +492,7 @@ bool RainViewer_Step() {
         return false;
       }
       if (!ok) {
-        Serial.printf("RAINVIEWER: dlazdice %d snimku %d se nestahla ani na %d pokusu\n",
+        Serial.printf("RAINVIEWER: tile %d of frame %d failed after %d retries\n",
                       s_tilePos, f, RV_TILE_RETRY + 1);
         s_missed++;
         Net_SessionBegin();
@@ -517,11 +516,11 @@ bool RainViewer_Step() {
           s_state = RV_DONE;
           s_readyN = s_frameN;
           Net_SessionEnd();
-          Serial.printf("RainViewer: %d snimku, zoom %d, polomer %.0f km, %d dlazdic chybi\n",
+          Serial.printf("RainViewer: %d frames, zoom %d, radius %.0f km, %d tiles missing\n",
                         s_frameN, s_zoom, s_effRadiusKm, s_missed);
-          if (s_missed) Status_Set(ST_RADAR, "RainViewer: %d snimku, %d dlazdic chybi",
+          if (s_missed) Status_Set(ST_RADAR, "RainViewer: %d frames, %d tiles missing",
                                    s_frameN, s_missed);
-          else          Status_Set(ST_RADAR, "RainViewer: %d snimku", s_frameN);
+          else          Status_Set(ST_RADAR, "RainViewer: %d frames", s_frameN);
         }
         Async_UnlockRadar();
         return true;               // a frame appeared - repaint

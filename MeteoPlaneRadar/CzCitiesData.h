@@ -1,4 +1,4 @@
-// MeteoPlaneRadar - vyvoj / development: chiptron.cz
+//  MeteoPlaneRadar
 // =============================================================================
 //  Ceska mesta - vlastni seznam.
 //

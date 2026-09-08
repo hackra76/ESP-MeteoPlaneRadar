@@ -2,7 +2,6 @@
 //  MeteoPlaneRadar
 //  Open-Meteo forecast + air quality. See Forecast.h.
 //
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
 // =============================================================================
 #include "Forecast.h"
 #include "AsyncCore.h"
@@ -106,7 +105,7 @@ static bool fetchForecast() {
   DeserializationError err = deserializeJson(doc, body,
                                              DeserializationOption::Filter(filter));
   body = String();                 // free the payload before touching anything else
-  if (err) { Serial.printf("PREDPOVED: JSON %s\n", err.c_str()); return false; }
+  if (err) { Serial.printf("FORECAST: JSON %s\n", err.c_str()); return false; }
 
   // --- current ---
   JsonObjectConst cur = doc["current"];
@@ -168,8 +167,8 @@ static bool fetchForecast() {
   }
 
   s_valid = (s_hourN > 0 || s_dayN > 0);
-  Serial.printf("Predpoved: %d hodin, %d dnu, vychod/zapad %s\n",
-                s_hourN, s_dayN, (s_sunrise && s_sunset) ? "ok" : "chybi");
+  Serial.printf("Forecast: %d hours, %d days, sunrise/sunset %s\n",
+                s_hourN, s_dayN, (s_sunrise && s_sunset) ? "ok" : "missing");
   Status_Set(ST_FORECAST, "OK, %d h / %d d", s_hourN, s_dayN);
   return s_valid;
 }
@@ -197,7 +196,7 @@ static bool fetchAirQuality() {
   DeserializationError err = deserializeJson(doc, body,
                                              DeserializationOption::Filter(filter));
   body = String();
-  if (err) { Serial.printf("OVZDUSI: JSON %s\n", err.c_str()); return false; }
+  if (err) { Serial.printf("AIR_QUALITY: JSON %s\n", err.c_str()); return false; }
 
   JsonObjectConst cur = doc["current"];
   if (cur.isNull()) return false;
@@ -227,7 +226,7 @@ static bool fetchAirQuality() {
   }
 
   s_aqOk = (s_aqi >= 0) || (s_pm25 > 0) || (s_pm10 > 0);
-  Serial.printf("Ovzdusi: AQI %d, PM2.5 %.1f, pyl %.0f\n", s_aqi, s_pm25, s_pollen);
+  Serial.printf("AirQuality: AQI %d, PM2.5 %.1f, pollen %.0f\n", s_aqi, s_pm25, s_pollen);
   return s_aqOk;
 }
 

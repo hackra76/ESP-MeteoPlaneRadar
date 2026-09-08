@@ -3,8 +3,6 @@
 //  TCA9554 I/O expander - interface and EXIO pins.
 //
 //  Project: MeteoPlaneRadar - live aircraft radar on a round touchscreen
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
-//  Web:     https://chiptron.cz
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)
 // =============================================================================
 #pragma once
@@ -20,7 +18,8 @@
 #define EXIO_LCD_RST   1
 #define EXIO_TOUCH_RST 2
 #define EXIO_LCD_CS    3
-#define EXIO_LCD_PWR   8
+#define EXIO_BUZZER    8   // Onboard active buzzer (Q5 driver)
+#define EXIO_LCD_PWR   8   // Legacy alias
 
 void     TCA9554_Init();                       // all EXIO pins as outputs
 bool     TCA9554_SetPin(uint8_t pin, bool high);   // false = the I2C write failed

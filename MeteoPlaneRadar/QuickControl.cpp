@@ -14,15 +14,9 @@
 #include "SHMU.h"
 #include "RainViewer.h"
 #include "ScreenWeather.h"
+#include "Config.h"
 
 extern void gotoScreen(int idx);
-
-#define SCREEN_CLOCK_I    0
-#define SCREEN_PLANES_I   1
-#define SCREEN_METEO_I    2
-#define SCREEN_TACTICAL_I 3
-#define SCREEN_FORECAST_I 4
-#define SCREEN_SETTINGS_I 5
 
 static bool s_open = false;
 

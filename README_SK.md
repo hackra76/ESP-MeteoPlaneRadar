@@ -10,7 +10,7 @@
 **Multifunkčná meteo-radarová stanica, živý letecký radar, zrážkový meteoradar (SHMÚ, ČHMÚ, RainViewer), taktický kombinovaný radar a dizajnové hodiny na okrúhlom 2.1" IPS dotykovom displeji.**  
 Vyvinuté pre hardvérovú dosku **Waveshare ESP32-S3-Touch-LCD-2.1** s moderným dotykovým ovládaním podobným smartfónu, vysúvacím Ovládacím centrom (Control Center), fotkami lietadiel, bilineárnym vyhladzovaním a diaľkovým ovládaním cez responzívny webový prehliadač.
 
-> 🇸🇰 Tento projekt je pokročilým forkom a významným rozšírením pôvodného projektu **[petus/MeteoPlaneRadar](https://github.com/petus/MeteoPlaneRadar)** od **[chiptron.cz](https://chiptron.cz)**.  
+> 🇸🇰 Tento projekt je pokročilým forkom a významným rozšírením pôvodného projektu **[petus/MeteoPlaneRadar](https://github.com/petus/MeteoPlaneRadar)**.  
 > 🇬🇧 English version: **[README.md](README.md)**
 
 ---
@@ -29,22 +29,25 @@ Vyvinuté pre hardvérovú dosku **Waveshare ESP32-S3-Touch-LCD-2.1** s moderný
 
 ---
 
+## 🌟 Kľúčové novinky vo verzii v1.6.0
+
+- 🌧️ **Detekcia blížiacich sa zrážok & Nowcasting (TREC):** 2D priestorová krížová korelácia analyzuje pohyb zrážkových buniek medzi radarovými snímkami. Upozornenie sa aktivuje **iba a výhradne vtedy, ak zrážky smerujú k vašej polohe** ($v_{radial} > 0$, minutie $\le 15\text{ km}$, $\text{ETA} \le 60\text{ min}$), čím eliminuje plané poplachy pri obchádzaní stanice.
+- ❄️ **Klasifikácia typu zrážok:** Automatické rozlíšenie na **Dážď**, **Dážď so snehom** ($1^\circ\text{C}\dots3^\circ\text{C}$), **Sneh** ($\le 1^\circ\text{C}$) alebo **Krúpy** ($>50\text{ dBZ}$) na základe odrazivosti radaru a teploty.
+- ✈️ **Denná štatistika letov & Samostatná obrazovka Info (`SCREEN_INFO_I`):** Nová 6. obrazovka v rotačnom cykle sledujúca 24-hodinovú leteckú premávku: počet unikátnych lietadiel za deň, rekordnú rýchlosť s volacím znakom, maximálnu vzdialenosť detekcie, rozpätie výšok a celkový počet správ. Automatický reset o polnoci.
+- 🛩️ **Prelet nad hlavou (Overhead Widget & Alert):** Monitorovanie lietadiel vo valcovom priestore priamo nad stanicou s nastaviteľným polomerom (1–50 km, predvolene 10 km) a widgetom na obrazovke hodín.
+- 🔊 **Komplexný systém akustických výstrah (Bzučiak):** Vstavaný aktívny bzučiak s tónmi pre núdzový squawk (7700/7600/7500), sledovaný let, prelet nad hlavou, blížiace sa zrážky, pípnutie na celú hodinu, dotykovú odozvu a nočný kľud.
+- 🌙 **Ultra Night režim (Hlboká červená):** Monochromatický tmavočervený nočný režim s minimálnym jasom (0.5%), ktorý šetrí nočné videnie a neruší spánok.
+- 📸 **Nástroj na zachytenie obrazovky (Screenshot Tool):** Okamžité stiahnutie nekomprimovaného 24-bitového BMP obrázka displeja priamo cez webové rozhranie.
+- 🌐 **Sériový monitor výhradne v angličtine & Čisté uvedenie autorov:** Prechod všetkých systémových výpisov na angličtinu a korektné uvedenie pôvodného projektu `petus/MeteoPlaneRadar`.
+
+---
+
 ## 🌟 Kľúčové novinky vo verzii v1.5.9
 
 - 🖥️ **Moderné webové rozhranie orientované na obrazovky:** Navigácia webového rozhrania bola kompletne prepracovaná. V riadku pod názvom sa nachádzajú priamo jednotlivé obrazovky zariadenia (**Hodiny**, **Lietadlá**, **Meteoradar**, **Taktický radar**, **Predpoveď**) a ako samostatné posledné tlačidlo **Spoločné nastavenia**.
 - ▶ **Priame prepnutie displeja z webu:** Každá obrazovka na webe má vyhradené tlačidlo *▶ Zobraziť na displeji* a prepínač pre zaradenie do automatického cyklu.
 - ⚡ **Trvalo viditeľný panel Hardvér & Ovládač:** Hardvérové diagnostické informácie a diaľkový ovládač displeja (vrátane prepínania legiend a zmeny rozsahu radaru) sú teraz trvalo viditeľné nezávisle od zvolenej obrazovky (na desktopoch ako fixný pravý stĺpec).
 - 🎨 **Uprataná a zarovnaná hlavička s indikátorom displeja:** Čisté centrovanie názvu, odznaku H4CKR4 a verzie s pulzujúcim indikátorom práve zobrazenej obrazovky na okrúhlom displeji.
-
-- 🚨 **Automatické prepnutie na Tactical pri núdzovom squawku:** Pri zachytení letu vysielajúceho núdzový kód (**Squawk 7500** únos, **7600** strata spojenia, **7700** všeobecná núdza) zariadenie automaticky prepne obrazovku na Taktický radar, vycentruje núdzový let, zobrazí červeno-biele výstražné kruhy a pozastaví automatické striedanie obrazoviek na 60 sekúnd. Scanovanie funguje na pozadí každých 25 s aj z obrazovky Hodín alebo Predpovede.
-- 🌐 **Predvolená angličtina pri prvom spustení:** Čistý firmvér a SoftAP QR obrazovka štartujú v angličtine (`Scan with your phone:`, `Waiting for your network...`). Po voľbe jazyka vo webovom rozhraní sa Captive Portal automaticky prispôsobí zvolenému jazyku používateľa.
-- ✈️ **Pokrytie celého vzdušného priestoru & 250 lietadiel:** Limit aktívnych lietadiel bol navýšený na 250 s inteligentným algoritmom prioritizácie podľa vzdialenosti k stredu radaru. Tým bol odstránený neduh chýbajúcich lietadiel vo východnej polovici Slovenska pri celoštátnom pohľade na taktickom radare.
-- 🌧️ **Dynamický indikátor poskytovateľa radaru:** Pri prepínaní a načítavaní radarových dát sa v informačnom rámčeku namiesto generického textu zobrazuje presný a prehľadný názov poskytovateľa (**SHMÚ**, **RainViewer**, **ČHMÚ**).
-- ⏱️ **Inteligentné automatické zatvorenie detailu a fotky (10 s):** Po zobrazení karty lietadla alebo celoobrazovkovej fotky sa pohľad po 10 sekundách automaticky vráti na radar. Odpočet sa bezpečne spúšťa až po dokončení sťahovania fotky zo servera.
-- ⚡ **TLS Session Reuse (Keep-Alive):** Sťahovanie sérií zrážkových snímok SHMÚ a ČHMÚ prebieha cez jediné perzistentné TLS spojenie, čo šetrí desiatky kilobajtov RAM a zrýchľuje sťahovanie animácie.
-- 💾 **Optimalizácia PSRAM & Dávkový zápis do NVS:** ADS-B JSON strom sa alokuje cez vlastný `SpiRamAllocator` priamo v 8 MB PSRAM, čím chráni internú SRAM. Ukladanie nastavení z webu využíva dávkový zápis (batch commit), čím šetrí životnosť internej flash pamäte.
-- 📚 **Kompletná GitHub Wiki:** Pre projekt bola vytvorená plnohodnotná technická dokumentácia na [GitHub Wiki](https://github.com/hackra76/ESP-MeteoPlaneRadar/wiki).
-- 🚀 **Stabilné OTA s modernou knižnicou:** Prechod webservera na udržiavaný fork `mathieucarbou/ESPAsyncWebServer` zaručuje bezchybný priebeh nahrávania a OTA aktualizácií.
 
 ---
 
@@ -169,5 +172,5 @@ Webové rozhranie ponúka:
 ## 📜 Licencia a autori
 
 Vydané pod licenciou **MIT License**.
-- Pôvodný základ projektu: **Petr / [chiptron.cz](https://chiptron.cz)** ([petus/MeteoPlaneRadar](https://github.com/petus/MeteoPlaneRadar)).
+- Pôvodný základ projektu: **[petus/MeteoPlaneRadar](https://github.com/petus/MeteoPlaneRadar)**.
 - Vylepšenia, slovenská lokalizácia, integrácia SHMÚ radaru, bilineárne vyhladzovanie, Planespotters fotografie lietadiel, taktický kombinovaný radar, RTC ovládač, IMU gestá, dotyková navigácia, rýchle Ovládacie centrum, watchlist lietadiel a multi-core optimalizácia: **Rado & Antigravity AI**.

@@ -2,7 +2,6 @@
 //  MeteoPlaneRadar
 //  The configuration page, as one PROGMEM string.
 //
-//  Author:  Petr / chiptron.cz & Antigravity
 // =============================================================================
 #pragma once
 #include <Arduino.h>
@@ -84,7 +83,7 @@ button:disabled{cursor:default;opacity:0.4}
 table{width:100%;border-collapse:collapse;font-size:13px}
 td{padding:6px 4px;border-bottom:1px solid var(--line)}
 td:first-child{color:var(--mut);width:45%}
-.hide{display:none}
+.hide{display:none !important}
 .prog-bar{background:#0a0e17;border:1px solid var(--line);border-radius:999px;height:10px;overflow:hidden;width:100%;margin-top:4px}
 .prog-fill{height:100%;background:linear-gradient(90deg,var(--acc),var(--purple));border-radius:999px;transition:width 0.3s ease}
 .pill{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600}
@@ -92,6 +91,13 @@ td:first-child{color:var(--mut);width:45%}
 .pill-warn{background:rgba(245,158,11,0.15);color:var(--warn);border:1px solid rgba(245,158,11,0.3)}
 .pill-err{background:rgba(239,68,68,0.15);color:var(--err);border:1px solid rgba(239,68,68,0.3)}
 .stat-val{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:#fff}
+.range-ctrl-row{display:flex;align-items:center;justify-content:space-between;margin-top:10px;background:#0a0e17;border:1px solid var(--line);border-radius:8px;padding:6px 12px}
+.range-lbl{font-weight:600;color:var(--mut);font-size:12.5px}
+.range-stepper{display:inline-flex;align-items:center;background:#111827;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.btn-step{background:#1e293b;color:#fff;border:none;width:32px;height:28px;font-size:16px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background 0.15s,color 0.15s;padding:0;line-height:1}
+.btn-step:hover:not(:disabled){background:var(--acc);color:#0b0f19}
+.btn-step:disabled{opacity:0.35;cursor:not-allowed}
+.range-val{min-width:68px;text-align:center;font-size:13px;font-weight:700;color:var(--acc);padding:0 6px;user-select:none}
 
 @media (max-width:560px){
   .row label{flex:1 1 100%}
@@ -126,6 +132,7 @@ td:first-child{color:var(--mut);width:45%}
   <button data-tab="tScrMeteo"    data-i18n="tabScrMeteo">🌧️ Meteoradar</button>
   <button data-tab="tScrTactical" data-i18n="tabScrTactical">🎯 Taktický radar</button>
   <button data-tab="tScrForecast" data-i18n="tabScrForecast">⛅ Predpoveď</button>
+  <button data-tab="tScrInfo"     data-i18n="tabScrInfo">ℹ️ Info & Štatistiky</button>
   <button data-tab="tCommon"      data-i18n="tabCommon" class="tab-common">⚙️ Spoločné nastavenia</button>
 </nav>
 
@@ -194,7 +201,13 @@ td:first-child{color:var(--mut);width:45%}
             <label class="chk"><input type="checkbox" id="cMoon"><span data-i18n="cMoon">Fáza mesiaca</span></label>
             <label class="chk"><input type="checkbox" id="cAstro"><span data-i18n="cAstro">24h solárny prstenec</span></label>
             <label class="chk"><input type="checkbox" id="nightClockOnly"><span data-i18n="nightClockOnly">V noci iba Hodiny (zastaviť radary)</span></label>
+            <label class="chk"><input type="checkbox" id="bzHourlyClock"><span data-i18n="bzHourly">🕒 Pípnutie na celú hodinu (chime)</span></label>
+            <label class="chk"><input type="checkbox" id="cOver"><span data-i18n="cOver">✈️ Nadhlavný let (Overhead widget)</span></label>
+            <label class="chk"><input type="checkbox" id="bzOverheadClock"><span data-i18n="bzOverhead">🔊 Pípnutie pri prelete nad hlavou</span></label>
+            <label class="chk"><input type="checkbox" id="cPrecip"><span data-i18n="cPrecip">🌧️ Výstraha blížiacich sa zrážok</span></label>
+            <label class="chk"><input type="checkbox" id="bzPrecipClock"><span data-i18n="bzPrecip">🔊 Pípnutie pri blížiacich sa zrážkach</span></label>
           </div>
+          <div class="row" style="margin-top:12px;"><label data-i18n="ovRad">Polomer preletu nad hlavou (km)</label><input type="number" id="ovRad" min="1" max="50" step="1" style="max-width:110px;"></div>
         </div>
       </section>
 
@@ -226,8 +239,23 @@ td:first-child{color:var(--mut);width:45%}
           <div class="row"><label data-i18n="altMax">Maximálna letová výška (ft)</label><input type="number" id="altMax" step="500"></div>
           <div class="row"><label class="chk"><input type="checkbox" id="onlyCallsign"><span data-i18n="onlyCs">Iba lietadlá so známym volacím znakom (callsign)</span></label></div>
           <div class="row"><label class="chk"><input type="checkbox" id="squawkAlert"><span data-i18n="sqAlert">Zvýrazniť a upozorniť na núdzové squawky (7500 / 7600 / 7700)</span></label></div>
+          <div class="row"><label class="chk"><input type="checkbox" id="bzEmergencyPlanes"><span data-i18n="bzEmergency">🚨 Zvuková výstraha pri núdzovom squawku</span></label></div>
           <div class="row"><label data-i18n="watch">Sledovaný let (Callsign alebo ICAO hex)</label><input type="text" id="watch" placeholder="RYR, WZZ, LZ..."></div>
+          <div class="row"><label class="chk"><input type="checkbox" id="bzWatchPlanes"><span data-i18n="bzWatch">⭐ Zvukové upozornenie na sledovaný let</span></label></div>
           <p class="hint" data-i18n="planesHint">Filtre ovplyvňujú len vykresľovanie. Núdzový squawk ani sledované lietadlo filter nikdy neskryje.</p>
+        </div>
+
+        <div class="card">
+          <h2 data-i18n="typeFiltersTitle">🎯 Filter typov strojov na radare</h2>
+          <p class="hint" data-i18n="typeFiltersHint">Vyberte kategórie strojov, ktoré sa majú zobrazovať na radarovej mape. Núdzové a sledované lety sa zobrazia vždy.</p>
+          <div class="grid">
+            <label class="chk"><input type="checkbox" id="tfAirliner"><span data-i18n="tfAirliner">✈️ Dopravné lietadlá</span></label>
+            <label class="chk"><input type="checkbox" id="tfLight"><span data-i18n="tfLight">🛩️ Malé a športové lietadlá</span></label>
+            <label class="chk"><input type="checkbox" id="tfHeli"><span data-i18n="tfHeli">🚁 Vrtuľníky a záchranári</span></label>
+            <label class="chk"><input type="checkbox" id="tfMil"><span data-i18n="tfMil">⚔️ Vojenské letectvo a stíhačky</span></label>
+            <label class="chk"><input type="checkbox" id="tfHeavy"><span data-i18n="tfHeavy">🛫 Veľké nákladné obry</span></label>
+            <label class="chk"><input type="checkbox" id="tfGlider"><span data-i18n="tfGlider">🪂 Vetrone a klzáky</span></label>
+          </div>
         </div>
 
         <div class="card">
@@ -283,6 +311,20 @@ td:first-child{color:var(--mut);width:45%}
           <div class="grid">
             <label class="chk"><input type="checkbox" id="rRingsMeteo" onchange="$('rRings').checked=this.checked;autoSave('rRings',this.checked)"><span data-i18n="rRings">Kilometrové kružnice dosahu</span></label>
             <label class="chk"><input type="checkbox" id="rAirportsMeteo" onchange="$('rAirports').checked=this.checked;autoSave('rAirports',this.checked)"><span data-i18n="rAirports">Letiská (Runway ikony)</span></label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 data-i18n="precipTrackerHdr">🌧️ Detekcia blížiacich sa zrážok (Nowcasting)</h2>
+          <p class="hint" data-i18n="precipHint">Vektorová analýza pohybu frontu (TREC). Upozorní na dážď, krúpy alebo sneh, iba ak zrážky smerujú priamo k vašej polohe.</p>
+          <div class="grid">
+            <label class="chk"><input type="checkbox" id="cPrecipMeteo"><span data-i18n="cPrecip">Výstraha a odpočet na obrazovke</span></label>
+            <label class="chk"><input type="checkbox" id="bzPrecipMeteo"><span data-i18n="bzPrecip">Zvukové pípnutie bzučiaka pri príchode zrážok</span></label>
+          </div>
+          <div style="margin-top:12px;padding:10px;background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:8px;">
+            <div style="font-size:12px;color:var(--mut);margin-bottom:4px;" data-i18n="precipLiveHdr">Aktuálny stav nowcastingu:</div>
+            <div id="livePrecipStatus" style="font-weight:600;font-size:14px;color:var(--acc);">—</div>
+            <div id="livePrecipDetail" style="font-size:12px;color:var(--mut);margin-top:2px;"></div>
           </div>
         </div>
       </section>
@@ -357,23 +399,120 @@ td:first-child{color:var(--mut);width:45%}
         </div>
       </section>
 
-      <!-- 6. SPOLOČNÉ NASTAVENIA -->
-      <section id="tCommon" class="tab hide">
-
-        <div class="card">
-          <h2 data-i18n="location">📍 Domovská poloha</h2>
-          <div class="row"><label data-i18n="findCity">Vyhľadať mesto</label>
-            <input type="text" id="q" style="flex:2 1 200px" placeholder="Hertník, Bardejov, Praha...">
-            <button class="sec" onclick="geo()" data-i18n="search">Hľadať</button>
+      <!-- 6. OBRAZOVKA: INFO & ŠTATISTIKY -->
+      <section id="tScrInfo" class="tab hide">
+        <div class="screen-hero">
+          <div class="hero-title">
+            <h2>ℹ️ <span data-i18n="scrInfoHdr">Info & Denná štatistika letov</span></h2>
           </div>
-          <div class="row hide" id="geoRow"><label data-i18n="found">Nájdené výsledky</label>
-            <select id="geoSel" style="flex:2 1 240px" onchange="pickCity()"></select>
+          <div class="hero-actions">
+            <button type="button" class="btn-live" onclick="goScreen(5)">
+              ▶ <span data-i18n="btnShowOnDisp">Zobraziť na displeji</span>
+            </button>
           </div>
-          <div class="row"><label data-i18n="lat">Zemepisná šírka (°N)</label><input type="number" step="0.0001" id="lat"></div>
-          <div class="row"><label data-i18n="lon">Zemepisná dĺžka (°E)</label><input type="number" step="0.0001" id="lon"></div>
-          <p class="hint" data-i18n="locHint">Zmena polohy vyžaduje reštart pre prepočet máp a predpovede.</p>
         </div>
 
+        <div class="card">
+          <div class="row" style="margin-top:0;">
+            <label class="chk" style="font-weight:600;font-size:14px;">
+              <input type="checkbox" id="sInfo">
+              <span data-i18n="scrInfoActive">Zahrnúť obrazovku do automatického striedania</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <h2 style="margin:0;" data-i18n="statsTrafficHdr">✈️ Dnešná letecká štatistika</h2>
+            <button type="button" class="sec" onclick="resetStats()" style="padding:4px 10px;font-size:12px;" data-i18n="btnResetStats">🔄 Resetovať</button>
+          </div>
+          <table style="margin-top:4px;">
+            <tr><td data-i18n="stUnique">Unikátne lietadlá dnes:</td><td><span class="stat-val" id="stCount" style="color:var(--acc);font-weight:700;font-size:16px;">-</span></td></tr>
+            <tr><td data-i18n="stTopSpeed">Najvyššia rýchlosť:</td><td><span class="stat-val" id="stSpeed" style="color:var(--warn);">-</span></td></tr>
+            <tr><td data-i18n="stMaxDist">Maximálna vzdialenosť:</td><td><span class="stat-val" id="stDist">-</span></td></tr>
+            <tr><td data-i18n="stAltSpan">Rozpätie letových výšok:</td><td><span class="stat-val" id="stAlt">-</span></td></tr>
+            <tr><td data-i18n="stReports">Prijaté ADS-B správy:</td><td><span class="stat-val" id="stReports">-</span></td></tr>
+          </table>
+          <p class="hint" data-i18n="statsHint">Štatistika sa automaticky nuluje o polnoci a uchováva sa v pamäti PSRAM.</p>
+        </div>
+      </section>
+
+      <!-- 7. SPOLOČNÉ NASTAVENIA -->
+      <section id="tCommon" class="tab hide">
+
+        <!-- 1. WiFi & Sieťové profily (najčastejšie používané pri prenášaní) -->
+        <div class="card" id="cardWifi">
+          <h2 data-i18n="wifi">📶 WiFi Pripojenie</h2>
+          <p class="hint" id="wifiNow"></p>
+          <div class="row"><label data-i18n="network">Názov siete (SSID)</label>
+            <select id="ssid" style="flex:2 1 200px"></select>
+            <button class="sec" onclick="scan()" data-i18n="scan">Vyhľadať</button>
+          </div>
+          <div class="row"><label data-i18n="password">Heslo siete</label><input type="password" id="wpass" style="flex:2 1 200px"></div>
+          <div class="row"><label data-i18n="netHostLbl">Názov v sieti (Hostname)</label><input type="text" id="hostname" maxlength="32" placeholder="MeteoPlaneRadar" style="flex:2 1 200px"></div>
+          <p class="hint" id="wifiHintTxt"></p>
+          <div style="margin-top:12px;"><button onclick="saveWifi()" data-i18n="connect">Pripojiť k sieti</button></div>
+          <table style="margin-top:14px;">
+            <tr><td data-i18n="netHostLbl">Názov v sieti (Hostname):</td><td><span class="stat-val" id="netHost">MeteoPlaneRadar.local</span></td></tr>
+            <tr><td data-i18n="netIpLbl">IP adresa:</td><td><span class="stat-val" id="netIp">-</span></td></tr>
+            <tr><td data-i18n="netRssiLbl">Sila signálu (RSSI):</td><td><span class="stat-val" id="netRssi">-</span></td></tr>
+            <tr><td data-i18n="netMacLbl">MAC adresa:</td><td><span class="stat-val" id="netMac">-</span></td></tr>
+          </table>
+          <div id="savedWifiWrap" style="margin-top:16px;border-top:1px solid var(--line);padding-top:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <h3 style="margin:0;font-size:14px;color:var(--acc);" data-i18n="savedWifiHdr">💾 Uložené WiFi siete (max 5)</h3>
+              <span id="savedWifiCount" class="ver-pill">0 / 5</span>
+            </div>
+            <p class="hint" data-i18n="savedWifiHint" style="margin-bottom:10px;">Zariadenie si pamätá až 5 sietí (napr. doma a v práci) a pri štarte sa automaticky pripojí k najsilnejšej známej sieti.</p>
+            <div id="savedWifiList" style="display:flex;flex-direction:column;gap:6px;"></div>
+          </div>
+        </div>
+
+        <!-- 2. Jas displeja & Nočný režim -->
+        <div class="card">
+          <h2 data-i18n="brightness">☀️ Jas displeja & Nočný režim</h2>
+          <div class="row"><label data-i18n="briDay">Denný jas</label><input type="range" id="briDay" min="10" max="100"><span id="briDayV" class="stat-val"></span></div>
+          <div class="row"><label data-i18n="briNight">Nočný jas</label><input type="range" id="briNight" min="5" max="100"><span id="briNightV" class="stat-val"></span></div>
+          <div class="row"><label class="chk"><input type="checkbox" id="nightAuto"><span data-i18n="nightAuto">Prepínať nočný režim automaticky podľa západu/východu slnka</span></label></div>
+          <div class="row"><label class="chk"><input type="checkbox" id="ultraNight"><span data-i18n="ultraNight">🌙 Ultra Night režim (hlboká červená / spánkový monochróm, min. jas)</span></label></div>
+          <div class="row"><label data-i18n="nightOffset">Posun voči východu/západu (minúty)</label><input type="number" id="nightOffset" min="-120" max="120"></div>
+          <p class="hint" data-i18n="liveHint">Zmeny jasu sa ukladajú okamžite v reálnom čase.</p>
+        </div>
+
+        <!-- 3. Zvukové výstrahy & Bzučiak -->
+        <div class="card">
+          <h2 data-i18n="buzzerHdr">🔊 Zvukové výstrahy & Bzučiak</h2>
+          <p class="hint" data-i18n="buzzerHint">Nastavenie vstavaného bzučiaka na doske pre radarové výstrahy a odozvu.</p>
+          <div class="row">
+            <label class="chk" style="font-weight:600;font-size:14px;">
+              <input type="checkbox" id="buzzerOn">
+              <span data-i18n="bzMaster">Povoliť bzučiak (hlavný vypínač)</span>
+            </label>
+          </div>
+          <div class="grid" style="margin-top:10px;">
+            <label class="chk"><input type="checkbox" id="bzEmergency"><span data-i18n="bzEmergency">🚨 Núdzový squawk (7700 / 7600 / 7500)</span></label>
+            <label class="chk"><input type="checkbox" id="bzWatch"><span data-i18n="bzWatch">⭐ Sledovaný let (vstup do dosahu)</span></label>
+            <label class="chk"><input type="checkbox" id="bzTouch"><span data-i18n="bzTouch">👆 Akustická odozva na dotyk displeja</span></label>
+            <label class="chk"><input type="checkbox" id="bzHourly"><span data-i18n="bzHourly">🕒 Pípnutie na celú hodinu (chime)</span></label>
+            <label class="chk"><input type="checkbox" id="bzOverhead"><span data-i18n="bzOverhead">🔊 Prelet nad hlavou (Overhead alert)</span></label>
+            <label class="chk"><input type="checkbox" id="bzPrecip"><span data-i18n="bzPrecip">🌧️ Blížiace sa zrážky (Nowcasting alert)</span></label>
+            <label class="chk"><input type="checkbox" id="bzNightMute"><span data-i18n="bzNightMute">🌙 Nočný kľud (stíšiť bzučiak v noci)</span></label>
+          </div>
+          <div style="margin-top:12px;">
+            <button type="button" class="sec" onclick="testBuzzer()" data-i18n="btnTestBuzzer">🔊 Otestovať bzučiak</button>
+          </div>
+        </div>
+
+        <!-- 4. Automatické striedanie obrazoviek -->
+        <div class="card">
+          <h2 data-i18n="rotateHdr">🔄 Automatické striedanie obrazoviek</h2>
+          <div class="row"><label data-i18n="autoRotate">Čas zobrazenia obrazovky (sekundy, 0 = vypnuté)</label>
+            <input type="number" id="autoRotate" min="0" max="3600" step="5">
+          </div>
+          <p class="hint" data-i18n="rotHint">Striedanie pozastaví potiahnutie prstom alebo prepnutie z prehliadača. Otvorený detail lietadla striedanie pozastaví.</p>
+        </div>
+
+        <!-- 5. Orientácia & Jednotky -->
         <div class="card">
           <h2 data-i18n="planesView">🧭 Orientácia & Jednotky</h2>
           <div class="row"><label data-i18n="topBearing">Smer hore na radare</label>
@@ -392,38 +531,70 @@ td:first-child{color:var(--mut);width:45%}
           <p class="hint" data-i18n="planesViewHint">Nastavte smer podľa toho, kam smeruje váš výhľad. Meteoradar sa zámerne orientuje na sever.</p>
         </div>
 
+        <!-- 6. Časové pásmo & Posun GMT -->
         <div class="card">
-          <h2 data-i18n="rotateHdr">🔄 Automatické striedanie obrazoviek</h2>
-          <div class="row"><label data-i18n="autoRotate">Čas zobrazenia obrazovky (sekundy, 0 = vypnuté)</label>
-            <input type="number" id="autoRotate" min="0" max="3600" step="5">
+          <h2 data-i18n="tzHdr">🕒 Časové pásmo & Posun GMT</h2>
+          <div class="row"><label data-i18n="tzSelectLbl">Časové pásmo / Posun</label>
+            <select id="timezone" style="flex:2 1 240px">
+              <optgroup label="Európske časové pásma (automatický letný/zimný čas)">
+                <option value="CET-1CEST,M3.5.0,M10.5.0/3">Stredoeurópsky čas (CET/CEST: SK, CZ, AT, DE... UTC+1 / leto UTC+2)</option>
+                <option value="EET-2EEST,M3.5.0/3,M10.5.0/4">Východoeurópsky čas (EET/EEST: UA, FI, GR, RO... UTC+2 / leto UTC+3)</option>
+                <option value="GMT0BST,M3.5.0/1,M10.5.0">Západoeurópsky čas / UK (WET/WEST: UK, IE, PT... UTC+0 / leto UTC+1)</option>
+              </optgroup>
+              <optgroup label="Svetový referenčný čas">
+                <option value="UTC0">UTC / Zulu / GMT (UTC+0 bez zmeny času)</option>
+              </optgroup>
+              <optgroup label="Fixné posuny voči UTC (bez zmeny času)">
+                <option value="<-12>12">UTC-12:00</option>
+                <option value="<-11>11">UTC-11:00 (Samoa)</option>
+                <option value="<-10>10">UTC-10:00 (Hawaii)</option>
+                <option value="<-09>9">UTC-09:00 (Alaska)</option>
+                <option value="<-08>8">UTC-08:00 (PST / US Pacific)</option>
+                <option value="<-07>7">UTC-07:00 (MST / US Mountain)</option>
+                <option value="<-06>6">UTC-06:00 (CST / US Central)</option>
+                <option value="<-05>5">UTC-05:00 (EST / US Eastern)</option>
+                <option value="<-04>4">UTC-04:00 (AST / Atlantic)</option>
+                <option value="<-03>3">UTC-03:00 (Brazília, Argentína)</option>
+                <option value="<-02>2">UTC-02:00</option>
+                <option value="<-01>1">UTC-01:00 (Azory)</option>
+                <option value="<+01>-1">UTC+01:00 (CET fixný)</option>
+                <option value="<+02>-2">UTC+02:00 (EET fixný)</option>
+                <option value="<+03>-3">UTC+03:00 (Moskva, Saudská Arábia, Turecko)</option>
+                <option value="<+0330>-3:30">UTC+03:30 (Teherán)</option>
+                <option value="<+04>-4">UTC+04:00 (Dubaj, Baku)</option>
+                <option value="<+0430>-4:30">UTC+04:30 (Kábul)</option>
+                <option value="<+05>-5">UTC+05:00 (Pakistan, Uzbekistan)</option>
+                <option value="<+0530>-5:30">UTC+05:30 (India, Srí Lanka)</option>
+                <option value="<+06>-6">UTC+06:00 (Bangladéš, Astana)</option>
+                <option value="<+07>-7">UTC+07:00 (Bangkok, Jakarta)</option>
+                <option value="<+08>-8">UTC+08:00 (Singapur, Peking, Perth)</option>
+                <option value="<+09>-9">UTC+09:00 (Tokio, Soul)</option>
+                <option value="<+0930>-9:30">UTC+09:30 (Adelaide)</option>
+                <option value="<+10>-10">UTC+10:00 (Sydney, Melbourne)</option>
+                <option value="<+11>-11">UTC+11:00 (Šalamúnove ostrovy)</option>
+                <option value="<+12>-12">UTC+12:00 (Auckland, Fidži)</option>
+                <option value="<+13>-13">UTC+13:00 (Tonga, Samoa)</option>
+                <option value="<+14>-14">UTC+14:00 (Kiritimati)</option>
+              </optgroup>
+            </select>
+            <button type="button" class="sec" onclick="detectBrowserTz()" data-i18n="btnDetectTz">🌐 Zistiť z prehliadača</button>
           </div>
-          <p class="hint" data-i18n="rotHint">Striedanie pozastaví potiahnutie prstom alebo prepnutie z prehliadača. Otvorený detail lietadla striedanie pozastaví.</p>
+          <p class="hint" data-i18n="tzHint">Určuje posun času voči UTC pre hodiny, radarové snímky a predpoveď počasia. Pre Slovensko a Česko zvoľte CET/CEST (automatický letný a zimný čas).</p>
         </div>
 
+        <!-- 7. Domovská poloha -->
         <div class="card">
-          <h2 data-i18n="brightness">☀️ Jas displeja & Nočný režim</h2>
-          <div class="row"><label data-i18n="briDay">Denný jas</label><input type="range" id="briDay" min="10" max="100"><span id="briDayV" class="stat-val"></span></div>
-          <div class="row"><label data-i18n="briNight">Nočný jas</label><input type="range" id="briNight" min="5" max="100"><span id="briNightV" class="stat-val"></span></div>
-          <div class="row"><label class="chk"><input type="checkbox" id="nightAuto"><span data-i18n="nightAuto">Prepínať nočný režim automaticky podľa západu/východu slnka</span></label></div>
-          <div class="row"><label data-i18n="nightOffset">Posun voči východu/západu (minúty)</label><input type="number" id="nightOffset" min="-120" max="120"></div>
-          <p class="hint" data-i18n="liveHint">Zmeny jasu sa ukladajú okamžite v reálnom čase.</p>
-        </div>
-
-        <div class="card" id="cardWifi">
-          <h2 data-i18n="wifi">📶 WiFi Pripojenie</h2>
-          <p class="hint" id="wifiNow"></p>
-          <div class="row"><label data-i18n="network">Názov siete (SSID)</label>
-            <select id="ssid" style="flex:2 1 200px"></select>
-            <button class="sec" onclick="scan()" data-i18n="scan">Vyhľadať</button>
+          <h2 data-i18n="location">📍 Domovská poloha</h2>
+          <div class="row"><label data-i18n="findCity">Vyhľadať mesto</label>
+            <input type="text" id="q" style="flex:2 1 200px" placeholder="Hertník, Bardejov, Praha...">
+            <button class="sec" onclick="geo()" data-i18n="search">Hľadať</button>
           </div>
-          <div class="row"><label data-i18n="password">Heslo siete</label><input type="password" id="wpass" style="flex:2 1 200px"></div>
-          <p class="hint" id="wifiHintTxt"></p>
-          <div style="margin-top:12px;"><button onclick="saveWifi()" data-i18n="connect">Pripojiť k sieti</button></div>
-          <table style="margin-top:14px;">
-            <tr><td data-i18n="netIpLbl">IP adresa:</td><td><span class="stat-val" id="netIp">-</span></td></tr>
-            <tr><td data-i18n="netRssiLbl">Sila signálu (RSSI):</td><td><span class="stat-val" id="netRssi">-</span></td></tr>
-            <tr><td data-i18n="netMacLbl">MAC adresa:</td><td><span class="stat-val" id="netMac">-</span></td></tr>
-          </table>
+          <div class="row hide" id="geoRow"><label data-i18n="found">Nájdené výsledky</label>
+            <select id="geoSel" style="flex:2 1 240px" onchange="pickCity()"></select>
+          </div>
+          <div class="row"><label data-i18n="lat">Zemepisná šírka (°N)</label><input type="number" step="0.0001" id="lat"></div>
+          <div class="row"><label data-i18n="lon">Zemepisná dĺžka (°E)</label><input type="number" step="0.0001" id="lon"></div>
+          <p class="hint" data-i18n="locHint">Zmena polohy vyžaduje reštart pre prepočet máp a predpovede.</p>
         </div>
 
         <div class="card" id="cardGithubOta">
@@ -487,13 +658,31 @@ td:first-child{color:var(--mut);width:45%}
           <button class="sec" onclick="toggleLegendsRemote()" style="background:#1d293d;color:var(--acc);border-color:var(--acc);flex:1;" data-i18n="btnDblTap">🔄 Legenda</button>
           <button class="sec" onclick="stepScreen(1)" data-i18n="btnNext" style="flex:1;">Nasled. &#8594;</button>
         </div>
-        <div class="row" style="justify-content:center;gap:8px;margin-top:10px;background:#0a0e17;border:1px solid var(--line);border-radius:8px;padding:8px 10px;">
-          <span data-i18n="rangeLbl" style="font-weight:600;color:var(--mut);font-size:12.5px;">Rozsah:</span>
-          <button class="sec" id="rMinus" onclick="stepRange(-1)" data-i18n="btnDec" style="padding:4px 10px;">&minus;</button>
-          <b id="rangeNow" class="stat-val" style="min-width:65px;text-align:center;font-size:13.5px;color:var(--acc)">&ndash;</b>
-          <button class="sec" id="rPlus" onclick="stepRange(1)" data-i18n="btnInc" style="padding:4px 10px;">+</button>
+        <div class="range-ctrl-row" id="rangeControlRow">
+          <span data-i18n="rangeLbl" class="range-lbl">Mierka:</span>
+          <div class="range-stepper">
+            <button type="button" class="btn-step" id="rMinus" onclick="stepRange(-1)" data-i18n-title="btnDec" title="Priblížiť (− km)">−</button>
+            <span id="rangeNow" class="range-val">–</span>
+            <button type="button" class="btn-step" id="rPlus" onclick="stepRange(1)" data-i18n-title="btnInc" title="Oddialiť (+ km)">+</button>
+          </div>
         </div>
         <div class="row" id="scrBtns" style="justify-content:center;gap:5px;margin-top:10px;"></div>
+      </div>
+
+      <!-- Snímka displeja -->
+      <div class="card" id="cardScreenshot">
+        <h2 data-i18n="scrShotHdr">📸 Snímka displeja</h2>
+        <div style="text-align:center;margin:10px 0;">
+          <div id="scrShotWrap" style="position:relative;display:inline-block;margin:0 auto;">
+            <img id="scrShotImg" class="hide" style="width:200px;height:200px;border-radius:50%;border:2px solid var(--acc);background:#000;margin:0 auto;box-shadow:0 4px 16px rgba(0,0,0,0.6);object-fit:cover;" alt="Display Screenshot">
+            <div id="scrShotPlaceholder" style="width:200px;height:200px;border-radius:50%;border:2px dashed var(--line);display:flex;align-items:center;justify-content:center;margin:0 auto;color:var(--mut);font-size:13px;" data-i18n="scrShotNone">Kliknite pre zachytenie</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap;">
+          <button type="button" class="sec" id="btnScrShot" onclick="takeScreenshot()" data-i18n="btnTakeScrShot" style="flex:1;">📸 Zachytiť obrazovku</button>
+          <a id="scrShotDl" href="/api/screenshot.bmp" download="screenshot.bmp" class="hide" style="text-decoration:none;"><button type="button" class="sec" data-i18n="btnDlScrShot">💾 Stiahnuť</button></a>
+        </div>
+        <div id="scrShotSpin" class="hide" style="text-align:center;font-size:12px;color:var(--mut);margin-top:6px;">⏳ Generujem snímku...</div>
       </div>
 
       <!-- ESP32-S3 CPU & Teplota -->
@@ -544,10 +733,12 @@ td:first-child{color:var(--mut);width:45%}
 
       <!-- Hardware RTC -->
       <div class="card">
-        <h2 data-i18n="hwRtc">⏱️ Hardware RTC Hodiny (PCF85063)</h2>
+        <h2 data-i18n="hwRtc">⏱️ Systémový čas & RTC (PCF85063)</h2>
         <table>
-          <tr><td data-i18n="hwRtcLbl">Stav RTC čipu:</td><td><span class="pill pill-ok" id="hwRtcState">Aktívny (I2C 0x51)</span></td></tr>
+          <tr><td data-i18n="hwLocalTimeLbl">Miestny čas:</td><td><span class="stat-val" id="hwLocalTime" style="color:var(--acc);font-weight:700;">-</span></td></tr>
+          <tr><td data-i18n="hwTzLbl">Pásmo / Posun:</td><td><span class="stat-val" id="hwTzOffset">-</span></td></tr>
           <tr><td data-i18n="hwRtcTimeLbl">Čas v RTC čipe:</td><td><span class="stat-val" id="hwRtcTime">-</span></td></tr>
+          <tr><td data-i18n="hwRtcLbl">Stav RTC čipu:</td><td><span class="pill pill-ok" id="hwRtcState">Aktívny (I2C 0x51)</span></td></tr>
         </table>
         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
           <button class="sec" onclick="syncRtcNtp()" data-i18n="btnSyncNtp" style="flex:1;">🌐 NTP sync</button>
@@ -592,11 +783,13 @@ const D={
   btnShowOnDisp:"Zobrazit na displeji",liveDispLbl:"Na displeji:",
   scrClockActive:"Zahrnout obrazovku do automatického střídání",scrPlanesActive:"Zahrnout obrazovku do automatického střídání",scrMeteoActive:"Zahrnout obrazovku do automatického střídání",scrTacticalActive:"Zahrnout obrazovku do automatického střídání",scrForecastActive:"Zahrnout obrazovku do automatického střídání",
   rotateHdr:"🔄 Automatické střídání obrazovek",
-  remote:"🎮 Dálkové ovládání",rangeLbl:"Rozsah radaru:",
-  btnPrev:"← Předchozí",btnDblTap:"🔄 Dvojklik / Legenda",btnNext:"Následující →",btnDec:"− Přiblížit (− km)",btnInc:"+ Oddálit (+ km)",
+  remote:"🎮 Dálkové ovládání",rangeLbl:"Měřítko:",
+  btnPrev:"← Předchozí",btnDblTap:"🔄 Dvojklik / Legenda",btnNext:"Následující →",btnDec:"Přiblížit (− km)",btnInc:"Oddálit (+ km)",
   remoteHint:"Rozsah se mění na obrazovkách Letadla, Meteoradar a Taktický radar. Zásah pozastaví automatické střídání.",
   location:"📍 Domovská poloha",findCity:"Vyhledat město",search:"Hledat",found:"Nalezené výsledky",lat:"Zeměpisná šířka (°N)",lon:"Zeměpisná délka (°E)",
   locHint:"Změna polohy vyžaduje restart pro přepočet map a předpovědi.",
+  tzHdr:"🕒 Časové pásmo & Posun GMT",tzSelectLbl:"Časové pásmo / Posun GMT",btnDetectTz:"🌐 Zjistit z prohlížeče",
+  tzHint:"Určuje posun času vůči UTC pro hodiny, radarové snímky a předpověď počasí. Pro ČR a SR zvolte CET/CEST (automatický letní a zimní čas).",
   planesView:"🧭 Orientace & Jednotky",topBearing:"Směr nahoře na radaru",metric:"Metrické jednotky (km, km/h, m místo NM, kt, ft)",
   tb0:"Sever (Sever nahoře / North-Up)",tb45:"Severovýchod (45°)",tb90:"Východ (90°)",tb135:"Jihovýchod (135°)",tb180:"Jih (180°)",tb225:"Jihozápad (225°)",tb270:"Západ (270°)",tb315:"Severozápad (315°)",
   planesViewHint:"Nastavte směr podle toho, kam se díváte z okna. Meteoradar je orientován na sever.",
@@ -609,6 +802,13 @@ const D={
   planes:"✈️ ADS-B Filtry & Sledování",altMin:"Minimální letová výška (ft)",altMax:"Maximální letová výška (ft)",onlyCs:"Jen letadla s volacím znakem (callsign)",
   sqAlert:"Zvýraznit a upozornit na nouzové squawky (7500/7600/7700)",watch:"Sledovaný let (Callsign nebo ICAO hex)",
   planesHint:"Filtry se týkají jen kreslení. Nouzový squawk ani sledované letadlo neschovají.",
+  typeFiltersTitle:"🎯 Filtr typů strojů na radaru",typeFiltersHint:"Vyberte kategorie strojů, které se mají zobrazovat na radarové mapě. Nouzové a sledované lety se zobrazí vždy.",
+  tfAirliner:"✈️ Dopravní letadla (A320, B737...)",tfLight:"🛩️ Malá a sportovní letadla (Cessna, Piper...)",
+  tfHeli:"🚁 Vrtulníky a záchranné složky (HEMS, ATE...)",tfMil:"⚔️ Vojenské letectvo a stíhačky",
+  tfHeavy:"🛫 Těžké obří letouny (A380, B747, Beluga...)",tfGlider:"🪂 Větroně a kluzáky (Gliders)",
+  buzzerHdr:"🔊 Zvukové výstrahy & Bzučák",buzzerHint:"Nastavení vestavěného bzučáku na desce pro radarové výstrahy a odezvu.",
+  bzMaster:"Povolit bzučák (hlavní vypínač)",bzEmergency:"🚨 Nouzový squawk (7700 / 7600 / 7500)",bzWatch:"⭐ Sledovaný let (vstup do dosahu)",
+  bzTouch:"👆 Akustická odezva na dotyk displeje",bzHourly:"🕒 Pípnutí v celou hodinu (chime)",bzNightMute:"🌙 Noční klid (ztlumit bzučák v noci)",btnTestBuzzer:"🔊 Otestovat bzučák",
   brightness:"☀️ Jas displeje & Noční režim",briDay:"Denní jas",briNight:"Noční jas",nightAuto:"Přepínat noční režim automaticky podle slunce",
   nightOffset:"Posun proti východu/západu (minuty)",clockHdr:"🕒 Ciferník hodin",secStyle:"Styl vteřinového prstence",
   secOff:"Vypnuto",secDots:"Tečky (Dots)",secLine:"Plná čára (Line)",secComet:"Kometa (Comet)",
@@ -619,14 +819,16 @@ const D={
   radarWidgets:"Prvky radarových map",rTrails:"Trajektorie letadel (Trails)",rNearest:"Vektor k nejbližšímu letadlu",rAirports:"Letiště (Runway ikony)",rRings:"Kilometrové kružnice dosahu",
   tacticalHdr:"🎯 Taktické zobrazení",tacticalDesc:"Kombinovaný taktický radar spojuje ADS-B lety a bouřkové radarové odrazy do jedné společné obrazovky v reálném čase.",tacticalHint:"Filtry výšky a volacích znaků se přebírají z nastavení Letadel, zdroj srážek z Meteoradaru.",
   forecastHdr:"⛅ Předpověď počasí",forecastDesc:"Předpověď počasí se automaticky stahuje ze služby Open-Meteo pro vaši domovskou polohu.",btnGoLocSettings:"📍 Nastavit domovskou polohu ve Společných nastaveních",
-  hwRtc:"⏱️ Hardware RTC Hodiny (PCF85063)",hwRtcLbl:"Stav RTC čipu:",hwRtcTimeLbl:"Čas v RTC čipu:",btnSyncNtp:"🌐 NTP sync",btnSyncBrowser:"💻 Z prohlížeče",hwI2c:"🔍 I2C Sběrnice (Bus Inspector)",
+  hwRtc:"⏱️ Systémový čas & RTC (PCF85063)",hwLocalTimeLbl:"Místní čas:",hwTzLbl:"Pásmo / Posun:",hwRtcLbl:"Stav RTC čipu:",hwRtcTimeLbl:"Čas v RTC čipu:",btnSyncNtp:"🌐 NTP sync",btnSyncBrowser:"💻 Z prohlížeče",hwI2c:"🔍 I2C Sběrnice (Bus Inspector)",
   liveHint:"Změny jasu a prvků se ukládají okamžitě v reálném čase.",
   hwCpu:"⚡ ESP32-S3 & Teplota",hwChipModel:"Model čipu:",hwRev:"Rev",hwCores:"jádra",hwCpuFreqLbl:"Frekvence CPU:",hwCpuTempLbl:"Teplota CPU:",hwResetLbl:"Důvod restartu:",hwUptimeLbl:"Doba běhu (Uptime):",
   hwMem:"💾 Paměť & Úložiště",hwHeapLbl:"Interní RAM (Heap):",hwPsramLbl:"Octal PSRAM (8 MB):",hwFlashLbl:"Flash paměť:",
   hwSensors:"🧭 6-Axis IMU Senzor (QMI8658)",hwImuLbl:"Stav senzoru:",hwImuActive:"Aktivní (I2C 0x6B)",hwAxLbl:"Akcelerometr (g):",hwGxLbl:"Gyroskop (°/s):",hwTiltLbl:"Náklon (Pitch / Roll):",hwDblTapLbl:"Gesto poklepání:",hwDblTapOn:"Double-Tap zapnuto",
   hwPeripherals:"🔌 Periferie & Displej",hwDispLbl:"Displej:",hwTouchLbl:"Dotykový panel:",hwExpLbl:"I/O Expandér:",
   wifi:"📶 WiFi Připojení",network:"Název sítě (SSID)",password:"Heslo sítě",scan:"Vyhledat",connect:"Připojit k síti",
-  netIpLbl:"IP adresa:",netRssiLbl:"Síla signálu (RSSI):",netMacLbl:"MAC adresa:",
+  savedWifiHdr:"💾 Uložené WiFi sítě (max 5)",savedWifiHint:"Zařízení si pamatuje až 5 sítí (např. doma a v práci) a při startu se automaticky připojí k nejsilnější dostupné síti.",
+  delWifiConfirm:"Opravdu chcete zapomenout WiFi síť",activeNet:"(aktivní)",btnForgetNet:"Smazat",noSavedWifi:"Žádné uložené sítě",
+  netHostLbl:"Název v síti (Hostname):",netIpLbl:"IP adresa:",netRssiLbl:"Síla signálu (RSSI):",netMacLbl:"MAC adresa:",
   wifiHint:"Po uložení se zařízení připojí a přístupový bod zmizí.",
   wifiHintSta:"Změna sítě přeruší spojení. Při neúspěchu zařízení vytvoří vlastní síť MeteoPlaneRadar.",
   wifiNow:"Připojeno k síti",system:"🔒 Zabezpečení správce",adminPass:"Současné heslo",newPass:"Nové heslo",
@@ -642,7 +844,13 @@ const D={
   otaUpToDate:"Máte nejnovější verzi",otaNewAvail:"K dispozici je nová verze!",otaChecking:"Kontroluji GitHub...",
   otaDownloading:"Stahování a zápis firmwaru...",otaSuccess:"Aktualizace úspěšná! Restartuji...",otaErr:"Chyba aktualizace",
   otaNoAsset:"Vydání neobsahuje soubor OTA (-ota.bin)",otaConfirm:"Opravdu spustit aktualizaci firmwaru na verzi",
-  scrClock:"Hodiny & Astro",scrPlanes:"Letadla radar",scrMeteo:"Meteoradar",scrTactical:"Taktický radar",scrForecast:"Předpověď počasí",scrSettings:"Nastavení"
+  scrClock:"Hodiny & Astro",scrPlanes:"Letadla radar",scrMeteo:"Meteoradar",scrTactical:"Taktický radar",scrForecast:"Předpověď počasí",scrInfo:"Info & Statistiky",scrSettings:"Nastavení",
+  ultraNight:"🌙 Ultra Night režim (hluboká červená / spánkový monochróm, min. jas)",
+  tabScrInfo:"ℹ️ Info & Statistiky",scrInfoHdr:"Info & Denní statistika letů",scrInfoActive:"Zahrnout obrazovku do automatického střídání",
+  statsTrafficHdr:"✈️ Dnešní letecká statistika",btnResetStats:"🔄 Resetovat",stUnique:"Unikátní letadla dnes:",stTopSpeed:"Nejvyšší rychlost:",stMaxDist:"Maximální vzdálenost:",stAltSpan:"Rozpětí výšek:",stReports:"Přijaté ADS-B zprávy:",statsHint:"Statistika se automaticky nuluje o půlnoci a uchovává se v paměti PSRAM.",confirmResetStats:"Opravdu resetovat dnešní statistiku letů?",statsResetOk:"Statistiky byly resetovány",
+  cOver:"✈️ Let nad hlavou (Overhead widget)",ovRad:"Poloměr přeletu nad hlavou (km)",bzOverhead:"🔊 Přelet nad hlavou (Overhead výstraha)",
+   cPrecip:"🌧️ Výstraha blížících se srážek",bzPrecip:"🔊 Pípnutí při blížících se srážkách",precipTrackerHdr:"🌧️ Detekce blížících se srážek (Nowcasting)",precipHint:"Vektorová analýza pohybu frontu (TREC). Upozorní na déšť, kroupy nebo sníh, pouze pokud srážky směřují přímo k vaší poloze.",precipLiveHdr:"Aktuální stav nowcastingu:",
+  scrShotHdr:"📸 Snímek displeje",scrShotNone:"Klikněte pro zachycení",btnTakeScrShot:"📸 Zachytit obrazovku",btnDlScrShot:"💾 Stáhnout BMP",scrShotOk:"Snímek úspěšně načten",scrShotErr:"Chyba načtení snímku"
  },
  sk:{
   tabScrClock:"🕒 Hodiny",tabScrPlanes:"✈️ Lietadlá",tabScrMeteo:"🌧️ Meteoradar",tabScrTactical:"🎯 Taktický radar",tabScrForecast:"⛅ Predpoveď",tabCommon:"⚙️ Spoločné nastavenia",
@@ -650,11 +858,13 @@ const D={
   btnShowOnDisp:"Zobraziť na displeji",liveDispLbl:"Na displeji:",
   scrClockActive:"Zahrnúť obrazovku do automatického striedania",scrPlanesActive:"Zahrnúť obrazovku do automatického striedania",scrMeteoActive:"Zahrnúť obrazovku do automatického striedania",scrTacticalActive:"Zahrnúť obrazovku do automatického striedania",scrForecastActive:"Zahrnúť obrazovku do automatického striedania",
   rotateHdr:"🔄 Automatické striedanie obrazoviek",
-  remote:"🎮 Diaľkový ovládač",rangeLbl:"Rozsah radaru:",
-  btnPrev:"← Predchádzajúca",btnDblTap:"🔄 Dvojklik / Legenda",btnNext:"Nasledujúca →",btnDec:"− Priblížiť (− km)",btnInc:"+ Oddialiť (+ km)",
+  remote:"🎮 Diaľkový ovládač",rangeLbl:"Mierka:",
+  btnPrev:"← Predchádzajúca",btnDblTap:"🔄 Dvojklik / Legenda",btnNext:"Nasledujúca →",btnDec:"Priblížiť (− km)",btnInc:"Oddialiť (+ km)",
   remoteHint:"Rozsah sa mení na obrazovkách Lietadlá, Meteoradar a Taktický radar. Zásah pozastaví automatické striedanie.",
   location:"📍 Domovská poloha",findCity:"Vyhľadať mesto",search:"Hľadať",found:"Nájdené výsledky",lat:"Zemepisná šírka (°N)",lon:"Zemepisná dĺžka (°E)",
   locHint:"Zmena polohy vyžaduje reštart pre prepočet máp a predpovede.",
+  tzHdr:"🕒 Časové pásmo & Posun GMT",tzSelectLbl:"Časové pásmo / Posun GMT",btnDetectTz:"🌐 Zistiť z prehliadača",
+  tzHint:"Určuje posun času voči UTC pre hodiny, radarové snímky a predpoveď počasia. Pre Slovensko a Česko zvoľte CET/CEST (automatický letný a zimný čas).",
   planesView:"🧭 Orientácia & Jednotky",topBearing:"Smer hore na radare",metric:"Metrické jednotky (km, km/h, m namiesto NM, kt, ft)",
   tb0:"Sever (Sever hore / North-Up)",tb45:"Severovýchod (45°)",tb90:"Východ (90°)",tb135:"Juhovýchod (135°)",tb180:"Juh (180°)",tb225:"Juhozápad (225°)",tb270:"Západ (270°)",tb315:"Severozápad (315°)",
   planesViewHint:"Nastavte smer podľa toho, kam smeruje váš výhľad. Meteoradar sa zámerne orientuje na sever.",
@@ -667,24 +877,33 @@ const D={
   planes:"✈️ ADS-B Filtre & Sledovanie",altMin:"Minimálna letová výška (ft)",altMax:"Maximálna letová výška (ft)",onlyCs:"Iba lietadlá so známym volacím znakom (callsign)",
   sqAlert:"Zvýrazniť a upozorniť na núdzové squawky (7500 / 7600 / 7700)",watch:"Sledovaný let (Callsign alebo ICAO hex)",
   planesHint:"Filtre ovplyvňujú len vykresľovanie. Núdzový squawk ani sledované lietadlo filter nikdy neskryje.",
+  typeFiltersTitle:"🎯 Filter typov strojov na radare",typeFiltersHint:"Vyberte kategórie strojov, ktoré sa majú zobrazovať na radarovej mape. Núdzové a sledované lety sa zobrazia vždy.",
+  tfAirliner:"✈️ Dopravné lietadlá (A320, B737...)",tfLight:"🛩️ Malé a športové lietadlá (Cessna, Piper...)",
+  tfHeli:"🚁 Vrtuľníky a záchranári (ATE, HEMS...)",tfMil:"⚔️ Vojenské letectvo a stíhačky",
+  tfHeavy:"🛫 Ťažké nákladné obry (A380, B747, Beluga...)",tfGlider:"🪂 Vetrone a klzáky (Gliders)",
+  buzzerHdr:"🔊 Zvukové výstrahy & Bzučiak",buzzerHint:"Nastavenie vstavaného bzučiaka na doske pre radarové výstrahy a odozvu.",
+  bzMaster:"Povoliť bzučiak (hlavný vypínač)",bzEmergency:"🚨 Núdzový squawk (7700 / 7600 / 7500)",bzWatch:"⭐ Sledovaný let (vstup do dosahu)",
+  bzTouch:"👆 Akustická odozva na dotyk displeja",bzHourly:"🕒 Pípnutie na celú hodinu (chime)",bzNightMute:"🌙 Nočný kľud (stíšiť bzučiak v noci)",btnTestBuzzer:"🔊 Otestovať bzučiak",
   brightness:"☀️ Jas displeja & Nočný režim",briDay:"Denný jas",briNight:"Nočný jas",nightAuto:"Prepínať nočný režim automaticky podľa západu/východu slnka",
   nightOffset:"Posun voči východu/západu (minúty)",clockHdr:"🕒 Ciferník hodín",secStyle:"Štýl sekundového prstenca",
   secOff:"Vypnuté",secDots:"Bodky (Dots)",secLine:"Plná čiara (Line)",secComet:"Kométa (Comet)",
   secRadar:"Radarový lúč (Sweep)",secTicks:"Hodinárske indexy (Ticks)",secOrbit:"Satelit na orbite (Orbit)",
   clockColor:"Farba číslic hodín",secColor:"Farba sekundového prstenca",
   clockStyle:"Štýl ciferníka",clkDigital:"Digitálny klasický",clkAnalog:"Letecký kokpitový analóg (Aviator)",clkOrbital:"Planetárne prstence (Orbital Gauges)",clkHud:"Stíhací priehľadový displej (Fighter HUD)",clkRegulator:"Astronomický regulátor (Régulateur)",clkStacked:"Vertikálna typografia (Stacked Bold)",clkMinimal:"Minimalistický moderný (Nordic)",
-  clockWidgets:"Prvky na obrazovke hodín",cDate:"Dátum",cWx:"Počasie & teplota",cWind:"Rýchlosť vetra",cMoon:"Fáza mesiaca",cAstro:"24h solárny prstenec",nightClockOnly:"V noci iba Hodiny (zastavit radary)",
+  clockWidgets:"Prvky na obrazovke hodín",cDate:"Dátum",cWx:"Počasie & teplota",cWind:"Rychlosť vetra",cMoon:"Fáza mesiaca",cAstro:"24h solárny prstenec",nightClockOnly:"V noci iba Hodiny (zastavit radary)",
   radarWidgets:"Prvky radarových máp",rTrails:"Trajektórie lietadiel (Trails)",rNearest:"Vektor k najbližšiemu lietadlu",rAirports:"Letiská (Runway ikony)",rRings:"Kilometrové kružnice dosahu",
   tacticalHdr:"🎯 Taktické zobrazenie",tacticalDesc:"Kombinovaný taktický radar spája ADS-B lety a búrkové radarové odrazy do jednej spoločnej obrazovky v reálnom čase.",tacticalHint:"Filtre výšky a volacích znakov sa preberajú z nastavení Lietadiel, zdroj zrážok z Meteoradaru.",
   forecastHdr:"⛅ Predpoveď počasia",forecastDesc:"Predpoveď počasia sa automaticky sťahuje zo služby Open-Meteo pre vašu domovskú polohu.",btnGoLocSettings:"📍 Nastaviť domovskú polohu v Spoločných nastaveniach",
-  hwRtc:"⏱️ Hardware RTC Hodiny (PCF85063)",hwRtcLbl:"Stav RTC čipu:",hwRtcTimeLbl:"Čas v RTC čipe:",btnSyncNtp:"🌐 NTP sync",btnSyncBrowser:"💻 Z prehliadača",hwI2c:"🔍 I2C Zbernica (Bus Inspector)",
+  hwRtc:"⏱️ Systémový čas & RTC (PCF85063)",hwLocalTimeLbl:"Miestny čas:",hwTzLbl:"Pásmo / Posun:",hwRtcLbl:"Stav RTC čipu:",hwRtcTimeLbl:"Čas v RTC čipe:",btnSyncNtp:"🌐 NTP sync",btnSyncBrowser:"💻 Z prehliadača",hwI2c:"🔍 I2C Zbernica (Bus Inspector)",
   liveHint:"Zmeny jasu a prvkov sa ukladajú okamžite v reálnom čase.",
   hwCpu:"⚡ ESP32-S3 & Teplota",hwChipModel:"Model čipu:",hwRev:"Rev",hwCores:"jadrá",hwCpuFreqLbl:"Frekvencia CPU:",hwCpuTempLbl:"Teplota CPU:",hwResetLbl:"Dôvod reštartu:",hwUptimeLbl:"Doba behu (Uptime):",
   hwMem:"💾 Pamäť & Úložisko",hwHeapLbl:"Interná RAM (Heap):",hwPsramLbl:"Octal PSRAM (8 MB):",hwFlashLbl:"Flash pamäť:",
   hwSensors:"🧭 6-Axis IMU Senzor (QMI8658)",hwImuLbl:"Stav senzora:",hwImuActive:"Aktívny (I2C 0x6B)",hwAxLbl:"Akcelerometer (g):",hwGxLbl:"Gyroskop (°/s):",hwTiltLbl:"Náklon (Pitch / Roll):",hwDblTapLbl:"Gesto poklepania:",hwDblTapOn:"Double-Tap zapnuté",
   hwPeripherals:"🔌 Periférie & Displej",hwDispLbl:"Displej:",hwTouchLbl:"Dotykový panel:",hwExpLbl:"I/O Expandér:",
   wifi:"📶 WiFi Pripojenie",network:"Názov siete (SSID)",password:"Heslo siete",scan:"Vyhľadať",connect:"Pripojiť k sieti",
-  netIpLbl:"IP adresa:",netRssiLbl:"Sila signálu (RSSI):",netMacLbl:"MAC adresa:",
+  savedWifiHdr:"💾 Uložené WiFi siete (max 5)",savedWifiHint:"Zariadenie si pamätá až 5 sietí (napr. doma a v práci) a pri štarte sa automaticky pripojí k najsilnejšej dostupnej sieti.",
+  delWifiConfirm:"Naozaj chcete zabudnúť WiFi sieť",activeNet:"(aktívna)",btnForgetNet:"Zmazať",noSavedWifi:"Žiadne uložené siete",
+  netHostLbl:"Názov v sieti (Hostname):",netIpLbl:"IP adresa:",netRssiLbl:"Sila signálu (RSSI):",netMacLbl:"MAC adresa:",
   wifiHint:"Po uložení sa zariadenie pripojí a prístupový bod zmizne.",
   wifiHintSta:"Zmena siete preruší spojenie. Pri neúspěchu zariadenie vytvorí vlastnú sieť MeteoPlaneRadar.",
   wifiNow:"Pripojené k sieti",system:"🔒 Zabezpečenie správcu",adminPass:"Súčasné heslo",newPass:"Nové heslo",
@@ -700,7 +919,13 @@ const D={
   otaUpToDate:"Máte najnovšiu verziu",otaNewAvail:"K dispozícii je nová verzia!",otaChecking:"Kontrolujem GitHub...",
   otaDownloading:"Sťahovanie a zápis firmvéru...",otaSuccess:"Aktualizácia úspešná! Reštartujem...",otaErr:"Chyba aktualizácie",
   otaNoAsset:"Vydanie neobsahuje súbor OTA (-ota.bin)",otaConfirm:"Naozaj spustiť aktualizáciu firmvéru na verziu",
-  scrClock:"Hodiny & Astro",scrPlanes:"Lietadlá radar",scrMeteo:"Meteoradar",scrTactical:"Taktický radar",scrForecast:"Predpoveď počasia",scrSettings:"Nastavenia"
+  scrClock:"Hodiny & Astro",scrPlanes:"Lietadlá radar",scrMeteo:"Meteoradar",scrTactical:"Taktický radar",scrForecast:"Predpoveď počasia",scrInfo:"Info & Štatistiky",scrSettings:"Nastavenia",
+  ultraNight:"🌙 Ultra Night režim (hlboká červená / spánkový monochróm, min. jas)",
+  tabScrInfo:"ℹ️ Info & Štatistiky",scrInfoHdr:"Info & Denná štatistika letov",scrInfoActive:"Zahrnúť obrazovku do automatického striedania",
+  statsTrafficHdr:"✈️ Dnešná letecká štatistika",btnResetStats:"🔄 Resetovať",stUnique:"Unikátne lietadlá dnes:",stTopSpeed:"Najvyššia rýchlosť:",stMaxDist:"Maximálna vzdialenosť:",stAltSpan:"Rozpätie výšok:",stReports:"Prijaté ADS-B správy:",statsHint:"Štatistika sa automaticky nuluje o polnoci a uchováva sa v pamäti PSRAM.",confirmResetStats:"Naozaj resetovať dnešnú štatistiku letov?",statsResetOk:"Štatistiky boli resetované",
+  cOver:"✈️ Prelet nad hlavou (Overhead widget)",ovRad:"Polomer preletu nad hlavou (km)",bzOverhead:"🔊 Prelet nad hlavou (Overhead výstraha)",
+   cPrecip:"🌧️ Výstraha blížiacich sa zrážok",bzPrecip:"🔊 Pípnutie pri blížiacich sa zrážkach",precipTrackerHdr:"🌧️ Detekcia blížiacich sa zrážok (Nowcasting)",precipHint:"Vektorová analýza pohybu frontu (TREC). Upozorní na dážď, krúpy alebo sneh, iba ak zrážky smerujú priamo k vašej polohe.",precipLiveHdr:"Aktuálny stav nowcastingu:",
+  scrShotHdr:"📸 Snímka displeja",scrShotNone:"Kliknite pre zachytenie",btnTakeScrShot:"📸 Zachytiť obrazovku",btnDlScrShot:"💾 Stiahnuť BMP",scrShotOk:"Snímka úspešne načítaná",scrShotErr:"Chyba načítania snímky"
  },
  en:{
   tabScrClock:"🕒 Clock",tabScrPlanes:"✈️ Aircraft",tabScrMeteo:"🌧️ Weather Radar",tabScrTactical:"🎯 Tactical Radar",tabScrForecast:"⛅ Forecast",tabCommon:"⚙️ Shared Settings",
@@ -708,11 +933,13 @@ const D={
   btnShowOnDisp:"Show on display",liveDispLbl:"On display:",
   scrClockActive:"Include screen in automatic cycling",scrPlanesActive:"Include screen in automatic cycling",scrMeteoActive:"Include screen in automatic cycling",scrTacticalActive:"Include screen in automatic cycling",scrForecastActive:"Include screen in automatic cycling",
   rotateHdr:"🔄 Auto Screen Cycling",
-  remote:"🎮 Remote Control",rangeLbl:"Radar Range:",
-  btnPrev:"← Previous",btnDblTap:"🔄 Double-Tap / Legend",btnNext:"Next →",btnDec:"− Zoom In (− km)",btnInc:"+ Zoom Out (+ km)",
+  remote:"🎮 Remote Control",rangeLbl:"Radar Scale:",
+  btnPrev:"← Previous",btnDblTap:"🔄 Double-Tap / Legend",btnNext:"Next →",btnDec:"Zoom In (− km)",btnInc:"Zoom Out (+ km)",
   remoteHint:"Range applies to Aircraft, Weather and Tactical screens. Manual action pauses auto cycling.",
   location:"📍 Home Location",findCity:"Search town",search:"Search",found:"Found results",lat:"Latitude (°N)",lon:"Longitude (°E)",
   locHint:"Changing location requires a reboot to recalculate maps and forecast.",
+  tzHdr:"🕒 Timezone & GMT Offset",tzSelectLbl:"Timezone / GMT Offset",btnDetectTz:"🌐 Detect from browser",
+  tzHint:"Sets the UTC time offset for clocks, radar frames, and weather forecasts. For Central Europe choose CET/CEST (automatic daylight saving time).",
   planesView:"🧭 Orientation & Units",topBearing:"Radar top orientation",metric:"Metric units (km, km/h, m instead of NM, kt, ft)",
   tb0:"North (North-Up)",tb45:"Northeast (45°)",tb90:"East (90°)",tb135:"Southeast (135°)",tb180:"South (180°)",tb225:"Southwest (225°)",tb270:"West (270°)",tb315:"Northwest (315°)",
   planesViewHint:"Set the bearing you are looking out of your window. Weather radar is North-Up.",
@@ -725,6 +952,13 @@ const D={
   planes:"✈️ ADS-B Filters & Watchlist",altMin:"Min altitude (ft)",altMax:"Max altitude (ft)",onlyCs:"Only aircraft with callsign",
   sqAlert:"Highlight emergency squawks (7500/7600/7700)",watch:"Watched flight (Callsign or ICAO hex)",
   planesHint:"Filters only affect drawing. Emergencies and watched flights are never hidden.",
+  typeFiltersTitle:"🎯 Aircraft Type Filter",typeFiltersHint:"Choose which aircraft categories to display on the radar map. Emergency squawks and watched flights are always shown.",
+  tfAirliner:"✈️ Commercial Airliners (A320, B737...)",tfLight:"🛩️ Light & Sport Aircraft (Cessna, Piper...)",
+  tfHeli:"🚁 Helicopters & Rescue (HEMS, SAR...)",tfMil:"⚔️ Military & Fighter Jets",
+  tfHeavy:"🛫 Heavy Giants (A380, B747, Beluga...)",tfGlider:"🪂 Gliders & Sailplanes",
+  buzzerHdr:"🔊 Acoustic Alerts & Buzzer",buzzerHint:"Configure onboard active buzzer for radar alerts and touch feedback.",
+  bzMaster:"Enable buzzer (Master Switch)",bzEmergency:"🚨 Emergency squawk (7700 / 7600 / 7500)",bzWatch:"⭐ Watched flight (arrival in range)",
+  bzTouch:"👆 Touch feedback click",bzHourly:"🕒 Hourly chime",bzNightMute:"🌙 Night quiet mode (mute buzzer at night)",btnTestBuzzer:"🔊 Test buzzer",
   brightness:"☀️ Display Brightness & Night Mode",briDay:"Day brightness",briNight:"Night brightness",nightAuto:"Automatic night mode with sun position",
   nightOffset:"Offset from sunset/sunrise (minutes)",clockHdr:"🕒 Clock Face",secStyle:"Seconds ring style",
   secOff:"Off",secDots:"Dots",secLine:"Line",secComet:"Comet",
@@ -735,14 +969,16 @@ const D={
   radarWidgets:"Radar map widgets",rTrails:"Flight trails (breadcrumbs)",rNearest:"Vector to nearest aircraft",rAirports:"Airports (runway icons)",rRings:"Range rings",
   tacticalHdr:"🎯 Tactical Display",tacticalDesc:"Tactical radar brings ADS-B aircraft traffic and real-time weather radar together onto one unified display.",tacticalHint:"Aircraft altitude/callsign filters are inherited from Aircraft radar, weather source from Weather radar.",
   forecastHdr:"⛅ Weather Forecast",forecastDesc:"Weather forecast is automatically fetched via Open-Meteo for your configured home location.",btnGoLocSettings:"📍 Set home location in Shared Settings",
-  hwRtc:"⏱️ Hardware RTC Clock (PCF85063)",hwRtcLbl:"RTC chip status:",hwRtcTimeLbl:"RTC hardware time:",btnSyncNtp:"🌐 NTP sync",btnSyncBrowser:"💻 Browser sync",hwI2c:"🔍 I2C Bus Inspector",
+  hwRtc:"⏱️ System Clock & RTC (PCF85063)",hwLocalTimeLbl:"Local time:",hwTzLbl:"Timezone / Offset:",hwRtcLbl:"RTC chip status:",hwRtcTimeLbl:"RTC hardware time:",btnSyncNtp:"🌐 NTP sync",btnSyncBrowser:"💻 Browser sync",hwI2c:"🔍 I2C Bus Inspector",
   liveHint:"Brightness and widget changes are saved instantly.",
   hwCpu:"⚡ ESP32-S3 & Temp",hwChipModel:"Chip model:",hwRev:"Rev",hwCores:"cores",hwCpuFreqLbl:"CPU frequency:",hwCpuTempLbl:"CPU temperature:",hwResetLbl:"Reset reason:",hwUptimeLbl:"Uptime:",
   hwMem:"💾 Memory & Storage",hwHeapLbl:"Internal RAM (Heap):",hwPsramLbl:"Octal PSRAM (8 MB):",hwFlashLbl:"Flash memory:",
   hwSensors:"🧭 6-Axis IMU Sensor (QMI8658)",hwImuLbl:"Sensor state:",hwImuActive:"Active (I2C 0x6B)",hwAxLbl:"Accelerometer (g):",hwGxLbl:"Gyroscope (°/s):",hwTiltLbl:"Tilt (Pitch / Roll):",hwDblTapLbl:"Double-Tap gesture:",hwDblTapOn:"Double-Tap active",
   hwPeripherals:"🔌 Peripherals & Display",hwDispLbl:"Display:",hwTouchLbl:"Touch panel:",hwExpLbl:"I/O Expander:",
   wifi:"📶 WiFi Connection",network:"Network Name (SSID)",password:"Network Password",scan:"Scan",connect:"Connect",
-  netIpLbl:"IP address:",netRssiLbl:"Signal strength (RSSI):",netMacLbl:"MAC address:",
+  savedWifiHdr:"💾 Saved WiFi Networks (max 5)",savedWifiHint:"The device remembers up to 5 networks (e.g. home and work) and automatically connects to the strongest available on boot.",
+  delWifiConfirm:"Do you really want to forget WiFi network",activeNet:"(active)",btnForgetNet:"Forget",noSavedWifi:"No saved networks",
+  netHostLbl:"Network name (Hostname):",netIpLbl:"IP address:",netRssiLbl:"Signal strength (RSSI):",netMacLbl:"MAC address:",
   wifiHint:"After saving the device connects and the AP closes.",
   wifiHintSta:"Changing WiFi disconnects this page. If connection fails, MeteoPlaneRadar AP will be restored.",
   wifiNow:"Connected to",system:"🔒 Admin Security",adminPass:"Current password",newPass:"New password",
@@ -758,7 +994,13 @@ const D={
   otaUpToDate:"Up to date",otaNewAvail:"New version available!",otaChecking:"Checking GitHub...",
   otaDownloading:"Downloading & flashing firmware...",otaSuccess:"Update successful! Restarting...",otaErr:"Update failed",
   otaNoAsset:"Release missing OTA binary (-ota.bin)",otaConfirm:"Really install firmware update to version",
-  scrClock:"Clock & Astro",scrPlanes:"Aircraft radar",scrMeteo:"Weather radar",scrTactical:"Tactical radar",scrForecast:"Weather forecast",scrSettings:"Settings"
+  scrClock:"Clock & Astro",scrPlanes:"Aircraft radar",scrMeteo:"Weather radar",scrTactical:"Tactical radar",scrForecast:"Weather forecast",scrInfo:"Info & Stats",scrSettings:"Settings",
+  ultraNight:"🌙 Ultra Night mode (deep red sleep monochrome, min. brightness)",
+  tabScrInfo:"ℹ️ Info & Stats",scrInfoHdr:"Info & Daily Flight Statistics",scrInfoActive:"Include screen in automatic cycling",
+  statsTrafficHdr:"✈️ Flight Traffic Today",btnResetStats:"🔄 Reset",stUnique:"Unique aircraft today:",stTopSpeed:"Top speed:",stMaxDist:"Max distance:",stAltSpan:"Altitude span:",stReports:"ADS-B reports received:",statsHint:"Statistics auto-reset at midnight and are kept in PSRAM.",confirmResetStats:"Really reset today's flight statistics?",statsResetOk:"Statistics reset successfully",
+  cOver:"✈️ Overhead aircraft widget",ovRad:"Overhead radius (km)",bzOverhead:"🔊 Overhead aircraft alert",
+   cPrecip:"🌧️ Approaching precipitation alert",bzPrecip:"🔊 Approaching precipitation alert chime",precipTrackerHdr:"🌧️ Approaching Precipitation Detection (Nowcasting)",precipHint:"Vector motion analysis (TREC). Alerts on incoming rain, hail, or snow only when heading towards your location.",precipLiveHdr:"Current nowcasting status:",
+  scrShotHdr:"📸 Screen Capture",scrShotNone:"Click to capture",btnTakeScrShot:"📸 Capture Screen",btnDlScrShot:"💾 Download BMP",scrShotOk:"Screenshot captured successfully",scrShotErr:"Failed to capture screenshot"
  }
 };
 
@@ -780,6 +1022,11 @@ function setLang(v){
    }
   }
  });
+ document.querySelectorAll("[data-i18n-title]").forEach(e=>{
+   const k=e.dataset.i18nTitle;
+   const t=D[L][k];
+   if(t!==undefined) e.title=t;
+ });
  pwState();status();updateHardware();
 }
 
@@ -788,13 +1035,14 @@ function showTab(id){
  document.querySelectorAll("section.tab").forEach(s=>s.classList.toggle("hide",s.id!=id));
  document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.tab==id));
  if(id=="tCommon" && !g_otaLatest) checkGithubUpdates(false);
+ if(id=="tScrInfo") fetchStats();
  window.scrollTo(0,0);
 }
 document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 
 function msg(t,c){$("msg").textContent=t;$("msg").className=c||"";setTimeout(()=>{$("msg").textContent=""},4000);}
 
-const SCR=[["scrClock",0],["scrPlanes",1],["scrMeteo",2],["scrTactical",3],["scrForecast",4],["scrSettings",5]];
+const SCR=[["scrClock",0],["scrPlanes",1],["scrMeteo",2],["scrTactical",3],["scrForecast",4],["scrInfo",5],["scrSettings",6]];
 function drawScrBtns(cur,enabled){
  if(!$("scrBtns")) return;
  $("scrBtns").innerHTML=SCR.map(([k,i])=>{
@@ -812,7 +1060,7 @@ async function post(u,b){try{const r=await fetch(u,{method:"POST",headers:{"Cont
 
 function goScreen(i){post("/api/screen",{index:i});}
 function stepScreen(d){post("/api/screen",{step:d});}
-function stepRange(d){post("/api/range",{step:d});}
+async function stepRange(d){await post("/api/range",{step:d});setTimeout(status,150);}
 
 async function toggleLegendsRemote(){
  try{
@@ -875,6 +1123,8 @@ async function updateHardware(){
   }
 
   // RTC details
+  if($("hwLocalTime")) $("hwLocalTime").textContent = h.localTime || "-";
+  if($("hwTzOffset")) $("hwTzOffset").textContent = h.tzOffset || "-";
   if($("hwRtcState")){
     const ok = !!h.rtcDetected;
     $("hwRtcState").textContent = ok ? (h.rtcOscStopped ? "Výpadok napájania (OSF)" : "Aktívny (I2C 0x51)") : "Nenájdený";
@@ -918,11 +1168,49 @@ function autoSave(key, val){
  clearTimeout(saveTimer[key]);
  saveTimer[key] = setTimeout(async () => {
   const o = {}; o[key] = val;
-  try{
-   const r = await fetch("/api/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(o)});
-   msg(r.ok ? D[L].autoSaved : D[L].failed, r.ok ? "ok" : "err");
-  }catch(e){ msg(D[L].failed,"err"); }
+  try {
+    await fetch("/api/config", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(o)
+    });
+    msg(D[L].autoSaved || "Uložené", "ok");
+  } catch(e){}
  }, 350);
+}
+
+function applyTzNow(val){
+  autoSave("timezone", val);
+  setTimeout(updateHardware, 400);
+}
+
+function detectBrowserTz(){
+  try{
+    const offMin = -new Date().getTimezoneOffset();
+    const offH = offMin / 60;
+    const tzName = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    const tzSel = $("timezone");
+    if(!tzSel) return;
+    if(tzName.includes("Bratislava")||tzName.includes("Prague")||tzName.includes("Vienna")||tzName.includes("Berlin")||tzName.includes("Warsaw")||tzName.includes("Budapest")||tzName.includes("Paris")||tzName.includes("Rome")||tzName.includes("Madrid")||tzName.includes("Amsterdam")||tzName.includes("Brussels")){
+      tzSel.value = "CET-1CEST,M3.5.0,M10.5.0/3";
+    } else if(tzName.includes("Athens")||tzName.includes("Kyiv")||tzName.includes("Helsinki")||tzName.includes("Bucharest")||tzName.includes("Sofia")||tzName.includes("Tallinn")||tzName.includes("Riga")||tzName.includes("Vilnius")){
+      tzSel.value = "EET-2EEST,M3.5.0/3,M10.5.0/4";
+    } else if(tzName.includes("London")||tzName.includes("Dublin")||tzName.includes("Lisbon")){
+      tzSel.value = "GMT0BST,M3.5.0/1,M10.5.0";
+    } else if(offH === 0){
+      tzSel.value = "UTC0";
+    } else {
+      const matchPrefix = offH > 0 ? ("<+" + String(Math.abs(Math.floor(offH))).padStart(2,"0")) : ("<-" + String(Math.abs(Math.floor(offH))).padStart(2,"0"));
+      for(let opt of tzSel.options){
+        if(opt.value.startsWith(matchPrefix)){
+          tzSel.value = opt.value;
+          break;
+        }
+      }
+    }
+    applyTzNow(tzSel.value);
+    msg(D[L].saved||"Uložené","ok");
+  }catch(e){ msg(D[L].failed||"Chyba","err"); }
 }
 
 const AUTO = [
@@ -932,6 +1220,7 @@ const AUTO = [
  ["briDay","input","briDay",e=>+e.value],
  ["briNight","input","briNight",e=>+e.value],
  ["nightAuto","change","nightAuto",e=>e.checked],
+ ["ultraNight","change","ultraNight",e=>e.checked],
  ["nightOffset","change","nightOffset",e=>+e.value],
  ["secStyle","change","secStyle",e=>+e.value],
  ["clockColor","change","clockColor",e=>hexToRgb565(e.value)],
@@ -950,6 +1239,33 @@ const AUTO = [
  ["rNearest","change","rNearest",e=>{ if($("rNearestTac")) $("rNearestTac").checked=e.checked; return e.checked; }],
  ["rAirports","change","rAirports",e=>{ if($("rAirportsMeteo")) $("rAirportsMeteo").checked=e.checked; if($("rAirportsTac")) $("rAirportsTac").checked=e.checked; return e.checked; }],
  ["rRings","change","rRings",e=>{ if($("rRingsMeteo")) $("rRingsMeteo").checked=e.checked; if($("rRingsTac")) $("rRingsTac").checked=e.checked; return e.checked; }],
+ ["timezone","change","timezone",e=>{ applyTzNow(e.value); return e.value; }],
+ ["tfAirliner","change","typeAirliner",e=>e.checked],
+ ["tfLight","change","typeLight",e=>e.checked],
+ ["tfHeli","change","typeHeli",e=>e.checked],
+ ["tfMil","change","typeMilitary",e=>e.checked],
+ ["tfHeavy","change","typeHeavy",e=>e.checked],
+ ["tfGlider","change","typeGlider",e=>e.checked],
+ ["buzzerOn","change","buzzerOn",e=>e.checked],
+ ["bzEmergency","change","buzzerEmergency",e=>{ if($("bzEmergencyPlanes")) $("bzEmergencyPlanes").checked=e.checked; return e.checked; }],
+ ["bzEmergencyPlanes","change","buzzerEmergency",e=>{ if($("bzEmergency")) $("bzEmergency").checked=e.checked; return e.checked; }],
+ ["bzWatch","change","buzzerWatch",e=>{ if($("bzWatchPlanes")) $("bzWatchPlanes").checked=e.checked; return e.checked; }],
+ ["bzWatchPlanes","change","buzzerWatch",e=>{ if($("bzWatch")) $("bzWatch").checked=e.checked; return e.checked; }],
+ ["bzTouch","change","buzzerTouch",e=>e.checked],
+ ["bzHourly","change","buzzerHourly",e=>{ if($("bzHourlyClock")) $("bzHourlyClock").checked=e.checked; return e.checked; }],
+ ["bzHourlyClock","change","buzzerHourly",e=>{ if($("bzHourly")) $("bzHourly").checked=e.checked; return e.checked; }],
+ ["bzOverhead","change","buzzerOverhead",e=>{ if($("bzOverheadClock")) $("bzOverheadClock").checked=e.checked; return e.checked; }],
+ ["bzOverheadClock","change","buzzerOverhead",e=>{ if($("bzOverhead")) $("bzOverhead").checked=e.checked; return e.checked; }],
+ ["bzPrecip","change","buzzerPrecip",e=>{ if($("bzPrecipClock")) $("bzPrecipClock").checked=e.checked; if($("bzPrecipMeteo")) $("bzPrecipMeteo").checked=e.checked; return e.checked; }],
+ ["bzPrecipClock","change","buzzerPrecip",e=>{ if($("bzPrecip")) $("bzPrecip").checked=e.checked; if($("bzPrecipMeteo")) $("bzPrecipMeteo").checked=e.checked; return e.checked; }],
+ ["bzPrecipMeteo","change","buzzerPrecip",e=>{ if($("bzPrecip")) $("bzPrecip").checked=e.checked; if($("bzPrecipClock")) $("bzPrecipClock").checked=e.checked; return e.checked; }],
+ ["cPrecip","change","cPrecip",e=>{ if($("cPrecipMeteo")) $("cPrecipMeteo").checked=e.checked; return e.checked; }],
+ ["cPrecipMeteo","change","cPrecip",e=>{ if($("cPrecip")) $("cPrecip").checked=e.checked; return e.checked; }],
+ ["cOver","change","cOver",e=>e.checked],
+ ["ovRad","change","ovRad",e=>parseFloat(e.value)||10],
+ ["sInfo","change","screens",()=>saveScreens()],
+ ["bzNightMute","change","buzzerNightMute",e=>e.checked],
+ ["hostname","change","hostname",e=>{ if($("netHost")) $("netHost").textContent=e.value+".local"; return e.value.trim(); }],
 ];
 function wireAutoSave(){
  AUTO.forEach(([id,ev,key,get])=>{
@@ -966,6 +1282,7 @@ async function load(){
  $("lat").value=CFG.lat;$("lon").value=CFG.lon;
  $("sClock").checked=CFG.screens.clock;$("sPlanes").checked=CFG.screens.planes;
  $("sMeteo").checked=CFG.screens.meteo;$("sTactical").checked=CFG.screens.tactical;$("sForecast").checked=CFG.screens.forecast;
+ if($("sInfo")) $("sInfo").checked=CFG.screens.info!==false;
  $("autoRotate").value=CFG.autoRotate;$("radarSrc").value=CFG.radarSrc;
  if($("showLegends")) $("showLegends").checked=!!CFG.showLegends;
  if($("showLegendsMeteo")) $("showLegendsMeteo").checked=!!CFG.showLegends;
@@ -979,7 +1296,10 @@ async function load(){
  if($("cWind")) $("cWind").checked=CFG.cWind!==false;
  if($("cMoon")) $("cMoon").checked=CFG.cMoon!==false;
  if($("cAstro")) $("cAstro").checked=CFG.cAstro!==false;
+ if($("cOver")) $("cOver").checked=CFG.cOver!==false;
+ if($("ovRad")) $("ovRad").value=CFG.ovRad||10;
  if($("nightClockOnly")) $("nightClockOnly").checked=!!CFG.nightClockOnly;
+ if($("ultraNight")) $("ultraNight").checked=!!CFG.ultraNight;
  if($("rTrails")) $("rTrails").checked=CFG.rTrails!==false;
  if($("rTrailsTac")) $("rTrailsTac").checked=CFG.rTrails!==false;
  if($("rNearest")) $("rNearest").checked=CFG.rNearest!==false;
@@ -990,12 +1310,38 @@ async function load(){
  if($("rRings")) $("rRings").checked=CFG.rRings!==false;
  if($("rRingsMeteo")) $("rRingsMeteo").checked=CFG.rRings!==false;
  if($("rRingsTac")) $("rRingsTac").checked=CFG.rRings!==false;
- $("clockColor").value=rgb565ToHex(CFG.clockColor);$("secColor").value=rgb565ToHex(CFG.secColor);
- $("altMin").value=CFG.altMin;$("altMax").value=CFG.altMax;
- pwState();
- $("onlyCallsign").checked=CFG.onlyCallsign;$("squawkAlert").checked=CFG.squawkAlert;$("watch").value=CFG.watch||"";
- $("wifiHintTxt").textContent=CFG.apMode?D[L].wifiHint:D[L].wifiHintSta;
- bri();wireAutoSave();status();updateHardware();
+ if($("timezone") && CFG.timezone) $("timezone").value=CFG.timezone;
+ if($("tfAirliner")) $("tfAirliner").checked=CFG.typeAirliner!==false;
+ if($("tfLight")) $("tfLight").checked=CFG.typeLight!==false;
+ if($("tfHeli")) $("tfHeli").checked=CFG.typeHeli!==false;
+ if($("tfMil")) $("tfMil").checked=CFG.typeMilitary!==false;
+ if($("tfHeavy")) $("tfHeavy").checked=CFG.typeHeavy!==false;
+ if($("tfGlider")) $("tfGlider").checked=CFG.typeGlider!==false;
+ if($("buzzerOn")) $("buzzerOn").checked=CFG.buzzerOn!==false;
+ if($("bzEmergency")) $("bzEmergency").checked=CFG.buzzerEmergency!==false;
+ if($("bzEmergencyPlanes")) $("bzEmergencyPlanes").checked=CFG.buzzerEmergency!==false;
+ if($("bzWatch")) $("bzWatch").checked=CFG.buzzerWatch!==false;
+ if($("bzWatchPlanes")) $("bzWatchPlanes").checked=CFG.buzzerWatch!==false;
+ if($("bzTouch")) $("bzTouch").checked=!!CFG.buzzerTouch;
+ if($("bzHourly")) $("bzHourly").checked=!!CFG.buzzerHourly;
+ if($("bzHourlyClock")) $("bzHourlyClock").checked=!!CFG.buzzerHourly;
+ if($("bzOverhead")) $("bzOverhead").checked=!!CFG.buzzerOverhead;
+ if($("bzOverheadClock")) $("bzOverheadClock").checked=!!CFG.buzzerOverhead;
+  if($("bzPrecip")) $("bzPrecip").checked=!!CFG.buzzerPrecip;
+  if($("bzPrecipClock")) $("bzPrecipClock").checked=!!CFG.buzzerPrecip;
+  if($("bzPrecipMeteo")) $("bzPrecipMeteo").checked=!!CFG.buzzerPrecip;
+  if($("cPrecip")) $("cPrecip").checked=CFG.cPrecip!==false;
+  if($("cPrecipMeteo")) $("cPrecipMeteo").checked=CFG.cPrecip!==false;
+ if($("bzNightMute")) $("bzNightMute").checked=CFG.buzzerNightMute!==false;
+   $("clockColor").value=rgb565ToHex(CFG.clockColor);$("secColor").value=rgb565ToHex(CFG.secColor);
+   $("altMin").value=CFG.altMin;$("altMax").value=CFG.altMax;
+   pwState();
+   $("onlyCallsign").checked=CFG.onlyCallsign;$("squawkAlert").checked=CFG.squawkAlert;$("watch").value=CFG.watch||"";
+   $("wifiHintTxt").textContent=CFG.apMode?D[L].wifiHint:D[L].wifiHintSta;
+   if($("hostname")) $("hostname").value=CFG.hostname||"MeteoPlaneRadar";
+   if($("netHost")) $("netHost").textContent=(CFG.hostname||"MeteoPlaneRadar")+".local";
+   renderSavedWifi(CFG.wifiNetworks);
+   bri();wireAutoSave();status();updateHardware();
 }
 
 function pwState(){
@@ -1022,6 +1368,19 @@ async function status(){
   const curName = (D[L] && D[L][curKey]) ? D[L][curKey] : ("Screen " + s.screen);
   if($("liveDispName")) $("liveDispName").textContent = curName;
   if($("hwCurScreenName")) $("hwCurScreenName").textContent = curName;
+  if(s.precip && $("livePrecipStatus")){
+    $("livePrecipStatus").textContent = s.precip;
+    if(s.precipStatus === 2){
+      $("livePrecipStatus").style.color = "var(--warn)";
+      if($("livePrecipDetail")) $("livePrecipDetail").textContent = "ETA: ~" + s.precipEta + " min | " + s.precipDist + " km @ " + s.precipSpeed + " km/h (" + s.precipBearing + ")";
+    } else if(s.precipStatus === 3){
+      $("livePrecipStatus").style.color = "var(--err)";
+      if($("livePrecipDetail")) $("livePrecipDetail").textContent = s.precipDist + " km | " + s.precipSpeed + " km/h";
+    } else {
+      $("livePrecipStatus").style.color = "var(--mut)";
+      if($("livePrecipDetail")) $("livePrecipDetail").textContent = "";
+    }
+  }
  }catch(e){}
 }
 setInterval(status,4000);
@@ -1045,12 +1404,99 @@ function body(){return{
  cMoon:$("cMoon")?$("cMoon").checked:true,
  cAstro:$("cAstro")?$("cAstro").checked:true,
  nightClockOnly:$("nightClockOnly")?$("nightClockOnly").checked:false,
+ ultraNight:$("ultraNight")?$("ultraNight").checked:false,
  rTrails:$("rTrails")?$("rTrails").checked:true,
  rNearest:$("rNearest")?$("rNearest").checked:true,
  rAirports:$("rAirports")?$("rAirports").checked:true,
  rRings:$("rRings")?$("rRings").checked:true,
- screens:{clock:$("sClock").checked,planes:$("sPlanes").checked,meteo:$("sMeteo").checked,tactical:$("sTactical").checked,forecast:$("sForecast").checked}
+ timezone:$("timezone")?$("timezone").value:undefined,
+ typeAirliner:$("tfAirliner")?$("tfAirliner").checked:true,
+ typeLight:$("tfLight")?$("tfLight").checked:true,
+ typeHeli:$("tfHeli")?$("tfHeli").checked:true,
+ typeMilitary:$("tfMil")?$("tfMil").checked:true,
+ typeHeavy:$("tfHeavy")?$("tfHeavy").checked:true,
+ typeGlider:$("tfGlider")?$("tfGlider").checked:true,
+ buzzerOn:$("buzzerOn")?$("buzzerOn").checked:true,
+ buzzerEmergency:$("bzEmergency")?$("bzEmergency").checked:true,
+ buzzerWatch:$("bzWatch")?$("bzWatch").checked:true,
+ buzzerTouch:$("bzTouch")?$("bzTouch").checked:false,
+ buzzerHourly:$("bzHourly")?$("bzHourly").checked:false,
+ buzzerOverhead:$("bzOverhead")?$("bzOverhead").checked:false,
+  buzzerPrecip:$("bzPrecip")?$("bzPrecip").checked:false,
+  cPrecip:$("cPrecip")?$("cPrecip").checked:true,
+ buzzerNightMute:$("bzNightMute")?$("bzNightMute").checked:true,
+ hostname:$("hostname")?$("hostname").value.trim():undefined,
+ cOver:$("cOver")?$("cOver").checked:true,
+ ovRad:$("ovRad")?parseFloat($("ovRad").value)||10:10,
+ screens:{clock:$("sClock").checked,planes:$("sPlanes").checked,meteo:$("sMeteo").checked,tactical:$("sTactical").checked,forecast:$("sForecast").checked,info:$("sInfo")?$("sInfo").checked:true}
 };}
+
+function saveScreens(){
+ autoSave("screens",{
+  clock:$("sClock").checked,
+  planes:$("sPlanes").checked,
+  meteo:$("sMeteo").checked,
+  tactical:$("sTactical").checked,
+  forecast:$("sForecast").checked,
+  info:$("sInfo")?$("sInfo").checked:true
+ });
+}
+
+async function fetchStats(){
+ try{
+  const r=await fetch("/api/stats");
+  const s=await r.json();
+  if($("stCount")) $("stCount").textContent=s.todayCount;
+  if($("stSpeed")){
+    let spd=s.maxSpeedKt>0?(CFG&&CFG.metric?Math.round(s.maxSpeedKt*1.852)+" km/h":Math.round(s.maxSpeedKt)+" kt"):"-";
+    if(s.maxSpeedCallsign) spd += " ("+s.maxSpeedCallsign+")";
+    $("stSpeed").textContent=spd;
+  }
+  if($("stDist")) $("stDist").textContent=s.maxDistKm>0?(s.maxDistKm.toFixed(1)+" km"):"-";
+  if($("stAlt")){
+    let alt=s.maxAltFt>0?(CFG&&CFG.metric?Math.round(s.minAltFt*0.3048)+" - "+Math.round(s.maxAltFt*0.3048)+" m":"FL"+Math.round(s.minAltFt/100)+" - FL"+Math.round(s.maxAltFt/100)):"-";
+    $("stAlt").textContent=alt;
+  }
+  if($("stReports")) $("stReports").textContent=s.totalSightings;
+ }catch(e){}
+}
+async function resetStats(){
+ if(!confirm((D[L]&&D[L].confirmResetStats)?D[L].confirmResetStats:"Naozaj resetovať dnešnú štatistiku letov?")) return;
+ await fetch("/api/stats/reset",{method:"POST"});
+ fetchStats();
+ msg((D[L]&&D[L].statsResetOk)?D[L].statsResetOk:"Štatistiky boli resetované","ok");
+}
+
+function takeScreenshot(){
+ const img=$("scrShotImg"),ph=$("scrShotPlaceholder"),dl=$("scrShotDl"),spin=$("scrShotSpin"),btn=$("btnScrShot");
+ if(spin)spin.classList.remove("hide");
+ if(btn)btn.disabled=true;
+ const url="/api/screenshot.bmp?t="+Date.now();
+ const pre=new Image();
+ pre.onload=()=>{
+  img.src=url;
+  img.classList.remove("hide");
+  img.style.display="block";
+  if(ph){ph.classList.add("hide");ph.style.display="none";}
+  if(dl){dl.href=url;dl.classList.remove("hide");dl.style.display="inline-block";}
+  if(spin)spin.classList.add("hide");
+  if(btn)btn.disabled=false;
+  msg((D[L]&&D[L].scrShotOk)?D[L].scrShotOk:"Snímka načítaná","ok");
+ };
+ pre.onerror=()=>{
+  if(spin)spin.classList.add("hide");
+  if(btn)btn.disabled=false;
+  msg((D[L]&&D[L].scrShotErr)?D[L].scrShotErr:"Chyba načítania","err");
+ };
+ pre.src=url;
+}
+
+async function testBuzzer(){
+ try{
+  await fetch("/api/buzzer/test",{method:"POST"});
+  msg("Píp!","ok");
+ }catch(e){msg(D[L].failed||"Chyba","err");}
+}
 
 async function save(){
  const b=body();
@@ -1078,7 +1524,71 @@ async function saveWifi(){
  if(!s){msg(D[L].failed,"err");return;}
  try{
   const r=await fetch("/api/wifi",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ssid:s,pass:p})});
-  if(r.ok)msg(D[L].saved,"ok");else msg(D[L].failed,"err");
+  if(r.ok){
+   msg(D[L].saved,"ok");
+   const cr=await fetch("/api/config");
+   CFG=await cr.json();
+   renderSavedWifi(CFG.wifiNetworks);
+  }else msg(D[L].failed,"err");
+ }catch(e){msg(D[L].failed,"err");}
+}
+
+function renderSavedWifi(nets){
+ const list=$("savedWifiList");
+ if(!list)return;
+ list.innerHTML="";
+ if(!nets||!nets.length){
+  list.innerHTML="<div class='hint' style='padding:4px 0;'>"+(D[L].noSavedWifi||"Žiadne uložené siete")+"</div>";
+  if($("savedWifiCount"))$("savedWifiCount").textContent="0 / 5";
+  return;
+ }
+ if($("savedWifiCount"))$("savedWifiCount").textContent=nets.length+" / 5";
+ nets.forEach(n=>{
+  const row=document.createElement("div");
+  row.style.cssText="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:6px;gap:8px;";
+  const left=document.createElement("div");
+  left.style.cssText="display:flex;align-items:center;gap:8px;";
+  const icon=document.createElement("span");
+  icon.textContent="📶";
+  const name=document.createElement("span");
+  name.style.fontWeight="600";
+  name.textContent=n.ssid;
+  left.appendChild(icon);
+  left.appendChild(name);
+  if(n.active){
+   const badge=document.createElement("span");
+   badge.style.cssText="background:rgba(34,197,94,0.15);color:var(--ok);border:1px solid rgba(34,197,94,0.3);font-size:11px;padding:1px 6px;border-radius:4px;font-weight:600;";
+   badge.textContent=D[L].activeNet||"(aktívna)";
+   left.appendChild(badge);
+  }
+  const delBtn=document.createElement("button");
+  delBtn.type="button";
+  delBtn.className="sec";
+  delBtn.style.cssText="padding:3px 8px;font-size:12px;color:var(--err);border-color:rgba(239,68,68,0.3);";
+  delBtn.textContent="✕ "+(D[L].btnForgetNet||"Zmazať");
+  delBtn.onclick=()=>deleteWifiNet(n.ssid);
+  row.appendChild(left);
+  row.appendChild(delBtn);
+  list.appendChild(row);
+ });
+}
+
+async function deleteWifiNet(ssid){
+ if(!confirm((D[L].delWifiConfirm||"Naozaj chcete zabudnúť")+" '"+ssid+"'?"))return;
+ try{
+  const r=await fetch("/api/wifi/delete",{
+   method:"POST",
+   headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({ssid:ssid,pass:$("oldPass")?$("oldPass").value:""})
+  });
+  if(r.status==401){msg(D[L].wrongPass||"Chybné heslo","err");return;}
+  const res=await r.json();
+  if(res.ok){
+   msg(D[L].saved,"ok");
+   const cr=await fetch("/api/config");
+   CFG=await cr.json();
+   renderSavedWifi(CFG.wifiNetworks);
+  }else msg(D[L].failed,"err");
  }catch(e){msg(D[L].failed,"err");}
 }
 

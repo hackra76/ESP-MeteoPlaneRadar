@@ -2,7 +2,6 @@
 //  MeteoPlaneRadar
 //  Day / night brightness. See NightMode.h.
 //
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
 // =============================================================================
 #include "NightMode.h"
 #include "Settings.h"
@@ -13,10 +12,26 @@
 
 static bool s_applied = false;
 static bool s_lastState = false;
+static unsigned long s_wakeUntil = 0;
+static bool s_wasUltra = false;
+
+bool NightMode_IsUltraNightActive() {
+  return Settings_IsNight() && Settings_UltraNight() && (millis() >= s_wakeUntil);
+}
+
+void NightMode_WakeTemporary(uint32_t ms) {
+  s_wakeUntil = millis() + ms;
+  NightMode_Apply();
+}
 
 void NightMode_Apply() {
-  Set_Backlight(Settings_Backlight());
+  if (NightMode_IsUltraNightActive()) {
+    Set_Backlight(2); // 2% deep sleep-friendly level
+  } else {
+    Set_Backlight(Settings_Backlight());
+  }
   s_applied = true;
+  s_wasUltra = NightMode_IsUltraNightActive();
 }
 
 void NightMode_Toggle() {
@@ -26,6 +41,17 @@ void NightMode_Toggle() {
 }
 
 void NightMode_Tick() {
+  // Check if temporary wake-up timer expired
+  if (s_wakeUntil != 0 && millis() >= s_wakeUntil) {
+    s_wakeUntil = 0;
+    NightMode_Apply();
+  }
+
+  // Detect ultra-night state toggle
+  if (NightMode_IsUltraNightActive() != s_wasUltra) {
+    NightMode_Apply();
+  }
+
   // Push the initial brightness once, even before anything else is known.
   if (!s_applied) NightMode_Apply();
 
@@ -51,7 +77,7 @@ void NightMode_Tick() {
     s_lastState = night;
     Settings_SetNight(night);
     NightMode_Apply();
-    Serial.printf("Rezim: %s (jas %u%%)\n", night ? "nocni" : "denni",
+    Serial.printf("Mode: %s (brightness %u%%)\n", night ? "night" : "day",
                   (unsigned)Settings_Backlight());
   }
 }

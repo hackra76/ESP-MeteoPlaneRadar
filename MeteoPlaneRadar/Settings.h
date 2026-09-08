@@ -10,25 +10,38 @@
 //  device keeps its settings after the update).
 //
 //  Project: MeteoPlaneRadar - live aircraft radar on a round touchscreen
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
-//  Web:     https://chiptron.cz
 // =============================================================================
 #pragma once
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include "Config.h"   // DEFAULT_LAT / DEFAULT_LON, SCREEN_*
+#include "AircraftType.h"
 
 void   Settings_Begin();
 
-// --- WiFi credentials -------------------------------------------------------
-// Stored here rather than left to WiFiManager: the access point has to stay up
-// until a network is actually entered, and the captive portal has to speak the
-// user's language - both of which need the firmware to own the credentials.
+// --- WiFi credentials (multi-profile manager) ------------------------------
+#define MAX_WIFI_NETWORKS 5
+
+struct WifiCredential {
+  char ssid[33];
+  char pass[65];
+};
+
 const char* Settings_WifiSsid();
 const char* Settings_WifiPass();
 bool        Settings_HasWifi();
 void        Settings_SetWifi(const char* ssid, const char* pass);
 void        Settings_ClearWifi();
+
+int         Settings_WifiNetworkCount();
+bool        Settings_GetWifiNetwork(int idx, WifiCredential* out);
+void        Settings_AddOrUpdateWifi(const char* ssid, const char* pass);
+bool        Settings_DeleteWifiNetwork(int idx);
+bool        Settings_DeleteWifiNetworkBySsid(const char* ssid);
+void        Settings_SetActiveWifi(int idx);
+
+const char* Settings_Hostname();
+void        Settings_SetHostname(const char* name);
 
 // --- Location ---------------------------------------------------------------
 double Settings_Lat();
@@ -54,11 +67,14 @@ void    Settings_SetNightOffsetMin(int8_t m);
 bool    Settings_IsNight();
 void    Settings_SetNight(bool night);
 
-// --- Units, language --------------------------------------------------------
-bool    Settings_MetricUnits();
-void    Settings_SetMetricUnits(bool metric);
-uint8_t Settings_Language();               // LANG_CZ / LANG_EN / LANG_SK
-void    Settings_SetLanguage(uint8_t l);
+// --- Units, language, timezone ----------------------------------------------
+bool        Settings_MetricUnits();
+void        Settings_SetMetricUnits(bool metric);
+uint8_t     Settings_Language();               // LANG_CZ / LANG_EN / LANG_SK
+void        Settings_SetLanguage(uint8_t l);
+const char* Settings_Timezone();
+void        Settings_SetTimezone(const char* tz);
+void        Settings_ApplyTimezone();
 
 // --- Screens ----------------------------------------------------------------
 // idx is SCREEN_CLOCK_I .. SCREEN_FORECAST_I. Settings is always enabled.
@@ -102,6 +118,12 @@ bool     Settings_ClockShowAstro();
 void     Settings_SetClockShowAstro(bool on);
 bool     Settings_NightClockOnly();
 void     Settings_SetNightClockOnly(bool on);
+bool     Settings_UltraNight();
+void     Settings_SetUltraNight(bool on);
+bool     Settings_ClockShowOverhead();
+void     Settings_SetClockShowOverhead(bool on);
+float    Settings_OverheadRadiusKm();
+void     Settings_SetOverheadRadiusKm(float r);
 
 // --- Radar widget toggles ---------------------------------------------------
 bool     Settings_RadarShowTrails();
@@ -123,6 +145,32 @@ bool     Settings_SquawkAlert();
 void     Settings_SetSquawkAlert(bool on);
 const char* Settings_WatchCallsign();      // "" = nothing watched
 void     Settings_SetWatchCallsign(const char* s);
+uint8_t  Settings_PlaneTypeMask();
+void     Settings_SetPlaneTypeMask(uint8_t mask);
+bool     Settings_PlaneTypeEnabled(AircraftIconType type);
+void     Settings_SetPlaneTypeEnabled(AircraftIconType type, bool on);
+
+// --- Buzzer / Audio alerts --------------------------------------------------
+bool     Settings_BuzzerEnabled();
+void     Settings_SetBuzzerEnabled(bool on);
+bool     Settings_BuzzerEmergency();
+void     Settings_SetBuzzerEmergency(bool on);
+bool     Settings_BuzzerWatch();
+void     Settings_SetBuzzerWatch(bool on);
+bool     Settings_BuzzerTouch();
+void     Settings_SetBuzzerTouch(bool on);
+bool     Settings_BuzzerHourly();
+void     Settings_SetBuzzerHourly(bool on);
+bool     Settings_BuzzerOverhead();
+void     Settings_SetBuzzerOverhead(bool on);
+bool     Settings_BuzzerPrecip();
+void     Settings_SetBuzzerPrecip(bool on);
+bool     Settings_BuzzerNightMute();
+void     Settings_SetBuzzerNightMute(bool on);
+
+// --- Precipitation alert ---------------------------------------------------
+bool     Settings_PrecipAlert();
+void     Settings_SetPrecipAlert(bool on);
 
 // --- UI state (debounced writes) --------------------------------------------
 uint8_t Settings_PlaneRange();

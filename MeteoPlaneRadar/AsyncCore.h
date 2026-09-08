@@ -5,7 +5,6 @@
 //  Decouples the rendering and touch pipeline (Core 1) from all network I/O,
 //  TLS handshakes, JSON parsing, PNG decoding, and WebServer serving (Core 0).
 //
-//  Author:  Petr / chiptron.cz & Antigravity
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (ESP32-S3R8, dual-core 240MHz)
 // =============================================================================
 #pragma once

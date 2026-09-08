@@ -31,11 +31,11 @@ bool PCF85063_Init() {
   if (err != 0) {
     s_detected = false;
     Async_UnlockI2C();
-    Serial.println("RTC: PCF85063 nenalezen na I2C (0x51)");
+    Serial.println("RTC: PCF85063 not found on I2C (0x51)");
     return false;
   }
   s_detected = true;
-  Serial.println("RTC: PCF85063 detekovan na I2C (0x51)");
+  Serial.println("RTC: PCF85063 detected on I2C (0x51)");
 
   // Check oscillator stop flag
   Wire.beginTransmission(PCF85063_ADDR);

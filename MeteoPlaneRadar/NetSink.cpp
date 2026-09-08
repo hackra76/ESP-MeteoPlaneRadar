@@ -2,7 +2,6 @@
 //  MeteoPlaneRadar
 //  See NetSink.h.
 //
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
 // =============================================================================
 #include "NetSink.h"
 #include "Config.h"      // NET_BODY_BUDGET_MS
@@ -136,23 +135,23 @@ long Net_ReadBody(HTTPClient& http, uint8_t* buf, size_t cap, const char* tag,
   int ret = http.writeToStream(&sink);
 
   if (sink.timedOut()) {
-    Serial.printf("%s: prenos prekrocil %lu ms, preruseno\n",
+    Serial.printf("%s: transfer exceeded %lu ms, aborted\n",
                   tag, (unsigned long)NET_BODY_BUDGET_MS);
     return -1;
   }
   if (sink.overflowed()) {
     // Deliberately fatal. A body that outgrew the buffer is a truncated body,
     // and half a JSON document or half a PNG is worse than no update at all.
-    Serial.printf("%s: odpoved presahla %u B, zahozeno\n", tag, (unsigned)cap);
+    Serial.printf("%s: response exceeded %u B, discarded\n", tag, (unsigned)cap);
     return -1;
   }
   if (ret < 0) {
-    Serial.printf("%s: writeToStream chyba %d (%s)\n", tag, ret,
+    Serial.printf("%s: writeToStream error %d (%s)\n", tag, ret,
                   HTTPClient::errorToString(ret).c_str());
     return -1;
   }
   if (!sink.terminate()) {
-    Serial.printf("%s: neni misto pro ukonceni retezce\n", tag);
+    Serial.printf("%s: no room for string termination\n", tag);
     return -1;
   }
   return (long)sink.length();
@@ -223,12 +222,12 @@ long Net_ScanBody(HTTPClient& http, NetScanFn cb, void* user, const char* tag,
     return (long)sink.length();
   }
   if (sink.timedOut()) {
-    Serial.printf("%s: prenos prekrocil %lu ms, preruseno\n",
+    Serial.printf("%s: transfer exceeded %lu ms, aborted\n",
                   tag, (unsigned long)NET_BODY_BUDGET_MS);
     return -1;
   }
   if (ret < 0) {
-    Serial.printf("%s: writeToStream chyba %d (%s)\n", tag, ret,
+    Serial.printf("%s: writeToStream error %d (%s)\n", tag, ret,
                   HTTPClient::errorToString(ret).c_str());
     return -1;
   }
@@ -239,7 +238,7 @@ bool Net_HeapOk(const char* tag) {
   size_t freeInt = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   size_t maxBlock = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   if (freeInt >= NET_MIN_HEAP && maxBlock >= NET_MIN_BLOCK) return true;
-  Serial.printf("%s: malo volne pameti (free %u B, max block %u B < %u B), stahovani odlozeno\n",
+  Serial.printf("%s: low memory (free %u B, max block %u B < %u B), fetch deferred\n",
                 tag, (unsigned)freeInt, (unsigned)maxBlock, (unsigned)NET_MIN_BLOCK);
   return false;
 }

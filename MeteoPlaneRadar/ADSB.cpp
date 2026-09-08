@@ -3,8 +3,6 @@
 //  ADS-B client - fetching aircraft data from adsb.fi.
 //
 //  Project: MeteoPlaneRadar - live aircraft radar on a round touchscreen
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
-//  Web:     https://chiptron.cz
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)
 // =============================================================================
 #include "ADSB.h"
@@ -22,6 +20,8 @@
 #include "Status.h"          // one-line health note for the web status page
 #include "Config.h"          // SQUAWK_*
 #include "NetSink.h"        // chunked-safe body reader
+#include "Settings.h"
+#include "FlightStats.h"
 
 static const float KM_PER_NM = 1.852f;
 
@@ -67,6 +67,33 @@ const Aircraft* ADSB_GetEmergencyAircraft() {
     if (ADSB_EmergencyCode(s_list[i])) return &s_list[i];
   }
   return nullptr;
+}
+
+const Aircraft* ADSB_GetOverheadAircraft(float maxDistKm, float* outDistKm) {
+  if (!s_list || s_count <= 0) return nullptr;
+  double homeLat = Settings_Lat();
+  double homeLon = Settings_Lon();
+  if (homeLat == 0.0 && homeLon == 0.0) return nullptr;
+
+  const Aircraft* best = nullptr;
+  float minD = maxDistKm;
+
+  for (int i = 0; i < s_count; i++) {
+    const Aircraft& a = s_list[i];
+    if (a.onGround || a.lat == 0.0f || a.lon == 0.0f) continue;
+    float dLat = (a.lat - (float)homeLat) * 0.0174532925f;
+    float dLon = (a.lon - (float)homeLon) * 0.0174532925f;
+    float sinLat = sinf(dLat * 0.5f);
+    float sinLon = sinf(dLon * 0.5f);
+    float aTerm = sinLat * sinLat + cosf((float)homeLat * 0.0174532925f) * cosf(a.lat * 0.0174532925f) * sinLon * sinLon;
+    float d = 6371.0f * 2.0f * asinf(fminf(1.0f, sqrtf(aTerm)));
+    if (d <= minD) {
+      minD = d;
+      best = &a;
+    }
+  }
+  if (best && outDistKm) *outDistKm = minD;
+  return best;
 }
 
 int ADSB_FindByHex(const char* hex) {
@@ -318,8 +345,8 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
     const char* head = s_body;
     while (*head == ' ' || *head == '\r' || *head == '\n' || *head == '\t') head++;
     if (*head != '{') {
-      Serial.printf("ADSB: odpoved nezacina JSON objektem, telo[0..120]: %.120s\n", s_body);
-      Status_Set(ST_ADSB, "neocekavana odpoved");
+      Serial.printf("ADSB: response does not start with JSON object, body[0..120]: %.120s\n", s_body);
+      Status_Set(ST_ADSB, "unexpected response");
       return false;
     }
 
@@ -348,10 +375,10 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
       // Say WHAT came back, not just that it was wrong. "msg" is the server's
       // own status text; the prefix catches responses that were never the
       // shape we expected in the first place.
-      const char* msg = doc["msg"] | "(zadne msg)";
-      Serial.printf("ADSB: chybi pole letadel - msg: %s\n", msg);
-      Serial.printf("ADSB: telo[0..200]: %.200s\n", s_body);
-      Status_Set(ST_ADSB, "neocekavana odpoved");
+      const char* msg = doc["msg"] | "(no msg)";
+      Serial.printf("ADSB: missing aircraft array - msg: %s\n", msg);
+      Serial.printf("ADSB: body[0..200]: %.200s\n", s_body);
+      Status_Set(ST_ADSB, "unexpected response");
       return false;   // valid JSON but wrong shape; a retry would not help
     }
 
@@ -454,6 +481,7 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
     for (int i = 0; i < n; i++) s_list[i] = s_tmp[i];
     s_count = n;
     PlaneTrail_Update(s_list, s_count);
+    FlightStats_Update(s_list, s_count);
     Async_UnlockAdsb();
     Serial.printf("ADSB: %d aircraft (%ld bytes)\n", n, len);
     Status_Set(ST_ADSB, "OK, %d", n);

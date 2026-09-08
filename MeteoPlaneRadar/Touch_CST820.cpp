@@ -3,8 +3,6 @@
 //  CST820 capacitive touch controller.
 //
 //  Project: MeteoPlaneRadar - live aircraft radar on a round touchscreen
-//  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
-//  Web:     https://chiptron.cz
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)
 // =============================================================================
 #include "Touch_CST820.h"
@@ -67,7 +65,7 @@ bool Touch_Init() {
     Serial.printf("CST820 ID: 0x%02X\n", id);
     return true;
   }
-  Serial.println("CST820 nereaguje na I2C");
+  Serial.println("CST820 not responding on I2C");
   return false;
 }
 
