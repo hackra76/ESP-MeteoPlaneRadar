@@ -188,18 +188,44 @@ static bool doCheckGitHubReleases() {
   s_releaseBody = (const char*)(doc["body"] | "");
   s_downloadUrl = "";
 
+  String bestUrl = "";
+  int bestPriority = 0; // 0 = none, 1 = generic .bin, 2 = firmware.bin, 3 = ota.bin
+
   JsonArrayConst assets = doc["assets"].as<JsonArrayConst>();
   for (JsonObjectConst a : assets) {
     const char* aname = a["name"] | "";
-    if (strstr(aname, "-ota.bin") || strstr(aname, "ota.bin") || strstr(aname, "firmware.bin") || strstr(aname, ".bin")) {
-      s_downloadUrl = (const char*)(a["browser_download_url"] | "");
+    const char* url = a["browser_download_url"] | "";
+    if (!aname || !url || strlen(url) == 0) continue;
+
+    // Explicitly reject merged / factory flash images (starts at 0x0 with bootloader, cannot be flashed via OTA)
+    if (strstr(aname, "factory") || strstr(aname, "Factory") ||
+        strstr(aname, "merged")  || strstr(aname, "Merged")) {
+      continue;
+    }
+
+    if (strstr(aname, "-ota.bin") || strstr(aname, "_ota.bin") || strstr(aname, "ota.bin") || strstr(aname, "OTA.bin")) {
+      bestUrl = url;
+      bestPriority = 3;
       break;
+    } else if (strstr(aname, "firmware.bin") && bestPriority < 2) {
+      bestUrl = url;
+      bestPriority = 2;
+    } else if (strstr(aname, ".bin") && bestPriority < 1) {
+      bestUrl = url;
+      bestPriority = 1;
     }
   }
+  s_downloadUrl = bestUrl;
 
-  Serial.printf("GithubOTA: Current %s, Latest on GitHub: %s\n", FW_VERSION, s_latestTag.c_str());
+  Serial.printf("GithubOTA: Current %s, Latest on GitHub: %s, Asset URL: %s\n",
+                FW_VERSION, s_latestTag.c_str(), s_downloadUrl.c_str());
 
   if (s_latestTag.length() > 0 && isNewerVersion(s_latestTag.c_str(), FW_VERSION)) {
+    if (s_downloadUrl.length() == 0) {
+      s_otaError = "No OTA asset found in release";
+      s_otaState = GH_OTA_ERROR;
+      return false;
+    }
     s_otaState = GH_OTA_AVAILABLE;
     return true;
   } else {
@@ -375,6 +401,11 @@ static void downloadAndFlashTask(void* param) {
   http.end();
   client.stop();
 
+  if (totalLen > 0 && written < (size_t)totalLen && s_otaError.length() == 0) {
+    s_otaError = "Incomplete download";
+    Update.abort();
+  }
+
   if (s_otaError.length() == 0 && Update.end(true)) {
     s_otaProgress = 100;
     s_otaState = GH_OTA_SUCCESS;
@@ -400,6 +431,13 @@ bool GithubOTA_StartUpdateAsync(const char* url, const char* tag) {
 
   if (s_downloadUrl.length() == 0) {
     s_otaError = "Missing download URL";
+    s_otaState = GH_OTA_ERROR;
+    return false;
+  }
+
+  if (strstr(s_downloadUrl.c_str(), "factory") || strstr(s_downloadUrl.c_str(), "Factory") ||
+      strstr(s_downloadUrl.c_str(), "merged")  || strstr(s_downloadUrl.c_str(), "Merged")) {
+    s_otaError = "Cannot flash factory binary via OTA";
     s_otaState = GH_OTA_ERROR;
     return false;
   }

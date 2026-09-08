@@ -11,7 +11,7 @@
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)
 // =============================================================================
 #pragma once
-#include "Version.h"   // FW_VERSION - jde do hlavicky User-Agent nize
+#include "Version.h"   // FW_VERSION - used in User-Agent header below
 
 // ---------------------------------------------------------------------------
 //  Board pins / bus
@@ -66,7 +66,7 @@
 #define ADSB_PERIOD_FAR_MS  15000    // beyond ADSB_MID_KM
 #define ADSB_NEAR_KM 25.0f
 #define ADSB_MID_KM  50.0f
-#define DETAIL_AUTO_CLOSE_MS 10000UL // Automaticke zatvorenie detailu / fotky lietadla (10 sekund)
+#define DETAIL_AUTO_CLOSE_MS 10000UL // Auto-close aircraft detail / photo overlay (10 seconds)
 
 // ---------------------------------------------------------------------------
 //  Weather radar (CHMU) & Tactical radar
@@ -75,12 +75,11 @@
 // "the whole country", a fixed view that ignores where the user is.
 #define METEO_RANGES_KM    { 25.0f, 50.0f, 100.0f, 200.0f, 0.0f }
 #define TACTICAL_RANGES_KM { 25.0f, 50.0f, 100.0f, 200.0f, 0.0f }
-#define TACTICAL_RADAR_PERIOD_MS (5 * 60 * 1000UL) // 5 minut perioda obnovy zrazkoveho radaru na Tactical obrazovke
+#define TACTICAL_RADAR_PERIOD_MS (5 * 60 * 1000UL) // 5 min refresh interval for precipitation radar on Tactical screen
 
-// Prodleva mezi pokusy o data meteoradaru, kdyz zadna nejsou. Plati pro oba
-// zdroje: u CHMU bez ni slo prvni nacteni znovu pri kazdem pruchodu smyckou,
-// tedy cely vypis kazdou vterinu; u RainVieweru se naopak po neuspechu nezkusilo
-// nic a radar zustal prazdny az do zmeny dosahu nebo restartu.
+// Retry interval for weather radar when no data was received. Applies to both
+// providers: prevents CHMU from polling every loop cycle on startup, and ensures
+// RainViewer retries after a transient failure instead of remaining blank.
 #define RADAR_RETRY_MS 60000UL
 
 // The fixed "whole country" view: centre of the republic and a radius wide
@@ -210,19 +209,15 @@
 // The sink enforces this instead and the previous data stays on screen.
 #define NET_BODY_BUDGET_MS 15000UL
 
-// Strop pro textove odpovedi ctene pres Net_GetString(). Nejvetsi z nich (index
-// RainVieweru) ma nizke desitky kB. Strop je tu proto, aby rostouci odpoved dala
-// o sobe vedet radkem v logu, misto aby tise ujidala pamet.
+// Ceiling for text responses read via Net_GetString(). The largest of them
+// (RainViewer index) is a few tens of kB. The ceiling ensures an unexpectedly
+// large payload produces a warning line in the log instead of silently eating RAM.
 #define NET_MAX_TEXT (128 * 1024)
 
-// Hlavicka User-Agent pro VSECHNY odchozi dotazy. Neni to jen zdvorilost:
-// adsb.lol odpovi 403 s telem "User-Agent too generic; include valid contact
-// info", kdyz v ni zadny kontakt nevidi - a presne to delala vychozi
-// "ESP32HTTPClient", ktera odchazela, dokud se hlavicka omylem nastavovala
-// pres addHeader() (to ji tise zahazuje, viz ADSB.cpp). Odkaz na web projektu
-// jako kontakt staci. Kdyz projekt forknete, dejte sem SVUJ - jinak pujdou
-// pripadne stiznosti na cizi adresu.
-#define HTTP_USER_AGENT "MeteoPlaneRadar/" FW_VERSION
+// User-Agent header for ALL outgoing HTTP requests. Required by remote APIs
+// (e.g. adsb.lol, planespotters.net) which reject generic User-Agents with 403.
+// Project repository URL is included as the required contact reference.
+#define HTTP_USER_AGENT "MeteoPlaneRadar/" FW_VERSION " (+https://github.com/" GITHUB_REPO ")"
 
 // ---------------------------------------------------------------------------
 //  Aircraft detail

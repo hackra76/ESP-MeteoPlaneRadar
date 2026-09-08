@@ -1,10 +1,10 @@
-//  MeteoPlaneRadar
 // =============================================================================
-//  Slovenske mesta - kompletny a optimalizovany zoznam.
+//  MeteoPlaneRadar
+//  Slovak cities - comprehensive and optimized list.
 //
-//  Tier 1: 8 krajskych miest a metropol
-//  Tier 2: Hlavne regionalne centra a vacsie okresne mesta (vratane Bardejova)
-//  Tier 3: Ostatne okresne mesta pre detailnejsie priblizenie
+//  Tier 1: 8 regional capitals / metropolises
+//  Tier 2: Key regional centers and major district towns
+//  Tier 3: Secondary district towns for detailed zoom levels
 // =============================================================================
 #pragma once
 #include "EuMapData.h"   // struct EuCity
@@ -15,7 +15,7 @@
 #define SK_BOX_LON1 22.60f
 
 static const EuCity SK_CITIES[] = {
-  // --- Krajske mesta a metropoly (Tier 1) ---
+  // --- Regional capitals and metropolises (Tier 1) ---
   {"Bratislava",        "BA",  17.1077f, 48.1486f, 1},
   {"Kosice",            "KE",  21.2581f, 48.7164f, 1},
   {"Presov",            "PO",  21.2407f, 48.9984f, 1},
@@ -25,7 +25,7 @@ static const EuCity SK_CITIES[] = {
   {"Trnava",            "TT",  17.5858f, 48.3775f, 1},
   {"Trencin",           "TN",  18.0444f, 48.8945f, 1},
 
-  // --- Klucove regionalne centra a mesta (Tier 2) ---
+  // --- Key regional centers and towns (Tier 2) ---
   {"Poprad",            "PP",  20.3000f, 49.0500f, 2},
   {"Martin",            "MT",  18.9220f, 49.0665f, 2},
   {"Zvolen",            "ZV",  19.1245f, 48.5744f, 2},
@@ -45,7 +45,7 @@ static const EuCity SK_CITIES[] = {
   {"Dunajska Streda",   "DS",  17.6125f, 47.9928f, 2},
   {"Cadca",             "CA",  18.7897f, 49.4386f, 2},
 
-  // --- Okresne mesta a vyznamne uzly (Tier 3) ---
+  // --- District towns and key junctions (Tier 3) ---
   {"Svidnik",           "SK",  21.5714f, 49.3082f, 3},
   {"Stara Lubovna",     "SL",  20.6897f, 49.3014f, 3},
   {"Stropkov",          "SP",  21.6522f, 49.2025f, 3},

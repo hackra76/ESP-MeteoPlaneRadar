@@ -85,9 +85,14 @@ bool ScreenSettings_Tick() {
     GithubOtaState st = GithubOTA_GetState();
     int prog = GithubOTA_GetProgress();
     unsigned long now = millis();
-    if (st != s_lastOtaState || prog != s_lastOtaProgress || (now - s_lastAnimTick >= 250)) {
+    if (st != s_lastOtaState || prog != s_lastOtaProgress) {
       s_lastOtaState = st;
       s_lastOtaProgress = prog;
+      s_lastAnimTick = now;
+      return true;
+    }
+    // Only animate dots during checking state
+    if (st == GH_OTA_CHECKING && (now - s_lastAnimTick >= 250)) {
       s_lastAnimTick = now;
       s_animDot = (s_animDot + 1) % 4;
       return true;
@@ -345,6 +350,14 @@ static void drawOtaModal() {
 }
 
 void ScreenSettings_Draw() {
+  // If OTA update is in progress, draw a clean dedicated update dialog
+  // to avoid background sliders, buttons and footers flickering through during flash write.
+  if (GithubOTA_IsBusy()) {
+    gfx->fillScreen(C_BLACK);
+    drawOtaModal();
+    return;
+  }
+
   gfx->fillScreen(C_BLACK);
   Layout_Begin();
   Layout_ReserveBand(LY_DOTS - 6, 12);
@@ -439,39 +452,41 @@ void ScreenSettings_Draw() {
   UI_TextCenteredIn(forgetWifiBtn, BTN_R_X, BTN_W, BTN_R2_Y + BTN_H / 2 - 8, C_BLACK, 2);
 
   // --- OTA Check Button ---
-  GithubOtaState st = GithubOTA_GetState();
-  if (st == GH_OTA_AVAILABLE) {
-    gfx->fillRoundRect(BTN_OTA_X, BTN_OTA_Y, BTN_OTA_W, BTN_OTA_H, 8, 0x05E0);
-    char buf[40];
-    const char* fmt = (Lang_Get() == LANG_EN) ? "New: %s (Tap to update)"
-                    : ((Lang_Get() == LANG_SK) ? "Nova: %s (Aktualizovat)" : "Nova: %s (Aktualizovat)");
-    snprintf(buf, sizeof(buf), fmt, GithubOTA_GetLatestVersion());
-    UI_TextCenteredIn(buf, BTN_OTA_X, BTN_OTA_W, BTN_OTA_Y + BTN_OTA_H / 2 - 8, C_BLACK, 2);
-  } else if (st == GH_OTA_CHECKING) {
-    gfx->fillRoundRect(BTN_OTA_X, BTN_OTA_Y, BTN_OTA_W, BTN_OTA_H, 8, 0x18E3);
-    const char* chkTxt = (Lang_Get() == LANG_EN) ? "Checking GitHub..."
-                       : ((Lang_Get() == LANG_SK) ? "Kontrolujem GitHub..." : "Kontroluji GitHub...");
-    UI_TextCenteredIn(chkTxt, BTN_OTA_X, BTN_OTA_W, BTN_OTA_Y + BTN_OTA_H / 2 - 8, C_YELLOW, 2);
-  } else if (st == GH_OTA_DOWNLOADING || st == GH_OTA_FLASHING) {
-    gfx->fillRoundRect(BTN_OTA_X, BTN_OTA_Y, BTN_OTA_W, BTN_OTA_H, 8, 0x2104);
-    char buf[32];
-    snprintf(buf, sizeof(buf), "OTA: %d%%", GithubOTA_GetProgress());
-    UI_TextCenteredIn(buf, BTN_OTA_X, BTN_OTA_W, BTN_OTA_Y + BTN_OTA_H / 2 - 8, C_GREEN, 2);
-  } else if (st == GH_OTA_UP_TO_DATE) {
-    gfx->fillRoundRect(BTN_OTA_X, BTN_OTA_Y, BTN_OTA_W, BTN_OTA_H, 8, 0x10A2);
-    gfx->drawRoundRect(BTN_OTA_X, BTN_OTA_Y, BTN_OTA_W, BTN_OTA_H, 8, 0x2965);
-    const char* curTxt = (Lang_Get() == LANG_EN) ? "✓ Firmware is up to date"
-                       : ((Lang_Get() == LANG_SK) ? "✓ Verzia je aktualna" : "✓ Verze je aktualni");
-    UI_TextCenteredIn(curTxt, BTN_OTA_X, BTN_OTA_W, BTN_OTA_Y + BTN_OTA_H / 2 - 8, 0x8FE0, 2);
-  } else {
-    gfx->fillRoundRect(BTN_OTA_X, BTN_OTA_Y, BTN_OTA_W, BTN_OTA_H, 8, C_DKGRAY);
-    gfx->drawRoundRect(BTN_OTA_X, BTN_OTA_Y, BTN_OTA_W, BTN_OTA_H, 8, 0x4208);
-    const char* btnTxt = (Lang_Get() == LANG_EN) ? "Check for update"
-                       : ((Lang_Get() == LANG_SK) ? "Overit aktualizaciu" : "Overit aktualizaci");
-    UI_TextCenteredIn(btnTxt, BTN_OTA_X, BTN_OTA_W, BTN_OTA_Y + BTN_OTA_H / 2 - 8, C_WHITE, 2);
-  }
+  if (!s_otaModalOpen) {
+    GithubOtaState st = GithubOTA_GetState();
+    if (st == GH_OTA_AVAILABLE) {
+      gfx->fillRoundRect(BTN_OTA_X, BTN_OTA_Y, BTN_OTA_W, BTN_OTA_H, 8, 0x05E0);
+      char buf[40];
+      const char* fmt = (Lang_Get() == LANG_EN) ? "New: %s (Tap to update)"
+                      : ((Lang_Get() == LANG_SK) ? "Nova: %s (Aktualizovat)" : "Nova: %s (Aktualizovat)");
+      snprintf(buf, sizeof(buf), fmt, GithubOTA_GetLatestVersion());
+      UI_TextCenteredIn(buf, BTN_OTA_X, BTN_OTA_W, BTN_OTA_Y + BTN_OTA_H / 2 - 8, C_BLACK, 2);
+    } else if (st == GH_OTA_CHECKING) {
+      gfx->fillRoundRect(BTN_OTA_X, BTN_OTA_Y, BTN_OTA_W, BTN_OTA_H, 8, 0x18E3);
+      const char* chkTxt = (Lang_Get() == LANG_EN) ? "Checking GitHub..."
+                         : ((Lang_Get() == LANG_SK) ? "Kontrolujem GitHub..." : "Kontroluji GitHub...");
+      UI_TextCenteredIn(chkTxt, BTN_OTA_X, BTN_OTA_W, BTN_OTA_Y + BTN_OTA_H / 2 - 8, C_YELLOW, 2);
+    } else if (st == GH_OTA_DOWNLOADING || st == GH_OTA_FLASHING) {
+      gfx->fillRoundRect(BTN_OTA_X, BTN_OTA_Y, BTN_OTA_W, BTN_OTA_H, 8, 0x2104);
+      char buf[32];
+      snprintf(buf, sizeof(buf), "OTA: %d%%", GithubOTA_GetProgress());
+      UI_TextCenteredIn(buf, BTN_OTA_X, BTN_OTA_W, BTN_OTA_Y + BTN_OTA_H / 2 - 8, C_GREEN, 2);
+    } else if (st == GH_OTA_UP_TO_DATE) {
+      gfx->fillRoundRect(BTN_OTA_X, BTN_OTA_Y, BTN_OTA_W, BTN_OTA_H, 8, 0x10A2);
+      gfx->drawRoundRect(BTN_OTA_X, BTN_OTA_Y, BTN_OTA_W, BTN_OTA_H, 8, 0x2965);
+      const char* curTxt = (Lang_Get() == LANG_EN) ? "✓ Firmware is up to date"
+                         : ((Lang_Get() == LANG_SK) ? "✓ Verzia je aktualna" : "✓ Verze je aktualni");
+      UI_TextCenteredIn(curTxt, BTN_OTA_X, BTN_OTA_W, BTN_OTA_Y + BTN_OTA_H / 2 - 8, 0x8FE0, 2);
+    } else {
+      gfx->fillRoundRect(BTN_OTA_X, BTN_OTA_Y, BTN_OTA_W, BTN_OTA_H, 8, C_DKGRAY);
+      gfx->drawRoundRect(BTN_OTA_X, BTN_OTA_Y, BTN_OTA_W, BTN_OTA_H, 8, 0x4208);
+      const char* btnTxt = (Lang_Get() == LANG_EN) ? "Check for update"
+                         : ((Lang_Get() == LANG_SK) ? "Overit aktualizaciu" : "Overit aktualizaci");
+      UI_TextCenteredIn(btnTxt, BTN_OTA_X, BTN_OTA_W, BTN_OTA_Y + BTN_OTA_H / 2 - 8, C_WHITE, 2);
+    }
 
-  UI_TextCentered("H4CKR4", LY_FOOTER, C_GREEN, 2);
+    UI_TextCentered("H4CKR4", LY_FOOTER, C_GREEN, 2);
+  }
 
   // If modal is open, draw it on top of the screen
   if (s_otaModalOpen) {

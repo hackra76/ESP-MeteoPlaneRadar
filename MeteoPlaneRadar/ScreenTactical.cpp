@@ -302,7 +302,7 @@ static void buildTacticalComposite() {
   s_png->decode(nullptr, 0);
   s_png->close();
 
-  // Skalovanie do 480x480 kruhoveho framebufferu s_radarFb
+  // Scale into 480x480 circular framebuffer s_radarFb
   const int cw = s_tc.cw, ch = s_tc.ch;
   if (cw <= 0 || ch <= 0) return;
   const long R2 = (long)DISP_R * DISP_R;
@@ -798,6 +798,10 @@ void ScreenTactical_Draw() {
 
 void ScreenTactical_Enter() {
   selectNone("enter");
+  uint8_t saved = Settings_TacticalRange();
+  if (saved < RANGE_COUNT) {
+    s_rangeIdx = saved;
+  }
   uint8_t curSrc = Settings_RadarSource();
   static uint8_t s_enterLastSrc = 255;
   if (curSrc != s_enterLastSrc) {
@@ -851,6 +855,7 @@ void ScreenTactical_RangeText(char* out, size_t cap) {
 void ScreenTactical_ChangeRange(int dir) {
   if (ScreenTactical_DetailOpen()) return;
   s_rangeIdx = (s_rangeIdx + dir + RANGE_COUNT) % RANGE_COUNT;
+  Settings_SetTacticalRange(s_rangeIdx);
   selectNone("range_change");
   double clat = Settings_Lat(), clon = Settings_Lon();
   float crng = currentRange();
@@ -877,14 +882,14 @@ void ScreenTactical_ChangeRange(int dir) {
 bool ScreenTactical_Tick() {
   if (WiFi.status() != WL_CONNECTED) return false;
 
-  // Automaticke zatvorenie detailu lietadla alebo fotky po 10 sekundach od zobrazenia
+  // Automatically close aircraft detail or photo overlay after timeout
   if (ScreenTactical_DetailOpen()) {
     PhotoState pState = PlanePhoto_GetState();
     bool photoDone = (pState == PHOTO_OK || pState == PHOTO_NONE);
     if (!photoDone && s_selCacheOk && pState == PHOTO_IDLE) {
       photoDone = true;
     }
-    // Casovac 10s sa nastartuje az v momente, ked je fotka stiahnuta alebo potvrdena ako "bez fotky"
+    // The timeout counter begins once photo is resolved or timeout reached
     if (s_detailOpenMs == 0) {
       if (photoDone || (millis() - s_detailSelectMs >= 15000UL)) {
         s_detailOpenMs = millis();
@@ -935,7 +940,7 @@ bool ScreenTactical_Tick() {
     }
   }
 
-  // Periodicka obnova zrazkoveho radaru (RainViewer) kazdych 5 minut alebo retry pri chybe
+  // Periodic precipitation radar refresh (RainViewer) every 5 minutes or retry after error
   if (rvMode() && !RainViewer_Busy()) {
     bool failed = (RainViewer_Failed() || RainViewer_Count() == 0);
     if ((failed && (now - s_lastRadarFetch >= RADAR_RETRY_MS)) ||

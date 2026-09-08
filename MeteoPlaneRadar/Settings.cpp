@@ -86,6 +86,7 @@ static bool     s_precipAlert = true;
 // --- UI state ---
 static uint8_t  s_rngP = 1;
 static uint8_t  s_rngM = 1;
+static uint8_t  s_rngT = 1;
 static uint8_t  s_scr  = SCREEN_PLANES_I;
 static uint16_t s_top  = 0;
 static bool     s_showLegends = true;
@@ -223,6 +224,7 @@ void Settings_Begin() {
     if (prefs.isKey("watch")) prefs.getString("watch", s_watch, sizeof(s_watch));
     s_rngP   = prefs.getUChar("rngP", 1);
     s_rngM   = prefs.getUChar("rngM", 1);
+    s_rngT   = prefs.getUChar("rngT", 1);
     s_scr    = prefs.getUChar("scr", SCREEN_PLANES_I);
     s_top    = prefs.getUShort("topb", 0);
     s_showLegends = prefs.getBool("sLeg", true);
@@ -662,6 +664,8 @@ uint8_t Settings_PlaneRange() { return s_rngP; }
 void    Settings_SetPlaneRange(uint8_t idx) { if (idx != s_rngP) { s_rngP = idx; markDirty(); } }
 uint8_t Settings_MeteoRange() { return s_rngM; }
 void    Settings_SetMeteoRange(uint8_t idx) { if (idx != s_rngM) { s_rngM = idx; markDirty(); } }
+uint8_t Settings_TacticalRange() { return s_rngT; }
+void    Settings_SetTacticalRange(uint8_t idx) { if (idx != s_rngT) { s_rngT = idx; markDirty(); } }
 uint16_t Settings_TopBearing() { return s_top; }
 void     Settings_SetTopBearing(uint16_t deg) {
   deg %= 360;
@@ -888,6 +892,7 @@ void Settings_Tick() {
   if (prefs.begin(NS, false)) {
     prefs.putUChar("rngP", s_rngP);
     prefs.putUChar("rngM", s_rngM);
+    prefs.putUChar("rngT", s_rngT);
     prefs.putUChar("scr",  s_scr);
     prefs.putUShort("topb", s_top);
     prefs.putUChar("bl",   s_briDay);
@@ -912,7 +917,7 @@ void Settings_ClearAll() {
   s_altMin = 0; s_altMax = 60000; s_onlyCs = false; s_sqAlert = true; s_watch[0] = '\0';
   s_typeFilterMask = 0x3F;
   s_bzOn = true; s_bzEm = true; s_bzWatch = true; s_bzOverhead = false; s_bzPrecip = false; s_bzTouch = false; s_bzHour = false; s_bzNMute = true;
-  s_rngP = 1; s_rngM = 1; s_scr = SCREEN_PLANES_I; s_top = 0;
+  s_rngP = 1; s_rngM = 1; s_rngT = 1; s_scr = SCREEN_PLANES_I; s_top = 0;
   s_pw[0] = '\0';
   s_ssid[0] = '\0'; s_wpass[0] = '\0';
   s_wifiNetCount = 0;

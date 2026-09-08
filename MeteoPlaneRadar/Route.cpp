@@ -1,7 +1,6 @@
 // =============================================================================
-//  MeteoPlaneRadar - trasa letu z adsb.lol (poloha + priznak verohodnosti).
-//  Duvody, proc prave takhle, jsou v Route.h.
-//
+//  MeteoPlaneRadar - flight route from adsb.lol (position + plausibility check).
+//  See Route.h for design rationale.
 // =============================================================================
 #include "Route.h"
 #include "AsyncCore.h"
@@ -20,12 +19,9 @@ static void (*s_poll)() = nullptr;
 void Route_SetPollFn(void (*fn)()) { s_poll = fn; }
 
 // --- Text sanitising --------------------------------------------------------
-// adsb.lol vraci nazvy mest v Unicode - Izmir prijde jako U+0130 ("I" s teckou,
-// turecke velke I) plus "zmir", tedy dva bajty tam, kde font ceka jeden.
-// Vestaveny GFX font je 7bitovy, takze se ty bajty vykreslily jako dva nahodne
-// glyfy a na displeji stalo neco jako "-?zmir". Vsechno se proto sklada dolu
-// na ASCII: diakritika pada, pismeno pod ni zustava. Dalsi realne pripady
-// z odpovedi adsb.lol: Krakow (U+0142), Malaga (U+00E1).
+// adsb.lol returns city names in Unicode (e.g. Izmir with dotted capital I,
+// Krakow with slashed l). The built-in GFX font is 7-bit ASCII, so we fold
+// all characters down to ASCII: diacritics are removed, keeping the base letter.
 static const char LAT1_MAP[65]  = "AAAAAAACEEEEIIIIDNOOOOOxOUUUUYTsaaaaaaaceeeeiiiidnooooo/ouuuuyty";   // U+00C0..U+00FF
 static const char LATA_MAP[129] = "AaAaAaCcCcCcCcDdDdEeEeEeEeEeGgGgGgGgHhHhIiIiIiIiIiIiJjKkkLlLlLlLlLlNnNnNnnNnOoOoOoOoRrRrRrSsSsSsSsTtTtTtUuUuUuUuUuUuWwYyYZzZzZzs";   // U+0100..U+017F
 
@@ -34,17 +30,17 @@ static void toAscii(char* dst, size_t cap, const char* src) {
   for (const unsigned char* p = (const unsigned char*)src; *p && o + 1 < cap; ) {
     unsigned char c = *p;
     uint32_t cp;
-    if (c < 0x80)             { cp = c;                                p += 1; }
-    else if ((c & 0xE0) == 0xC0 && p[1]) { cp = ((c & 0x1F) << 6) | (p[1] & 0x3F);  p += 2; }
+    if (c < 0x80)                         { cp = c;                                p += 1; }
+    else if ((c & 0xE0) == 0xC0 && p[1])  { cp = ((c & 0x1F) << 6) | (p[1] & 0x3F);  p += 2; }
     else if ((c & 0xF0) == 0xE0 && p[1] && p[2]) {
       cp = ((c & 0x0F) << 12) | ((p[1] & 0x3F) << 6) | (p[2] & 0x3F);  p += 3;
-    } else { p += 1; continue; }            // rozbity bajt - preskoc
+    } else { p += 1; continue; }            // Malformed byte - skip
 
     char out;
     if (cp < 0x80)                       out = (char)cp;
     else if (cp >= 0xC0 && cp <= 0xFF)   out = LAT1_MAP[cp - 0xC0];
     else if (cp >= 0x100 && cp <= 0x17F) out = LATA_MAP[cp - 0x100];
-    else                                 continue;   // hadat nema cenu
+    else                                 continue;   // Unsupported code point
     if (out < 0x20) continue;
     dst[o++] = out;
   }
@@ -52,37 +48,27 @@ static void toAscii(char* dst, size_t cap, const char* src) {
 }
 
 // --- Cache ------------------------------------------------------------------
-// Klicem je callsign (hex uz se sem neposila). Round-robin nahrazovani: pri
-// tomhle poctu polozek stoji cokoli chytrejsiho vic, nez to usetri.
-//
-// Zaznam ma platnost. Bez ni by keska drzela odpoved do restartu, coz je
-// spatne hned dvakrat:
-//   1) Vysledek plati k POLOZE, se kterou se ptalo. Server podle ni pocital
-//      "plausible" a u vicenohe trasy jsme podle ni vybrali usek. Letadlo
-//      z Prahy do Dubaje pres Istanbul by po mezipristani ukazovalo porad
-//      prvni usek, protoze odpoved se ulozila, kdyz bylo nad Ceskem.
-//   2) Callsigny se recykluji. Zitrejsi OKL123 muze byt jiny let nez ten
-//      dnesni - a prave tohle mel priznak "plausible" resit, jenze zapamatovana
-//      odpoved uz zadnou kontrolu polohy neprojde.
-// Cisla odpovidaji tomu, jak dlouho drzi svou kes samotne adsb.lol.
-#define ROUTE_TTL_OK_MS    1200000UL   // 20 min - nalezena verohodna trasa
-#define ROUTE_TTL_NONE_MS    60000UL   // 1 min  - "trasa neni"; letadlo tesne
-                                       // po vzletu ji casto dostane az pozdeji
+// Keyed by callsign. Simple round-robin replacement.
+// Cache entries have TTL:
+//   1) The result is tied to the position when queried (used to select multi-leg).
+//   2) Callsigns are recycled between flights.
+#define ROUTE_TTL_OK_MS    1200000UL   // 20 min - found plausible route
+#define ROUTE_TTL_NONE_MS    60000UL   // 1 min - no route (retry later)
 
 struct Entry {
   char          key[12] = "";
   RouteState    state   = ROUTE_IDLE;
-  unsigned long stamp   = 0;    // millis() zapisu vysledku
+  unsigned long stamp   = 0;    // millis() when written
   RouteInfo     info;
 };
 static Entry s_cache[ROUTE_CACHE_N];
 static int   s_next = 0;
 
-static char  s_wantKey[12] = "";   // co UI prave ukazuje
-static float s_wantLat = 0;        // poloha letadla - server podle ni pocita
-static float s_wantLon = 0;        // priznak "plausible"
+static char  s_wantKey[12] = "";   // Currently requested callsign
+static float s_wantLat = 0;        // Aircraft position for server plausibility check
+static float s_wantLon = 0;
 static bool  s_pending = false;
-static bool  s_changed = false;    // dorazil vysledek, obrazovka se ma prekreslit
+static bool  s_changed = false;    // Result arrived, trigger screen repaint
 
 // Background route queue (for visible aircraft on the radar)
 static char  s_queueKey[12] = "";
@@ -97,34 +83,30 @@ static Entry* find(const char* key) {
   return nullptr;
 }
 
-// Je zaznam uz moc stary? Odecita se v unsigned, takze prsteneni millis()
-// po 49 dnech nevadi - a tenhle displej bezi nepretrzite, takze na to dojde.
-// Zamerne se NEvola z find(): kdyby zaznam vyprsel pod rukama zrovna
-// otevrenemu detailu, panel by zhasnul a Route_Select() by se uz nezeptal,
-// protoze klic se nezmenil. Platnost se tedy resi jen pri VYBERU letadla.
+// Check if an entry has expired. Handled on aircraft selection to prevent
+// blinking open detail overlays.
 static bool expired(const Entry* e) {
-  if (e->state == ROUTE_WAIT || e->state == ROUTE_IDLE) return false;   // jeste se ptame
+  if (e->state == ROUTE_WAIT || e->state == ROUTE_IDLE) return false;   // In progress
   unsigned long ttl = (e->state == ROUTE_OK) ? ROUTE_TTL_OK_MS : ROUTE_TTL_NONE_MS;
   return (millis() - e->stamp) > ttl;
 }
 
 static Entry* insert(const char* key) {
-  // Nejdriv volne misto - po vyprseni nebo po neuspesnem dotazu zaznamy mizi,
-  // a bylo by hloupe prepsat platnou odpoved, kdyz vedle zeje prazdny slot.
+  // Look for empty slot first
   Entry* e = nullptr;
   for (int i = 0; i < ROUTE_CACHE_N && !e; i++)
     if (!s_cache[i].key[0]) e = &s_cache[i];
-  if (!e) {                       // vsechno obsazeno - round robin
+  if (!e) {                       // All occupied - round robin
     e = &s_cache[s_next];
     s_next = (s_next + 1) % ROUTE_CACHE_N;
   }
-  *e = Entry();          // ne memset - Entry ma inicializatory clenu
+  *e = Entry();
   strncpy(e->key, key, sizeof(e->key) - 1);
   e->state = ROUTE_WAIT;
   return e;
 }
 
-// Orizne mezery z obou stran - adsb.fi doplnuje callsign na osm znaku.
+// Trim whitespace from both ends
 static void trim(char* s) {
   int n = strlen(s);
   while (n > 0 && (s[n - 1] == ' ' || s[n - 1] == '\t')) s[--n] = '\0';
@@ -133,10 +115,7 @@ static void trim(char* s) {
   if (lead) memmove(s, s + lead, strlen(s + lead) + 1);
 }
 
-// Callsign jde primo do cesty URL, takze do nej nesmi nic, co by ji rozbilo
-// nebo prepsalo ('/', '?', '%', mezera). Realne callsigny jsou vzdy jen
-// pismena a cislice; cokoli jineho znamena poskozena data a dotaz se
-// neprovede vubec, misto aby se cokoli escapovalo.
+// Validate callsign: must only contain alphanumeric characters
 static bool callsignSane(const char* s) {
   if (!s || !*s) return false;
   for (const char* p = s; *p; p++)
@@ -201,10 +180,9 @@ bool Route_TakeChanged() {
 }
 
 // --- Fetching ---------------------------------------------------------------
-// Vzdusna vzdalenost v km. Slouzi jen k porovnavani useku mezi sebou, takze
-// na presnem polomeru Zeme nezalezi.
+// Great-circle distance in km (Haversine formula)
 static float haversineKm(float lat1, float lon1, float lat2, float lon2) {
-  const float R = 6371.0f, D = 0.017453293f;   // km, stupne -> radiany
+  const float R = 6371.0f, D = 0.017453293f;   // km, deg -> rad
   float dLat = (lat2 - lat1) * D, dLon = (lon2 - lon1) * D;
   float a = sinf(dLat * 0.5f) * sinf(dLat * 0.5f) +
             cosf(lat1 * D) * cosf(lat2 * D) * sinf(dLon * 0.5f) * sinf(dLon * 0.5f);
@@ -212,16 +190,15 @@ static float haversineKm(float lat1, float lon1, float lat2, float lon2) {
   return 2.0f * R * asinf(sqrtf(a));
 }
 
-// Popisek letiste: mesto ("Prague") se cte lip nez kod, ale u malych letist
-// byva prazdne - pak IATA.
+// Airport label: prefer city name, fallback to IATA code
 static void airportLabel(char* dst, size_t cap, JsonVariantConst ap) {
   const char* v = ap["location"].is<const char*>() ? ap["location"].as<const char*>() : nullptr;
   if (!v || !*v) v = ap["iata"].is<const char*>() ? ap["iata"].as<const char*>() : nullptr;
   if (!v) { dst[0] = '\0'; return; }
-  toAscii(dst, cap, v);     // font neumi nic nez ASCII
+  toAscii(dst, cap, v);
 }
 
-// Extract the IATA code (3 letters) from the _airports JSON entry.
+// Extract the IATA code (3 letters) from the _airports JSON entry
 static void airportIata(char* dst, size_t cap, JsonVariantConst ap) {
   const char* v = ap["iata"].is<const char*>() ? ap["iata"].as<const char*>() : nullptr;
   if (!v || !*v) { dst[0] = '\0'; return; }
@@ -229,8 +206,7 @@ static void airportIata(char* dst, size_t cap, JsonVariantConst ap) {
   dst[cap - 1] = '\0';
 }
 
-// Jeden GET s filtrem. Vraci HTTP kod (nebo zaporny kod HTTPClient),
-// pri uspechu 200 a rozparsovanym dokumentem.
+// Single GET with filter. Returns HTTP status code or negative error.
 static int getJson(const char* url, JsonDocument& filter, JsonDocument& doc) {
   WiFiClientSecure client; client.setInsecure();
   client.setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
@@ -252,10 +228,7 @@ static int getJson(const char* url, JsonDocument& filter, JsonDocument& doc) {
     delay(50);
     return code;
   }
-  // Buffer the body first. http.getStream() is the RAW socket and does not
-  // strip chunked encoding, so parsing straight off it would read the hex
-  // block size as a value and report Ok on an empty document - the same
-  // failure that silently blanked the aircraft radar.
+  // Buffer body first to handle chunked encoding properly
   static uint8_t* s_buf = nullptr;
   static const size_t ROUTE_MAX = 8192;
   if (!s_buf) {
@@ -272,7 +245,7 @@ static int getJson(const char* url, JsonDocument& filter, JsonDocument& doc) {
   while (client.available()) client.read();
   http.end();
   client.stop();
-  delay(100);    // Give LwIP TCP stack time to settle the FIN/ACK handshake!
+  delay(100);    // Give LwIP TCP stack time to settle the FIN/ACK handshake
   if (len <= 0) return -1001;
 
   DeserializationError err = deserializeJson(doc, s_buf, (size_t)len,
@@ -311,19 +284,15 @@ void Route_Tick() {
   if (!s_pending) return;
   if (WiFi.status() != WL_CONNECTED) return;
 
-  if (!Net_HeapOk("ROUTE")) return;    // zkusi se znovu pristi kolo
+  if (!Net_HeapOk("ROUTE")) return;
 
   s_pending = false;
   s_lastQueryMs = millis();
   Entry* e = find(s_wantKey);
   if (!e) return;
-  // Odsud dal uz kazda cesta zaznam zmeni (vysledek, "neni", nebo zahozeni po
-  // chybe), takze se priznak nastavuje jednou tady a ne ve ctyrech vetvich.
-  // Cely zbytek funkce je synchronni, nez se vrati, je hotovo.
   s_changed = true;
 
-  // Filtr pousti jen to, co se opravdu pouzije - dokument musi zustat maly.
-  // U pole staci popsat prvni prvek, ArduinoJson ho aplikuje na vsechny.
+  // Filter only used fields to minimize JSON parser memory footprint
   JsonDocument filter;
   filter["airport_codes"] = true;
   filter["plausible"]     = true;
@@ -339,10 +308,7 @@ void Route_Tick() {
            ROUTE_API_BASE, s_wantKey, s_wantLat, s_wantLon);
   int code = getJson(url, filter, doc);
   if (code != HTTP_CODE_OK) {
-    // Neuspech (500, timeout, TLS fail): ulozime jako ROUTE_NONE s cooldownem 60s.
-    // Nesmime zaznam jen tak smazat (*e = Entry()), protoze radar v kazdem snimku
-    // letadlo znovu zaradi do fronty a zpusobi nekonecnou smycku HTTPS dotazu,
-    // ktera vycerpa TLS pamet (-32512) a schodi i radar RainVieweru.
+    // Failure (500, timeout, TLS fail): record ROUTE_NONE with 60s cooldown
     Async_LockRoute();
     Entry* cur = find(s_wantKey);
     if (cur) {
@@ -355,9 +321,6 @@ void Route_Tick() {
   }
 
   const char* codes = doc["airport_codes"] | "unknown";
-  // Pri nenalezene trase pole "plausible" v odpovedi vubec neni, takze
-  // vychozi hodnota musi byt false - jinak by neznama trasa prosla jako
-  // verohodna.
   bool plausible = doc["plausible"] | false;
 
   if (strcmp(codes, "unknown") == 0 || !plausible) {
@@ -382,9 +345,7 @@ void Route_Tick() {
     return;
   }
 
-  // Mezipristani: u vicenohe trasy (napr. "LKPR-LTFM-OMDB") se drive ukazal
-  // prvni odlet a posledni prilet, i kdyz letadlo letelo prostredni usek.
-  // Vezme se ta sousedni dvojice letist, ke ktere je letadlo souhrnne nejbliz.
+  // Multi-leg flight: pick the leg pair closest to the aircraft's current position
   int best = 0;
   if (n > 2) {
     float bestD = 1e30f;
@@ -408,7 +369,7 @@ void Route_Tick() {
   if (cur) {
     cur->info = info;
     cur->state = any ? ROUTE_OK : ROUTE_NONE;
-    cur->stamp = millis();   // od ted bezi platnost, viz expired()
+    cur->stamp = millis();
   }
   Async_UnlockRoute();
 
@@ -434,8 +395,6 @@ const RouteInfo* Route_GetCached(const char* callsign) {
 }
 
 // --- Background route queue (for visible aircraft on the radar) -------------
-// Simple single-slot queue: if Route_Select is already busy with a detail-panel
-// lookup, queued items wait. Only one background lookup is queued at a time.
 void Route_Queue(const char* callsign, float lat, float lon) {
   if (!callsign || !*callsign) return;
   char key[12] = "";
@@ -444,12 +403,9 @@ void Route_Queue(const char* callsign, float lat, float lon) {
   if (!callsignSane(key)) return;
 
   Async_LockRoute();
-  // Already cached?
   Entry* e = find(key);
-  if (e && !expired(e)) { Async_UnlockRoute(); return; }   // already have it
-  // Don't queue if the main Select is busy with a different callsign
+  if (e && !expired(e)) { Async_UnlockRoute(); return; }
   if (s_pending && s_wantKey[0]) { Async_UnlockRoute(); return; }
-  // Queue it
   strncpy(s_queueKey, key, sizeof(s_queueKey) - 1);
   s_queueLat = lat;
   s_queueLon = lon;

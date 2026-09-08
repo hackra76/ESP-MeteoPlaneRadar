@@ -79,8 +79,8 @@ static bool fetchForecast() {
     FORECAST_HOURS, FORECAST_DAYS + 1);
 
   String body;
-  if (!Net_GetString(url, body, "PREDPOVED")) {
-    Status_Set(ST_FORECAST, "chyba stahovani");
+  if (!Net_GetString(url, body, "FORECAST")) {
+    Status_Set(ST_FORECAST, "fetch error");
     return false;
   }
 
@@ -185,7 +185,7 @@ static bool fetchAirQuality() {
     AIRQUALITY_URL, Settings_Lat(), Settings_Lon());
 
   String body;
-  if (!Net_GetString(url, body, "OVZDUSI")) return false;
+  if (!Net_GetString(url, body, "AIR_QUALITY")) return false;
 
   JsonDocument filter;
   JsonObject fc = filter["current"].to<JsonObject>();

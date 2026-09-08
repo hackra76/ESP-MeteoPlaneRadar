@@ -9,6 +9,20 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [1.6.1] - 2026-09-08
+
+### Opravené / Fixed
+- **Sťahovanie fotiek lietadiel (Planespotters.net API 403 Fix):**
+  - Aktualizovaná hlavička `User-Agent` obsahujúca identifikáciu aplikácie a kontaktnú URL, čo zabraňuje blokovaniu Cloudflare firewallom (`HTTP 403 Forbidden`).
+  - Zapnuté automatické sledovanie HTTP presmerovaní (`HTTPC_FORCE_FOLLOW_REDIRECTS`) a zavedený 60 s retry interval namiesto trvalého zablokovania v stave `PHOTO_NONE`.
+- **Nastavenie rotácie obrazovky Info (`SCREEN_INFO_I`):**
+  - Opravené odosielanie prepínačov zobrazenia obrazoviek vo webovom rozhraní – odškrtnutie Info obrazovky ju správne vyradí z automatického cyklovania.
+- **Pamäť zoomu taktického radaru (Tactical Range Persistence):**
+  - Pridané ukladanie mierky taktického radaru do NVS pamäte (`rngT`), takže si obrazovka Tactical pamätá zvolený zoom aj po reštarte alebo prepnutí obrazovky.
+- **Lokalizácia kódu a čistenie (Codebase English Cleanup):**
+  - Všetky zdrojové komentáre v kóde boli preložené do angličtiny.
+  - Odstránené staré artefakty z pôvodných projektov, zjednotené interné sieťové značky (`TEMP`, `FORECAST`, `AIR_QUALITY`, `GEOCODE`) a stavové správy pre API.
+
 ## [1.6.0] - 2026-09-08
 
 ### Pridané / Added

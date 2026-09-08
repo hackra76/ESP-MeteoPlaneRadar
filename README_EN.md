@@ -29,6 +29,15 @@ Designed specifically for the **Waveshare ESP32-S3-Touch-LCD-2.1** development b
 
 ---
 
+## 🌟 Key Highlights in v1.6.1
+
+- 🔧 **Planespotters.net API Fix (403 Forbidden):** Updated `User-Agent` to include application identity and contact URL to prevent Cloudflare blocks and restore reliable aircraft photo downloads.
+- 🔄 **Info Screen Auto-Cycling Fix:** Fixed screen toggle synchronization in Web UI to properly exclude the Info screen when deselected.
+- 🎯 **Tactical Radar Zoom Persistence:** Tactical radar zoom level (`rngT`) is now persisted across reboots.
+- 🌐 **Complete Codebase English Localization:** All remaining code comments and internal debug tags translated to English and cleaned of legacy artifacts.
+
+---
+
 ## 🌟 Key Highlights in v1.6.0
 
 - 🌧️ **Approaching Precipitation Detection & Nowcasting (TREC):** 2D spatial cross-correlation vector analysis tracks precipitation movements across radar frames. Strictly alerts **only when precipitation is heading towards your location** ($v_{radial} > 0$, miss distance $\le 15\text{ km}$, $\text{ETA} \le 60\text{ min}$) to eliminate false alarms. Displays ETA countdown and bearing arrow on radar, and a compact warning widget on the Clock face with tap-to-radar navigation.

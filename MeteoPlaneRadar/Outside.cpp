@@ -99,7 +99,7 @@ static bool fetchTemp() {
   // Same path as every other text response: heap guard, handshake timeout,
   // chunked decoding and the body cap all live in Net_GetString().
   String body;
-  if (!Net_GetString(url, body, "TEPLOTA")) return false;
+  if (!Net_GetString(url, body, "TEMP")) return false;
 
   JsonDocument filter;
   filter["current"]["temperature_2m"] = true;

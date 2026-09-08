@@ -29,6 +29,15 @@ Vyvinuté pre hardvérovú dosku **Waveshare ESP32-S3-Touch-LCD-2.1** s moderný
 
 ---
 
+## 🌟 Kľúčové novinky vo verzii v1.6.1
+
+- 🔧 **Oprava Planespotters.net API (403 Forbidden):** Aktualizovaná hlavička `User-Agent` s kontaktnou URL na GitHub repozitár, čím sa predišlo blokovaniu Cloudflare firewallom a obnovilo spoľahlivé sťahovanie fotiek lietadiel.
+- 🔄 **Správne vyradenie Info obrazovky z cyklovania:** Opravená synchronizácia prepínačov obrazoviek vo webovom rozhraní – odškrtnutie Info obrazovky spoľahlivo zastaví jej automatické striedanie.
+- 🎯 **Ukladanie mierky taktického radaru (Tactical Zoom Persistence):** Taktický kombinovaný radar si pamätá nastavenú mierku (`rngT`) aj po reštarte zariadenia.
+- 🌐 **Kompletný preklad kódu do angličtiny:** Všetky komentáre a interné debug značky v kóde boli zjednotené do angličtiny a vyčistené od starých artefaktov.
+
+---
+
 ## 🌟 Kľúčové novinky vo verzii v1.6.0
 
 - 🌧️ **Detekcia blížiacich sa zrážok & Nowcasting (TREC):** 2D priestorová krížová korelácia analyzuje pohyb zrážkových buniek medzi radarovými snímkami. Upozornenie sa aktivuje **iba a výhradne vtedy, ak zrážky smerujú k vašej polohe** ($v_{radial} > 0$, minutie $\le 15\text{ km}$, $\text{ETA} \le 60\text{ min}$), čím eliminuje plané poplachy pri obchádzaní stanice.

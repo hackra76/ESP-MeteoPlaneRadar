@@ -10,8 +10,7 @@
 //  tiny writes into the panel framebuffer while the RGB DMA is reading it, i.e.
 //  exactly the PSRAM double-write/read contention that makes pixels flicker.
 //  Canvas16 keeps the buffer in PSRAM and flushes it as one bulk transfer, so
-//  the DMA sees a single read burst. Verified fix ported from the SatRadar
-//  project. Only rotation 0 is implemented (we never rotate).
+//  the DMA sees a single read burst. Only rotation 0 is implemented (we never rotate).
 //
 //  Project: MeteoPlaneRadar - live aircraft radar on a round touchscreen
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)

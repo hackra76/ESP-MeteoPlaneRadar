@@ -96,11 +96,21 @@ void PlanePhoto_Select(const char* reg, const char* hex) {
   int idx = findEntry(cleanReg, cleanHex);
   if (idx >= 0) {
     s_activeSlot = idx;
-    if (s_cache[idx].state == PHOTO_OK || s_cache[idx].state == PHOTO_NONE) {
+    if (s_cache[idx].state == PHOTO_OK) {
       s_pending = false;
       unlock();
       return;
     }
+    if (s_cache[idx].state == PHOTO_NONE && (millis() - s_cache[idx].stamp < 60000UL)) {
+      s_pending = false;
+      unlock();
+      return;
+    }
+    s_cache[idx].state = PHOTO_WAIT;
+    s_cache[idx].stamp = millis();
+    s_pending = true;
+    unlock();
+    return;
   } else {
     idx = allocSlot();
     s_activeSlot = idx;
@@ -231,6 +241,7 @@ static bool queryPlanespotters(const char* kind, const char* value, char* thumbU
   http.setConnectTimeout(5000);
   http.setTimeout(7000);
   http.setReuse(false);
+  http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
 
   if (!http.begin(client, url)) return false;
   http.setUserAgent(HTTP_USER_AGENT);
@@ -292,6 +303,7 @@ static bool downloadJpeg(const char* url, uint8_t* dstBuf, size_t* dstLen) {
   http.setConnectTimeout(5000);
   http.setTimeout(7000);
   http.setReuse(false);
+  http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
 
   bool isHttps = (strncmp(url, "https://", 8) == 0);
   WiFiClientSecure clientSecure;

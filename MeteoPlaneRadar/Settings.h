@@ -177,6 +177,8 @@ uint8_t Settings_PlaneRange();
 void    Settings_SetPlaneRange(uint8_t idx);
 uint8_t Settings_MeteoRange();
 void    Settings_SetMeteoRange(uint8_t idx);
+uint8_t Settings_TacticalRange();
+void    Settings_SetTacticalRange(uint8_t idx);
 uint8_t Settings_Screen();
 void    Settings_SetScreen(uint8_t idx);
 uint16_t Settings_TopBearing();

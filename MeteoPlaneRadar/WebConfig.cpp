@@ -495,7 +495,7 @@ static void handleGeocode() {
            GEOCODE_URL, enc.c_str(), langCode);
 
   String body;
-  if (!Net_GetString(url, body, "GEOKOD")) { s_srv.send(502, "application/json", "[]"); return; }
+  if (!Net_GetString(url, body, "GEOCODE")) { s_srv.send(502, "application/json", "[]"); return; }
 
   JsonDocument filter;
   JsonObject f = filter["results"].add<JsonObject>();
@@ -762,11 +762,13 @@ static void handleOtaCheck() {
 }
 
 static void handleOtaStatus() {
-  char buf[256];
-  snprintf(buf, sizeof(buf),
-           "{\"state\":\"%s\",\"progress\":%d,\"error\":\"%s\"}",
-           GithubOTA_GetStateStr(), GithubOTA_GetProgress(), GithubOTA_GetError());
-  s_srv.send(200, "application/json", buf);
+  JsonDocument doc;
+  doc["state"] = GithubOTA_GetStateStr();
+  doc["progress"] = GithubOTA_GetProgress();
+  doc["error"] = GithubOTA_GetError();
+  String resp;
+  serializeJson(doc, resp);
+  s_srv.send(200, "application/json", resp);
 }
 
 static void handleOtaStart() {
@@ -889,6 +891,14 @@ static void handleUpdateUpload() {
       s_updErr = "";
       if (!updateAuthed()) { s_updErr = "auth"; return; }
       Serial.printf("OTA: %s\n", up.filename.c_str());
+      if (strstr(up.filename.c_str(), "factory") || strstr(up.filename.c_str(), "Factory") ||
+          strstr(up.filename.c_str(), "merged")  || strstr(up.filename.c_str(), "Merged")) {
+        s_updErr = (Lang_Get() == LANG_EN) ? "Factory/merged binary cannot be flashed via OTA. Use -ota.bin."
+                 : ((Lang_Get() == LANG_SK) ? "Factory/merged binarku nemozno nahrat cez OTA. Pouzite -ota.bin."
+                 : "Factory/merged binarku nelze nahrat pres OTA. Pouzijte -ota.bin.");
+        otaEnd(false);
+        return;
+      }
       otaStart();
       // The browser does not announce the image size up front, so let Update
       // take the whole free OTA slot.

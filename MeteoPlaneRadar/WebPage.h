@@ -1263,7 +1263,12 @@ const AUTO = [
  ["cPrecipMeteo","change","cPrecip",e=>{ if($("cPrecip")) $("cPrecip").checked=e.checked; return e.checked; }],
  ["cOver","change","cOver",e=>e.checked],
  ["ovRad","change","ovRad",e=>parseFloat(e.value)||10],
- ["sInfo","change","screens",()=>saveScreens()],
+ ["sClock","change","screens",()=>getScreensObj()],
+ ["sPlanes","change","screens",()=>getScreensObj()],
+ ["sMeteo","change","screens",()=>getScreensObj()],
+ ["sTactical","change","screens",()=>getScreensObj()],
+ ["sForecast","change","screens",()=>getScreensObj()],
+ ["sInfo","change","screens",()=>getScreensObj()],
  ["bzNightMute","change","buzzerNightMute",e=>e.checked],
  ["hostname","change","hostname",e=>{ if($("netHost")) $("netHost").textContent=e.value+".local"; return e.value.trim(); }],
 ];
@@ -1431,15 +1436,19 @@ function body(){return{
  screens:{clock:$("sClock").checked,planes:$("sPlanes").checked,meteo:$("sMeteo").checked,tactical:$("sTactical").checked,forecast:$("sForecast").checked,info:$("sInfo")?$("sInfo").checked:true}
 };}
 
+function getScreensObj(){
+ return {
+  clock: $("sClock") ? $("sClock").checked : true,
+  planes: $("sPlanes") ? $("sPlanes").checked : true,
+  meteo: $("sMeteo") ? $("sMeteo").checked : true,
+  tactical: $("sTactical") ? $("sTactical").checked : true,
+  forecast: $("sForecast") ? $("sForecast").checked : true,
+  info: $("sInfo") ? $("sInfo").checked : true
+ };
+}
+
 function saveScreens(){
- autoSave("screens",{
-  clock:$("sClock").checked,
-  planes:$("sPlanes").checked,
-  meteo:$("sMeteo").checked,
-  tactical:$("sTactical").checked,
-  forecast:$("sForecast").checked,
-  info:$("sInfo")?$("sInfo").checked:true
- });
+ autoSave("screens", getScreensObj());
 }
 
 async function fetchStats(){

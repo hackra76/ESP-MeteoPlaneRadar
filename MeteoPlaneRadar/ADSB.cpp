@@ -269,10 +269,10 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
   // No link -> keep whatever we last drew (do NOT blank the radar).
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("ADSB: no WiFi");
-    Status_Set(ST_ADSB, "bez WiFi");
+    Status_Set(ST_ADSB, "no WiFi");
     return false;
   }
-  if (!Net_HeapOk("ADSB")) { Status_Set(ST_ADSB, "malo pameti"); return false; }
+  if (!Net_HeapOk("ADSB")) { Status_Set(ST_ADSB, "low memory"); return false; }
 
   float distNm = radiusKm / KM_PER_NM;
   char url[128];

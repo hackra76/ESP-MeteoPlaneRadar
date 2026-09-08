@@ -1,6 +1,6 @@
-//  MeteoPlaneRadar
 // =============================================================================
-//  MeteoPlaneRadar - meteoradar CHMU: stahovani do PSRAM (1 snimek + animace).
+//  MeteoPlaneRadar
+//  CHMU weather radar: downloading into PSRAM (single frame + animation).
 // =============================================================================
 #include "CHMU.h"
 #include <WiFi.h>
@@ -12,7 +12,7 @@
 #include "Outside.h"
 #include "NetSink.h"
 #include "Net.h"
-#include <string.h>      // strstr / memcmp
+#include <string.h>
 
 static const char* NAME_PREFIX = "pacz2gmaps3.z_max3d.";
 
@@ -20,7 +20,7 @@ static void (*s_poll)() = nullptr;
 void CHMU_SetPollFn(void (*fn)()) { s_poll = fn; }
 
 // -----------------------------------------------------------------------------
-//  Spolecne pomucky
+//  Helper utilities
 // -----------------------------------------------------------------------------
 static String extractTimestamp(const String& name) {
   int start = name.indexOf(NAME_PREFIX);
@@ -35,12 +35,9 @@ static String extractTimestamp(const String& name) {
   return date + hhmm;   // YYYYMMDDHHMM
 }
 
-// The name carries a UTC timestamp; the label wants local time. The conversion
+// The filename carries a UTC timestamp; the label wants local time. The conversion
 // deliberately does NOT look at the current clock - it turns the frame's own
 // date into an epoch and lets the TZ rules decide CET or CEST for THAT date.
-// Reading "now" instead used to put the labels an hour out whenever NTP had not
-// answered yet, because the unset clock sits in January (CET) while the frame
-// is from summer (CEST).
 static String timeTextFromName(const String& name) {
   String ts = extractTimestamp(name);
   if (ts.length() < 12) return "";
@@ -59,7 +56,7 @@ static String timeTextFromName(const String& name) {
   return String(out);
 }
 
-// Stahne dany PNG do zadaneho bufferu. Vraci true a naplni *outSize.
+// Download given PNG into buffer. Returns true and writes *outSize on success.
 static bool downloadNameTo(const String& name, uint8_t* buf, size_t cap, size_t* outSize) {
   *outSize = 0;
   if (!buf) return false;
@@ -67,9 +64,7 @@ static bool downloadNameTo(const String& name, uint8_t* buf, size_t cap, size_t*
   size_t got = 0;
   if (!Net_GetBinary(url.c_str(), buf, cap, &got, "CHMU")) return false;
 
-  // A PNG that is not a PNG means we were handed an error page or something
-  // re-encoded in transit. Checking the signature here stops the decoder from
-  // being fed rubbish and drawing a corrupt frame over a good radar image.
+  // A PNG signature check stops corrupted or error frames from being rendered.
   if (got < 8 || memcmp(buf, "\x89PNG\r\n\x1a\n", 8) != 0) {
     Serial.printf("CHMU: %s is not a PNG (%u B)\n", name.c_str(), (unsigned)got);
     return false;
@@ -79,7 +74,7 @@ static bool downloadNameTo(const String& name, uint8_t* buf, size_t cap, size_t*
 }
 
 // -----------------------------------------------------------------------------
-//  Animace - nejnovejsich N ramcu
+//  Animation - newest N frames
 // -----------------------------------------------------------------------------
 static uint8_t* s_animBuf[CHMU_ANIM_MAX] = {0};
 static size_t   s_animSize[CHMU_ANIM_MAX] = {0};
@@ -91,18 +86,18 @@ uint8_t* CHMU_AnimData(int i) { return (i >= 0 && i < s_animCount) ? s_animBuf[i
 size_t   CHMU_AnimSize(int i) { return (i >= 0 && i < s_animCount) ? s_animSize[i] : 0; }
 String   CHMU_AnimTimeText(int i) { return (i >= 0 && i < s_animCount) ? timeTextFromName(s_animName[i]) : String(""); }
 
-// Bezici "top-N" nejnovejsich nazvu (vzestupne dle casu).
+// Running top-N newest filenames (ascending by time).
 static String s_topName[CHMU_ANIM_MAX];
 static String s_topTs[CHMU_ANIM_MAX];
 static int    s_topCount = 0;
 
 static void topInsert(const String& name, const String& ts) {
-  for (int i = 0; i < s_topCount; i++) if (s_topTs[i] == ts) return;   // duplicita
+  for (int i = 0; i < s_topCount; i++) if (s_topTs[i] == ts) return;   // Duplicate, keep scanning
   if (s_topCount < CHMU_ANIM_MAX) {
     int p = s_topCount;
     while (p > 0 && s_topTs[p - 1] > ts) { s_topTs[p] = s_topTs[p - 1]; s_topName[p] = s_topName[p - 1]; p--; }
     s_topTs[p] = ts; s_topName[p] = name; s_topCount++;
-  } else if (ts > s_topTs[0]) {   // nahradime nejstarsi
+  } else if (ts > s_topTs[0]) {   // Replace oldest
     int p = 0;
     while (p < CHMU_ANIM_MAX - 1 && s_topTs[p + 1] < ts) { s_topTs[p] = s_topTs[p + 1]; s_topName[p] = s_topName[p + 1]; p++; }
     s_topTs[p] = ts; s_topName[p] = name;
@@ -110,7 +105,7 @@ static void topInsert(const String& name, const String& ts) {
 }
 
 // -----------------------------------------------------------------------------
-//  Scanning indexu (HTML adresaroveho vypisu)
+//  Scanning index (HTML directory listing)
 // -----------------------------------------------------------------------------
 static bool scanTop(const char* text, void* user) {
   (void)user;
@@ -137,14 +132,14 @@ int CHMU_FetchAnim(int wantN) {
   if (wantN > CHMU_ANIM_MAX) wantN = CHMU_ANIM_MAX;
   if (wantN < 1) wantN = 1;
 
-  // 1) projdi index a najdi N nejnovejsich nazvu
+  // 1) Scan index to find N newest filenames
   if (!Net_HeapOk("CHMU")) return s_animCount;
   s_topCount = 0;
   {
     WiFiClientSecure client; client.setInsecure();
     client.setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
     HTTPClient http;
-    http.setConnectTimeout(6000);   // TCP connect only, NOT the TLS handshake
+    http.setConnectTimeout(6000);
     http.setTimeout(15000);
     static const char* WANTED[] = { "Date" };
     http.collectHeaders(WANTED, 1);
@@ -172,7 +167,7 @@ int CHMU_FetchAnim(int wantN) {
   if (s_poll) s_poll();
   delay(150);
 
-  // 2) Download N newest (top array is ascending, take the end)
+  // 2) Download N newest frames (top array is ascending, take tail)
   int n = s_topCount < wantN ? s_topCount : wantN;
   int startIdx = s_topCount - n;
   int got = 0;

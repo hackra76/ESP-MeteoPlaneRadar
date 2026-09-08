@@ -15,10 +15,10 @@
 
 enum PrecipType : uint8_t {
   PRECIP_NONE = 0,
-  PRECIP_RAIN,          // Rain (Dážď)
-  PRECIP_SNOW,          // Snow (Sneženie, temp <= 1°C)
-  PRECIP_SLEET,         // Sleet / Rain & Snow (Dážď so snehom, 1°C < temp <= 3°C)
-  PRECIP_HAIL_STORM     // Severe convective storm / Hail (Krúpy / prudká búrka, > 50 dBZ)
+  PRECIP_RAIN,          // Rain
+  PRECIP_SNOW,          // Snow (temp <= 1°C)
+  PRECIP_SLEET,         // Sleet / Rain & Snow (1°C < temp <= 3°C)
+  PRECIP_HAIL_STORM     // Severe convective storm / Hail (> 50 dBZ)
 };
 
 enum PrecipStatus : uint8_t {

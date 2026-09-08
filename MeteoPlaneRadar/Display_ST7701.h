@@ -27,8 +27,8 @@
 // --- RGB timing (from the Waveshare datasheet) ---
 // Pixel clock 8 MHz (NOT 16). This halves the DMA bandwidth demand on the PSRAM
 // bus so the display survives contention from network buffers / canvas flush
-// without random-pixel flicker or the image creeping upward. Verified fix taken
-// from the SatRadar project - do not raise it back to 16 MHz.
+// without random-pixel flicker or the image creeping upward. Verified fix
+// for ESP32-S3 PSRAM bandwidth contention - do not raise it back to 16 MHz.
 #define RGB_FREQ_HZ  (8 * 1000 * 1000)
 #define RGB_HPW  8
 #define RGB_HBP  10

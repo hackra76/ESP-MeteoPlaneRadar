@@ -1,6 +1,6 @@
-//  MeteoPlaneRadar
 // =============================================================================
-//  MeteoPlaneRadar - meteoradar SHMU: stahovani do PSRAM (1 snimek + animace).
+//  MeteoPlaneRadar
+//  SHMU weather radar: downloading into PSRAM (single frame + animation).
 // =============================================================================
 #include "SHMU.h"
 #include <WiFi.h>
@@ -12,7 +12,7 @@
 #include "Outside.h"
 #include "NetSink.h"
 #include "Net.h"
-#include <string.h>      // strstr / memcmp
+#include <string.h>
 
 static const char* NAME_PREFIX = "cmax.kruh.";
 
@@ -20,7 +20,7 @@ static void (*s_poll)() = nullptr;
 void SHMU_SetPollFn(void (*fn)()) { s_poll = fn; }
 
 // -----------------------------------------------------------------------------
-//  Spolecne pomucky
+//  Helper utilities
 // -----------------------------------------------------------------------------
 static String extractTimestamp(const String& name) {
   int start = name.indexOf(NAME_PREFIX);
@@ -53,7 +53,7 @@ static String timeTextFromName(const String& name) {
   return String(out);
 }
 
-// Stahne dany PNG do zadaneho bufferu. Vraci true a naplni *outSize.
+// Download given PNG into buffer. Returns true and sets *outSize on success.
 static bool downloadNameTo(const String& name, uint8_t* buf, size_t cap, size_t* outSize) {
   *outSize = 0;
   if (!buf) return false;
@@ -70,7 +70,7 @@ static bool downloadNameTo(const String& name, uint8_t* buf, size_t cap, size_t*
 }
 
 // -----------------------------------------------------------------------------
-//  Animace - nejnovejsich N ramcu
+//  Animation - newest N frames
 // -----------------------------------------------------------------------------
 static uint8_t* s_animBuf[SHMU_ANIM_MAX] = {0};
 static size_t   s_animSize[SHMU_ANIM_MAX] = {0};
@@ -82,7 +82,7 @@ uint8_t* SHMU_AnimData(int i) { return (i >= 0 && i < s_animCount) ? s_animBuf[i
 size_t   SHMU_AnimSize(int i) { return (i >= 0 && i < s_animCount) ? s_animSize[i] : 0; }
 String   SHMU_AnimTimeText(int i) { return (i >= 0 && i < s_animCount) ? timeTextFromName(s_animName[i]) : String(""); }
 
-// Bezici "top-N" nejnovejsich nazvu (vzestupne dle casu).
+// Running top-N newest filenames (ascending by time).
 static String s_topName[SHMU_ANIM_MAX];
 static String s_topTs[SHMU_ANIM_MAX];
 static int    s_topCount = 0;
@@ -90,22 +90,22 @@ static bool   s_scanDone = false;
 static int    s_targetN = SHMU_ANIM_MAX;
 
 static bool topInsert(const String& name, const String& ts) {
-  for (int i = 0; i < s_topCount; i++) if (s_topTs[i] == ts) return true;   // duplicita, pokracujeme
+  for (int i = 0; i < s_topCount; i++) if (s_topTs[i] == ts) return true;   // Duplicate, keep scanning
   if (s_topCount < s_targetN) {
     int p = s_topCount;
     while (p > 0 && s_topTs[p - 1] > ts) { s_topTs[p] = s_topTs[p - 1]; s_topName[p] = s_topName[p - 1]; p--; }
     s_topTs[p] = ts; s_topName[p] = name; s_topCount++;
     return true;
   }
-  if (ts > s_topTs[0]) {   // nahradime nejstarsi
+  if (ts > s_topTs[0]) {   // Replace oldest
     int p = 0;
     while (p < s_targetN - 1 && s_topTs[p + 1] < ts) { s_topTs[p] = s_topTs[p + 1]; s_topName[p] = s_topName[p + 1]; p++; }
     s_topTs[p] = ts; s_topName[p] = name;
     return true;
   }
-  // V SHMU API idu snimky od najnovsieho k najstarsiemu. Ak uz mame s_targetN snimkov
-  // a narazili sme na starsi nez najstarsi z nasho vyberu, znamena to, ze vsetky
-  // dalsie snimky v JSON su este starsie a mozeme skenovanie okamzite ukoncit!
+  // In SHMU API, frames are listed newest to oldest. Once we have s_targetN frames
+  // and encounter one older than our oldest, all subsequent frames are even older;
+  // terminate scanning early.
   s_scanDone = true;
   return false;
 }
@@ -124,7 +124,7 @@ static bool scanTop(const char* text, void* user) {
     String ts = extractTimestamp(name);
     if (ts.length()) {
       if (!topInsert(name, ts)) {
-        return false;   // Ukoncit skenovanie tela
+        return false;   // Stop scanning response body
       }
     }
     pos = end + 4;
@@ -143,7 +143,7 @@ int SHMU_FetchAnim(int wantN) {
   if (wantN > SHMU_ANIM_MAX) wantN = SHMU_ANIM_MAX;
   if (wantN < 1) wantN = 1;
 
-  // 1) Projdi JSON API a najdi N nejnovejsich nazvu souboru
+  // 1) Scan JSON API and find N newest filenames
   if (!Net_HeapOk("SHMU")) return s_animCount;
   s_topCount = 0;
   s_scanDone = false;
@@ -152,7 +152,7 @@ int SHMU_FetchAnim(int wantN) {
     WiFiClientSecure client; client.setInsecure();
     client.setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
     HTTPClient http;
-    http.setConnectTimeout(6000);   // TCP connect only, NOT the TLS handshake
+    http.setConnectTimeout(6000);
     http.setTimeout(15000);
     http.setUserAgent("Mozilla/5.0 (ESP-MeteoPlaneRadar)");
     static const char* WANTED[] = { "Date" };
@@ -180,11 +180,11 @@ int SHMU_FetchAnim(int wantN) {
                   ilen, s_topCount, s_scanDone ? "yes" : "no");
   }
 
-  // Kratky odpocinek a uvolneni sitovych struktur pred stahovanim PNG
+  // Brief pause to release network resources before downloading PNGs
   if (s_poll) s_poll();
   delay(100);
 
-  // 2) Stahni N nejnovejsich (top pole je vzestupne, bereme konec)
+  // 2) Download N newest frames (top array is ascending, take tail)
   int n = s_topCount < wantN ? s_topCount : wantN;
   int startIdx = s_topCount - n;
   int got = 0;
@@ -219,4 +219,3 @@ void SHMU_FreeBuffers() {
   s_animCount = 0;
   s_topCount = 0;
 }
-

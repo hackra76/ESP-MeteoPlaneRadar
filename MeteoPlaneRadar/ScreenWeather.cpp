@@ -536,9 +536,9 @@ static void loadAndBuild() {
   else s_status = (s_frameCount > 0) ? T(S_OK) : T(S_ERROR);
 
   if (shmuMode()) {
-    Status_Set(ST_RADAR, ok ? "SHMU: %d snimkov" : "SHMU: chyba", s_frameCount);
+    Status_Set(ST_RADAR, ok ? "SHMU: %d frames" : "SHMU: error", s_frameCount);
   } else {
-    Status_Set(ST_RADAR, ok ? "CHMU: %d snimku" : "CHMU: chyba", s_frameCount);
+    Status_Set(ST_RADAR, ok ? "CHMU: %d frames" : "CHMU: error", s_frameCount);
   }
 }
 
@@ -766,8 +766,8 @@ static bool tickRainViewer() {
     s_curFrame = 0;
     s_gap = false;
     s_lastStep = now;
-    Status_Set(ST_RADAR, s_lastFail ? "RainViewer: chyba"
-                                    : "RainViewer: %d snimku", RainViewer_Count());
+    Status_Set(ST_RADAR, s_lastFail ? "RainViewer: error"
+                                    : "RainViewer: %d frames", RainViewer_Count());
     if (RainViewer_Count() >= 2) updatePrecipTracker();
     return true;
   }

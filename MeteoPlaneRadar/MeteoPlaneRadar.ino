@@ -296,7 +296,9 @@ static void drawActive() {
     case SCREEN_INFO_I:     ScreenInfo_Draw();     break;
     case SCREEN_SETTINGS_I: ScreenSettings_Draw(); break;
   }
-  drawScreenDots();
+  if (!WebConfig_UpdateBusy() && !ScreenSettings_IsModalOpen()) {
+    drawScreenDots();
+  }
   if (QuickControl_IsOpen()) {
     QuickControl_Draw(s_screen);
   }
@@ -810,6 +812,22 @@ void loop() {
     enterActive();
   }
 
+  // While a firmware update is running, freeze screen switching, alerts, touches, and extra tasks
+  if (WebConfig_UpdateBusy()) {
+    if (GithubOTA_IsBusy() && s_screen != SCREEN_SETTINGS_I) {
+      gotoScreen(SCREEN_SETTINGS_I);
+      ScreenSettings_OpenOtaModal();
+    }
+    static unsigned long lastOtaDraw = 0;
+    if (activeTick() && millis() - lastOtaDraw >= 80) {
+      drawActive();
+      lastOtaDraw = millis();
+    }
+    Watchdog_Feed();
+    delay(10);
+    return;
+  }
+
   // If WiFi reconnected or finished switching networks in background, immediately restore the screen
   if (WiFi_TakeNeedsRedraw()) {
     if (s_screen == SCREEN_SETTINGS_I) {
@@ -875,12 +893,6 @@ void loop() {
   }
 
   autoRotateTick();
-
-  // If an OTA update was triggered, auto-switch to Settings screen and open the OTA modal
-  if (GithubOTA_IsBusy() && s_screen != SCREEN_SETTINGS_I) {
-    gotoScreen(SCREEN_SETTINGS_I);
-    ScreenSettings_OpenOtaModal();
-  }
 
   // Auto-switch to Tactical screen when an emergency squawk (7500 / 7600 / 7700) is detected
   if (Settings_SquawkAlert()) {

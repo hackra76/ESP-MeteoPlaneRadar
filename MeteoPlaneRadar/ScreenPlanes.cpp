@@ -217,14 +217,14 @@ void ScreenPlanes_Enter() {
 bool ScreenPlanes_Tick() {
   if (WiFi.status() != WL_CONNECTED) { s_status = T(S_WIFI_WAIT); return false; }
 
-  // Automaticke zatvorenie detailu lietadla alebo fotky po 10 sekundach od zobrazenia
+  // Automatically close aircraft detail or photo overlay after timeout
   if (ScreenPlanes_DetailOpen()) {
     PhotoState pState = PlanePhoto_GetState();
     bool photoDone = (pState == PHOTO_OK || pState == PHOTO_NONE);
     if (!photoDone && s_selCacheOk && pState == PHOTO_IDLE) {
       photoDone = true;
     }
-    // Casovac 10s sa nastartuje az v momente, ked je fotka stiahnuta alebo potvrdena ako "bez fotky"
+    // The timeout counter begins once photo is resolved or timeout reached
     if (s_detailOpenMs == 0) {
       if (photoDone || (millis() - s_detailSelectMs >= 15000UL)) {
         s_detailOpenMs = millis();

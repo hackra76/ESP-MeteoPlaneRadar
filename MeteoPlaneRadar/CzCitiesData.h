@@ -1,27 +1,18 @@
-//  MeteoPlaneRadar
 // =============================================================================
-//  Ceska mesta - vlastni seznam.
+//  MeteoPlaneRadar
+//  Czech cities - custom list.
 //
-//  Evropska data (EuMapData.h) obsahuji jen sidla nad 50 000 obyvatel a jejich
-//  zkratky se generuji strojove prvnimi ctyrmi pismeny, takze z Prahy je PRAH
-//  a z Ostravy OSTR. Nad Ceskem je ale displej nejcasteji, a tady se hodi
-//  zkratky, ktere clovek pozna: PHA, OVA, PLZ.
-//
-//  Tenhle seznam proto pro Ceskou republiku evropska data NAHRAZUJE. Mesto
-//  z evropske sady, jehoz nazev je i tady, se preskoci (viz EuBorder.cpp), aby
-//  se nic nekreslilo dvakrat. Zbytek Evropy zustava beze zmeny.
-//
-//  Dlouhe nazvy s "nad" jsou zkracene (Jablonec n. N., Zdar n. S., Usti n. L.),
-//  aby se popisek vesel vedle tecky mesta i pri plnych nazvech.
-//
-//  59 mest, asi 1180 B ve flash.
-//  Zdroj: rucne udrzovany seznam puvodni ceske mapy projektu.
+//  European dataset (EuMapData.h) only contains settlements above 50,000 residents
+//  and generates machine abbreviations using the first four letters.
+//  This list replaces generic European data inside the Czech bounding box
+//  with recognized local abbreviations (e.g. PHA, OVA, PLZ).
+//  59 cities, ~1180 B in flash.
 // =============================================================================
 #pragma once
 #include "EuMapData.h"   // struct EuCity
 
-// Obdelnik, ve kterem se evropska mesta nahrazuji temito. Zamerne tesne kolem
-// hranic - Drazdany (51.05 N) lezi jen kousek nad nim a musi zustat evropske.
+// Bounding box where European cities are replaced by this dataset.
+// Boundaries hug the border closely - Dresden (51.05 N) sits just above and remains European.
 #define CZ_BOX_LAT0 48.55f
 #define CZ_BOX_LAT1 51.06f
 #define CZ_BOX_LON0 12.09f

@@ -1,29 +1,31 @@
 // =============================================================================
 //  MeteoPlaneRadar
-//  Kam vybrane letadlo leti - trasa z adsb.lol.
+//  Flight route lookup from adsb.lol (position + plausibility check).
 //
-//  adsb.fi vozi polohy, ale ne trasu, takze ta musi prijit odjinud. Drive se
-//  pouzivala ciste staticka databaze planovanych tras: jeden radek na callsign,
-//  bez data a bez vazby na konkretni let. Callsigny se ale mezi rotacemi a
-//  sezonami recykluji, takze letadlo nad Prahou dostalo klidne trasu
-//  Atheny -> Istanbul a nebylo jak poznat, ze je spatne.
+//  adsb.fi provides aircraft positions, but not routes, so routes must come
+//  from elsewhere. Previously, a purely static database of planned routes was
+//  used: one row per callsign, without dates or link to an actual flight.
+//  Callsigns are recycled between rotations and seasons, so an aircraft over
+//  Prague could easily get an Athens -> Istanbul route with no way to tell it
+//  was wrong.
 //
-//  adsb.lol umi navic jednu vec: spolu s callsignem se posila i poloha letadla
-//  a server vrati priznak "plausible". Pocita kolmou vzdalenost polohy od
-//  ortodromy mezi letisti trasy s toleranci max(50 NM, 20 % delky trasy).
-//  Trasa, ktera k poloze nesedi, se tim odfiltruje jeste na serveru.
+//  adsb.lol adds a critical feature: along with the callsign, the aircraft's
+//  current position is sent, and the server returns a "plausible" flag.
+//  It computes the perpendicular distance of the position from the great circle
+//  track between the route airports with a tolerance of max(50 NM, 20% of route length).
+//  A route that does not fit the position is filtered out directly on the server.
 //
-//  Endpoint (bez klice, bez registrace):
+//  Endpoint (free, no API key, no registration):
 //    GET https://api.adsb.lol/api/0/route/{callsign}/{lat}/{lon}
 //
-//  Pta se ZASE jen pri otevreni detailu jednoho letadla - jeden dotaz na jedno
-//  letadlo, nikdy pro cely seznam - a odpoved se kesuje, takze prepinani mezi
-//  dvema letadly uz API nezatezuje. Spousta letu trasu nema (general aviation,
-//  vojenske stroje, vrtulniky) a spousta letadel nevysila callsign vubec; oboji
-//  je normalni stav, ne chyba, a proste se nic nezobrazi.
+//  Queried ONLY when opening the detail view of an aircraft - one query per
+//  aircraft, never for the entire list - and the answer is cached, so toggling
+//  between aircraft does not burden the API. Many flights have no route
+//  (general aviation, military, helicopters) and many transmit no callsign;
+//  both are expected conditions, not errors, and simply result in no route shown.
 //
-//  Registrace a typ letadla uz sem nepatri - oboji vozi adsb.fi ve stejne
-//  odpovedi, kterou stahujeme kvuli polohe (pole "r" a "t"), viz ADSB.h.
+//  Registration and aircraft type are handled separately - both arrive from adsb.fi
+//  in the position payload ("r" and "t" fields), see ADSB.h.
 //
 //  Project: MeteoPlaneRadar - live aircraft radar on a round touchscreen
 // =============================================================================
@@ -31,45 +33,39 @@
 #include <Arduino.h>
 
 enum RouteState : uint8_t {
-  ROUTE_IDLE = 0,   // nic se nezada
-  ROUTE_WAIT,       // ve fronte / stahuje se
-  ROUTE_OK,         // trasa nalezena a server ji oznacil za verohodnou
-  ROUTE_NONE        // dotaz probehl, ale pouzitelna trasa neni
+  ROUTE_IDLE = 0,   // Nothing requested
+  ROUTE_WAIT,       // In queue / downloading
+  ROUTE_OK,         // Route found and server marked it plausible
+  ROUTE_NONE        // Query finished, but no usable route found
 };
 
 struct RouteInfo {
-  char from[20]     = "";   // "Prague", pripadne "PRG" kdyz mesto chybi
+  char from[20]     = "";   // "Prague", or "PRG" if city is missing
   char to[20]       = "";
   char iataFrom[5]  = "";   // 3-letter IATA code (e.g. "PRG")
   char iataTo[5]    = "";   // 3-letter IATA code (e.g. "LHR")
 };
 
-// Zeptej se na tuto trasu. Levne a idempotentni: opakovane volani se stejnym
-// callsignem nedela nic, jakmile je odpoved v kesi. Prazdny callsign (letadlo
-// zadny nevysila) dotaz vubec nespusti - hex se sem uz neposila, protoze
-// normalizovany hex je platny IATA tvar: "a31234" -> "A31234" je let Aegean
-// Airlines 1234, odtud ta recka trasa u letadla nad Prahou.
-// Poloha se posila spolu s callsignem, server podle ni pocita "plausible".
+// Query route for this aircraft. Cheap and idempotent: repeated calls with
+// the same callsign do nothing once cached. An empty callsign does not trigger
+// any query. Hex is not used as a fallback because normalized hex can match
+// valid airline codes (e.g. "a31234" -> "A31234" = Aegean Airlines).
+// Current aircraft position is sent along so the server can evaluate plausibility.
 void       Route_Select(const char* callsign, float lat, float lon);
 
-// Nic neni vybrano - zrus cekajici dotaz.
+// Clear selection - cancels pending query.
 void       Route_Clear();
 
-// Provede cekajici dotaz. Vola se z loop(); bez dotazu nedela nic.
+// Process pending query. Called from loop(); does nothing if idle.
 void       Route_Tick();
 
-// Yield + reset watchdogu, vola se pri kazdem bloku stahovane odpovedi.
-// Bez toho projde cteni trasy dvema blokujicimi ctenimi po 8 s, tedy pres
-// WDT_TIMEOUT_S, a zarizeni se restartuje uprostred stahovani.
+// Yield + watchdog reset, called during network stream processing.
 void       Route_SetPollFn(void (*fn)());
 
 RouteState Route_GetState();
-const RouteInfo* Route_Get();   // platne, dokud je stav ROUTE_OK
+const RouteInfo* Route_Get();   // Valid while state is ROUTE_OK
 
-// Vrati true prave jednou po tom, co Route_Tick() dopsal vysledek, a priznak
-// tim zhasne. Obrazovka se prekresluje jen kdyz ma co ukazat noveho, a bez
-// tohohle by na odpoved cekala az na dalsi stahovani letadel - tedy podle
-// dosahu 5 az 15 sekund, i kdyz trasa dorazila hned.
+// Returns true once when Route_Tick() finishes a result, clearing the flag.
 bool       Route_TakeChanged();
 
 // Look up a cached route by callsign without changing the "selected" aircraft.
@@ -78,7 +74,7 @@ bool       Route_TakeChanged();
 const RouteInfo* Route_GetCached(const char* callsign);
 
 // Queue a background route lookup for an aircraft visible on the radar.
-// Like Route_Select but does not change the "selected" aircraft (used by the
+// Like Route_Select but does not change the "selected" aircraft.
 void       Route_Queue(const char* callsign, float lat, float lon);
 void       Route_ClearQueue();
 bool       Route_HasPending();
