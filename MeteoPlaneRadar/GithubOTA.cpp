@@ -12,6 +12,7 @@
 #include "NetSink.h"
 #include "UI.h"
 #include "Lang.h"
+#include "Display_ST7701.h"
 
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
@@ -349,6 +350,8 @@ static void downloadAndFlashTask(void* param) {
   }
 
   s_otaState = GH_OTA_FLASHING;
+  LCD_SetPclk(5000000);
+  LCD_Restart();
   UI_DrawOtaProgress("GitHub OTA", 0, 0, (size_t)totalLen, (Lang_Get() == LANG_EN) ? "Downloading firmware..." : "Sťahujem firmvér...");
 
   WiFiClient* stream = http.getStreamPtr();
@@ -362,6 +365,8 @@ static void downloadAndFlashTask(void* param) {
     http.end();
     client.stop();
     s_otaState = GH_OTA_ERROR;
+    LCD_SetPclk(RGB_FREQ_HZ);
+    LCD_Restart();
     UI_DrawOtaProgress("GitHub OTA", 0, 0, 0, s_otaError.c_str());
     Async_Resume();
     s_updateTaskHandle = nullptr;
@@ -395,6 +400,7 @@ static void downloadAndFlashTask(void* param) {
           lastDrawnProg = s_otaProgress;
           lastDrawnMs = millis();
           UI_DrawOtaProgress("GitHub OTA", s_otaProgress, written, (size_t)totalLen, nullptr);
+          vTaskDelay(pdMS_TO_TICKS(10));
         }
       }
     } else {
@@ -430,6 +436,8 @@ static void downloadAndFlashTask(void* param) {
   } else {
     if (s_otaError.length() == 0) s_otaError = Update.errorString();
     s_otaState = GH_OTA_ERROR;
+    LCD_SetPclk(RGB_FREQ_HZ);
+    LCD_Restart();
     UI_DrawOtaProgress("GitHub OTA", s_otaProgress, written, (size_t)totalLen, s_otaError.c_str());
     vTaskDelay(pdMS_TO_TICKS(3000));
     Async_Resume();

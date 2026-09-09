@@ -15,6 +15,7 @@
 #include "Config.h"
 #include "Version.h"
 #include "GithubOTA.h"
+#include "WebConfig.h"
 #include "Buzzer.h"
 
 #include <WiFi.h>
@@ -360,7 +361,7 @@ static void drawOtaModal() {
 
 void ScreenSettings_Draw() {
   // If OTA update is in progress, UI_DrawOtaProgress owns the display exclusively
-  if (GithubOTA_IsBusy()) {
+  if (GithubOTA_IsBusy() || WebConfig_UpdateBusy()) {
     return;
   }
 

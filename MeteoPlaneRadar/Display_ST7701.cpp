@@ -202,7 +202,7 @@ bool ST7701_Init() {
   rgb.data_width = 16;
   rgb.bits_per_pixel = 16;
   rgb.num_fbs = 2;                               // double buffering (no tearing)
-  rgb.bounce_buffer_size_px = 10 * LCD_WIDTH;    // steady DMA feed (no flicker)
+  rgb.bounce_buffer_size_px = 20 * LCD_WIDTH;    // 20 lines DMA feed (resilient to bus contention)
   rgb.psram_trans_align = 64;
   rgb.hsync_gpio_num = RGB_HSYNC;
   rgb.vsync_gpio_num = RGB_VSYNC;
@@ -305,3 +305,18 @@ void Set_Backlight(uint8_t light) {
   uint32_t duty = (uint32_t)light * 1023 / 100;
   ledcWrite(LCD_BL_PIN, duty);
 }
+
+// Set RGB pixel clock frequency (e.g. lower during flash writes)
+void LCD_SetPclk(uint32_t freq_hz) {
+  if (panel_handle) {
+    esp_lcd_rgb_panel_set_pclk(panel_handle, freq_hz);
+  }
+}
+
+// Reset RGB timing / line state and sync with VSYNC
+void LCD_Restart() {
+  if (panel_handle) {
+    esp_lcd_rgb_panel_restart(panel_handle);
+  }
+}
+

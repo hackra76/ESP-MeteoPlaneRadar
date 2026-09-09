@@ -736,11 +736,15 @@ static void handleNotFound() {
 static void otaStart() {
   Async_Pause();
   s_updating = true;
+  LCD_SetPclk(5000000);
+  LCD_Restart();
   UI_DrawOtaProgress("Web OTA", 0, 0, 0, (Lang_Get() == LANG_EN) ? "Preparing upload..." : "Pripravujem nahrávanie...");
 }
 
 static void otaEnd(bool ok) {
   s_updating = false;
+  LCD_SetPclk(RGB_FREQ_HZ);
+  LCD_Restart();
   Async_Resume();
 }
 
@@ -941,6 +945,7 @@ static void handleUpdateUpload() {
           s_lastWebProg = prog;
           s_lastWebDraw = millis();
           UI_DrawOtaProgress("Web OTA", prog, up.totalSize, s_updExpectedSize, nullptr);
+          vTaskDelay(pdMS_TO_TICKS(10));
         }
       }
       Watchdog_Feed();

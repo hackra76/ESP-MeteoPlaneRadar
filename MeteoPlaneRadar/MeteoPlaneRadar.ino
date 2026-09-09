@@ -287,6 +287,9 @@ static void drawScreenDots() {
 }
 
 static void drawActive() {
+  if (WebConfig_UpdateBusy() || (GithubOTA_GetState() == GH_OTA_FLASHING)) {
+    return;
+  }
   switch (s_screen) {
     case SCREEN_CLOCK_I:    ScreenClock_Draw();    break;
     case SCREEN_PLANES_I:   ScreenPlanes_Draw();   break;

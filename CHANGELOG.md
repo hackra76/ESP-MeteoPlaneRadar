@@ -25,6 +25,15 @@ pohromadě v `MeteoPlaneRadar/Config.h`.
     - Možnosť úplnej deaktivácie kompasu v NVS nastaveniach (`Settings_RadarShowCompass`), priamo z webového rozhrania (Karta "🧭 Orientácia, Kompas & Jednotky", radarové prvky lietadiel a taktického radaru) aj klepnutím na ikonu kompasu na obrazovke Nastavení na zariadení.
     - Samostatné nezávislé riadenie dynamickej auto-rotácie mapy (`Settings_AutoRotateBearing`) a viditeľnosti widgetu kompasu (`Settings_RadarShowCompass`).
 
+### Opravené / Fixed
+- **Stabilita a plynulosť obrazovky počas OTA aktualizácie (OTA Screen Roll & Glitch Fix):**
+  - Vyriešený problém s rolovaním a blikaním textu počas OTA zápisu do flash pamäte (`OTA.gif`):
+    - Zväčšený RGB GDMA bounce buffer z 10 na 20 riadkov (`bounce_buffer_size_px = 20 * LCD_WIDTH`), čím sa zabránilo vyprázdneniu DMA buffera (underflow) pri zablokovaní MSPI zbernice počas zápisu do flash.
+    - Zníženie pixel clocku (`LCD_SetPclk(5 MHz)`) počas sťahovania a zápisu firmvéru znižuje vyťaženie PSRAM zbernice o 37,5 %.
+    - Implementovaný hardvérový reštart časovania RGB panela (`LCD_Restart()`) s VSYNC resynchronizáciou po každom prekreslení priebehu OTA, čo bráni trvalému posunu riadkov.
+    - Dôsledné zablokovanie prekresľovania bežných obrazoviek (`drawActive()` a `ScreenSettings_Draw()`) počas prebiehajúcej OTA aktualizácie cez Web aj GitHub.
+
+
 ## [1.6.1] - 2026-09-08
 
 ### Opravené / Fixed
