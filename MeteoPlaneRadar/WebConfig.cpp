@@ -733,16 +733,29 @@ static void handleNotFound() {
 }
 
 // --- OTA callbacks ----------------------------------------------------------
+static uint8_t* s_ramOtaBuf = nullptr;
+static size_t   s_ramOtaCap = 0;
+static size_t   s_ramOtaLen = 0;
+
+static void otaFreeRam() {
+  if (s_ramOtaBuf) {
+    heap_caps_free(s_ramOtaBuf);
+    s_ramOtaBuf = nullptr;
+  }
+  s_ramOtaCap = 0;
+  s_ramOtaLen = 0;
+}
+
 static void otaStart() {
   Async_Pause();
   s_updating = true;
-  LCD_Restart();
-  UI_DrawOtaProgress("Web OTA", 0, 0, 0, (Lang_Get() == LANG_EN) ? "Writing to flash... Please wait" : "Prebieha zápis... Prosím čakajte");
+  otaFreeRam();
+  UI_DrawOtaProgress("Web OTA", 0, 0, 0, (Lang_Get() == LANG_EN) ? "Preparing upload..." : "Pripravujem nahrávanie...");
 }
 
 static void otaEnd(bool ok) {
   s_updating = false;
-  LCD_Restart();
+  otaFreeRam();
   Async_Resume();
 }
 
@@ -914,46 +927,97 @@ static void handleUpdateUpload() {
         long cl = s_srv.header("Content-Length").toInt();
         if (cl > 4000) s_updExpectedSize = (size_t)(cl - 350);
       }
-      if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
-        s_updErr = Update.errorString();
+      // Allocate PSRAM buffer (expected size + 64KB, or default 2.6 MB)
+      s_ramOtaCap = (s_updExpectedSize > 0) ? (s_updExpectedSize + 65536) : 2600000;
+      s_ramOtaBuf = (uint8_t*)heap_caps_malloc(s_ramOtaCap, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+      s_ramOtaLen = 0;
+      if (!s_ramOtaBuf) {
+        s_updErr = "Out of PSRAM memory";
         UI_DrawOtaProgress("Web OTA", 0, 0, 0, s_updErr.c_str());
         otaEnd(false);
+        return;
       }
+      UI_DrawOtaProgress("Web OTA", 0, 0, s_updExpectedSize, (Lang_Get() == LANG_EN) ? "Receiving firmware..." : "Prijímam firmvér...");
       break;
 
     case UPLOAD_FILE_WRITE:
       if (s_updErr.length()) return;              // already failed, drain the body
-      if (!Update.isRunning()) {
-        s_updErr = "Update not running";
+      if (!s_ramOtaBuf) {
+        s_updErr = "OTA buffer null";
         otaEnd(false);
         return;
       }
       if (up.buf && up.currentSize > 0) {
-        if (Update.write(up.buf, up.currentSize) != up.currentSize) {
-          s_updErr = Update.errorString();
-          Update.abort();
-          UI_DrawOtaProgress("Web OTA", 0, up.totalSize, s_updExpectedSize, s_updErr.c_str());
-          otaEnd(false);
-          return;
+        if (s_ramOtaLen + up.currentSize > s_ramOtaCap) {
+          size_t newCap = s_ramOtaCap + 524288;
+          uint8_t* newBuf = (uint8_t*)heap_caps_realloc(s_ramOtaBuf, newCap, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+          if (!newBuf) {
+            s_updErr = "PSRAM realloc failed";
+            UI_DrawOtaProgress("Web OTA", 0, s_ramOtaLen, s_updExpectedSize, s_updErr.c_str());
+            otaEnd(false);
+            return;
+          }
+          s_ramOtaBuf = newBuf;
+          s_ramOtaCap = newCap;
         }
-        int prog = (s_updExpectedSize > 0) ? (int)(up.totalSize * 100 / s_updExpectedSize) : 0;
+        memcpy(s_ramOtaBuf + s_ramOtaLen, up.buf, up.currentSize);
+        s_ramOtaLen += up.currentSize;
+
+        // Smooth 100% stable progress on display (no flash write occurring, PSRAM bus is 100% idle!)
+        int prog = (s_updExpectedSize > 0) ? (int)(s_ramOtaLen * 100 / s_updExpectedSize) : 0;
         if (prog > 99) prog = 99;
-        s_lastWebProg = prog;
+        if (prog != s_lastWebProg && (millis() - s_lastWebDraw >= 150 || prog == 100)) {
+          s_lastWebProg = prog;
+          s_lastWebDraw = millis();
+          UI_DrawOtaProgress("Web OTA", prog, s_ramOtaLen, s_updExpectedSize, nullptr);
+        }
       }
       Watchdog_Feed();
       break;
 
     case UPLOAD_FILE_END:
       if (s_updErr.length()) return;
-      if (Update.isRunning() && Update.end(true)) {
+      if (!s_ramOtaBuf || s_ramOtaLen == 0) {
+        s_updErr = "No data received";
+        otaEnd(false);
+        return;
+      }
+      Serial.printf("OTA: upload complete, received %u bytes in PSRAM. Writing to flash...\n", (unsigned)s_ramOtaLen);
+      UI_DrawOtaProgress("Web OTA", 100, s_ramOtaLen, s_ramOtaLen, (Lang_Get() == LANG_EN) ? "Writing to flash... (2s)" : "Zapisujem do pamäte... (2s)");
+      delay(50);
+
+      // Fast flash write of entire RAM buffer in 32 KB blocks!
+      if (!Update.begin(s_ramOtaLen)) {
+        s_updErr = Update.errorString();
+        UI_DrawOtaProgress("Web OTA", 0, s_ramOtaLen, s_ramOtaLen, s_updErr.c_str());
+        delay(2000);
+        otaEnd(false);
+        return;
+      }
+      {
+        size_t written = 0;
+        const size_t CHUNK_SZ = 32768; // 32 KB fast flash write blocks
+        while (written < s_ramOtaLen) {
+          size_t toWrite = (s_ramOtaLen - written > CHUNK_SZ) ? CHUNK_SZ : (s_ramOtaLen - written);
+          if (Update.write(s_ramOtaBuf + written, toWrite) != toWrite) {
+            s_updErr = Update.errorString();
+            Update.abort();
+            break;
+          }
+          written += toWrite;
+          Watchdog_Feed();
+        }
+      }
+
+      if (s_updErr.length() == 0 && Update.end(true)) {
         s_updOk = true;
-        Serial.printf("OTA: done, %u B\n", (unsigned)up.totalSize);
-        UI_DrawOtaProgress("Web OTA", 100, up.totalSize, up.totalSize, (Lang_Get() == LANG_EN) ? "Success! Restarting..." : "Hotovo! Reštartujem...");
+        Serial.printf("OTA: flash write complete (%u B), restarting...\n", (unsigned)s_ramOtaLen);
+        UI_DrawOtaProgress("Web OTA", 100, s_ramOtaLen, s_ramOtaLen, (Lang_Get() == LANG_EN) ? "Success! Restarting..." : "Hotovo! Reštartujem...");
         delay(600);
         otaEnd(true);
       } else {
-        s_updErr = Update.errorString();
-        UI_DrawOtaProgress("Web OTA", 0, up.totalSize, s_updExpectedSize, s_updErr.c_str());
+        if (s_updErr.length() == 0) s_updErr = Update.errorString();
+        UI_DrawOtaProgress("Web OTA", 0, s_ramOtaLen, s_ramOtaLen, s_updErr.c_str());
         delay(2000);
         otaEnd(false);
       }
