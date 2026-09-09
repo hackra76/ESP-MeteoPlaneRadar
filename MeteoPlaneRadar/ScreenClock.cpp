@@ -21,6 +21,7 @@
 #include "Buzzer.h"
 #include "ScreenPlanes.h"
 #include "PrecipTracker.h"
+#include "QMI8658.h"
 
 #include <time.h>
 #include <math.h>
@@ -411,13 +412,21 @@ static void drawHudClock(const struct tm* lt, time_t now) {
   uint16_t dimHud = dim(hudCol, 1, 3);
 
   // Top Compass Heading Tape
+  float liveHdg = QMI8658_GetHeading();
+  int hdgInt = ((int)roundf(liveHdg) % 360 + 360) % 360;
+  char hdgTxt[16];
+  snprintf(hdgTxt, sizeof(hdgTxt), "HDG %03d", hdgInt);
+  UI_TextCentered(hdgTxt, 42, hudCol, 1);
+
   gfx->drawFastHLine(CX - 140, 68, 280, dimHud);
+  int offsetDeg = hdgInt % 10;
   for (int h = -40; h <= 40; h += 10) {
-    int x = CX + h * 3;
-    gfx->drawFastVLine(x, 64, 8, hudCol);
+    int x = CX + (h - offsetDeg) * 3;
+    if (x >= CX - 140 && x <= CX + 140) {
+      gfx->drawFastVLine(x, 64, 8, hudCol);
+    }
   }
   gfx->fillTriangle(CX - 5, 58, CX + 5, 58, CX, 66, hudCol);
-  UI_TextCentered("HDG 360", 42, hudCol, 1);
 
   // Pitch Ladder
   gfx->drawFastHLine(CX - 130, CY, 60, hudCol);

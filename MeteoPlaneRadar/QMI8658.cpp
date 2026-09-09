@@ -29,6 +29,10 @@ static bool    s_available = false;
 static QMI_Data s_data = {0};
 static QMI_DoubleTapCallback s_tapCallback = nullptr;
 
+// Compass and orientation variables
+static float s_heading = 0.0f;
+static unsigned long s_lastHeadingTime = 0;
+
 // Gesture state machine variables
 static float s_lastMag = 1.0f;
 static unsigned long s_lastTapTime = 0;
@@ -178,6 +182,39 @@ bool QMI8658_Tick() {
   float diff = fabsf(mag - s_lastMag);
   s_lastMag = mag;
 
+  // Real Electronic Compass: continuous 360° heading integration
+  if (s_lastHeadingTime == 0) s_lastHeadingTime = now;
+  unsigned long dtMs = now - s_lastHeadingTime;
+  s_lastHeadingTime = now;
+
+  if (dtMs > 0 && dtMs < 500) {
+    float dtSec = (float)dtMs / 1000.0f;
+    float gz = s_data.gz;
+    // Deadband on gz to eliminate drift when at rest
+    if (fabsf(gz) > 0.35f) {
+      // Rotating device clockwise (heading increasing) gives negative gz on this sensor orientation
+      s_heading -= gz * dtSec;
+      while (s_heading < 0.0f)   s_heading += 360.0f;
+      while (s_heading >= 360.0f) s_heading -= 360.0f;
+    }
+  }
+
+  // When held upright, blend towards gravity tilt angle
+  float gPlane = sqrtf(s_data.ax * s_data.ax + s_data.ay * s_data.ay);
+  if (gPlane >= 0.55f) {
+    // In default upright position, ax ≈ +1.0g, ay ≈ 0g -> angle = 0 (North UP)
+    float angleRad = atan2f(s_data.ay, s_data.ax);
+    float tiltDeg = angleRad * 57.29578f;
+    while (tiltDeg < 0.0f) tiltDeg += 360.0f;
+
+    float dAngle = tiltDeg - s_heading;
+    while (dAngle < -180.0f) dAngle += 360.0f;
+    while (dAngle > 180.0f)  dAngle -= 360.0f;
+    s_heading += dAngle * 0.08f;
+    while (s_heading < 0.0f)   s_heading += 360.0f;
+    while (s_heading >= 360.0f) s_heading -= 360.0f;
+  }
+
   // Double-tap processing
   bool triggered = false;
 
@@ -212,3 +249,28 @@ bool QMI8658_Tick() {
 
   return triggered;
 }
+
+float QMI8658_GetHeading() {
+  return s_heading;
+}
+
+const char* QMI8658_GetHeadingStr() {
+  static const char* const DIRS[16] = {
+    "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+    "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"
+  };
+  int idx = (int)((s_heading + 11.25f) / 22.5f) % 16;
+  return DIRS[idx];
+}
+
+void QMI8658_ResetHeading(float deg) {
+  s_heading = deg;
+  while (s_heading < 0.0f)   s_heading += 360.0f;
+  while (s_heading >= 360.0f) s_heading -= 360.0f;
+}
+
+bool QMI8658_IsFlat() {
+  float gPlane = sqrtf(s_data.ax * s_data.ax + s_data.ay * s_data.ay);
+  return (gPlane < 0.45f);
+}
+

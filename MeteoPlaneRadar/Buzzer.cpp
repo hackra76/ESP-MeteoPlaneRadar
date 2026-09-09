@@ -48,6 +48,13 @@ static const ToneStep PATTERN_WATCHED[] = {
   { 0,  false }
 };
 
+static const ToneStep PATTERN_SONAR_PING[] = {
+  { 35,  true  },
+  { 110, false },
+  { 55,  true  },
+  { 0,   false }
+};
+
 static const ToneStep PATTERN_EMERGENCY[] = {
   { 90, true },
   { 70, false },
@@ -55,6 +62,25 @@ static const ToneStep PATTERN_EMERGENCY[] = {
   { 70, false },
   { 120, true },
   { 0,  false }
+};
+
+// Morse Code SOS: ... --- ...
+// S: dit (70ms) dit (70ms) dit (70ms) with 60ms gaps, 180ms inter-letter pause
+// O: dah (210ms) dah (210ms) dah (210ms) with 60ms gaps, 180ms inter-letter pause
+// S: dit (70ms) dit (70ms) dit (70ms)
+static const ToneStep PATTERN_MORSE_SOS[] = {
+  // S: ...
+  { 70,  true  }, { 60, false },
+  { 70,  true  }, { 60, false },
+  { 70,  true  }, { 180, false },
+  // O: ---
+  { 210, true  }, { 60, false },
+  { 210, true  }, { 60, false },
+  { 210, true  }, { 180, false },
+  // S: ...
+  { 70,  true  }, { 60, false },
+  { 70,  true  }, { 60, false },
+  { 70,  true  }, { 0,   false }
 };
 
 static BuzzerTone      s_activeTone = BEEP_NONE;
@@ -92,7 +118,7 @@ void Buzzer_Play(BuzzerTone tone) {
 
   // Night mode mute (mute everything except emergency squawk, or all if configured)
   if (Settings_BuzzerNightMute() && Settings_IsNight()) {
-    if (tone != BEEP_EMERGENCY) return;
+    if (tone != BEEP_EMERGENCY && tone != BEEP_MORSE_SOS) return;
   }
 
   // Individual category filters
@@ -110,9 +136,11 @@ void Buzzer_Play(BuzzerTone tone) {
       if (!Settings_BuzzerPrecip()) return;
       break;
     case BEEP_WATCHED:
+    case BEEP_SONAR_PING:
       if (!Settings_BuzzerWatch()) return;
       break;
     case BEEP_EMERGENCY:
+    case BEEP_MORSE_SOS:
       if (!Settings_BuzzerEmergency()) return;
       break;
     default:
@@ -120,7 +148,7 @@ void Buzzer_Play(BuzzerTone tone) {
   }
 
   // Priority check: lower priority tones do not override higher ones
-  // BEEP_CLICK (1) < BEEP_HOURLY (2) < BEEP_PRECIP (3) < BEEP_OVERHEAD (4) < BEEP_WATCHED (5) < BEEP_EMERGENCY (6)
+  // BEEP_CLICK (1) < BEEP_HOURLY (2) < BEEP_PRECIP (3) < BEEP_OVERHEAD (4) < BEEP_WATCHED / BEEP_SONAR_PING (5) < BEEP_EMERGENCY / BEEP_MORSE_SOS (6)
   if (s_activeTone > tone && s_activeTone != BEEP_NONE) {
     return;
   }
@@ -136,11 +164,13 @@ void Buzzer_Play(BuzzerTone tone) {
 
   const ToneStep* pat = nullptr;
   switch (tone) {
-    case BEEP_HOURLY:    pat = PATTERN_HOURLY;    break;
-    case BEEP_OVERHEAD:  pat = PATTERN_OVERHEAD;  break;
-    case BEEP_PRECIP:    pat = PATTERN_PRECIP;    break;
-    case BEEP_WATCHED:   pat = PATTERN_WATCHED;   break;
-    case BEEP_EMERGENCY: pat = PATTERN_EMERGENCY; break;
+    case BEEP_HOURLY:     pat = PATTERN_HOURLY;     break;
+    case BEEP_OVERHEAD:   pat = PATTERN_OVERHEAD;   break;
+    case BEEP_PRECIP:     pat = PATTERN_PRECIP;     break;
+    case BEEP_WATCHED:    pat = PATTERN_WATCHED;    break;
+    case BEEP_SONAR_PING: pat = PATTERN_SONAR_PING; break;
+    case BEEP_EMERGENCY:  pat = PATTERN_EMERGENCY;  break;
+    case BEEP_MORSE_SOS:  pat = PATTERN_MORSE_SOS;  break;
     default: return;
   }
 

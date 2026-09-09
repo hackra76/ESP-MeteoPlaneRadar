@@ -257,9 +257,16 @@ void UI_DrawAircraftDetail(const Aircraft& ac, const RouteInfo* rt, int routeSta
     snprintf(credit, sizeof(credit), "Foto: %s", (photog && photog[0]) ? photog : "Planespotters.net");
     UI_TextCentered(credit, photoY + photoH + 4, C_GRAY, 1);
   } else if (pState == PHOTO_WAIT) {
-    UI_TextCentered(T(S_PHOTO_WAIT), photoY + photoH / 2 - 4, C_GRAY, 1);
+    AircraftIconType iconType = Aircraft_GetIconType(ac);
+    uint16_t sCol = ac.isMilitary ? C_RED : 0x07FF;
+    Aircraft_DrawDetailedSilhouette(gfx, photoX + photoW / 2, photoY + photoH / 2 - 8, photoW - 20, photoH - 20, sCol, iconType);
+    UI_TextCentered(T(S_PHOTO_WAIT), photoY + photoH - 18, C_GRAY, 1);
   } else if (pState == PHOTO_NONE) {
-    UI_TextCentered(T(S_NO_PHOTO), photoY + photoH / 2 - 4, 0x52AA, 1);
+    AircraftIconType iconType = Aircraft_GetIconType(ac);
+    uint16_t sCol = ac.isMilitary ? C_RED : 0x07FF;
+    Aircraft_DrawDetailedSilhouette(gfx, photoX + photoW / 2, photoY + photoH / 2 - 8, photoW - 20, photoH - 20, sCol, iconType);
+    const char* catName = Aircraft_GetCategoryName(iconType);
+    UI_TextCentered(catName, photoY + photoH - 18, 0x52AA, 1);
   }
 
   // --- 2. Telemetry Card (Middle section, 310x126) ---
@@ -352,10 +359,11 @@ void UI_DrawAircraftDetail(const Aircraft& ac, const RouteInfo* rt, int routeSta
     UI_Text(rtLine, col1X, ty, 0x56E0 /* Bright soft green */, fSize);
   } else {
     char typeLine[64] = "";
-    const char* fullType = AircraftType_Format(ac.type);
-    if (fullType[0] && ac.reg[0]) snprintf(typeLine, sizeof(typeLine), "%s [%s]", fullType, ac.reg);
-    else if (ac.reg[0])           snprintf(typeLine, sizeof(typeLine), "Reg: %s", ac.reg);
-    else if (fullType[0])         snprintf(typeLine, sizeof(typeLine), "%s", fullType);
+    char identified[48] = "";
+    Aircraft_IdentifyModel(ac, identified, sizeof(identified));
+    if (identified[0] && ac.reg[0])     snprintf(typeLine, sizeof(typeLine), "%s [%s]", identified, ac.reg);
+    else if (ac.reg[0])                 snprintf(typeLine, sizeof(typeLine), "Reg: %s", ac.reg);
+    else if (identified[0])             snprintf(typeLine, sizeof(typeLine), "%s", identified);
     if (typeLine[0]) {
       if (Layout_TextW(typeLine, 1) > availW) {
         int maxCh = availW / 6;
@@ -464,4 +472,52 @@ void UI_DrawOtaProgress(const char* sourceName, int percent, size_t bytesWritten
   // Flush to ST7701
   gfx->flush();
 }
+
+void UI_DrawCompassWidget(int cx, int cy, int r, float headingDeg, uint16_t primaryCol, bool showCard) {
+  if (!gfx) return;
+
+  // Outer bezel ring
+  gfx->fillCircle(cx, cy, r, 0x0821);
+  gfx->drawCircle(cx, cy, r, primaryCol);
+
+  // 4 cardinal tick marks
+  gfx->drawLine(cx, cy - r, cx, cy - r + 3, primaryCol);
+  gfx->drawLine(cx + r, cy, cx + r - 3, cy, primaryCol);
+  gfx->drawLine(cx, cy + r, cx, cy + r - 3, primaryCol);
+  gfx->drawLine(cx - r, cy, cx - r + 3, cy, primaryCol);
+
+  // Rotating pointer / needle
+  // On radar, if radar is rotated by topDeg, the needle shows true North angle relative to screen
+  float a = headingDeg * 0.0174532925f;
+  float sa = sinf(a), ca = cosf(a);
+
+  int nx = cx + (int)((r - 3) * sa);
+  int ny = cy - (int)((r - 3) * ca);
+  int sx = cx - (int)((r - 3) * sa);
+  int sy = cy + (int)((r - 3) * ca);
+
+  int px = (int)(2.8f * ca);
+  int py = (int)(2.8f * sa);
+
+  // North tip (Red)
+  gfx->fillTriangle(cx + px, cy + py, cx - px, cy - py, nx, ny, C_RED);
+  // South tip (White)
+  gfx->fillTriangle(cx + px, cy + py, cx - px, cy - py, sx, sy, C_WHITE);
+  // Center pivot
+  gfx->fillCircle(cx, cy, 2, C_WHITE);
+
+  // Digital heading badge below
+  if (showCard) {
+    char hbuf[16];
+    int degInt = ((int)roundf(headingDeg) % 360 + 360) % 360;
+    snprintf(hbuf, sizeof(hbuf), "%03d\xC2\xB0", degInt);
+    int hw = Layout_TextW(hbuf, 1);
+    int bx = cx - hw / 2 - 4;
+    int by = cy + r + 3;
+    gfx->fillRoundRect(bx, by, hw + 8, 12, 3, 0x0821);
+    gfx->drawRoundRect(bx, by, hw + 8, 12, 3, 0x2124);
+    UI_Text(hbuf, cx - hw / 2, by + 2, C_CYAN, 1);
+  }
+}
+
 

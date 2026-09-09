@@ -16,7 +16,9 @@ enum BuzzerTone : uint8_t {
   BEEP_OVERHEAD,     // Pleasant double pulse for overhead flight arrival
   BEEP_PRECIP,       // Distinct 3-pulse chime for approaching precipitation alert
   BEEP_WATCHED,      // 2 pulses (50ms on, 70ms off, 50ms on) for watched flight
-  BEEP_EMERGENCY     // 3 urgent pulses (90ms on, 70ms off, 90ms on, 70ms off, 120ms on)
+  BEEP_SONAR_PING,   // Acoustic double sonar ping (35ms on, 110ms off, 55ms on) for watched/rescue flight
+  BEEP_EMERGENCY,    // 3 urgent pulses (90ms on, 70ms off, 90ms on, 70ms off, 120ms on)
+  BEEP_MORSE_SOS     // Authentic Morse code SOS (... --- ...) for squawk 7700 emergency
 };
 
 // Initialize buzzer (ensures pin is LOW)

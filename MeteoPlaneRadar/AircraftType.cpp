@@ -3,6 +3,7 @@
 //  AircraftType.cpp - Aircraft type lookup table.
 // =============================================================================
 #include "AircraftType.h"
+#include "Lang.h"
 #include <string.h>
 #include <strings.h>
 
@@ -151,17 +152,44 @@ static const TypeMapping TYPE_TABLE[] = {
   { "MI17", "Mil Mi-17" },
   { "UH60", "Sikorsky UH-60" },
 
+  // Regional / Turboprops / Czech & Slovak
+  { "L410", "Let L-410 Turbolet" },
+  { "C295", "CASA C-295M" },
+  { "C27J", "Alenia C-27J Spartan" },
+  { "AT45", "ATR 42-500" },
+  { "AT75", "ATR 72-500" },
+  { "AT76", "ATR 72-600" },
+  { "EV97", "Evektor Eurostar" },
+  { "WT9",  "Aerospool Dynamic WT9" },
+  { "VL3",  "JMB VL-3 Evolution" },
+  { "Z42",  "Zlin Z-42" },
+  { "Z43",  "Zlin Z-43" },
+  { "Z50",  "Zlin Z-50" },
+
+  // Business & Heavy Transports
+  { "PC24", "Pilatus PC-24" },
+  { "TBM9", "Daher TBM 900" },
+  { "P180", "Piaggio P.180 Avanti" },
+  { "E55P", "Embraer Phenom 300" },
+  { "E50P", "Embraer Phenom 100" },
+  { "C700", "Cessna Citation Longitude" },
+  { "E3TF", "Boeing E-3A Sentry (AWACS)" },
+  { "K35R", "Boeing KC-135 Stratotanker" },
+  { "IL76", "Ilyushin Il-76" },
+  { "AN12", "Antonov An-12" },
+  { "AN26", "Antonov An-26" },
+
   // Military / Trainers / Gliders
   { "L39",  "Aero L-39 Albatros" },
-  { "L159", "Aero L-159 Alca" },
+  { "L159", "Aero L-159 ALCA" },
   { "JAS3", "JAS 39 Gripen" },
   { "EUFI", "Eurofighter Typhoon" },
   { "F16",  "Lockheed F-16" },
   { "F35",  "Lockheed F-35" },
-  { "C130", "Lockheed C-130" },
-  { "A400", "Airbus A400M" },
-  { "C17",  "Boeing C-17" },
-  { "GLID", "Vetroň (Glider)" }
+  { "C130", "Lockheed C-130 Hercules" },
+  { "A400", "Airbus A400M Atlas" },
+  { "C17",  "Boeing C-17 Globemaster" },
+  { "GLID", "Vetron (Sailplane)" }
 };
 
 static const size_t TYPE_TABLE_COUNT = sizeof(TYPE_TABLE) / sizeof(TYPE_TABLE[0]);
@@ -513,4 +541,203 @@ void Aircraft_DrawIcon(Arduino_GFX* g, int x, int y, float trackDeg, bool hasTra
     }
   }
 }
+
+const char* Aircraft_GetCategoryName(AircraftIconType iconType) {
+  uint8_t lang = Lang_Get();
+  switch (iconType) {
+    case ICON_HELICOPTER:
+      return (lang == LANG_EN) ? "Rotorcraft / Helicopter"
+           : ((lang == LANG_SK) ? "Zachranny / Vrtulnik" : "Zachranny / Vrtulnik");
+    case ICON_MILITARY_JET:
+      return (lang == LANG_EN) ? "Military Fighter Jet"
+           : ((lang == LANG_SK) ? "Vojenska stihacka" : "Vojenska stihacka");
+    case ICON_HEAVY:
+      return (lang == LANG_EN) ? "Heavy Quad-Jet Giant"
+           : ((lang == LANG_SK) ? "Stvormotorovy gigant" : "Ctyrmotorovy gigant");
+    case ICON_LIGHT:
+      return (lang == LANG_EN) ? "General Aviation Light"
+           : ((lang == LANG_SK) ? "Vseobecne / Lahke GA" : "Vseobecne / Lehci GA");
+    case ICON_GLIDER:
+      return (lang == LANG_EN) ? "Sailplane / Glider"
+           : ((lang == LANG_SK) ? "Bezmotorovy vetron" : "Bezmotorovy vetron");
+    case ICON_AIRLINER:
+    default:
+      return (lang == LANG_EN) ? "Civil Airliner"
+           : ((lang == LANG_SK) ? "Dopravne lietadlo" : "Dopravni letoun");
+  }
+}
+
+const char* Aircraft_IdentifyModel(const Aircraft& ac, char* out, size_t outCap) {
+  if (!out || outCap == 0) return "";
+  out[0] = '\0';
+
+  // 1. If explicit ICAO type is already in database, format it directly
+  if (ac.type[0]) {
+    const char* f = AircraftType_Format(ac.type);
+    if (f && f[0] && strcmp(f, ac.type) != 0) {
+      strncpy(out, f, outCap - 1);
+      out[outCap - 1] = '\0';
+      return out;
+    }
+  }
+
+  // 2. Infer from callsign or registration for special flights
+  if (startsWithCase(ac.callsign, "ATE") || startsWithCase(ac.callsign, "KRY") ||
+      startsWithCase(ac.reg, "OM-AT") || startsWithCase(ac.reg, "OK-AT")) {
+    snprintf(out, outCap, "Airbus H135 (HEMS Rescue)");
+    return out;
+  }
+  if (startsWithCase(ac.callsign, "SSG") || startsWithCase(ac.callsign, "SVK0")) {
+    snprintf(out, outCap, "Airbus A319 (SVK Government)");
+    return out;
+  }
+  if (startsWithCase(ac.callsign, "CEF") || startsWithCase(ac.callsign, "CZE0")) {
+    snprintf(out, outCap, "Airbus A319 / C-295 (Czech AF)");
+    return out;
+  }
+  if (startsWithCase(ac.callsign, "NATO")) {
+    snprintf(out, outCap, "Boeing E-3A / C-17 (NATO)");
+    return out;
+  }
+  if (startsWithCase(ac.callsign, "JAS")) {
+    snprintf(out, outCap, "Saab JAS 39 Gripen");
+    return out;
+  }
+  if (startsWithCase(ac.callsign, "ALCA")) {
+    snprintf(out, outCap, "Aero L-159 ALCA");
+    return out;
+  }
+
+  // 3. Fallback to raw type if present
+  if (ac.type[0]) {
+    strncpy(out, ac.type, outCap - 1);
+    out[outCap - 1] = '\0';
+    return out;
+  }
+
+  // 4. Default to Category name
+  AircraftIconType icon = Aircraft_GetIconType(ac);
+  strncpy(out, Aircraft_GetCategoryName(icon), outCap - 1);
+  out[outCap - 1] = '\0';
+  return out;
+}
+
+void Aircraft_DrawDetailedSilhouette(Arduino_GFX* g, int cx, int cy, int maxW, int maxH, uint16_t col, AircraftIconType iconType) {
+  if (!g) return;
+
+  switch (iconType) {
+    case ICON_HELICOPTER: {
+      // Rotorcraft body
+      g->fillRoundRect(cx - 14, cy - 14, 28, 32, 6, col);
+      g->fillRoundRect(cx - 10, cy - 12, 20, 9, 3, 0x18C3);
+      // Tail boom
+      g->fillTriangle(cx - 3, cy + 18, cx + 3, cy + 18, cx, cy + 40, col);
+      g->fillTriangle(cx - 2, cy + 34, cx + 11, cy + 40, cx - 2, cy + 40, col);
+      g->drawLine(cx + 9, cy + 33, cx + 9, cy + 45, C_WHITE);
+      // Landing skids
+      g->drawFastVLine(cx - 18, cy - 12, 34, col);
+      g->drawFastVLine(cx + 17, cy - 12, 34, col);
+      g->drawFastHLine(cx - 18, cy - 2, 5, col);
+      g->drawFastHLine(cx + 13, cy - 2, 5, col);
+      g->drawFastHLine(cx - 18, cy + 12, 5, col);
+      g->drawFastHLine(cx + 13, cy + 12, 5, col);
+      // Rotor mast & 4 main rotor blades
+      g->fillCircle(cx, cy - 2, 4, col);
+      g->fillCircle(cx, cy - 2, 2, C_WHITE);
+      g->drawLine(cx - 58, cy - 2, cx + 58, cy - 2, col);
+      g->drawLine(cx - 58, cy - 1, cx + 58, cy - 1, col);
+      g->drawLine(cx, cy - 50, cx, cy + 46, col);
+      g->drawLine(cx + 1, cy - 50, cx + 1, cy + 46, col);
+      break;
+    }
+
+    case ICON_MILITARY_JET: {
+      // Delta-wing fighter jet
+      g->fillTriangle(cx, cy - 42, cx - 7, cy + 22, cx + 7, cy + 22, col);
+      g->fillRoundRect(cx - 5, cy - 12, 10, 38, 3, col);
+      g->fillRoundRect(cx - 3, cy - 22, 6, 12, 2, 0x18C3);
+      g->fillTriangle(cx - 5, cy - 8, cx - 52, cy + 18, cx - 5, cy + 20, col);
+      g->fillTriangle(cx + 5, cy - 8, cx + 52, cy + 18, cx + 5, cy + 20, col);
+      g->drawFastVLine(cx - 52, cy + 8, 14, col);
+      g->drawFastVLine(cx + 52, cy + 8, 14, col);
+      g->fillTriangle(cx - 8, cy + 14, cx - 15, cy + 30, cx - 6, cy + 28, col);
+      g->fillTriangle(cx + 8, cy + 14, cx + 15, cy + 30, cx + 6, cy + 28, col);
+      g->fillCircle(cx - 4, cy + 28, 2, C_RED);
+      g->fillCircle(cx + 4, cy + 28, 2, C_RED);
+      break;
+    }
+
+    case ICON_HEAVY: {
+      // Quad-jet heavy widebody
+      g->fillRoundRect(cx - 8, cy - 40, 16, 78, 7, col);
+      g->drawFastHLine(cx - 4, cy - 32, 8, C_BLACK);
+      g->fillTriangle(cx - 6, cy - 10, cx - 68, cy + 16, cx - 6, cy + 12, col);
+      g->fillTriangle(cx + 6, cy - 10, cx + 68, cy + 16, cx + 6, cy + 12, col);
+      g->drawLine(cx - 68, cy + 16, cx - 70, cy + 8, col);
+      g->drawLine(cx + 68, cy + 16, cx + 70, cy + 8, col);
+      // 4 engine nacelles
+      g->fillRoundRect(cx - 30, cy + 1, 6, 14, 2, col);
+      g->fillCircle(cx - 27, cy + 1, 1, C_WHITE);
+      g->fillRoundRect(cx - 48, cy + 6, 6, 14, 2, col);
+      g->fillCircle(cx - 45, cy + 6, 1, C_WHITE);
+      g->fillRoundRect(cx + 25, cy + 1, 6, 14, 2, col);
+      g->fillCircle(cx + 28, cy + 1, 1, C_WHITE);
+      g->fillRoundRect(cx + 43, cy + 6, 6, 14, 2, col);
+      g->fillCircle(cx + 46, cy + 6, 1, C_WHITE);
+      g->fillTriangle(cx - 4, cy + 28, cx - 28, cy + 38, cx - 4, cy + 36, col);
+      g->fillTriangle(cx + 4, cy + 28, cx + 28, cy + 38, cx + 4, cy + 36, col);
+      g->drawFastVLine(cx, cy + 20, 16, C_WHITE);
+      break;
+    }
+
+    case ICON_LIGHT: {
+      // GA propeller aircraft
+      g->fillCircle(cx, cy - 32, 3, C_WHITE);
+      g->drawFastHLine(cx - 14, cy - 32, 28, C_WHITE);
+      g->fillRoundRect(cx - 5, cy - 28, 10, 52, 4, col);
+      g->drawFastHLine(cx - 3, cy - 14, 6, 0x18C3);
+      g->drawFastHLine(cx - 3, cy - 8, 6, 0x18C3);
+      g->fillRoundRect(cx - 50, cy - 14, 100, 7, 2, col);
+      g->fillRoundRect(cx - 16, cy + 18, 32, 5, 2, col);
+      g->drawFastVLine(cx, cy + 14, 10, C_WHITE);
+      break;
+    }
+
+    case ICON_GLIDER: {
+      // Slender sailplane / glider
+      g->fillRoundRect(cx - 3, cy - 34, 6, 66, 3, col);
+      g->fillRoundRect(cx - 2, cy - 18, 4, 8, 2, 0x18C3);
+      g->drawLine(cx - 72, cy - 12, cx + 72, cy - 12, col);
+      g->drawLine(cx - 72, cy - 11, cx + 72, cy - 11, col);
+      g->fillTriangle(cx - 7, cy - 13, cx - 70, cy - 10, cx - 7, cy - 9, col);
+      g->fillTriangle(cx + 7, cy - 13, cx + 70, cy - 10, cx + 7, cy - 9, col);
+      g->drawLine(cx - 72, cy - 12, cx - 73, cy - 17, col);
+      g->drawLine(cx + 72, cy - 12, cx + 73, cy - 17, col);
+      g->drawFastHLine(cx - 15, cy + 30, 30, col);
+      g->drawFastHLine(cx - 15, cy + 31, 30, col);
+      break;
+    }
+
+    case ICON_AIRLINER:
+    default: {
+      // Civil airliner
+      g->fillRoundRect(cx - 6, cy - 34, 12, 68, 5, col);
+      g->drawFastHLine(cx - 3, cy - 28, 6, C_BLACK);
+      g->fillTriangle(cx - 4, cy - 8, cx - 62, cy + 14, cx - 4, cy + 10, col);
+      g->fillTriangle(cx + 4, cy - 8, cx + 62, cy + 14, cx + 4, cy + 10, col);
+      g->drawLine(cx - 62, cy + 14, cx - 63, cy + 7, col);
+      g->drawLine(cx + 62, cy + 14, cx + 63, cy + 7, col);
+      // Twin underwing jet engines
+      g->fillRoundRect(cx - 26, cy, 6, 16, 2, col);
+      g->fillCircle(cx - 23, cy, 2, C_WHITE);
+      g->fillRoundRect(cx + 20, cy, 6, 16, 2, col);
+      g->fillCircle(cx + 23, cy, 2, C_WHITE);
+      g->fillTriangle(cx - 3, cy + 22, cx - 24, cy + 31, cx - 3, cy + 29, col);
+      g->fillTriangle(cx + 3, cy + 22, cx + 24, cy + 31, cx + 3, cy + 29, col);
+      g->drawFastVLine(cx, cy + 15, 15, C_WHITE);
+      break;
+    }
+  }
+}
+
 

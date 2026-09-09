@@ -910,8 +910,8 @@ void loop() {
           if (activeModalOpen()) ScreenPlanes_CloseDetail();
           gotoScreen(targetScr);
         }
-        // Audio alert for emergency flight
-        Buzzer_Play(BEEP_EMERGENCY);
+        // Audio alert for emergency flight - Authentic Morse code SOS
+        Buzzer_Play(BEEP_MORSE_SOS);
         // Pause auto-rotation for 60 seconds so user can monitor the emergency flight
         s_touchPauseUntil = millis() + 60000UL;
       }
@@ -921,32 +921,51 @@ void loop() {
     Async_UnlockAdsb();
   }
 
-  // Alert when a watched aircraft enters range
-  const char* watchCs = Settings_WatchCallsign();
-  if (watchCs && watchCs[0] && Settings_BuzzerWatch()) {
+  // Alert when a watched aircraft or rescue helicopter enters range
+  if (Settings_BuzzerWatch()) {
+    const char* watchCs = Settings_WatchCallsign();
     static char s_alertedWatchHex[10] = "";
+    static char s_alertedRescueHex[10] = "";
     Async_LockAdsb();
     const Aircraft* wPlane = nullptr;
+    const Aircraft* rPlane = nullptr;
     const Aircraft* list = ADSB_List();
     int count = ADSB_Count();
     for (int i = 0; i < count; i++) {
       const Aircraft& a = list[i];
-      if ((a.callsign[0] && strncasecmp(a.callsign, watchCs, strlen(watchCs)) == 0) ||
-          (a.hex[0] && strcasecmp(a.hex, watchCs) == 0)) {
-        wPlane = &a;
-        break;
+      if (watchCs && watchCs[0] && !wPlane) {
+        if ((a.callsign[0] && strncasecmp(a.callsign, watchCs, strlen(watchCs)) == 0) ||
+            (a.hex[0] && strcasecmp(a.hex, watchCs) == 0)) {
+          wPlane = &a;
+        }
+      }
+      if (!rPlane && Aircraft_Classify(a) == SPEC_RESCUE) {
+        rPlane = &a;
       }
     }
+
     if (wPlane) {
       if (strcmp(s_alertedWatchHex, wPlane->hex) != 0) {
         strncpy(s_alertedWatchHex, wPlane->hex, sizeof(s_alertedWatchHex) - 1);
         s_alertedWatchHex[sizeof(s_alertedWatchHex) - 1] = '\0';
-        Serial.printf("[WATCH ALERT] Watched flight %s (%s) detected in range!\n",
+        Serial.printf("[WATCH ALERT] Watched flight %s (%s) detected in range! Acoustic Sonar Ping.\n",
                       wPlane->callsign[0] ? wPlane->callsign : "NO CALLSIGN", wPlane->hex);
-        Buzzer_Play(BEEP_WATCHED);
+        Buzzer_Play(BEEP_SONAR_PING);
       }
     } else {
       s_alertedWatchHex[0] = '\0';
+    }
+
+    if (rPlane) {
+      if (strcmp(s_alertedRescueHex, rPlane->hex) != 0) {
+        strncpy(s_alertedRescueHex, rPlane->hex, sizeof(s_alertedRescueHex) - 1);
+        s_alertedRescueHex[sizeof(s_alertedRescueHex) - 1] = '\0';
+        Serial.printf("[RESCUE ALERT] Rescue helicopter %s (%s) detected in range! Acoustic Sonar Ping.\n",
+                      rPlane->callsign[0] ? rPlane->callsign : "NO CALLSIGN", rPlane->hex);
+        Buzzer_Play(BEEP_SONAR_PING);
+      }
+    } else {
+      s_alertedRescueHex[0] = '\0';
     }
     Async_UnlockAdsb();
   }
@@ -975,26 +994,15 @@ void loop() {
   NightMode_Tick();   // day/night brightness
   QMI8658_Tick();     // IMU gestures (double-tap detection)
 
-  // Auto-orientation check from IMU QMI8658
+  // Continuous Electronic Compass orientation tracking from IMU QMI8658
   static unsigned long s_lastOrientCheck = 0;
-  if (Settings_AutoRotateBearing() && millis() - s_lastOrientCheck >= 400) {
+  if (Settings_AutoRotateBearing() && millis() - s_lastOrientCheck >= 150) {
     s_lastOrientCheck = millis();
-    QMI_Data qd;
-    QMI8658_GetData(&qd);
-    float gPlane = sqrtf(qd.ax * qd.ax + qd.ay * qd.ay);
-    if (gPlane >= 0.45f) {
-      // In default upright position, ax ≈ +1.0g, ay ≈ 0.
-      // Using atan2f(ay, ax) gives 0 deg (North UP) in default position.
-      float angleRad = atan2f(qd.ay, qd.ax);
-      int angleDeg = (int)(angleRad * 57.29578f);
-      while (angleDeg < 0) angleDeg += 360;
-
-      uint16_t targetBearing = (uint16_t)(((angleDeg + 45) / 90) * 90 % 360);
-      if (targetBearing != Settings_TopBearing()) {
-        Serial.printf("IMU AutoRotate: TopBearing -> %u deg (raw angle: %d deg)\n", targetBearing, angleDeg);
-        Settings_SetTopBearing(targetBearing);
-        drawActive();
-      }
+    float hdg = QMI8658_GetHeading();
+    uint16_t targetBearing = (uint16_t)(((int)roundf(hdg) % 360 + 360) % 360);
+    if (abs((int)targetBearing - (int)Settings_TopBearing()) >= 4) {
+      Settings_SetTopBearing(targetBearing);
+      drawActive();
     }
   }
 

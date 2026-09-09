@@ -41,6 +41,15 @@ enum AircraftIconType : uint8_t {
 // Determines the icon shape based on airframe type, callsign, and flags
 AircraftIconType Aircraft_GetIconType(const Aircraft& ac);
 
-// Draws vector aircraft silhouette matching its category rotated by trackDeg
+// Automatic identification of aircraft model even when ICAO type is omitted or abbreviated
+const char* Aircraft_IdentifyModel(const Aircraft& ac, char* out, size_t outCap);
+
+// Returns localized aircraft category name (e.g. "Záchranný vrtuľník", "Vojenská stíhačka")
+const char* Aircraft_GetCategoryName(AircraftIconType iconType);
+
+// Draws vector aircraft silhouette matching its category rotated by trackDeg on the radar
 void Aircraft_DrawIcon(Arduino_GFX* g, int x, int y, float trackDeg, bool hasTrack, uint16_t col, AircraftIconType iconType);
+
+// Draws a large high-detail vector silhouette of the aircraft category (e.g. for photo replacement)
+void Aircraft_DrawDetailedSilhouette(Arduino_GFX* g, int cx, int cy, int maxW, int maxH, uint16_t col, AircraftIconType iconType);
 

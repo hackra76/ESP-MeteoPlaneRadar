@@ -35,3 +35,10 @@ struct QMI_Data {
 
 // Retrieve latest sensor readings
 void QMI8658_GetData(QMI_Data* out);
+
+// Continuous 360° Real Electronic Compass & Heading Tracking
+float QMI8658_GetHeading();
+const char* QMI8658_GetHeadingStr();
+void QMI8658_ResetHeading(float deg = 0.0f);
+bool QMI8658_IsFlat();
+

@@ -9,6 +9,22 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [1.7.0] - 2026-09-09
+
+### Pridané / Added
+- **Morzeovka & Akustický sonarový ping pre špeciálne lety (Morse SOS & Sonar Ping Audio):**
+  - Autentická morzeovka `SOS` (`... --- ...`) pre núdzový squawk (7700 / emergency) s presným časovaním znakov a medzier.
+  - Akustický dvojitý sonarový ping (`BEEP_SONAR_PING`) pre zachytenie sledovaného letu (watchlist) alebo prílet záchranného vrtuľníka (HEMS / ATE / Kryštof).
+- **Automatická identifikácia typu stroja & Vektorové siluety lietadiel (Aircraft Type ID & Vector Silhouettes):**
+  - Inteligentná identifikácia modelu lietadla (`Aircraft_IdentifyModel`) aj pri chýbajúcom alebo skrátenom ICAO type pomocou volacieho znaku, registrácie a databázy.
+  - Rozšírená databáza typov lietadiel o regionálne turbovrtuľové stroje, česko-slovenské lietadlá (L-410, Zlín, Aerospool WT9, Evektor, VL-3) a vojenské špeciály.
+  - Vysoko detailné vektorové siluety kategórií (`Aircraft_DrawDetailedSilhouette`) vykresľované v detaile lietadla pri absencii fotografie (dopravné prúdové, vrtuľníky s rotormi a lyžami, stíhačky s delta krídlom, 4-motorové giganty, ľahké GA a vetrone) doplnené kategóriovými odznakmi.
+- **Skutočný elektronický kompas & Sledovanie orientácie (Real Electronic Gyrocompass & Heading Tracker):**
+  - Kontinuálna 360° integrácia gyroskopu Z z IMU senzora QMI8658 s filtráciou šumu a nehybného driftu (`deadband`), kombinovaná s gravitačným kompasom pri vertikálnom náklone.
+  - Interaktívny widget elektronického kompasu (`UI_DrawCompassWidget`) v pravom hornom rohu radaru (ScreenPlanes a ScreenTactical) s otočnou červenou strelkou severu a digitálnym odpočtom azimutu.
+  - Klepnutie na kompas kalibruje a nuluje azimut (North reset) alebo zapína plynulé natáčanie celej mapy radaru podľa fyzickej orientácie zariadenia.
+  - Dynamická rotácia azimutovej pásky (`HDG xxx`) a indikátora kurzu na kokpitovom HUD ciferníku hodín (`ScreenClock`).
+
 ## [1.6.1] - 2026-09-08
 
 ### Opravené / Fixed
