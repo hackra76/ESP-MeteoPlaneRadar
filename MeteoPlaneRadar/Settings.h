@@ -134,6 +134,8 @@ bool     Settings_RadarShowAirports();
 void     Settings_SetRadarShowAirports(bool on);
 bool     Settings_RadarShowRings();
 void     Settings_SetRadarShowRings(bool on);
+bool     Settings_RadarShowCompass();
+void     Settings_SetRadarShowCompass(bool on);
 
 // --- Aircraft filters and alerts --------------------------------------------
 uint16_t Settings_AltMinFt();

@@ -63,6 +63,7 @@ static bool     s_radShowTrails  = true;
 static bool     s_radShowNearest = true;
 static bool     s_radShowAirports= true;
 static bool     s_radShowRings   = true;
+static bool     s_radShowCompass = true;
 
 // --- Aircraft filters ---
 static uint16_t s_altMin = 0;
@@ -207,6 +208,7 @@ void Settings_Begin() {
     s_radShowNearest = prefs.getBool("rNear", true);
     s_radShowAirports= prefs.getBool("rAirp", true);
     s_radShowRings   = prefs.getBool("rRng", true);
+    s_radShowCompass = prefs.getBool("rCmp", true);
     s_altMin = prefs.getUShort("altLo", 0);
     s_altMax = prefs.getUShort("altHi", 60000);
     s_onlyCs = prefs.getBool("onlyCs", false);
@@ -599,6 +601,8 @@ bool     Settings_RadarShowAirports() { return s_radShowAirports; }
 void     Settings_SetRadarShowAirports(bool on) { s_radShowAirports = on; putBool("rAirp", on); }
 bool     Settings_RadarShowRings() { return s_radShowRings; }
 void     Settings_SetRadarShowRings(bool on) { s_radShowRings = on; putBool("rRng", on); }
+bool     Settings_RadarShowCompass() { return s_radShowCompass; }
+void     Settings_SetRadarShowCompass(bool on) { s_radShowCompass = on; putBool("rCmp", on); }
 
 // --- Aircraft filters -------------------------------------------------------
 uint16_t Settings_AltMinFt() { return s_altMin; }
@@ -752,6 +756,8 @@ void Settings_ToJson(JsonObject o) {
   o["rNearest"] = s_radShowNearest;
   o["rAirports"] = s_radShowAirports;
   o["rRings"] = s_radShowRings;
+  o["rCompass"] = s_radShowCompass;
+  o["autoRotateBearing"] = s_autoRotateBearing;
   o["altMin"] = s_altMin;
   o["altMax"] = s_altMax;
   o["onlyCallsign"] = s_onlyCs;
@@ -838,6 +844,8 @@ bool Settings_FromJson(JsonObjectConst in) {
   setIf("rAirports",    [](JsonVariantConst v){ Settings_SetRadarShowAirports(v.as<bool>()); });
   setIf("hostname",     [](JsonVariantConst v){ Settings_SetHostname(v.as<const char*>()); });
   setIf("rRings",       [](JsonVariantConst v){ Settings_SetRadarShowRings(v.as<bool>()); });
+  setIf("rCompass",     [](JsonVariantConst v){ Settings_SetRadarShowCompass(v.as<bool>()); });
+  setIf("autoRotateBearing", [](JsonVariantConst v){ Settings_SetAutoRotateBearing(v.as<bool>()); });
   setIf("showLegends",  [](JsonVariantConst v){ Settings_SetShowLegends(v.as<bool>()); });
   setIf("onlyCallsign", [](JsonVariantConst v){ Settings_SetOnlyWithCallsign(v.as<bool>()); });
   setIf("squawkAlert",  [](JsonVariantConst v){ Settings_SetSquawkAlert(v.as<bool>()); });

@@ -287,6 +287,7 @@ td:first-child{color:var(--mut);width:45%}
             <label class="chk"><input type="checkbox" id="rNearest"><span data-i18n="rNearest">Vektor k najbližšiemu lietadlu</span></label>
             <label class="chk"><input type="checkbox" id="rAirports"><span data-i18n="rAirports">Letiská (Runway ikony)</span></label>
             <label class="chk"><input type="checkbox" id="rRings"><span data-i18n="rRings">Kilometrové kružnice dosahu</span></label>
+            <label class="chk"><input type="checkbox" id="rCompass"><span data-i18n="rCompass">Elektronický kompas (miniatúra na mape)</span></label>
             <label class="chk"><input type="checkbox" id="showLegends"><span data-i18n="showAltBar">Výšková lišta letových hladín</span></label>
           </div>
         </div>
@@ -383,6 +384,7 @@ td:first-child{color:var(--mut);width:45%}
             <label class="chk"><input type="checkbox" id="rNearestTac" onchange="$('rNearest').checked=this.checked;autoSave('rNearest',this.checked)"><span data-i18n="rNearest">Vektor k najbližšiemu lietadlu</span></label>
             <label class="chk"><input type="checkbox" id="rAirportsTac" onchange="$('rAirports').checked=this.checked;autoSave('rAirports',this.checked)"><span data-i18n="rAirports">Letiská (Runway ikony)</span></label>
             <label class="chk"><input type="checkbox" id="rRingsTac" onchange="$('rRings').checked=this.checked;autoSave('rRings',this.checked)"><span data-i18n="rRings">Kilometrové kružnice</span></label>
+            <label class="chk"><input type="checkbox" id="rCompassTac" onchange="$('rCompass').checked=this.checked;autoSave('rCompass',this.checked)"><span data-i18n="rCompass">Elektronický kompas</span></label>
           </div>
           <p class="hint" data-i18n="tacticalHint">Filtre výšky a volacích znakov sa preberajú z nastavení Lietadiel, zdroj zrážok z Meteoradaru.</p>
         </div>
@@ -580,9 +582,9 @@ td:first-child{color:var(--mut);width:45%}
           <p class="hint" data-i18n="rotHint">Striedanie pozastaví potiahnutie prstom alebo prepnutie z prehliadača. Otvorený detail lietadla striedanie pozastaví.</p>
         </div>
 
-        <!-- 5. Orientácia & Jednotky -->
+        <!-- 5. Orientácia, Kompas & Jednotky -->
         <div class="card">
-          <h2 data-i18n="planesView">🧭 Orientácia & Jednotky</h2>
+          <h2 data-i18n="planesView">🧭 Orientácia, Kompas & Jednotky</h2>
           <div class="row"><label data-i18n="topBearing">Smer hore na radare</label>
             <select id="topBearing">
               <option value="0" data-i18n="tb0">Sever (Sever hore / North-Up)</option>
@@ -595,8 +597,13 @@ td:first-child{color:var(--mut);width:45%}
               <option value="315" data-i18n="tb315">Severozápad (315°)</option>
             </select>
           </div>
-          <div class="row"><label class="chk"><input type="checkbox" id="metric"><span data-i18n="metric">Metrické jednotky (km, km/h, m namiesto NM, kt, ft)</span></label></div>
+          <div class="grid" style="margin-top:10px;">
+            <label class="chk"><input type="checkbox" id="rCompassCommon" onchange="$('rCompass').checked=this.checked;autoSave('rCompass',this.checked)"><span data-i18n="rCompass">Elektronický kompas (miniatúra na mape)</span></label>
+            <label class="chk"><input type="checkbox" id="autoRotateBearing"><span data-i18n="autoRotateBearing">Auto-rotácia radaru podľa kompasu (Live Heading)</span></label>
+            <label class="chk"><input type="checkbox" id="metric"><span data-i18n="metric">Metrické jednotky (km, km/h, m namiesto NM, kt, ft)</span></label>
+          </div>
           <p class="hint" data-i18n="planesViewHint">Nastavte smer podľa toho, kam smeruje váš výhľad. Meteoradar sa zámerne orientuje na sever.</p>
+          <p class="hint" data-i18n="compassHint" style="margin-top:6px;">Elektronický kompas (QMI8658) umožňuje zobraziť miniatúru kompasu v rohu mapy, alebo dynamicky otáčať celú radarovú mapu podľa natočenia zariadenia. Klepnutím na kompas na displeji nakalibrujete sever.</p>
         </div>
 
         <!-- 6. Časové pásmo & Posun GMT -->
@@ -849,9 +856,11 @@ const D={
   locHint:"Změna polohy vyžaduje restart pro přepočet map a předpovědi.",
   tzHdr:"🕒 Časové pásmo & Posun GMT",tzSelectLbl:"Časové pásmo / Posun GMT",btnDetectTz:"🌐 Zjistit z prohlížeče",
   tzHint:"Určuje posun času vůči UTC pro hodiny, radarové snímky a předpověď počasí. Pro ČR a SR zvolte CET/CEST (automatický letní a zimní čas).",
-  planesView:"🧭 Orientace & Jednotky",topBearing:"Směr nahoře na radaru",metric:"Metrické jednotky (km, km/h, m místo NM, kt, ft)",
+  planesView:"🧭 Orientace, Kompas & Jednotky",topBearing:"Směr nahoře na radaru",metric:"Metrické jednotky (km, km/h, m místo NM, kt, ft)",
   tb0:"Sever (Sever nahoře / North-Up)",tb45:"Severovýchod (45°)",tb90:"Východ (90°)",tb135:"Jihovýchod (135°)",tb180:"Jih (180°)",tb225:"Jihozápad (225°)",tb270:"Západ (270°)",tb315:"Severozápad (315°)",
   planesViewHint:"Nastavte směr podle toho, kam se díváte z okna. Meteoradar je orientován na sever.",
+  compassHint:"Elektronický kompas (QMI8658) umožňuje buď zobrazit miniaturu kompasu v rohu mapy, nebo dynamicky otáčet celou mapu podle fyzického natočení displeje. Klepnutím na kompas na displeji zkalibrujete sever.",
+  autoRotateBearing:"Auto-rotace mapy podle kompasu (Live Heading)",
   autoRotate:"Automatické střídání (sekundy, 0 = vypnuto)",
   rotHint:"Střídání pozastaví potažení prstem nebo přepnutí z prohlížeče. Otevřený detail letadla střídání drží.",
   radar:"🌧️ Meteoradar & Zobrazení",radarSrc:"Zdroj radarových dat",srcRv:"RainViewer (Evropa a svět)",srcChmu:"ČHMÚ (velmi ostrá data, jen ČR)",srcShmu:"SHMÚ (velmi ostrá data, Slovensko)",
@@ -875,7 +884,7 @@ const D={
   clockColor:"Barva číslic hodin",secColor:"Barva vteřinového prstence",
   clockStyle:"Styl ciferníku",clkDigital:"Digitální klasický",clkAnalog:"Letecký kokpitový analog (Aviator)",clkOrbital:"Planetární prstence (Orbital Gauges)",clkHud:"Stíhací průhledový displej (Fighter HUD)",clkRegulator:"Astronomický regulátor (Régulateur)",clkStacked:"Vertikální typografie (Stacked Bold)",clkMinimal:"Minimalistický moderní (Nordic)",
   clockWidgets:"Prvky na obrazovce hodin",cDate:"Datum",cWx:"Počasí & teplota",cWind:"Rychlost větru",cMoon:"Fáze měsíce",cAstro:"24h solární prstenec",nightClockOnly:"V noci pouze Hodiny (zastavit radary)",
-  radarWidgets:"Prvky radarových map",rTrails:"Trajektorie letadel (Trails)",rNearest:"Vektor k nejbližšímu letadlu",rAirports:"Letiště (Runway ikony)",rRings:"Kilometrové kružnice dosahu",
+  radarWidgets:"Prvky radarových map",rTrails:"Trajektorie letadel (Trails)",rNearest:"Vektor k nejbližšímu letadlu",rAirports:"Letiště (Runway ikony)",rRings:"Kilometrové kružnice dosahu",rCompass:"Elektronický kompas (miniatura na mapě)",
   tacticalHdr:"🎯 Taktické zobrazení",tacticalDesc:"Kombinovaný taktický radar spojuje ADS-B lety a bouřkové radarové odrazy do jedné společné obrazovky v reálném čase.",tacticalHint:"Filtry výšky a volacích znaků se přebírají z nastavení Letadel, zdroj srážek z Meteoradaru.",
   forecastHdr:"⛅ Předpověď počasí",forecastDesc:"Předpověď počasí se automaticky stahuje ze služby Open-Meteo pro vaši domovskou polohu.",btnGoLocSettings:"📍 Nastavit domovskou polohu ve Společných nastaveních",
   hwRtc:"⏱️ Systémový čas & RTC (PCF85063)",hwLocalTimeLbl:"Místní čas:",hwTzLbl:"Pásmo / Posun:",hwRtcLbl:"Stav RTC čipu:",hwRtcTimeLbl:"Čas v RTC čipu:",btnSyncNtp:"🌐 NTP sync",btnSyncBrowser:"💻 Z prohlížeče",hwI2c:"🔍 I2C Sběrnice (Bus Inspector)",
@@ -925,9 +934,11 @@ const D={
   locHint:"Zmena polohy vyžaduje reštart pre prepočet máp a predpovede.",
   tzHdr:"🕒 Časové pásmo & Posun GMT",tzSelectLbl:"Časové pásmo / Posun GMT",btnDetectTz:"🌐 Zistiť z prehliadača",
   tzHint:"Určuje posun času voči UTC pre hodiny, radarové snímky a predpoveď počasia. Pre Slovensko a Česko zvoľte CET/CEST (automatický letný a zimný čas).",
-  planesView:"🧭 Orientácia & Jednotky",topBearing:"Smer hore na radare",metric:"Metrické jednotky (km, km/h, m namiesto NM, kt, ft)",
+  planesView:"🧭 Orientácia, Kompas & Jednotky",topBearing:"Smer hore na radare",metric:"Metrické jednotky (km, km/h, m namiesto NM, kt, ft)",
   tb0:"Sever (Sever hore / North-Up)",tb45:"Severovýchod (45°)",tb90:"Východ (90°)",tb135:"Juhovýchod (135°)",tb180:"Juh (180°)",tb225:"Juhozápad (225°)",tb270:"Západ (270°)",tb315:"Severozápad (315°)",
   planesViewHint:"Nastavte smer podľa toho, kam smeruje váš výhľad. Meteoradar sa zámerne orientuje na sever.",
+  compassHint:"Elektronický kompas (QMI8658) umožňuje buď zobraziť miniatúru kompasu v rohu mapy, alebo dynamicky otáčať celú radarovú mapu podľa natočenia zariadenia. Klepnutím na kompas na displeji nakalibrujete sever.",
+  autoRotateBearing:"Auto-rotácia mapy podľa kompasu (Live Heading)",
   autoRotate:"Automatické striedanie (sekundy, 0 = vypnuté)",
   rotHint:"Striedanie pozastaví potiahnutie prstom alebo prepnutie z prehliadača. Otvorený detail lietadla striedanie pozastaví.",
   radar:"🌧️ Meteoradar & Zobrazenie",radarSrc:"Zdroj radarových dát",srcRv:"RainViewer (Európa a svet)",srcChmu:"ČHMÚ (veľmi ostré dáta, len ČR)",srcShmu:"SHMÚ (veľmi ostré dáta, Slovensko)",
@@ -951,7 +962,7 @@ const D={
   clockColor:"Farba číslic hodín",secColor:"Farba sekundového prstenca",
   clockStyle:"Štýl ciferníka",clkDigital:"Digitálny klasický",clkAnalog:"Letecký kokpitový analóg (Aviator)",clkOrbital:"Planetárne prstence (Orbital Gauges)",clkHud:"Stíhací priehľadový displej (Fighter HUD)",clkRegulator:"Astronomický regulátor (Régulateur)",clkStacked:"Vertikálna typografia (Stacked Bold)",clkMinimal:"Minimalistický moderný (Nordic)",
   clockWidgets:"Prvky na obrazovke hodín",cDate:"Dátum",cWx:"Počasie & teplota",cWind:"Rychlosť vetra",cMoon:"Fáza mesiaca",cAstro:"24h solárny prstenec",nightClockOnly:"V noci iba Hodiny (zastavit radary)",
-  radarWidgets:"Prvky radarových máp",rTrails:"Trajektórie lietadiel (Trails)",rNearest:"Vektor k najbližšiemu lietadlu",rAirports:"Letiská (Runway ikony)",rRings:"Kilometrové kružnice dosahu",
+  radarWidgets:"Prvky radarových máp",rTrails:"Trajektórie lietadiel (Trails)",rNearest:"Vektor k najbližšiemu lietadlu",rAirports:"Letiská (Runway ikony)",rRings:"Kilometrové kružnice dosahu",rCompass:"Elektronický kompas (miniatúra na mape)",
   tacticalHdr:"🎯 Taktické zobrazenie",tacticalDesc:"Kombinovaný taktický radar spája ADS-B lety a búrkové radarové odrazy do jednej spoločnej obrazovky v reálnom čase.",tacticalHint:"Filtre výšky a volacích znakov sa preberajú z nastavení Lietadiel, zdroj zrážok z Meteoradaru.",
   forecastHdr:"⛅ Predpoveď počasia",forecastDesc:"Predpoveď počasia sa automaticky sťahuje zo služby Open-Meteo pre vašu domovskú polohu.",btnGoLocSettings:"📍 Nastaviť domovskú polohu v Spoločných nastaveniach",
   hwRtc:"⏱️ Systémový čas & RTC (PCF85063)",hwLocalTimeLbl:"Miestny čas:",hwTzLbl:"Pásmo / Posun:",hwRtcLbl:"Stav RTC čipu:",hwRtcTimeLbl:"Čas v RTC čipe:",btnSyncNtp:"🌐 NTP sync",btnSyncBrowser:"💻 Z prehliadača",hwI2c:"🔍 I2C Zbernica (Bus Inspector)",
@@ -1001,9 +1012,11 @@ const D={
   locHint:"Changing location requires a reboot to recalculate maps and forecast.",
   tzHdr:"🕒 Timezone & GMT Offset",tzSelectLbl:"Timezone / GMT Offset",btnDetectTz:"🌐 Detect from browser",
   tzHint:"Sets the UTC time offset for clocks, radar frames, and weather forecasts. For Central Europe choose CET/CEST (automatic daylight saving time).",
-  planesView:"🧭 Orientation & Units",topBearing:"Radar top orientation",metric:"Metric units (km, km/h, m instead of NM, kt, ft)",
+  planesView:"🧭 Orientation, Compass & Units",topBearing:"Radar top orientation",metric:"Metric units (km, km/h, m instead of NM, kt, ft)",
   tb0:"North (North-Up)",tb45:"Northeast (45°)",tb90:"East (90°)",tb135:"Southeast (135°)",tb180:"South (180°)",tb225:"Southwest (225°)",tb270:"West (270°)",tb315:"Northwest (315°)",
   planesViewHint:"Set the bearing you are looking out of your window. Weather radar is North-Up.",
+  compassHint:"Electronic compass (QMI8658) enables either a corner compass widget or dynamic real-time map auto-rotation based on physical orientation. Tap the compass on display to recalibrate North.",
+  autoRotateBearing:"Auto-rotate map by compass (Live Heading)",
   autoRotate:"Auto cycle (seconds, 0 = off)",
   rotHint:"Cycling is paused by swiping or browser actions. An open aircraft detail keeps cycling paused.",
   radar:"🌧️ Weather Radar & Feeds",radarSrc:"Radar Data Source",srcRv:"RainViewer (Europe & Global)",srcChmu:"CHMU (high-res, Czechia only)",srcShmu:"SHMU (high-res, Slovakia)",
@@ -1027,7 +1040,7 @@ const D={
   clockColor:"Clock digits colour",secColor:"Seconds ring colour",
   clockStyle:"Clock face style",clkDigital:"Classic Digital",clkAnalog:"Aviator Cockpit Analog",clkOrbital:"Orbital Gauges",clkHud:"Fighter HUD",clkRegulator:"Observatory Régulateur",clkStacked:"Stacked Bold Typography",clkMinimal:"Nordic Minimal",
   clockWidgets:"Clock screen widgets",cDate:"Date",cWx:"Weather & temp",cWind:"Wind speed",cMoon:"Moon phase",cAstro:"24h solar arc",nightClockOnly:"Night: Clock only (pause radars)",
-  radarWidgets:"Radar map widgets",rTrails:"Flight trails (breadcrumbs)",rNearest:"Vector to nearest aircraft",rAirports:"Airports (runway icons)",rRings:"Range rings",
+  radarWidgets:"Radar map widgets",rTrails:"Flight trails (breadcrumbs)",rNearest:"Vector to nearest aircraft",rAirports:"Airports (runway icons)",rRings:"Range rings",rCompass:"Electronic compass (map widget)",
   tacticalHdr:"🎯 Tactical Display",tacticalDesc:"Tactical radar brings ADS-B aircraft traffic and real-time weather radar together onto one unified display.",tacticalHint:"Aircraft altitude/callsign filters are inherited from Aircraft radar, weather source from Weather radar.",
   forecastHdr:"⛅ Weather Forecast",forecastDesc:"Weather forecast is automatically fetched via Open-Meteo for your configured home location.",btnGoLocSettings:"📍 Set home location in Shared Settings",
   hwRtc:"⏱️ System Clock & RTC (PCF85063)",hwLocalTimeLbl:"Local time:",hwTzLbl:"Timezone / Offset:",hwRtcLbl:"RTC chip status:",hwRtcTimeLbl:"RTC hardware time:",btnSyncNtp:"🌐 NTP sync",btnSyncBrowser:"💻 Browser sync",hwI2c:"🔍 I2C Bus Inspector",
@@ -1294,6 +1307,10 @@ const AUTO = [
  ["rNearest","change","rNearest",e=>{ if($("rNearestTac")) $("rNearestTac").checked=e.checked; return e.checked; }],
  ["rAirports","change","rAirports",e=>{ if($("rAirportsMeteo")) $("rAirportsMeteo").checked=e.checked; if($("rAirportsTac")) $("rAirportsTac").checked=e.checked; return e.checked; }],
  ["rRings","change","rRings",e=>{ if($("rRingsMeteo")) $("rRingsMeteo").checked=e.checked; if($("rRingsTac")) $("rRingsTac").checked=e.checked; return e.checked; }],
+ ["rCompass","change","rCompass",e=>{ if($("rCompassTac")) $("rCompassTac").checked=e.checked; if($("rCompassCommon")) $("rCompassCommon").checked=e.checked; return e.checked; }],
+ ["rCompassTac","change","rCompass",e=>{ if($("rCompass")) $("rCompass").checked=e.checked; if($("rCompassCommon")) $("rCompassCommon").checked=e.checked; return e.checked; }],
+ ["rCompassCommon","change","rCompass",e=>{ if($("rCompass")) $("rCompass").checked=e.checked; if($("rCompassTac")) $("rCompassTac").checked=e.checked; return e.checked; }],
+ ["autoRotateBearing","change","autoRotateBearing",e=>e.checked],
  ["timezone","change","timezone",e=>{ applyTzNow(e.value); return e.value; }],
  ["tfAirliner","change","typeAirliner",e=>e.checked],
  ["tfLight","change","typeLight",e=>e.checked],
@@ -1370,6 +1387,10 @@ async function load(){
  if($("rRings")) $("rRings").checked=CFG.rRings!==false;
  if($("rRingsMeteo")) $("rRingsMeteo").checked=CFG.rRings!==false;
  if($("rRingsTac")) $("rRingsTac").checked=CFG.rRings!==false;
+ if($("rCompass")) $("rCompass").checked=CFG.rCompass!==false;
+ if($("rCompassTac")) $("rCompassTac").checked=CFG.rCompass!==false;
+ if($("rCompassCommon")) $("rCompassCommon").checked=CFG.rCompass!==false;
+ if($("autoRotateBearing")) $("autoRotateBearing").checked=!!CFG.autoRotateBearing;
  if($("timezone") && CFG.timezone) $("timezone").value=CFG.timezone;
  if($("tfAirliner")) $("tfAirliner").checked=CFG.typeAirliner!==false;
  if($("tfLight")) $("tfLight").checked=CFG.typeLight!==false;
@@ -1469,6 +1490,8 @@ function body(){return{
  rNearest:$("rNearest")?$("rNearest").checked:true,
  rAirports:$("rAirports")?$("rAirports").checked:true,
  rRings:$("rRings")?$("rRings").checked:true,
+ rCompass:$("rCompass")?$("rCompass").checked:true,
+ autoRotateBearing:$("autoRotateBearing")?$("autoRotateBearing").checked:false,
  timezone:$("timezone")?$("timezone").value:undefined,
  typeAirliner:$("tfAirliner")?$("tfAirliner").checked:true,
  typeLight:$("tfLight")?$("tfLight").checked:true,

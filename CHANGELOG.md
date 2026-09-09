@@ -22,8 +22,8 @@ pohromadě v `MeteoPlaneRadar/Config.h`.
 - **Skutočný elektronický kompas & Sledovanie orientácie (Real Electronic Gyrocompass & Heading Tracker):**
   - Kontinuálna 360° integrácia gyroskopu Z z IMU senzora QMI8658 s filtráciou šumu a nehybného driftu (`deadband`), kombinovaná s gravitačným kompasom pri vertikálnom náklone.
   - Interaktívny widget elektronického kompasu (`UI_DrawCompassWidget`) v pravom hornom rohu radaru (ScreenPlanes a ScreenTactical) s otočnou červenou strelkou severu a digitálnym odpočtom azimutu.
-  - Klepnutie na kompas kalibruje a nuluje azimut (North reset) alebo zapína plynulé natáčanie celej mapy radaru podľa fyzickej orientácie zariadenia.
-  - Dynamická rotácia azimutovej pásky (`HDG xxx`) a indikátora kurzu na kokpitovom HUD ciferníku hodín (`ScreenClock`).
+    - Možnosť úplnej deaktivácie kompasu v NVS nastaveniach (`Settings_RadarShowCompass`), priamo z webového rozhrania (Karta "🧭 Orientácia, Kompas & Jednotky", radarové prvky lietadiel a taktického radaru) aj klepnutím na ikonu kompasu na obrazovke Nastavení na zariadení.
+    - Samostatné nezávislé riadenie dynamickej auto-rotácie mapy (`Settings_AutoRotateBearing`) a viditeľnosti widgetu kompasu (`Settings_RadarShowCompass`).
 
 ## [1.6.1] - 2026-09-08
 

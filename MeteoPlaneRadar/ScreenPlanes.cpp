@@ -293,7 +293,7 @@ bool ScreenPlanes_HandleTap(int x, int y) {
   }
 
   // Tap on Compass widget (top-right corner, 390, 85): toggle auto-rotate / recalibrate North
-  if (QMI8658_Available() && x >= 360 && x <= 425 && y >= 55 && y <= 125) {
+  if (Settings_RadarShowCompass() && QMI8658_Available() && x >= 360 && x <= 425 && y >= 55 && y <= 125) {
     if (!Settings_AutoRotateBearing()) {
       Settings_SetAutoRotateBearing(true);
     } else {
@@ -754,7 +754,7 @@ void ScreenPlanes_Draw() {
   }
 
   // --- Real Electronic Gyrocompass Widget (top right) ---
-  if (QMI8658_Available() && !ScreenPlanes_DetailOpen()) {
+  if (Settings_RadarShowCompass() && QMI8658_Available() && !ScreenPlanes_DetailOpen()) {
     float needleAngle = 360.0f - (float)s_topDeg;
     while (needleAngle < 0.0f) needleAngle += 360.0f;
     UI_DrawCompassWidget(390, 85, 16, needleAngle, Settings_AutoRotateBearing() ? C_GREEN : 0x2FE6, true);

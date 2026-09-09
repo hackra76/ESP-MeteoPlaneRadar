@@ -15,6 +15,7 @@
 #include "Config.h"
 #include "Version.h"
 #include "GithubOTA.h"
+#include "Buzzer.h"
 
 #include <WiFi.h>
 #include <math.h>
@@ -188,6 +189,14 @@ bool ScreenSettings_HandleTap(int x, int y) {
       Settings_SetTopBearing((uint16_t)((top + MAP_ROT_STEP_DEG) % 360));
       return true;
     }
+  }
+
+  // Tap on small compass preview (toggle radar compass on/off)
+  if (x >= COMPASS_CX - COMPASS_R - 10 && x <= COMPASS_CX + COMPASS_R + 10 &&
+      y >= COMPASS_CY - COMPASS_R - 10 && y <= COMPASS_CY + COMPASS_R + 10) {
+    Settings_SetRadarShowCompass(!Settings_RadarShowCompass());
+    Buzzer_Play(BEEP_CLICK);
+    return true;
   }
 
   // Row 1: Units (left) & Smooth (right)
@@ -414,15 +423,22 @@ void ScreenSettings_Draw() {
   // Small compass preview: a ring, a needle and "S" for north. North sits at
   // screen angle (0 - top), the same rule the radar uses.
   {
-    gfx->drawCircle(COMPASS_CX, COMPASS_CY, COMPASS_R, C_DKGRAY);
-    float a = -(float)top * 0.0174532925f;
-    int nx = COMPASS_CX + (int)((COMPASS_R - 6) * sinf(a));
-    int ny = COMPASS_CY - (int)((COMPASS_R - 6) * cosf(a));
-    gfx->drawLine(COMPASS_CX, COMPASS_CY, nx, ny, C_WHITE);
-    gfx->fillCircle(COMPASS_CX, COMPASS_CY, 2, C_GRAY);
-    int lx = COMPASS_CX + (int)(COMPASS_R * sinf(a)) - 2;
-    int ly = COMPASS_CY - (int)(COMPASS_R * cosf(a)) - 3;
-    UI_Text(Lang_Get() == LANG_EN ? "N" : "S", lx, ly, C_WHITE, 1);
+    bool showCmp = Settings_RadarShowCompass();
+    gfx->drawCircle(COMPASS_CX, COMPASS_CY, COMPASS_R, showCmp ? C_CYAN : C_DKGRAY);
+    if (showCmp) {
+      float a = -(float)top * 0.0174532925f;
+      int nx = COMPASS_CX + (int)((COMPASS_R - 6) * sinf(a));
+      int ny = COMPASS_CY - (int)((COMPASS_R - 6) * cosf(a));
+      gfx->drawLine(COMPASS_CX, COMPASS_CY, nx, ny, C_WHITE);
+      gfx->fillCircle(COMPASS_CX, COMPASS_CY, 2, C_GRAY);
+      int lx = COMPASS_CX + (int)(COMPASS_R * sinf(a)) - 2;
+      int ly = COMPASS_CY - (int)(COMPASS_R * cosf(a)) - 3;
+      UI_Text(Lang_Get() == LANG_EN ? "N" : "S", lx, ly, C_WHITE, 1);
+    } else {
+      // Disabled indicator (red cross)
+      gfx->drawLine(COMPASS_CX - 10, COMPASS_CY - 10, COMPASS_CX + 10, COMPASS_CY + 10, C_RED);
+      gfx->drawLine(COMPASS_CX - 10, COMPASS_CY + 10, COMPASS_CX + 10, COMPASS_CY - 10, C_RED);
+    }
   }
 
   // --- Buttons (2x2 grid to preserve ample room above H4CKR4) ---
