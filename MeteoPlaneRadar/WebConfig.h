@@ -53,3 +53,4 @@ int WebConfig_TakeScreenStep();   // -1 / +1, or 0
 int WebConfig_TakeRangeStep();    // -1 / +1, or 0
 bool WebConfig_TakeRedraw();      // true when a settings change requests screen redraw
 void WebConfig_RequestRedraw();
+bool WebConfig_TakeSelectPlane();

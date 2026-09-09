@@ -58,6 +58,7 @@ static int s_reqScreen     = -1;
 static int s_reqScreenStep = 0;
 static int s_reqRangeStep  = 0;
 static bool s_reqRedraw    = false;
+static bool s_reqSelectPlane = false;
 
 bool WebConfig_UpdateBusy()        { return s_updating || GithubOTA_IsBusy(); }
 bool WebConfig_WantsWifiConnect()  { return s_wantConnect; }
@@ -69,6 +70,7 @@ int  WebConfig_TakeScreenStep() { int v = s_reqScreenStep; s_reqScreenStep = 0; 
 int  WebConfig_TakeRangeStep()  { int v = s_reqRangeStep;  s_reqRangeStep = 0;  return v; }
 bool WebConfig_TakeRedraw()     { bool r = s_reqRedraw;    s_reqRedraw = false; return r; }
 void WebConfig_RequestRedraw()  { s_reqRedraw = true; }
+bool WebConfig_TakeSelectPlane() { bool r = s_reqSelectPlane; s_reqSelectPlane = false; return r; }
 
 // --- Helpers ----------------------------------------------------------------
 static void sendJson(int code, JsonDocument& doc) {
@@ -365,29 +367,6 @@ static void handleHardware() {
     doc["rtcTime"] = "-";
   }
 
-  // Active I2C Bus Devices scan (Targeted scan with I2C bus lock)
-  struct I2CTarget { uint8_t addr; const char* name; };
-  static const I2CTarget targets[] = {
-    { 0x15, "Dotykový kontrolér (Touch CST820)" },
-    { 0x38, "Dotykový kontrolér (Touch CHSC6540)" },
-    { 0x20, "I/O Expandér (TCA9554)" },
-    { 0x43, "I/O Expandér (TCA9554 alt)" },
-    { 0x51, "Hardware RTC (PCF85063)" },
-    { 0x6B, "6-osové IMU (QMI8658)" },
-  };
-
-  Async_LockI2C();
-  JsonArray i2cArr = doc["i2cBus"].to<JsonArray>();
-  for (size_t i = 0; i < sizeof(targets) / sizeof(targets[0]); i++) {
-    Wire.beginTransmission(targets[i].addr);
-    if (Wire.endTransmission() == 0) {
-      JsonObject dev = i2cArr.add<JsonObject>();
-      char hexBuf[8]; snprintf(hexBuf, sizeof(hexBuf), "0x%02X", targets[i].addr);
-      dev["addr"] = hexBuf;
-      dev["name"] = targets[i].name;
-    }
-  }
-  Async_UnlockI2C();
 
   unsigned long up = millis() / 1000UL;
   char ub[32];
@@ -554,6 +533,8 @@ static void handleInput() {
     s_reqScreenStep = +1;
   } else if (strcmp(cmd, "prev_screen") == 0) {
     s_reqScreenStep = -1;
+  } else if (strcmp(cmd, "select_plane") == 0) {
+    s_reqSelectPlane = true;
   }
   JsonDocument res; res["ok"] = true;
   res["legends"] = Settings_ShowLegends();
@@ -563,6 +544,48 @@ static void handleInput() {
 
 static void handleBuzzerTest() {
   Buzzer_Play(BEEP_WATCHED);
+  s_srv.send(200, "application/json", "{\"ok\":true}");
+}
+
+static void handleSerialRead() {
+  uint32_t since = 0;
+  if (s_srv.hasArg("since")) {
+    since = (uint32_t)strtoul(s_srv.arg("since").c_str(), nullptr, 10);
+  }
+  static char s_serialReadBuf[16384];
+  uint32_t nextOffset = 0;
+  bool overflow = false;
+  SerialLog_Read(since, s_serialReadBuf, sizeof(s_serialReadBuf), &nextOffset, &overflow);
+
+  JsonDocument doc;
+  doc["head"] = nextOffset;
+  doc["overflow"] = overflow;
+  doc["data"] = s_serialReadBuf;
+  sendJson(200, doc);
+}
+
+static void handleSerialClear() {
+  SerialLog_Clear();
+  s_srv.send(200, "application/json", "{\"ok\":true}");
+}
+
+static void handleSerialSend() {
+  JsonDocument doc;
+  if (!readBody(doc)) { s_srv.send(400, "application/json", "{\"error\":\"json\"}"); return; }
+  const char* text = doc["text"] | "";
+  if (text && strlen(text) > 0) {
+    if (strcmp(text, "ping") == 0) {
+      Serial.println("[Console] pong");
+    } else if (strcmp(text, "heap") == 0 || strcmp(text, "mem") == 0) {
+      Serial.printf("[Console] Heap free: %u B, PSRAM free: %u B\n", (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getFreePsram());
+    } else if (strcmp(text, "restart") == 0 || strcmp(text, "reboot") == 0) {
+      Serial.println("[Console] Rebooting...");
+      delay(200);
+      ESP.restart();
+    } else {
+      Serial.printf("[Console] %s\n", text);
+    }
+  }
   s_srv.send(200, "application/json", "{\"ok\":true}");
 }
 
@@ -1011,6 +1034,9 @@ void WebConfig_Begin(bool apMode) {
   s_srv.on("/api/ota/check", HTTP_GET, handleOtaCheck);
   s_srv.on("/api/ota/status", HTTP_GET, handleOtaStatus);
   s_srv.on("/api/ota/start", HTTP_POST, handleOtaStart);
+  s_srv.on("/api/serial/read", HTTP_GET, handleSerialRead);
+  s_srv.on("/api/serial/clear", HTTP_POST, handleSerialClear);
+  s_srv.on("/api/serial/send", HTTP_POST, handleSerialSend);
   // The update page authenticates with HTTP Basic when a password is set. See
   // the note in Settings.h about why the password is stored in the clear.
   s_srv.on("/update", HTTP_GET, handleUpdatePage);

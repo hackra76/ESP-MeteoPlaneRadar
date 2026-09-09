@@ -27,5 +27,8 @@ void ScreenPlanes_CloseDetail();
 // Select aircraft by ICAO hex code and open detail panel (or pass nullptr/"" to deselect)
 void ScreenPlanes_SelectHex(const char* hex);
 
+// Automatically selects the best available aircraft (prioritizing callsigns)
+void ScreenPlanes_SelectFirst();
+
 // Is the aircraft detail open? (main then blocks range change / screen switch)
 bool ScreenPlanes_DetailOpen();

@@ -18,14 +18,16 @@ Designed specifically for the **Waveshare ESP32-S3-Touch-LCD-2.1** development b
 ## 📸 Live Device Demo
 
 <p align="center">
-  <img src="docs/media/tactical_radar_live.gif" width="31%" alt="Tactical Radar (Planes + Rain)" />
-  <img src="docs/media/weather_radar_chmu.gif" width="31%" alt="Animated Rain Radar loop" />
-  <img src="docs/media/clock_stacked_bold.gif" width="31%" alt="Stacked Bold Watch Face" />
+  <img src="docs/media/tactical_radar_live.gif" width="24%" alt="Tactical Radar (Planes + Rain)" />
+  <img src="docs/media/plane_detail_photo.png" width="24%" alt="Aircraft Detail with Live Photo" />
+  <img src="docs/media/weather_radar_chmu.gif" width="24%" alt="Animated Rain Radar loop" />
+  <img src="docs/media/clock_stacked_bold.png" width="24%" alt="Stacked Bold Watch Face" />
 </p>
 
 <p align="center">
-  <em>From left to right: <b>Tactical Radar</b> (live aircraft tracking over precipitation map), <b>Weather Radar</b> (smooth radar loop), <b>Stacked Bold Watch Face</b>.</em>
+  <em>From left to right: <b>Tactical Radar</b> (live aircraft tracking over precipitation map), <b>Aircraft Detail</b> (live aircraft photo via Planespotters API), <b>Weather Radar</b> (animated loop), <b>Stacked Bold Watch Face</b>.</em>
 </p>
+
 
 ---
 
@@ -100,14 +102,17 @@ A unique real-time screen overlaying **animated precipitation radar tiles (SHMÚ
 
 ## 📱 Screen Overview
 
-| Screen | Description | Data Source |
-| :--- | :--- | :--- |
-| **1. Clock** | 7 selectable watchfaces, 3-hour forecast pills, 7 seconds styles, weather, wind, moon phase, and solar arc | Open-Meteo & Astro Engine |
-| **2. Planes** | Live aircraft traffic radar, aircraft photos, routes, airports, distance rings, emergency & watchlist tracking | adsb.fi / adsb.lol / Planespotters |
-| **3. Weather Radar** | Animated precipitation radar map with smoothing and provider selection | SHMÚ (SK), ČHMÚ (CZ), RainViewer (Global) |
-| **4. Tactical Radar** | **Combined view:** Live precipitation radar + ADS-B aircraft overlay on a single screen | SHMÚ / ČHMÚ / RainViewer + adsb.fi |
-| **5. Forecast** | 5-hour detail, 3-day daily outlook, Air Quality (AQI), and weather icons | Open-Meteo Weather & Air Quality |
-| **6. Settings** | Device telemetry, IP address, brightness control, map orientation, radar smoothing, language selector | System |
+| Screen | Preview | Description | Data Source |
+| :--- | :---: | :--- | :--- |
+| **1. Clock** | <img src="docs/media/clock_stacked_bold.png" width="70" /> | 7 selectable watchfaces (Stacked Bold, Aviator, HUD, etc.), forecast pills, weather, moon phase, solar arc | Open-Meteo & Astro Engine |
+| **2. Planes** | <img src="docs/media/plane_radar_live.png" width="70" /> | 360° airspace tracking, emergency squawks (7700/7600), airline routes, airport beacons, range rings | adsb.fi / adsb.lol |
+| **2b. Aircraft Detail** | <img src="docs/media/plane_detail_photo.png" width="70" /> | Tap any aircraft to reveal full telemetry, route origin/destination, and high-res aircraft photography | Planespotters.net API |
+| **3. Weather Radar** | <img src="docs/media/weather_radar_chmu.gif" width="70" /> | Animated precipitation radar loop with smooth cross-dissolve, reflectivity scale, and city markers | SHMÚ (SK), ČHMÚ (CZ), RainViewer |
+| **4. Tactical Radar** | <img src="docs/media/tactical_radar_live.gif" width="70" /> | **Combined tactical view:** Live precipitation radar + ADS-B flights overlay on a single screen | SHMÚ / ČHMÚ / RainViewer + adsb.fi |
+| **5. Forecast** | <img src="docs/media/forecast_screen.png" width="70" /> | Hourly temperature, wind, and rain curves, 3-day forecast, Air Quality (AQI), PM2.5, and pollen count | Open-Meteo Weather & Air Quality |
+| **6. Air Traffic Stats** | <img src="docs/media/flight_stats_screen.png" width="70" /> | Daily 24h airspace activity: unique aircraft count, speed record, altitude span, max range, ADS-B reports | FreeRTOS PSRAM Tracker |
+| **7. Settings** | — | Device telemetry, IP address, brightness control, map orientation, radar smoothing, language selector | System |
+
 
 ---
 
@@ -173,7 +178,7 @@ The web interface features:
 - **Clock Styles & Aesthetics:** Choose watchface, seconds ring, and primary colors.
 - **Radar Settings:** Select radar source (SHMÚ / ČHMÚ / RainViewer), toggle bilinear smoothing, airports, and flight trails.
 - **Night Clock Only Mode (`nightClockOnly`):** Stops screen auto-rotation during the night and locks the display dimmed onto the clock.
-- **Hardware Diagnostics:** Live I2C bus device inspection, RTC status, and manual sync buttons.
+- **Hardware Diagnostics & Web Serial Monitor:** Real-time web serial console (64 KB PSRAM ring buffer) over Wi-Fi without USB cables, RTC status, and manual time sync buttons.
 - **Remote Control:** Switch screens and change radar range remotely from your browser.
 - **OTA Updates:** Upload new `.bin` firmware builds wirelessly without plugging into USB.
 

@@ -12,6 +12,7 @@
 // =============================================================================
 #pragma once
 #include "Version.h"   // FW_VERSION - used in User-Agent header below
+#include "SerialLog.h"
 
 // ---------------------------------------------------------------------------
 //  Board pins / bus

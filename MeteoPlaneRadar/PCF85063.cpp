@@ -4,6 +4,7 @@
 // =============================================================================
 #include "PCF85063.h"
 #include "AsyncCore.h"
+#include "Config.h"
 #include <Wire.h>
 
 #define PCF85063_REG_CTRL1 0x00

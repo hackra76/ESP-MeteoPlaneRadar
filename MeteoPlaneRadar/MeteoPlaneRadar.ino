@@ -867,6 +867,15 @@ void loop() {
     if (WebConfig_TakeRedraw()) {
       drawActive();
     }
+    if (WebConfig_TakeSelectPlane()) {
+      if (s_screen != SCREEN_PLANES_I) {
+        if (activeModalOpen()) ScreenPlanes_CloseDetail();
+        gotoScreen(SCREEN_PLANES_I);
+      }
+      ScreenPlanes_SelectFirst();
+      drawActive();
+      s_touchPauseUntil = millis() + autoRotatePauseMs();
+    }
   }
 
   // The user asked to forget the network from the settings screen.

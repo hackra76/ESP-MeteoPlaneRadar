@@ -37,6 +37,9 @@ nav.tabs button{background:transparent;color:var(--mut);border:1px solid transpa
  padding:7px 13px;white-space:nowrap;font-weight:500;font-size:13px;cursor:pointer;transition:all 0.15s ease}
 nav.tabs button:hover{color:var(--fg);background:#161f30}
 nav.tabs button.on{background:var(--card-hdr);color:var(--acc);border-color:var(--line);font-weight:600;box-shadow:0 0 12px var(--acc-glow)}
+nav.tabs button.tab-serial{background:rgba(56,189,248,0.06);border-color:rgba(56,189,248,0.2);color:var(--acc)}
+nav.tabs button.tab-serial:hover{background:rgba(56,189,248,0.15)}
+nav.tabs button.tab-serial.on{background:var(--card-hdr);color:var(--acc);border-color:var(--acc);box-shadow:0 0 12px var(--acc-glow)}
 nav.tabs button.tab-common{margin-left:auto;background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.08)}
 nav.tabs button.tab-common.on{background:var(--card-hdr);color:var(--acc);border-color:var(--line)}
 
@@ -64,7 +67,25 @@ input[type=text],input[type=password],input[type=number],select{background:#0a0e
 input[type=text]:focus,input[type=password]:focus,input[type=number]:focus,select:focus{border-color:var(--acc)}
 input[type=color]{background:#0a0e17;border:1px solid var(--line);border-radius:7px;height:36px;width:56px;padding:2px;cursor:pointer}
 input[type=range]{flex:1 1 160px;accent-color:var(--acc)}
-input[type=checkbox]{width:18px;height:18px;accent-color:var(--acc);cursor:pointer}
+input[type=checkbox]{
+  -webkit-appearance:none;appearance:none;
+  width:38px;height:22px;min-width:38px;
+  background:#1a2333;border:1px solid var(--line);border-radius:999px;
+  position:relative;cursor:pointer;outline:none;
+  transition:all 0.2s cubic-bezier(0.4,0,0.2,1);
+  flex-shrink:0;margin:0;vertical-align:middle;
+}
+input[type=checkbox]::after{
+  content:"";position:absolute;top:2px;left:2px;
+  width:16px;height:16px;background:#64748b;border-radius:50%;
+  transition:all 0.2s cubic-bezier(0.4,0,0.2,1);
+  box-shadow:0 1px 3px rgba(0,0,0,0.5);
+}
+input[type=checkbox]:hover{border-color:rgba(56,189,248,0.4)}
+input[type=checkbox]:hover::after{background:#94a3b8}
+input[type=checkbox]:checked{background:var(--acc);border-color:var(--acc);box-shadow:0 0 10px var(--acc-glow)}
+input[type=checkbox]:checked::after{transform:translateX(16px);background:#090d14}
+input[type=checkbox]:focus-visible{box-shadow:0 0 0 2px var(--acc-glow)}
 button{background:var(--acc);color:#08202a;border:0;border-radius:8px;padding:8px 14px;font-weight:600;
  cursor:pointer;font-size:13.5px;transition:all 0.15s ease}
 button:hover{filter:brightness(1.1)}
@@ -73,8 +94,8 @@ button.sec{background:#1e2738;color:var(--fg);border:1px solid var(--line)}
 button.sec:hover{background:#28344a;border-color:var(--acc)}
 button.danger{background:var(--err);color:#fff}
 button:disabled{cursor:default;opacity:0.4}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
-.chk{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.chk{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13.5px;user-select:none;padding:2px 0}
 .hint{color:var(--mut);font-size:12.5px;margin:6px 0 0;line-height:1.4}
 .bar{position:fixed;left:0;right:0;bottom:0;background:rgba(13,19,31,0.95);backdrop-filter:blur(12px);border-top:1px solid var(--line);
  padding:12px 16px calc(12px + env(safe-area-inset-bottom));display:flex;gap:12px;align-items:center;z-index:30}
@@ -133,6 +154,7 @@ td:first-child{color:var(--mut);width:45%}
   <button data-tab="tScrTactical" data-i18n="tabScrTactical">🎯 Taktický radar</button>
   <button data-tab="tScrForecast" data-i18n="tabScrForecast">⛅ Predpoveď</button>
   <button data-tab="tScrInfo"     data-i18n="tabScrInfo">ℹ️ Info & Štatistiky</button>
+  <button data-tab="tSerial"      data-i18n="tabSerial" class="tab-serial">📟 Sériový monitor</button>
   <button data-tab="tCommon"      data-i18n="tabCommon" class="tab-common">⚙️ Spoločné nastavenia</button>
 </nav>
 
@@ -437,7 +459,53 @@ td:first-child{color:var(--mut);width:45%}
         </div>
       </section>
 
-      <!-- 7. SPOLOČNÉ NASTAVENIA -->
+      <!-- 7. SÉRIOVÝ MONITOR (WEB CONSOLE) -->
+      <section id="tSerial" class="tab hide">
+        <div class="screen-hero">
+          <div class="hero-title">
+            <h2>📟 <span data-i18n="serialHdr">Sériový monitor</span></h2>
+          </div>
+          <div class="hero-actions">
+            <div id="serialStatusBadge" class="live-pill" style="background:rgba(100,116,139,0.15);color:var(--mut);border-color:rgba(100,116,139,0.3);">
+              <span class="pulse-dot" style="background:var(--mut);box-shadow:none;" id="serialDot"></span>
+              <span id="serialStateTxt">Pozastavené</span>
+            </div>
+            <button type="button" class="btn-live" id="btnToggleSerial" onclick="toggleSerialMonitor()">
+              ▶ <span id="btnToggleSerialTxt" data-i18n="btnSerialStart">Spustiť monitor</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              <label class="chk" style="font-size:13px;">
+                <input type="checkbox" id="serialAutoScroll" checked>
+                <span data-i18n="serialAutoScroll">Automatický posun (Auto-scroll)</span>
+              </label>
+              <span class="ver-pill" id="serialBytesCounter">0 KB</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <input type="text" id="serialFilter" placeholder="🔍 Filtrovať výpis..." oninput="filterSerialLines()" style="min-width:160px;padding:5px 10px;font-size:12.5px;">
+              <button type="button" class="sec" onclick="copySerialLog()" data-i18n="btnSerialCopy" style="padding:6px 12px;font-size:12.5px;">📋 Kopírovať</button>
+              <button type="button" class="sec" onclick="downloadSerialLog()" data-i18n="btnSerialDl" style="padding:6px 12px;font-size:12.5px;">💾 Stiahnuť</button>
+              <button type="button" class="sec" onclick="clearSerialLog()" data-i18n="btnSerialClear" style="padding:6px 12px;font-size:12.5px;color:var(--err);border-color:rgba(239,68,68,0.3);">🧹 Vymazať</button>
+            </div>
+          </div>
+
+          <div id="serialTermWrap" style="background:#060a12;border:1px solid var(--line);border-radius:10px;padding:12px 14px;position:relative;box-shadow:inset 0 2px 8px rgba(0,0,0,0.6);">
+            <div id="serialTerminal" style="min-height:360px;max-height:560px;overflow-y:auto;overflow-x:auto;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Courier New',monospace;font-size:12.5px;line-height:1.48;color:#cbd5e1;white-space:pre-wrap;word-break:break-all;scrollbar-width:thin;scrollbar-color:var(--line) transparent;"></div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:12px;align-items:center;">
+            <input type="text" id="serialCmdInput" placeholder="Zadajte príkaz (napr. heap, status, ping, reboot)..." onkeydown="if(event.key==='Enter')sendSerialCmd()" style="flex:1;">
+            <button type="button" onclick="sendSerialCmd()" data-i18n="btnSerialSend">Odoslať ↵</button>
+          </div>
+          <p class="hint" data-i18n="serialHint" style="margin-top:8px;">Streamovanie výstupov sériového portu cez WiFi bez nutnosti USB kábla. Pri odchode zo záložky sa prenos automaticky pozastaví.</p>
+        </div>
+      </section>
+
+      <!-- 8. SPOLOČNÉ NASTAVENIA -->
       <section id="tCommon" class="tab hide">
 
         <!-- 1. WiFi & Sieťové profily (najčastejšie používané pri prenášaní) -->
@@ -655,7 +723,7 @@ td:first-child{color:var(--mut);width:45%}
         </div>
         <div class="row" style="justify-content:center;gap:6px;margin:8px 0;">
           <button class="sec" onclick="stepScreen(-1)" data-i18n="btnPrev" style="flex:1;">&#8592; Predch.</button>
-          <button class="sec" onclick="toggleLegendsRemote()" style="background:#1d293d;color:var(--acc);border-color:var(--acc);flex:1;" data-i18n="btnDblTap">🔄 Legenda</button>
+          <button class="sec" onclick="toggleLegendsRemote()" style="background:#1d293d;color:var(--acc);border-color:var(--acc);flex:1;" data-i18n="btnDblTap" title="Dvojklik / Legenda">🔄 Legenda</button>
           <button class="sec" onclick="stepScreen(1)" data-i18n="btnNext" style="flex:1;">Nasled. &#8594;</button>
         </div>
         <div class="range-ctrl-row" id="rangeControlRow">
@@ -756,15 +824,6 @@ td:first-child{color:var(--mut);width:45%}
         </table>
       </div>
 
-      <div class="card">
-        <h2 data-i18n="hwI2c">🔍 I2C Zbernica (Bus Inspector)</h2>
-        <table id="hwI2cTable">
-          <tr><th>Adresa</th><th>Názov komponentu</th></tr>
-          <tr><td><code>0x51</code></td><td>Hardware RTC (PCF85063)</td></tr>
-          <tr><td><code>0x6B</code></td><td>6-osové IMU (QMI8658)</td></tr>
-        </table>
-      </div>
-
     </aside>
 
   </div>
@@ -784,7 +843,7 @@ const D={
   scrClockActive:"Zahrnout obrazovku do automatického střídání",scrPlanesActive:"Zahrnout obrazovku do automatického střídání",scrMeteoActive:"Zahrnout obrazovku do automatického střídání",scrTacticalActive:"Zahrnout obrazovku do automatického střídání",scrForecastActive:"Zahrnout obrazovku do automatického střídání",
   rotateHdr:"🔄 Automatické střídání obrazovek",
   remote:"🎮 Dálkové ovládání",rangeLbl:"Měřítko:",
-  btnPrev:"← Předchozí",btnDblTap:"🔄 Dvojklik / Legenda",btnNext:"Následující →",btnDec:"Přiblížit (− km)",btnInc:"Oddálit (+ km)",
+  btnPrev:"← Předchozí",btnDblTap:"🔄 Legenda",btnNext:"Následující →",btnDec:"Přiblížit (− km)",btnInc:"Oddálit (+ km)",
   remoteHint:"Rozsah se mění na obrazovkách Letadla, Meteoradar a Taktický radar. Zásah pozastaví automatické střídání.",
   location:"📍 Domovská poloha",findCity:"Vyhledat město",search:"Hledat",found:"Nalezené výsledky",lat:"Zeměpisná šířka (°N)",lon:"Zeměpisná délka (°E)",
   locHint:"Změna polohy vyžaduje restart pro přepočet map a předpovědi.",
@@ -850,7 +909,8 @@ const D={
   statsTrafficHdr:"✈️ Dnešní letecká statistika",btnResetStats:"🔄 Resetovat",stUnique:"Unikátní letadla dnes:",stTopSpeed:"Nejvyšší rychlost:",stMaxDist:"Maximální vzdálenost:",stAltSpan:"Rozpětí výšek:",stReports:"Přijaté ADS-B zprávy:",statsHint:"Statistika se automaticky nuluje o půlnoci a uchovává se v paměti PSRAM.",confirmResetStats:"Opravdu resetovat dnešní statistiku letů?",statsResetOk:"Statistiky byly resetovány",
   cOver:"✈️ Let nad hlavou (Overhead widget)",ovRad:"Poloměr přeletu nad hlavou (km)",bzOverhead:"🔊 Přelet nad hlavou (Overhead výstraha)",
    cPrecip:"🌧️ Výstraha blížících se srážek",bzPrecip:"🔊 Pípnutí při blížících se srážkách",precipTrackerHdr:"🌧️ Detekce blížících se srážek (Nowcasting)",precipHint:"Vektorová analýza pohybu frontu (TREC). Upozorní na déšť, kroupy nebo sníh, pouze pokud srážky směřují přímo k vaší poloze.",precipLiveHdr:"Aktuální stav nowcastingu:",
-  scrShotHdr:"📸 Snímek displeje",scrShotNone:"Klikněte pro zachycení",btnTakeScrShot:"📸 Zachytit obrazovku",btnDlScrShot:"💾 Stáhnout BMP",scrShotOk:"Snímek úspěšně načten",scrShotErr:"Chyba načtení snímku"
+  scrShotHdr:"📸 Snímek displeje",scrShotNone:"Klikněte pro zachycení",btnTakeScrShot:"📸 Zachytit obrazovku",btnDlScrShot:"💾 Stáhnout BMP",scrShotOk:"Snímek úspěšně načten",scrShotErr:"Chyba načtení snímku",
+  tabSerial:"📟 Sériový monitor",serialHdr:"Sériový monitor (Live Web Console)",btnSerialStart:"Spustit monitor",btnSerialPause:"Pozastavit monitor",serialActive:"Aktivní (Live)",serialPaused:"Pozastaveno",serialAutoScroll:"Automatický posun",btnSerialCopy:"📋 Kopírovat",btnSerialDl:"💾 Stáhnout",btnSerialClear:"🧹 Vymazat",btnSerialSend:"Odeslat ↵",serialCopied:"Výpis zkopírován do schránky",serialCleared:"Konzole vymazána",serialHint:"Streamování výstupů sériového portu přes WiFi bez nutnosti USB kabelu. Při odchodu ze záložky se přenos automaticky pozastaví."
  },
  sk:{
   tabScrClock:"🕒 Hodiny",tabScrPlanes:"✈️ Lietadlá",tabScrMeteo:"🌧️ Meteoradar",tabScrTactical:"🎯 Taktický radar",tabScrForecast:"⛅ Predpoveď",tabCommon:"⚙️ Spoločné nastavenia",
@@ -859,7 +919,7 @@ const D={
   scrClockActive:"Zahrnúť obrazovku do automatického striedania",scrPlanesActive:"Zahrnúť obrazovku do automatického striedania",scrMeteoActive:"Zahrnúť obrazovku do automatického striedania",scrTacticalActive:"Zahrnúť obrazovku do automatického striedania",scrForecastActive:"Zahrnúť obrazovku do automatického striedania",
   rotateHdr:"🔄 Automatické striedanie obrazoviek",
   remote:"🎮 Diaľkový ovládač",rangeLbl:"Mierka:",
-  btnPrev:"← Predchádzajúca",btnDblTap:"🔄 Dvojklik / Legenda",btnNext:"Nasledujúca →",btnDec:"Priblížiť (− km)",btnInc:"Oddialiť (+ km)",
+  btnPrev:"← Predchádzajúca",btnDblTap:"🔄 Legenda",btnNext:"Nasledujúca →",btnDec:"Priblížiť (− km)",btnInc:"Oddialiť (+ km)",
   remoteHint:"Rozsah sa mení na obrazovkách Lietadlá, Meteoradar a Taktický radar. Zásah pozastaví automatické striedanie.",
   location:"📍 Domovská poloha",findCity:"Vyhľadať mesto",search:"Hľadať",found:"Nájdené výsledky",lat:"Zemepisná šírka (°N)",lon:"Zemepisná dĺžka (°E)",
   locHint:"Zmena polohy vyžaduje reštart pre prepočet máp a predpovede.",
@@ -925,7 +985,8 @@ const D={
   statsTrafficHdr:"✈️ Dnešná letecká štatistika",btnResetStats:"🔄 Resetovať",stUnique:"Unikátne lietadlá dnes:",stTopSpeed:"Najvyššia rýchlosť:",stMaxDist:"Maximálna vzdialenosť:",stAltSpan:"Rozpätie výšok:",stReports:"Prijaté ADS-B správy:",statsHint:"Štatistika sa automaticky nuluje o polnoci a uchováva sa v pamäti PSRAM.",confirmResetStats:"Naozaj resetovať dnešnú štatistiku letov?",statsResetOk:"Štatistiky boli resetované",
   cOver:"✈️ Prelet nad hlavou (Overhead widget)",ovRad:"Polomer preletu nad hlavou (km)",bzOverhead:"🔊 Prelet nad hlavou (Overhead výstraha)",
    cPrecip:"🌧️ Výstraha blížiacich sa zrážok",bzPrecip:"🔊 Pípnutie pri blížiacich sa zrážkach",precipTrackerHdr:"🌧️ Detekcia blížiacich sa zrážok (Nowcasting)",precipHint:"Vektorová analýza pohybu frontu (TREC). Upozorní na dážď, krúpy alebo sneh, iba ak zrážky smerujú priamo k vašej polohe.",precipLiveHdr:"Aktuálny stav nowcastingu:",
-  scrShotHdr:"📸 Snímka displeja",scrShotNone:"Kliknite pre zachytenie",btnTakeScrShot:"📸 Zachytiť obrazovku",btnDlScrShot:"💾 Stiahnuť BMP",scrShotOk:"Snímka úspešne načítaná",scrShotErr:"Chyba načítania snímky"
+  scrShotHdr:"📸 Snímka displeja",scrShotNone:"Kliknite pre zachytenie",btnTakeScrShot:"📸 Zachytiť obrazovku",btnDlScrShot:"💾 Stiahnuť BMP",scrShotOk:"Snímka úspešne načítaná",scrShotErr:"Chyba načítania snímky",
+  tabSerial:"📟 Sériový monitor",serialHdr:"Sériový monitor (Live Web Console)",btnSerialStart:"Spustiť monitor",btnSerialPause:"Pozastaviť monitor",serialActive:"Aktívny (Live)",serialPaused:"Pozastavené",serialAutoScroll:"Automatický posun",btnSerialCopy:"📋 Kopírovať",btnSerialDl:"💾 Stiahnuť",btnSerialClear:"🧹 Vymazať",btnSerialSend:"Odoslať ↵",serialCopied:"Výpis skopírovaný do schránky",serialCleared:"Konzola vymazaná",serialHint:"Streamovanie výstupov sériového portu cez WiFi bez nutnosti USB kábla. Pri odchode zo záložky sa prenos automaticky pozastaví."
  },
  en:{
   tabScrClock:"🕒 Clock",tabScrPlanes:"✈️ Aircraft",tabScrMeteo:"🌧️ Weather Radar",tabScrTactical:"🎯 Tactical Radar",tabScrForecast:"⛅ Forecast",tabCommon:"⚙️ Shared Settings",
@@ -934,7 +995,7 @@ const D={
   scrClockActive:"Include screen in automatic cycling",scrPlanesActive:"Include screen in automatic cycling",scrMeteoActive:"Include screen in automatic cycling",scrTacticalActive:"Include screen in automatic cycling",scrForecastActive:"Include screen in automatic cycling",
   rotateHdr:"🔄 Auto Screen Cycling",
   remote:"🎮 Remote Control",rangeLbl:"Radar Scale:",
-  btnPrev:"← Previous",btnDblTap:"🔄 Double-Tap / Legend",btnNext:"Next →",btnDec:"Zoom In (− km)",btnInc:"Zoom Out (+ km)",
+  btnPrev:"← Previous",btnDblTap:"🔄 Legend",btnNext:"Next →",btnDec:"Zoom In (− km)",btnInc:"Zoom Out (+ km)",
   remoteHint:"Range applies to Aircraft, Weather and Tactical screens. Manual action pauses auto cycling.",
   location:"📍 Home Location",findCity:"Search town",search:"Search",found:"Found results",lat:"Latitude (°N)",lon:"Longitude (°E)",
   locHint:"Changing location requires a reboot to recalculate maps and forecast.",
@@ -1000,7 +1061,8 @@ const D={
   statsTrafficHdr:"✈️ Flight Traffic Today",btnResetStats:"🔄 Reset",stUnique:"Unique aircraft today:",stTopSpeed:"Top speed:",stMaxDist:"Max distance:",stAltSpan:"Altitude span:",stReports:"ADS-B reports received:",statsHint:"Statistics auto-reset at midnight and are kept in PSRAM.",confirmResetStats:"Really reset today's flight statistics?",statsResetOk:"Statistics reset successfully",
   cOver:"✈️ Overhead aircraft widget",ovRad:"Overhead radius (km)",bzOverhead:"🔊 Overhead aircraft alert",
    cPrecip:"🌧️ Approaching precipitation alert",bzPrecip:"🔊 Approaching precipitation alert chime",precipTrackerHdr:"🌧️ Approaching Precipitation Detection (Nowcasting)",precipHint:"Vector motion analysis (TREC). Alerts on incoming rain, hail, or snow only when heading towards your location.",precipLiveHdr:"Current nowcasting status:",
-  scrShotHdr:"📸 Screen Capture",scrShotNone:"Click to capture",btnTakeScrShot:"📸 Capture Screen",btnDlScrShot:"💾 Download BMP",scrShotOk:"Screenshot captured successfully",scrShotErr:"Failed to capture screenshot"
+  scrShotHdr:"📸 Screen Capture",scrShotNone:"Click to capture",btnTakeScrShot:"📸 Capture Screen",btnDlScrShot:"💾 Download BMP",scrShotOk:"Screenshot captured successfully",scrShotErr:"Failed to capture screenshot",
+  tabSerial:"📟 Serial Monitor",serialHdr:"Serial Monitor (Live Web Console)",btnSerialStart:"Start Monitor",btnSerialPause:"Pause Monitor",serialActive:"Active (Live)",serialPaused:"Paused",serialAutoScroll:"Auto-scroll",btnSerialCopy:"📋 Copy",btnSerialDl:"💾 Download",btnSerialClear:"🧹 Clear",btnSerialSend:"Send ↵",serialCopied:"Log copied to clipboard",serialCleared:"Console cleared",serialHint:"Real-time serial output streaming over WiFi without needing a USB cable. Polling automatically pauses when switching tabs."
  }
 };
 
@@ -1036,6 +1098,7 @@ function showTab(id){
  document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.tab==id));
  if(id=="tCommon" && !g_otaLatest) checkGithubUpdates(false);
  if(id=="tScrInfo") fetchStats();
+ if(id=="tSerial") startSerialPolling(); else stopSerialPolling();
  window.scrollTo(0,0);
 }
 document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
@@ -1130,14 +1193,6 @@ async function updateHardware(){
     $("hwRtcState").textContent = ok ? (h.rtcOscStopped ? "Výpadok napájania (OSF)" : "Aktívny (I2C 0x51)") : "Nenájdený";
     $("hwRtcState").className = "pill " + (ok ? (h.rtcOscStopped ? "pill-warn" : "pill-ok") : "pill-err");
     if($("hwRtcTime")) $("hwRtcTime").textContent = h.rtcTime || "-";
-  }
-  // I2C table
-  if($("hwI2cTable") && h.i2cBus){
-    let rows = "<tr><th>Adresa</th><th>Názov komponentu</th></tr>";
-    h.i2cBus.forEach(dev => {
-      rows += "<tr><td><code>" + dev.addr + "</code></td><td>" + dev.name + "</td></tr>";
-    });
-    $("hwI2cTable").innerHTML = rows;
   }
  }catch(e){}
 }
@@ -1837,6 +1892,158 @@ async function startGithubOta(){
   if(btnInst) btnInst.disabled = false;
   if(btnCheck) btnCheck.disabled = false;
  }
+}
+
+// --- Web Serial Monitor ---
+let g_serialTimer = null;
+let g_serialSince = 0;
+let g_serialRunning = false;
+let g_serialLogText = "";
+
+function updateSerialBadge(active){
+  const b = $("serialStatusBadge");
+  const d = $("serialDot");
+  const t = $("serialStateTxt");
+  const btn = $("btnToggleSerialTxt");
+  if(!b || !t) return;
+  if(active){
+    b.style.background = "rgba(34,197,94,0.15)";
+    b.style.color = "var(--ok)";
+    b.style.borderColor = "rgba(34,197,94,0.3)";
+    if(d){ d.style.background = "var(--ok)"; d.style.boxShadow = "0 0 8px var(--ok)"; }
+    t.textContent = (D[L] && D[L].serialActive) ? D[L].serialActive : "Aktívny (Live)";
+    if(btn) btn.textContent = (D[L] && D[L].btnSerialPause) ? D[L].btnSerialPause : "Pozastaviť monitor";
+  } else {
+    b.style.background = "rgba(100,116,139,0.15)";
+    b.style.color = "var(--mut)";
+    b.style.borderColor = "rgba(100,116,139,0.3)";
+    if(d){ d.style.background = "var(--mut)"; d.style.boxShadow = "none"; }
+    t.textContent = (D[L] && D[L].serialPaused) ? D[L].serialPaused : "Pozastavené";
+    if(btn) btn.textContent = (D[L] && D[L].btnSerialStart) ? D[L].btnSerialStart : "Spustiť monitor";
+  }
+}
+
+function startSerialPolling(){
+  if(g_serialRunning) return;
+  g_serialRunning = true;
+  updateSerialBadge(true);
+  pollSerial();
+  if(!g_serialTimer) {
+    g_serialTimer = setInterval(pollSerial, 600);
+  }
+}
+
+function stopSerialPolling(){
+  g_serialRunning = false;
+  if(g_serialTimer){
+    clearInterval(g_serialTimer);
+    g_serialTimer = null;
+  }
+  updateSerialBadge(false);
+}
+
+function toggleSerialMonitor(){
+  if(g_serialRunning) {
+    stopSerialPolling();
+  } else {
+    startSerialPolling();
+  }
+}
+
+async function pollSerial(){
+  if(!g_serialRunning) return;
+  try {
+    const res = await fetch("/api/serial/read?since=" + g_serialSince);
+    if(!res.ok) return;
+    const json = await res.json();
+    g_serialSince = json.head;
+    if(json.data && json.data.length > 0){
+      appendSerialText(json.data);
+    }
+  } catch(e) {}
+}
+
+function appendSerialText(text){
+  g_serialLogText += text;
+  if(g_serialLogText.length > 400000){
+    g_serialLogText = g_serialLogText.slice(-300000);
+  }
+  renderSerialDisplay();
+}
+
+function renderSerialDisplay(){
+  const term = $("serialTerminal");
+  if(!term) return;
+  const filter = $("serialFilter") ? $("serialFilter").value.trim().toLowerCase() : "";
+  let textToDisplay = g_serialLogText;
+  if(filter){
+    textToDisplay = g_serialLogText.split("\n").filter(l => l.toLowerCase().includes(filter)).join("\n");
+  }
+  term.textContent = textToDisplay;
+  if($("serialBytesCounter")){
+    $("serialBytesCounter").textContent = Math.round(g_serialLogText.length / 1024) + " KB";
+  }
+  if($("serialAutoScroll") && $("serialAutoScroll").checked){
+    term.scrollTop = term.scrollHeight;
+  }
+}
+
+function filterSerialLines(){
+  renderSerialDisplay();
+}
+
+async function clearSerialLog(){
+  g_serialLogText = "";
+  renderSerialDisplay();
+  try {
+    await fetch("/api/serial/clear", { method: "POST" });
+    msg((D[L] && D[L].serialCleared) ? D[L].serialCleared : "Konzola vymazaná", "ok");
+  } catch(e) {}
+}
+
+function copySerialLog(){
+  if(!g_serialLogText) return;
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(g_serialLogText).then(() => {
+      msg((D[L] && D[L].serialCopied) ? D[L].serialCopied : "Skopírované", "ok");
+    }).catch(() => fallbackCopy());
+  } else {
+    fallbackCopy();
+  }
+  function fallbackCopy(){
+    const ta = document.createElement("textarea");
+    ta.value = g_serialLogText;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    msg((D[L] && D[L].serialCopied) ? D[L].serialCopied : "Skopírované", "ok");
+  }
+}
+
+function downloadSerialLog(){
+  if(!g_serialLogText) return;
+  const blob = new Blob([g_serialLogText], { type: "text/plain;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "serial_log_" + new Date().toISOString().replace(/[:.]/g,"-") + ".txt";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function sendSerialCmd(){
+  const input = $("serialCmdInput");
+  if(!input) return;
+  const val = input.value.trim();
+  if(!val) return;
+  input.value = "";
+  try {
+    await fetch("/api/serial/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: val })
+    });
+  } catch(e) {}
 }
 
 window.onload=load;

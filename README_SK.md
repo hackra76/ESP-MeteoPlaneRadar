@@ -18,14 +18,16 @@ Vyvinuté pre hardvérovú dosku **Waveshare ESP32-S3-Touch-LCD-2.1** s moderný
 ## 📸 Ukážka zariadenia v akcii (Live Demo)
 
 <p align="center">
-  <img src="docs/media/tactical_radar_live.gif" width="31%" alt="Taktický radar (Lietadlá + Zrážky)" />
-  <img src="docs/media/weather_radar_chmu.gif" width="31%" alt="Animovaný meteoradar ČHMÚ / SHMÚ" />
-  <img src="docs/media/clock_stacked_bold.gif" width="31%" alt="Ciferník Stacked Bold" />
+  <img src="docs/media/tactical_radar_live.gif" width="24%" alt="Taktický radar (Lietadlá + Zrážky)" />
+  <img src="docs/media/plane_detail_photo.png" width="24%" alt="Detail lietadla s fotografiou" />
+  <img src="docs/media/weather_radar_chmu.gif" width="24%" alt="Animovaný meteoradar ČHMÚ / SHMÚ" />
+  <img src="docs/media/clock_stacked_bold.png" width="24%" alt="Ciferník Stacked Bold" />
 </p>
 
 <p align="center">
-  <em>Zľava doprava: <b>Taktický radar</b> (live lietadlá nad zrážkovou mapou), <b>Zrážkový meteoradar</b> (slučka búrkovej oblačnosti), <b>Moderný ciferník Stacked Bold</b>.</em>
+  <em>Zľava doprava: <b>Taktický radar</b> (live lietadlá nad zrážkovou mapou), <b>Detail lietadla</b> (reálna fotografia z Planespotters API), <b>Zrážkový meteoradar</b> (animovaná slučka), <b>Moderný ciferník Stacked Bold</b>.</em>
 </p>
+
 
 ---
 
@@ -99,14 +101,17 @@ Unikátna obrazovka kombinujúca **zrážkový radar (SHMÚ / ČHMÚ / RainViewe
 
 ## 📱 Prehľad obrazoviek
 
-| Obrazovka | Popis | Zdroj dát |
-| :--- | :--- | :--- |
-| **1. Hodiny** | 7 voliteľných ciferníkov, 3-hodinová minipredpoveď, 7 štýlov sekúnd, počasie, vietor, fáza mesiaca a solárny oblúk | Open-Meteo & Astro engine |
-| **2. Lietadlá** | Živá radarová mapa letov, fotky lietadiel, trasy, letiská, vzdialenostné kružnice, sledovanie špeciálnych letov | adsb.fi / adsb.lol / Planespotters |
-| **3. Meteoradar** | Animovaný zrážkový radar s vyhladzovaním a možnosťou zmeny poskytovateľa | SHMÚ (SK), ČHMÚ (CZ), RainViewer (Svet) |
-| **4. Taktický radar** | **Kombinovaný pohľad:** Zrážková oblačnosť + lietadlá na jednej mape v reálnom čase | SHMÚ / ČHMÚ / RainViewer + adsb.fi |
-| **5. Predpoveď** | 5-hodinový detail, 3-dňový výhľad a kvalita ovzdušia (AQI) | Open-Meteo Weather & Air Quality |
-| **6. Nastavenia** | Stav zariadenia, IP adresa, jas, orientácia mapy, voľba jazyka, vyhladenie a správa WiFi | Systém |
+| Obrazovka | Náhľad | Popis | Zdroj dát |
+| :--- | :---: | :--- | :--- |
+| **1. Hodiny** | <img src="docs/media/clock_stacked_bold.png" width="70" /> | 7 voliteľných ciferníkov (Stacked Bold, Aviator, HUD atď.), minipredpoveď, počasie, fáza mesiaca, solárny oblúk | Open-Meteo & Astro engine |
+| **2. Lietadlá** | <img src="docs/media/plane_radar_live.png" width="70" /> | 360° radar vzdušného priestoru, núdzové kódy (7700/7600), aerolínie a trasy, letiská, vzdialenostné kružnice | adsb.fi / adsb.lol |
+| **2b. Detail lietadla** | <img src="docs/media/plane_detail_photo.png" width="70" /> | Po kliknutí na lietadlo sa zobrazí kompletná telemetria, trasa odkiaľ-kam a fotografia daného stroja | Planespotters.net API |
+| **3. Meteoradar** | <img src="docs/media/weather_radar_chmu.gif" width="70" /> | Animovaná radarová slučka zrážok s plynulým prelínaním, legendou odrazivosti dBZ a mestami | SHMÚ (SK), ČHMÚ (CZ), RainViewer |
+| **4. Taktický radar** | <img src="docs/media/tactical_radar_live.gif" width="70" /> | **Kombinovaný taktický pohľad:** Živá zrážková oblačnosť + prelety lietadiel na jedinej obrazovke | SHMÚ / ČHMÚ / RainViewer + adsb.fi |
+| **5. Predpoveď** | <img src="docs/media/forecast_screen.png" width="70" /> | Hodinové krivky teploty, vetra a zrážok, 3-dňový výhľad, index kvality ovzdušia (AQI), PM2.5 a peľ | Open-Meteo Weather & Air Quality |
+| **6. Štatistiky letov** | <img src="docs/media/flight_stats_screen.png" width="70" /> | Denná 24h štatistika: počet unikátnych lietadiel, rýchlostný rekord, letové hladiny, max dosah, ADS-B správy | FreeRTOS PSRAM Tracker |
+| **7. Nastavenia** | — | Stav zariadenia, IP adresa, regulácia jasu, orientácia mapy, voľba jazyka a vyhladenie | Systém |
+
 
 ---
 
@@ -172,7 +177,7 @@ Webové rozhranie ponúka:
 - **Štýl hodín:** Výber ciferníka, sekundového prstenca a farebných akcentov.
 - **Nastavenia radaru:** Voľba poskytovateľa zrážok (SHMÚ / ČHMÚ / RainViewer), vyhladzovanie, zobrazenie letísk a trás.
 - **Nočný režim hodín (`nightClockOnly`):** Zastaví cyklické prepínanie obrazoviek v noci a uzamkne stlmený ciferník.
-- **Hardvérová diagnostika:** Kontrola I2C zbernice, RTC hodín a synchronizačné tlačidlá.
+- **Hardvérová diagnostika & Webový sériový monitor:** Vstavaná live konzola sériového monitora cez web (64 KB PSRAM buffer) bez nutnosti USB pripojenia, RTC hodiny a synchronizačné tlačidlá.
 - **Diaľkové ovládanie:** Prepínanie obrazoviek a zmena zoomu priamo z prehliadača.
 - **OTA Aktualizácia:** Pohodlné nahrávanie nového `.bin` firmvéru vzduchom cez Wi-Fi bez nutnosti pripájať USB kábel.
 

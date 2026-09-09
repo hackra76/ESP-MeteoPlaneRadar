@@ -4,6 +4,7 @@
 //
 // =============================================================================
 #include "RainViewer.h"
+#include "Config.h"
 #include "Net.h"
 #include "Status.h"
 #include "Display_ST7701.h"

@@ -317,6 +317,26 @@ void ScreenPlanes_SelectHex(const char* hex) {
   else selectNone("manual");
 }
 
+void ScreenPlanes_SelectFirst() {
+  Async_LockAdsb();
+  int n = ADSB_Count();
+  const Aircraft* list = ADSB_List();
+  const char* pickedHex = nullptr;
+  for (int i = 0; i < n; i++) {
+    if (list[i].callsign[0] != '\0' && list[i].hex[0] != '\0') {
+      pickedHex = list[i].hex;
+      break;
+    }
+  }
+  if (!pickedHex && n > 0 && list[0].hex[0] != '\0') {
+    pickedHex = list[0].hex;
+  }
+  if (pickedHex) {
+    selectHex(pickedHex);
+  }
+  Async_UnlockAdsb();
+}
+
 void ScreenPlanes_Draw() {
   gfx->fillScreen(C_BLACK);
   Layout_Begin();

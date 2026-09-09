@@ -7,6 +7,7 @@
 // =============================================================================
 #include "TCA9554.h"
 #include "AsyncCore.h"
+#include "Config.h"
 
 // Shadow copy of the output register (we flip individual bits).
 static uint8_t s_output = 0xFF;
