@@ -750,7 +750,7 @@ static void otaEnd(bool ok) {
 
 // --- GitHub Online OTA ------------------------------------------------------
 static void handleOtaCheck() {
-  if (GithubOTA_GetState() == GH_OTA_IDLE) {
+  if (!GithubOTA_IsBusy()) {
     GithubOTA_CheckSync();
   }
 
