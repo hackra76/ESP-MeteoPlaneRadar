@@ -9,9 +9,10 @@
 #include "Outside.h"
 #include "Display_ST7701.h"
 #include "Layout.h"
+#include "Lang.h"
+#include "Settings.h"
 #include <math.h>
 #include "qrcode.h"
-#include "Display_ST7701.h"
 
 void UI_TextCenteredIn(const char* text, int x, int w, int cy,
                        uint16_t color, uint8_t size) {
@@ -370,3 +371,97 @@ void UI_DrawAircraftDetail(const Aircraft& ac, const RouteInfo* rt, int routeSta
     UI_Text(lost, cx + cw - 14 - Layout_TextW(lost, 1), cy + ch - 12, C_YELLOW, 1);
   }
 }
+
+void UI_DrawOtaProgress(const char* sourceName, int percent, size_t bytesWritten, size_t totalBytes, const char* statusMsg) {
+  if (!gfx) return;
+
+  uint8_t bl = Settings_Backlight();
+  if (bl < 40) bl = 40;
+  Set_Backlight(bl);
+
+  if (percent < 0) percent = 0;
+  if (percent > 100) percent = 100;
+
+  const uint8_t lang = Lang_Get();
+
+  // Clear inactive backbuffer completely to pure black
+  gfx->fillScreen(C_BLACK);
+
+  // Decorative outer ring inside round bezel
+  gfx->drawCircle(LCD_WIDTH / 2, LCD_HEIGHT / 2, LCD_WIDTH / 2 - 4, 0x18E3);
+
+  // Header badge: "⚡ OTA UPDATE"
+  const char* badge = (sourceName && strstr(sourceName, "Web")) ? "⚡ WEB OTA UPDATE" : "⚡ GITHUB OTA UPDATE";
+  UI_TextCentered(badge, 75, C_CYAN, 1);
+
+  // Title: "Firmware Update" / "Aktualizácia firmvéru"
+  const char* title = (lang == LANG_EN) ? "Firmware Update"
+                    : ((lang == LANG_SK) ? "Aktualizácia firmvéru" : "Aktualizace firmwaru");
+  UI_TextCentered(title, 110, C_WHITE, 2);
+
+  // Status message
+  char stBuf[64];
+  if (statusMsg && statusMsg[0]) {
+    strncpy(stBuf, statusMsg, sizeof(stBuf) - 1);
+    stBuf[sizeof(stBuf) - 1] = '\0';
+  } else if (percent >= 100) {
+    snprintf(stBuf, sizeof(stBuf), "%s", (lang == LANG_EN) ? "Done! Restarting..."
+             : ((lang == LANG_SK) ? "Hotovo! Reštartujem..." : "Hotovo! Restartuji..."));
+  } else {
+    snprintf(stBuf, sizeof(stBuf), "%s", (lang == LANG_EN) ? "Writing to flash..."
+             : ((lang == LANG_SK) ? "Zapisujem do flash pamäte..." : "Zapisuji do flash paměti..."));
+  }
+  uint16_t stCol = (percent >= 100) ? C_GREEN : C_CYAN;
+  if (statusMsg && (strstr(statusMsg, "fail") || strstr(statusMsg, "Fail") || strstr(statusMsg, "Error") || strstr(statusMsg, "chyb") || strstr(statusMsg, "zlyh"))) {
+    stCol = C_RED;
+  }
+  UI_TextCentered(stBuf, 150, stCol, 1);
+
+  // Progress Bar
+  const int barX = 60;
+  const int barY = 195;
+  const int barW = LCD_WIDTH - 120; // 360 px
+  const int barH = 26;
+  const int radius = 13;
+
+  // Track background & border
+  gfx->fillRoundRect(barX, barY, barW, barH, radius, 0x18E3);
+  gfx->drawRoundRect(barX, barY, barW, barH, radius, 0x39E7);
+
+  // Filled progress
+  int fillW = (barW * percent) / 100;
+  if (fillW >= 10) {
+    uint16_t fillCol = (percent >= 100) ? C_GREEN : 0x07E0;
+    gfx->fillRoundRect(barX, barY, fillW, barH, radius, fillCol);
+  } else if (fillW > 0) {
+    gfx->fillRoundRect(barX, barY, fillW, barH, radius / 2, C_GREEN);
+  }
+
+  // Progress percentage & size text under the bar
+  char pbuf[48];
+  if (totalBytes > 0) {
+    snprintf(pbuf, sizeof(pbuf), "%d%%  (%.1f / %.1f MB)", percent,
+             bytesWritten / 1048576.0f, totalBytes / 1048576.0f);
+  } else if (bytesWritten > 0) {
+    snprintf(pbuf, sizeof(pbuf), "%d%%  (%.1f MB)", percent, bytesWritten / 1048576.0f);
+  } else {
+    snprintf(pbuf, sizeof(pbuf), "%d%%", percent);
+  }
+  UI_TextCentered(pbuf, 245, C_WHITE, 2);
+
+  // Safety warning box
+  const char* warnTxt = (lang == LANG_EN) ? "DO NOT TURN OFF POWER!"
+                      : ((lang == LANG_SK) ? "NEVYPÍNAJTE NAPÁJANIE!" : "NEODPOJUJTE NAPÁJENÍ!");
+  int warnW = Font_TextWidth(warnTxt, 1) + 24;
+  int warnX = (LCD_WIDTH - warnW) / 2;
+  gfx->fillRoundRect(warnX, 295, warnW, 28, 8, 0x3180);
+  gfx->drawRoundRect(warnX, 295, warnW, 28, 8, C_ORANGE);
+  UI_TextCentered(warnTxt, 309, C_YELLOW, 1);
+
+  // Bottom brand footer
+  UI_TextCentered("MeteoPlaneRadar • ESP32-S3", 370, C_GRAY, 1);
+
+  // Flush to ST7701
+  gfx->flush();
+}
+

@@ -350,13 +350,11 @@ static void drawOtaModal() {
 }
 
 void ScreenSettings_Draw() {
-  // If OTA update is in progress, draw a clean dedicated update dialog
-  // to avoid background sliders, buttons and footers flickering through during flash write.
+  // If OTA update is in progress, UI_DrawOtaProgress owns the display exclusively
   if (GithubOTA_IsBusy()) {
-    gfx->fillScreen(C_BLACK);
-    drawOtaModal();
     return;
   }
+
 
   gfx->fillScreen(C_BLACK);
   Layout_Begin();

@@ -76,3 +76,6 @@ void UI_DrawAircraftDetail(const Aircraft& ac, const RouteInfo* rt, int routeSta
 // Fullscreen aircraft photo modal mode
 bool UI_IsPhotoFullscreen();
 void UI_SetPhotoFullscreen(bool en);
+
+// Dedicated fullscreen OTA progress display (smooth, zero-flicker, isolated from background tasks)
+void UI_DrawOtaProgress(const char* sourceName, int percent, size_t bytesWritten, size_t totalBytes, const char* statusMsg);

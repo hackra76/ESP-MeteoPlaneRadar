@@ -812,22 +812,6 @@ void loop() {
     enterActive();
   }
 
-  // While a firmware update is running, freeze screen switching, alerts, touches, and extra tasks
-  if (WebConfig_UpdateBusy()) {
-    if (GithubOTA_IsBusy() && s_screen != SCREEN_SETTINGS_I) {
-      gotoScreen(SCREEN_SETTINGS_I);
-      ScreenSettings_OpenOtaModal();
-    }
-    static unsigned long lastOtaDraw = 0;
-    if (activeTick() && millis() - lastOtaDraw >= 80) {
-      drawActive();
-      lastOtaDraw = millis();
-    }
-    Watchdog_Feed();
-    delay(10);
-    return;
-  }
-
   // If WiFi reconnected or finished switching networks in background, immediately restore the screen
   if (WiFi_TakeNeedsRedraw()) {
     if (s_screen == SCREEN_SETTINGS_I) {

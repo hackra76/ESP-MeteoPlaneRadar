@@ -10,6 +10,8 @@
 #include "Watchdog.h"
 #include "AsyncCore.h"
 #include "NetSink.h"
+#include "UI.h"
+#include "Lang.h"
 
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
@@ -347,6 +349,8 @@ static void downloadAndFlashTask(void* param) {
   }
 
   s_otaState = GH_OTA_FLASHING;
+  UI_DrawOtaProgress("GitHub OTA", 0, 0, (size_t)totalLen, (Lang_Get() == LANG_EN) ? "Downloading firmware..." : "Sťahujem firmvér...");
+
   WiFiClient* stream = http.getStreamPtr();
   const size_t BUF_SZ = 4096;
   uint8_t* buf = (uint8_t*)heap_caps_malloc(BUF_SZ, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
@@ -358,6 +362,7 @@ static void downloadAndFlashTask(void* param) {
     http.end();
     client.stop();
     s_otaState = GH_OTA_ERROR;
+    UI_DrawOtaProgress("GitHub OTA", 0, 0, 0, s_otaError.c_str());
     Async_Resume();
     s_updateTaskHandle = nullptr;
     vTaskDelete(NULL);
@@ -366,6 +371,9 @@ static void downloadAndFlashTask(void* param) {
 
   size_t written = 0;
   unsigned long lastFeed = millis();
+  int lastDrawnProg = -1;
+  unsigned long lastDrawnMs = 0;
+
   while (http.connected() && (totalLen <= 0 || written < (size_t)totalLen)) {
     size_t avail = stream ? stream->available() : 0;
     if (avail) {
@@ -381,6 +389,12 @@ static void downloadAndFlashTask(void* param) {
         s_bytesWritten = written;
         if (totalLen > 0) {
           s_otaProgress = (int)(written * 100 / (size_t)totalLen);
+        }
+        // Update display smoothly between flash writes (max 4-5 times per second)
+        if (s_otaProgress != lastDrawnProg && (millis() - lastDrawnMs >= 200 || s_otaProgress == 100)) {
+          lastDrawnProg = s_otaProgress;
+          lastDrawnMs = millis();
+          UI_DrawOtaProgress("GitHub OTA", s_otaProgress, written, (size_t)totalLen, nullptr);
         }
       }
     } else {
@@ -410,13 +424,17 @@ static void downloadAndFlashTask(void* param) {
     s_otaProgress = 100;
     s_otaState = GH_OTA_SUCCESS;
     Serial.printf("GithubOTA: Update successful (%u bytes). Restarting in 2s...\n", (unsigned)written);
+    UI_DrawOtaProgress("GitHub OTA", 100, written, (size_t)totalLen, (Lang_Get() == LANG_EN) ? "Success! Restarting..." : "Hotovo! Reštartujem...");
     vTaskDelay(pdMS_TO_TICKS(2000));
     ESP.restart();
   } else {
     if (s_otaError.length() == 0) s_otaError = Update.errorString();
     s_otaState = GH_OTA_ERROR;
+    UI_DrawOtaProgress("GitHub OTA", s_otaProgress, written, (size_t)totalLen, s_otaError.c_str());
+    vTaskDelay(pdMS_TO_TICKS(3000));
     Async_Resume();
   }
+
 
   s_updateTaskHandle = nullptr;
   vTaskDelete(NULL);

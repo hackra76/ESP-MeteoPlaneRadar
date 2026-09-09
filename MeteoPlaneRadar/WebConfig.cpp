@@ -733,36 +733,15 @@ static void handleNotFound() {
 }
 
 // --- OTA callbacks ----------------------------------------------------------
-// The RGB panel streams its framebuffer out of PSRAM continuously, and writing
-// flash suspends the cache from under it - the picture tears and jumps. Nothing
-// the drawing code can do about it, so the backlight goes off for the duration
-// and the browser shows the real progress bar.
 static void otaStart() {
-  const uint8_t lang = Lang_Get();
+  Async_Pause();
   s_updating = true;
-  gfx->fillScreen(C_BLACK);
-  const char* upTxt = (lang == LANG_EN) ? "Updating firmware..."
-                    : ((lang == LANG_SK) ? "Prebieha aktualizacia..." : "Probiha aktualizace...");
-  const char* pwrTxt = (lang == LANG_EN) ? "Do not disconnect power"
-                     : ((lang == LANG_SK) ? "Neodpajaj napajanie" : "Neodpojuj napajeni");
-  UI_TextCentered(upTxt, LCD_HEIGHT / 2 - 10, C_WHITE, 2);
-  UI_TextCentered(pwrTxt, LCD_HEIGHT / 2 + 20, C_GRAY, 1);
-  gfx->flush();
-  delay(700);
-  Set_Backlight(0);
+  UI_DrawOtaProgress("Web OTA", 0, 0, 0, (Lang_Get() == LANG_EN) ? "Preparing upload..." : "Pripravujem nahrávanie...");
 }
 
 static void otaEnd(bool ok) {
-  const uint8_t lang = Lang_Get();
-  Set_Backlight(Settings_Backlight());
-  gfx->fillScreen(C_BLACK);
-  const char* doneTxt = ok ? ((lang == LANG_EN) ? "Done, restarting..."
-                             : ((lang == LANG_SK) ? "Hotovo, restartujem..." : "Hotovo, restartuji..."))
-                           : ((lang == LANG_EN) ? "Update failed"
-                             : ((lang == LANG_SK) ? "Aktualizacia zlyhala" : "Aktualizace selhala"));
-  UI_TextCentered(doneTxt, LCD_HEIGHT / 2, ok ? C_GREEN : C_RED, 2);
-  gfx->flush();
   s_updating = false;
+  Async_Resume();
 }
 
 // --- GitHub Online OTA ------------------------------------------------------
@@ -907,11 +886,16 @@ static void handleUpdatePage() {
 // watchdog still has to be fed by hand.
 static void handleUpdateUpload() {
   HTTPUpload& up = s_srv.upload();
+  static int s_lastWebProg = -1;
+  static unsigned long s_lastWebDraw = 0;
+  static size_t s_updExpectedSize = 0;
 
   switch (up.status) {
     case UPLOAD_FILE_START:
       s_updOk = false;
       s_updErr = "";
+      s_lastWebProg = -1;
+      s_lastWebDraw = 0;
       if (!updateAuthed()) { s_updErr = "auth"; return; }
       Serial.printf("OTA: %s\n", up.filename.c_str());
       if (strstr(up.filename.c_str(), "factory") || strstr(up.filename.c_str(), "Factory") ||
@@ -923,10 +907,15 @@ static void handleUpdateUpload() {
         return;
       }
       otaStart();
-      // The browser does not announce the image size up front, so let Update
-      // take the whole free OTA slot.
+      s_updExpectedSize = 0;
+      if (s_srv.hasHeader("Content-Length")) {
+        long cl = s_srv.header("Content-Length").toInt();
+        if (cl > 4000) s_updExpectedSize = (size_t)(cl - 350);
+      }
+      UI_DrawOtaProgress("Web OTA", 0, 0, s_updExpectedSize, (Lang_Get() == LANG_EN) ? "Writing to flash..." : "Zapisujem do flash pamäte...");
       if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
         s_updErr = Update.errorString();
+        UI_DrawOtaProgress("Web OTA", 0, 0, 0, s_updErr.c_str());
         otaEnd(false);
       }
       break;
@@ -942,8 +931,16 @@ static void handleUpdateUpload() {
         if (Update.write(up.buf, up.currentSize) != up.currentSize) {
           s_updErr = Update.errorString();
           Update.abort();
+          UI_DrawOtaProgress("Web OTA", 0, up.totalSize, s_updExpectedSize, s_updErr.c_str());
           otaEnd(false);
           return;
+        }
+        int prog = (s_updExpectedSize > 0) ? (int)(up.totalSize * 100 / s_updExpectedSize) : 0;
+        if (prog > 99) prog = 99;
+        if (prog != s_lastWebProg && (millis() - s_lastWebDraw >= 200 || prog == 100)) {
+          s_lastWebProg = prog;
+          s_lastWebDraw = millis();
+          UI_DrawOtaProgress("Web OTA", prog, up.totalSize, s_updExpectedSize, nullptr);
         }
       }
       Watchdog_Feed();
@@ -954,9 +951,13 @@ static void handleUpdateUpload() {
       if (Update.isRunning() && Update.end(true)) {
         s_updOk = true;
         Serial.printf("OTA: done, %u B\n", (unsigned)up.totalSize);
+        UI_DrawOtaProgress("Web OTA", 100, up.totalSize, up.totalSize, (Lang_Get() == LANG_EN) ? "Success! Restarting..." : "Hotovo! Reštartujem...");
+        delay(600);
         otaEnd(true);
       } else {
         s_updErr = Update.errorString();
+        UI_DrawOtaProgress("Web OTA", 0, up.totalSize, s_updExpectedSize, s_updErr.c_str());
+        delay(2000);
         otaEnd(false);
       }
       break;
@@ -969,6 +970,7 @@ static void handleUpdateUpload() {
       break;
   }
 }
+
 
 // Runs once the body has been consumed, so this is where the verdict is sent.
 static void handleUpdateDone() {
@@ -1007,6 +1009,9 @@ void WebConfig_Begin(bool apMode) {
     }
     return;
   }
+
+  const char* headerkeys[] = {"Content-Length"};
+  s_srv.collectHeaders(headerkeys, 1);
 
   s_srv.on("/", HTTP_GET, handleRoot);
   s_srv.on("/api/config", HTTP_GET, handleGetConfig);
