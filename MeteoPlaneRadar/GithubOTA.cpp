@@ -350,9 +350,8 @@ static void downloadAndFlashTask(void* param) {
   }
 
   s_otaState = GH_OTA_FLASHING;
-  LCD_SetPclk(5000000);
   LCD_Restart();
-  UI_DrawOtaProgress("GitHub OTA", 0, 0, (size_t)totalLen, (Lang_Get() == LANG_EN) ? "Downloading firmware..." : "Sťahujem firmvér...");
+  UI_DrawOtaProgress("GitHub OTA", 0, 0, (size_t)totalLen, (Lang_Get() == LANG_EN) ? "Writing to flash... Please wait" : "Prebieha zápis... Prosím čakajte");
 
   WiFiClient* stream = http.getStreamPtr();
   const size_t BUF_SZ = 4096;
@@ -365,7 +364,6 @@ static void downloadAndFlashTask(void* param) {
     http.end();
     client.stop();
     s_otaState = GH_OTA_ERROR;
-    LCD_SetPclk(RGB_FREQ_HZ);
     LCD_Restart();
     UI_DrawOtaProgress("GitHub OTA", 0, 0, 0, s_otaError.c_str());
     Async_Resume();
@@ -376,8 +374,6 @@ static void downloadAndFlashTask(void* param) {
 
   size_t written = 0;
   unsigned long lastFeed = millis();
-  int lastDrawnProg = -1;
-  unsigned long lastDrawnMs = 0;
 
   while (http.connected() && (totalLen <= 0 || written < (size_t)totalLen)) {
     size_t avail = stream ? stream->available() : 0;
@@ -394,13 +390,6 @@ static void downloadAndFlashTask(void* param) {
         s_bytesWritten = written;
         if (totalLen > 0) {
           s_otaProgress = (int)(written * 100 / (size_t)totalLen);
-        }
-        // Update display smoothly between flash writes (max 4-5 times per second)
-        if (s_otaProgress != lastDrawnProg && (millis() - lastDrawnMs >= 200 || s_otaProgress == 100)) {
-          lastDrawnProg = s_otaProgress;
-          lastDrawnMs = millis();
-          UI_DrawOtaProgress("GitHub OTA", s_otaProgress, written, (size_t)totalLen, nullptr);
-          vTaskDelay(pdMS_TO_TICKS(10));
         }
       }
     } else {
@@ -436,7 +425,6 @@ static void downloadAndFlashTask(void* param) {
   } else {
     if (s_otaError.length() == 0) s_otaError = Update.errorString();
     s_otaState = GH_OTA_ERROR;
-    LCD_SetPclk(RGB_FREQ_HZ);
     LCD_Restart();
     UI_DrawOtaProgress("GitHub OTA", s_otaProgress, written, (size_t)totalLen, s_otaError.c_str());
     vTaskDelay(pdMS_TO_TICKS(3000));

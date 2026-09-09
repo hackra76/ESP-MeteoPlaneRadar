@@ -736,14 +736,12 @@ static void handleNotFound() {
 static void otaStart() {
   Async_Pause();
   s_updating = true;
-  LCD_SetPclk(5000000);
   LCD_Restart();
-  UI_DrawOtaProgress("Web OTA", 0, 0, 0, (Lang_Get() == LANG_EN) ? "Preparing upload..." : "Pripravujem nahrávanie...");
+  UI_DrawOtaProgress("Web OTA", 0, 0, 0, (Lang_Get() == LANG_EN) ? "Writing to flash... Please wait" : "Prebieha zápis... Prosím čakajte");
 }
 
 static void otaEnd(bool ok) {
   s_updating = false;
-  LCD_SetPclk(RGB_FREQ_HZ);
   LCD_Restart();
   Async_Resume();
 }
@@ -916,7 +914,6 @@ static void handleUpdateUpload() {
         long cl = s_srv.header("Content-Length").toInt();
         if (cl > 4000) s_updExpectedSize = (size_t)(cl - 350);
       }
-      UI_DrawOtaProgress("Web OTA", 0, 0, s_updExpectedSize, (Lang_Get() == LANG_EN) ? "Writing to flash..." : "Zapisujem do flash pamäte...");
       if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
         s_updErr = Update.errorString();
         UI_DrawOtaProgress("Web OTA", 0, 0, 0, s_updErr.c_str());
@@ -941,12 +938,7 @@ static void handleUpdateUpload() {
         }
         int prog = (s_updExpectedSize > 0) ? (int)(up.totalSize * 100 / s_updExpectedSize) : 0;
         if (prog > 99) prog = 99;
-        if (prog != s_lastWebProg && (millis() - s_lastWebDraw >= 200 || prog == 100)) {
-          s_lastWebProg = prog;
-          s_lastWebDraw = millis();
-          UI_DrawOtaProgress("Web OTA", prog, up.totalSize, s_updExpectedSize, nullptr);
-          vTaskDelay(pdMS_TO_TICKS(10));
-        }
+        s_lastWebProg = prog;
       }
       Watchdog_Feed();
       break;

@@ -306,13 +306,6 @@ void Set_Backlight(uint8_t light) {
   ledcWrite(LCD_BL_PIN, duty);
 }
 
-// Set RGB pixel clock frequency (e.g. lower during flash writes)
-void LCD_SetPclk(uint32_t freq_hz) {
-  if (panel_handle) {
-    esp_lcd_rgb_panel_set_pclk(panel_handle, freq_hz);
-  }
-}
-
 // Reset RGB timing / line state and sync with VSYNC
 void LCD_Restart() {
   if (panel_handle) {

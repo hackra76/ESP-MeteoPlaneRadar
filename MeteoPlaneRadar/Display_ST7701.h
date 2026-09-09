@@ -96,6 +96,6 @@ uint32_t LCD_VsyncCount();
 void Backlight_Init();
 void Set_Backlight(uint8_t light);
 
-// PCLK and sync controls for OTA stability
-void LCD_SetPclk(uint32_t freq_hz);
+// VSYNC sync control for OTA stability
 void LCD_Restart();
+

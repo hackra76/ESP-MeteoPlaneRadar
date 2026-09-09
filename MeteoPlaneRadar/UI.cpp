@@ -438,16 +438,22 @@ void UI_DrawOtaProgress(const char* sourceName, int percent, size_t bytesWritten
 
   // Filled progress
   int fillW = (barW * percent) / 100;
-  if (fillW >= 10) {
-    uint16_t fillCol = (percent >= 100) ? C_GREEN : 0x07E0;
-    gfx->fillRoundRect(barX, barY, fillW, barH, radius, fillCol);
-  } else if (fillW > 0) {
-    gfx->fillRoundRect(barX, barY, fillW, barH, radius / 2, C_GREEN);
+  if (percent >= 100) {
+    gfx->fillRoundRect(barX, barY, barW, barH, radius, C_GREEN);
+  } else if (fillW >= 10) {
+    gfx->fillRoundRect(barX, barY, fillW, barH, radius, 0x07E0);
+  } else {
+    gfx->fillRoundRect(barX + 3, barY + 3, barW / 3, barH - 6, radius / 2, 0x0419);
   }
 
   // Progress percentage & size text under the bar
   char pbuf[48];
-  if (totalBytes > 0) {
+  if (percent >= 100) {
+    snprintf(pbuf, sizeof(pbuf), "100%%");
+  } else if (percent == 0) {
+    snprintf(pbuf, sizeof(pbuf), "%s", (lang == LANG_EN) ? "Please wait (~15s)..."
+             : ((lang == LANG_SK) ? "Prosím čakajte (~15s)..." : "Prosím čekejte (~15s)..."));
+  } else if (totalBytes > 0) {
     snprintf(pbuf, sizeof(pbuf), "%d%%  (%.1f / %.1f MB)", percent,
              bytesWritten / 1048576.0f, totalBytes / 1048576.0f);
   } else if (bytesWritten > 0) {
@@ -455,7 +461,7 @@ void UI_DrawOtaProgress(const char* sourceName, int percent, size_t bytesWritten
   } else {
     snprintf(pbuf, sizeof(pbuf), "%d%%", percent);
   }
-  UI_TextCentered(pbuf, 245, C_WHITE, 2);
+  UI_TextCentered(pbuf, 245, (percent >= 100) ? C_GREEN : C_WHITE, 2);
 
   // Safety warning box
   const char* warnTxt = (lang == LANG_EN) ? "DO NOT TURN OFF POWER!"
