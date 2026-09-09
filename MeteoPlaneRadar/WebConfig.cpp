@@ -983,20 +983,20 @@ static void handleUpdateUpload() {
         return;
       }
       Serial.printf("OTA: upload complete, received %u bytes in PSRAM. Writing to flash...\n", (unsigned)s_ramOtaLen);
-      UI_DrawOtaProgress("Web OTA", 100, s_ramOtaLen, s_ramOtaLen, (Lang_Get() == LANG_EN) ? "Writing to flash... (2s)" : "Zapisujem do pamäte... (2s)");
-      delay(50);
+      UI_DrawOtaWritingStaticScreen("Web OTA");
+      delay(150);
 
-      // Fast flash write of entire RAM buffer in 32 KB blocks!
-      if (!Update.begin(s_ramOtaLen)) {
+      // Flash write using UPDATE_SIZE_UNKNOWN to avoid massive synchronous partition erase
+      if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
         s_updErr = Update.errorString();
-        UI_DrawOtaProgress("Web OTA", 0, s_ramOtaLen, s_ramOtaLen, s_updErr.c_str());
-        delay(2000);
+        UI_DrawOtaWritingStaticScreen("Web OTA", s_updErr.c_str());
+        delay(2500);
         otaEnd(false);
         return;
       }
       {
         size_t written = 0;
-        const size_t CHUNK_SZ = 32768; // 32 KB fast flash write blocks
+        const size_t CHUNK_SZ = 16384; // 16 KB chunks (4 sectors)
         while (written < s_ramOtaLen) {
           size_t toWrite = (s_ramOtaLen - written > CHUNK_SZ) ? CHUNK_SZ : (s_ramOtaLen - written);
           if (Update.write(s_ramOtaBuf + written, toWrite) != toWrite) {
@@ -1005,6 +1005,8 @@ static void handleUpdateUpload() {
             break;
           }
           written += toWrite;
+          delay(25);      // Give ST7701 RGB DMA full access to PSRAM between flash writes
+          LCD_Restart();  // Resync timing
           Watchdog_Feed();
         }
       }
@@ -1012,13 +1014,13 @@ static void handleUpdateUpload() {
       if (s_updErr.length() == 0 && Update.end(true)) {
         s_updOk = true;
         Serial.printf("OTA: flash write complete (%u B), restarting...\n", (unsigned)s_ramOtaLen);
-        UI_DrawOtaProgress("Web OTA", 100, s_ramOtaLen, s_ramOtaLen, (Lang_Get() == LANG_EN) ? "Success! Restarting..." : "Hotovo! Reštartujem...");
-        delay(600);
+        UI_DrawOtaWritingStaticScreen("Web OTA", (Lang_Get() == LANG_EN) ? "Success! Restarting..." : "Hotovo! Reštartujem...");
+        delay(800);
         otaEnd(true);
       } else {
         if (s_updErr.length() == 0) s_updErr = Update.errorString();
-        UI_DrawOtaProgress("Web OTA", 0, s_ramOtaLen, s_ramOtaLen, s_updErr.c_str());
-        delay(2000);
+        UI_DrawOtaWritingStaticScreen("Web OTA", s_updErr.c_str());
+        delay(2500);
         otaEnd(false);
       }
       break;

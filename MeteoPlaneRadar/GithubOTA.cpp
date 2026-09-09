@@ -419,14 +419,14 @@ static void downloadAndFlashTask(void* param) {
 
   if (s_otaError.length() == 0 && downloaded > 0) {
     Serial.printf("GithubOTA: Download complete (%u bytes in PSRAM). Writing to flash...\n", (unsigned)downloaded);
-    UI_DrawOtaProgress("GitHub OTA", 100, downloaded, downloaded, (Lang_Get() == LANG_EN) ? "Writing to flash... (2s)" : "Zapisujem do flash... (2s)");
-    vTaskDelay(pdMS_TO_TICKS(50));
+    UI_DrawOtaWritingStaticScreen("GitHub OTA");
+    vTaskDelay(pdMS_TO_TICKS(150));
 
-    if (!Update.begin(downloaded)) {
+    if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
       s_otaError = Update.errorString();
     } else {
       size_t written = 0;
-      const size_t CHUNK_SZ = 32768;
+      const size_t CHUNK_SZ = 16384;
       while (written < downloaded) {
         size_t toWrite = (downloaded - written > CHUNK_SZ) ? CHUNK_SZ : (downloaded - written);
         if (Update.write(ramBuf + written, toWrite) != toWrite) {
@@ -435,14 +435,16 @@ static void downloadAndFlashTask(void* param) {
           break;
         }
         written += toWrite;
+        vTaskDelay(pdMS_TO_TICKS(25)); // Give ST7701 RGB DMA full access to PSRAM between flash writes
+        LCD_Restart();                // Resync timing
         Watchdog_Feed();
       }
       if (s_otaError.length() == 0 && Update.end(true)) {
         s_otaProgress = 100;
         s_otaState = GH_OTA_SUCCESS;
-        Serial.printf("GithubOTA: Update successful (%u bytes). Restarting in 2s...\n", (unsigned)downloaded);
-        UI_DrawOtaProgress("GitHub OTA", 100, downloaded, (size_t)totalLen, (Lang_Get() == LANG_EN) ? "Success! Restarting..." : "Hotovo! Reštartujem...");
-        vTaskDelay(pdMS_TO_TICKS(2000));
+        Serial.printf("GithubOTA: Update successful (%u bytes). Restarting...\n", (unsigned)downloaded);
+        UI_DrawOtaWritingStaticScreen("GitHub OTA", (Lang_Get() == LANG_EN) ? "Success! Restarting..." : "Hotovo! Reštartujem...");
+        vTaskDelay(pdMS_TO_TICKS(1500));
         ESP.restart();
       }
     }
@@ -456,7 +458,7 @@ static void downloadAndFlashTask(void* param) {
   if (s_otaState != GH_OTA_SUCCESS) {
     if (s_otaError.length() == 0) s_otaError = Update.errorString();
     s_otaState = GH_OTA_ERROR;
-    UI_DrawOtaProgress("GitHub OTA", s_otaProgress, downloaded, (size_t)totalLen, s_otaError.c_str());
+    UI_DrawOtaWritingStaticScreen("GitHub OTA", s_otaError.c_str());
     vTaskDelay(pdMS_TO_TICKS(3000));
     Async_Resume();
   }

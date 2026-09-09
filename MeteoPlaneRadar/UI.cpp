@@ -479,6 +479,71 @@ void UI_DrawOtaProgress(const char* sourceName, int percent, size_t bytesWritten
   LCD_Restart();
 }
 
+void UI_DrawOtaWritingStaticScreen(const char* sourceName, const char* customMsg) {
+  if (!gfx) return;
+
+  uint8_t bl = Settings_Backlight();
+  if (bl < 40) bl = 40;
+  Set_Backlight(bl);
+
+  const uint8_t lang = Lang_Get();
+
+  // Clear inactive backbuffer completely to pure black
+  gfx->fillScreen(C_BLACK);
+
+  // Decorative outer ring inside round bezel
+  gfx->drawCircle(LCD_WIDTH / 2, LCD_HEIGHT / 2, LCD_WIDTH / 2 - 4, 0x18E3);
+
+  // Header badge: "⚡ WEB OTA UPDATE" or "⚡ GITHUB OTA UPDATE"
+  const char* badge = (sourceName && strstr(sourceName, "Web")) ? "⚡ WEB OTA UPDATE" : "⚡ GITHUB OTA UPDATE";
+  UI_TextCentered(badge, 80, C_CYAN, 1);
+
+  // Title: "Firmware Update" / "Aktualizácia firmvéru"
+  const char* title = (lang == LANG_EN) ? "Firmware Update"
+                    : ((lang == LANG_SK) ? "Aktualizácia firmvéru" : "Aktualizace firmwaru");
+  UI_TextCentered(title, 125, C_WHITE, 2);
+
+  // Warning Box
+  const char* warnTxt = (lang == LANG_EN) ? "! DO NOT TURN OFF POWER !"
+                      : ((lang == LANG_SK) ? "! NEVYPÍNAJTE NAPÁJANIE !" : "! NEODPOJUJTE NAPÁJENÍ !");
+  int warnW = Font_TextWidth(warnTxt, 1) + 32;
+  int warnX = (LCD_WIDTH - warnW) / 2;
+  gfx->fillRoundRect(warnX, 175, warnW, 36, 8, 0x3180);
+  gfx->drawRoundRect(warnX, 175, warnW, 36, 8, C_ORANGE);
+  UI_TextCentered(warnTxt, 193, C_YELLOW, 1);
+
+  // Status message - Big, clear static text
+  char stBuf[64];
+  if (customMsg && customMsg[0]) {
+    strncpy(stBuf, customMsg, sizeof(stBuf) - 1);
+    stBuf[sizeof(stBuf) - 1] = '\0';
+  } else {
+    snprintf(stBuf, sizeof(stBuf), "%s", (lang == LANG_EN) ? "Writing to flash memory..."
+             : ((lang == LANG_SK) ? "Zapisujem do flash pamäte..." : "Zapisuji do flash paměti..."));
+  }
+  uint16_t stCol = (customMsg && (strstr(customMsg, "Hotovo") || strstr(customMsg, "Success"))) ? C_GREEN
+                 : ((customMsg && (strstr(customMsg, "fail") || strstr(customMsg, "Fail") || strstr(customMsg, "Error") || strstr(customMsg, "chyb") || strstr(customMsg, "zlyh"))) ? C_RED : C_CYAN);
+  UI_TextCentered(stBuf, 255, stCol, 2);
+
+  // Subtitle / wait hint
+  const char* waitTxt;
+  if (customMsg && (strstr(customMsg, "Hotovo") || strstr(customMsg, "Success"))) {
+    waitTxt = (lang == LANG_EN) ? "Restarting system..."
+            : ((lang == LANG_SK) ? "Reštartujem systém..." : "Restartuji systém...");
+  } else {
+    waitTxt = (lang == LANG_EN) ? "Please wait, device will restart..."
+            : ((lang == LANG_SK) ? "Prosím čakajte, zariadenie sa reštartuje..." : "Čekejte, zařízení se restartuje...");
+  }
+  UI_TextCentered(waitTxt, 310, C_WHITE, 1);
+
+  // Bottom brand footer
+  UI_TextCentered("MeteoPlaneRadar • ESP32-S3", 385, C_GRAY, 1);
+
+  // Flush to ST7701
+  gfx->flush();
+  LCD_Restart();
+}
+
 void UI_DrawCompassWidget(int cx, int cy, int r, float headingDeg, uint16_t primaryCol, bool showCard) {
   if (!gfx) return;
 

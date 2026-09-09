@@ -80,6 +80,9 @@ void UI_SetPhotoFullscreen(bool en);
 // Dedicated fullscreen OTA progress display (smooth, zero-flicker, isolated from background tasks)
 void UI_DrawOtaProgress(const char* sourceName, int percent, size_t bytesWritten, size_t totalBytes, const char* statusMsg);
 
+// Dedicated fullscreen static text display for flash writing phase (zero redrawing, rock-solid)
+void UI_DrawOtaWritingStaticScreen(const char* sourceName, const char* customMsg = nullptr);
+
 // Renders an authentic electronic gyrocompass dial with rotating North needle & digital heading
 void UI_DrawCompassWidget(int cx, int cy, int radius, float headingDeg, uint16_t primaryCol, bool showCard = true);
 
