@@ -163,6 +163,7 @@ static void putStr(const char* k, const char* v) {
 
 void Settings_Begin() {
   bool migrateRotate = false;
+  bool migrateInfoScreen = false;
   if (prefs.begin(NS, true)) {
     s_lat    = prefs.getDouble("lat", DEFAULT_LAT);
     s_lon    = prefs.getDouble("lon", DEFAULT_LON);
@@ -178,7 +179,7 @@ void Settings_Begin() {
     s_scrMask = prefs.getUChar("scrM", s_scrMask);
     if (!prefs.isKey("infoScrInit")) {
       s_scrMask |= (1 << SCREEN_INFO_I);
-      prefs.putBool("infoScrInit", true);
+      migrateInfoScreen = true;      // written below, the handle is read-only here
     }
     // Cycling interval moved from minutes to seconds - see Settings.h. The old
     // key is converted exactly once, so an updated device keeps its setting.
@@ -277,6 +278,13 @@ void Settings_Begin() {
     prefs.remove("autoR");           // the old key would only confuse later
     prefs.end();
     if (s_autoRot) Serial.printf("Settings: auto-rotation migrated to %u s\n", s_autoRot);
+  }
+  if (migrateInfoScreen && prefs.begin(NS, false)) {
+    // Persist both the one-time marker and the (possibly just-forced-on) mask,
+    // so this runs exactly once ever, not on every boot.
+    prefs.putBool("infoScrInit", true);
+    prefs.putUChar("scrM", s_scrMask);
+    prefs.end();
   }
   Lang_Set(s_lang);
   Settings_ApplyTimezone();
