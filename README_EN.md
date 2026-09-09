@@ -111,7 +111,7 @@ A unique real-time screen overlaying **animated precipitation radar tiles (SHMÚ
 | **4. Tactical Radar** | <img src="docs/media/tactical_radar_live.gif" width="70" /> | **Combined tactical view:** Live precipitation radar + ADS-B flights overlay on a single screen | SHMÚ / ČHMÚ / RainViewer + adsb.fi |
 | **5. Forecast** | <img src="docs/media/forecast_screen.png" width="70" /> | Hourly temperature, wind, and rain curves, 3-day forecast, Air Quality (AQI), PM2.5, and pollen count | Open-Meteo Weather & Air Quality |
 | **6. Air Traffic Stats** | <img src="docs/media/flight_stats_screen.png" width="70" /> | Daily 24h airspace activity: unique aircraft count, speed record, altitude span, max range, ADS-B reports | FreeRTOS PSRAM Tracker |
-| **7. Settings** | — | Device telemetry, IP address, brightness control, map orientation, radar smoothing, language selector | System |
+| **7. Settings** | <img src="docs/media/settings_screen.png" width="70" /> | Device telemetry, IP address, brightness slider, map orientation, radar smoothing, language selector | System |
 
 
 ---

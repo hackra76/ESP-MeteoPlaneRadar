@@ -94,12 +94,17 @@ def main():
     capture_screen(4, 'forecast_screen.png', wait_sec=5)
 
     # 8. Screen 5: Flight Stats Screen
-    print('\n[8/7] Info & Stats Screen (Screen 5)')
+    print('\n[8/9] Info & Stats Screen (Screen 5)')
     capture_screen(5, 'flight_stats_screen.png', wait_sec=5)
+
+    # 9. Screen 6: Settings Screen
+    print('\n[9/9] Settings Screen (Screen 6)')
+    capture_screen(6, 'settings_screen.png', wait_sec=5)
 
     # Switch back to Clock or Aircraft Radar
     post_json('/api/screen', {'index': 1})
     print('\nAll screens captured successfully!')
+
 
 if __name__ == '__main__':
     main()

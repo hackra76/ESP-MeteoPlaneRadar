@@ -110,7 +110,8 @@ Unikátna obrazovka kombinujúca **zrážkový radar (SHMÚ / ČHMÚ / RainViewe
 | **4. Taktický radar** | <img src="docs/media/tactical_radar_live.gif" width="70" /> | **Kombinovaný taktický pohľad:** Živá zrážková oblačnosť + prelety lietadiel na jedinej obrazovke | SHMÚ / ČHMÚ / RainViewer + adsb.fi |
 | **5. Predpoveď** | <img src="docs/media/forecast_screen.png" width="70" /> | Hodinové krivky teploty, vetra a zrážok, 3-dňový výhľad, index kvality ovzdušia (AQI), PM2.5 a peľ | Open-Meteo Weather & Air Quality |
 | **6. Štatistiky letov** | <img src="docs/media/flight_stats_screen.png" width="70" /> | Denná 24h štatistika: počet unikátnych lietadiel, rýchlostný rekord, letové hladiny, max dosah, ADS-B správy | FreeRTOS PSRAM Tracker |
-| **7. Nastavenia** | — | Stav zariadenia, IP adresa, regulácia jasu, orientácia mapy, voľba jazyka a vyhladenie | Systém |
+| **7. Nastavenia** | <img src="docs/media/settings_screen.png" width="70" /> | Stav zariadenia, IP adresa, regulácia jasu, orientácia mapy, voľba jazyka a vyhladenie | Systém |
+
 
 
 ---
