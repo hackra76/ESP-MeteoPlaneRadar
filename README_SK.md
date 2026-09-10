@@ -4,30 +4,48 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-SK%20%7C%20CZ%20%7C%20EN-green.svg)
-![Release](https://img.shields.io/badge/Release-v1.5.9-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v1.8.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
-**Multifunkčná meteo-radarová stanica, živý letecký radar, zrážkový meteoradar (SHMÚ, ČHMÚ, RainViewer), taktický kombinovaný radar a dizajnové hodiny na okrúhlom 2.1" IPS dotykovom displeji.**  
-Vyvinuté pre hardvérovú dosku **Waveshare ESP32-S3-Touch-LCD-2.1** s moderným dotykovým ovládaním podobným smartfónu, vysúvacím Ovládacím centrom (Control Center), fotkami lietadiel, bilineárnym vyhladzovaním a diaľkovým ovládaním cez responzívny webový prehliadač.
+**Multifunkčná meteostanica, živý letecký radar ADS-B, animovaný zrážkový radar (SHMÚ, ČHMÚ, RainViewer), kombinovaný taktický radar a dizajnové ciferníky na okrúhlom 2.1" IPS dotykovom displeji.**  
+Vyvinuté špeciálne pre vývojovú dosku **Waveshare ESP32-S3-Touch-LCD-2.1** s moderným dotykovým ovládaním gestami, výsuvným ovládacím panelom (Control Center), fotkami lietadiel v reálnom čase, bilineárnym vyhladzovaním zrážok a responzívnym webovým rozhraním pre vzdialené ovládanie a kompletnú konfiguráciu.
 
-> 🇸🇰 Tento projekt je pokročilým forkom a významným rozšírením pôvodného projektu **[petus/MeteoPlaneRadar](https://github.com/petus/MeteoPlaneRadar)**.  
-> 🇬🇧 English version: **[README.md](README.md)**
+> 🇬🇧 English documentation: **[README.md](README.md)**  
+> 📌 Forknuté a výrazne vylepšené z pôvodného projektu **[petus/MeteoPlaneRadar](https://github.com/petus/MeteoPlaneRadar)**.
 
 ---
 
-## 📸 Ukážka zariadenia v akcii (Live Demo)
+## 📸 Živé ukážky zo zariadenia
 
 <p align="center">
   <img src="docs/media/tactical_radar_live.gif" width="24%" alt="Taktický radar (Lietadlá + Zrážky)" />
-  <img src="docs/media/plane_detail_photo.png" width="24%" alt="Detail lietadla s fotografiou" />
-  <img src="docs/media/weather_radar_chmu.gif" width="24%" alt="Animovaný meteoradar ČHMÚ / SHMÚ" />
+  <img src="docs/media/plane_detail_photo.png" width="24%" alt="Detail lietadla s fotkou" />
+  <img src="docs/media/weather_radar_chmu.gif" width="24%" alt="Animovaný radar zrážok" />
   <img src="docs/media/clock_stacked_bold.png" width="24%" alt="Ciferník Stacked Bold" />
 </p>
 
 <p align="center">
-  <em>Zľava doprava: <b>Taktický radar</b> (live lietadlá nad zrážkovou mapou), <b>Detail lietadla</b> (reálna fotografia z Planespotters API), <b>Zrážkový meteoradar</b> (animovaná slučka), <b>Moderný ciferník Stacked Bold</b>.</em>
+  <em>Zľava doprava: <b>Taktický radar</b> (sledovanie lietadiel nad mapou zrážok), <b>Detail lietadla</b> (živá fotka cez Planespotters API), <b>Meteorologický radar</b> (animovaná slučka), <b>Ciferník Stacked Bold</b>.</em>
 </p>
 
+---
+
+## 🌟 Kľúčové novinky vo verzii v1.8.0
+
+- 📈 **Nová obrazovka Trhy, Akcie & Krypto (`SCREEN_FINANCE_I`):**
+  - Úplne nová interaktívna obrazovka zaradená medzi Predpoveď počasia a Informácie (`Forecast` -> `Markets` -> `Info`).
+  - Sledovanie 4 voliteľných inštrumentov v reálnom čase (akcie, európske ETF ako Amundi MSCI World, Stoxx 600, komodity ako zlato/ropa, kryptomeny a menové páry) cez Yahoo Finance v8 chart API.
+  - Interaktívny sparkline graf pre aktívny ticker, farebné indikátory zmeny v percentách a kategóriové štítky (`CRYPTO`, `COMMODITY`, `ETF`, `STOCK`, `FOREX`).
+  - Dotykové ovládanie: ťuknutím prepínanie aktívneho grafu, dvojitým ťuknutím okamžitá obnova údajov.
+  - Plne asynchrónne sťahovanie na jadre 0 bez vplyvu na plynulosť displeja.
+- 🌐 **Webová správa trhových aktív:**
+  - Samostatná karta "📈 Trhy & Krypto" s priamym prepínačom na displej a voľbou zaradenia do rotácie obrazoviek.
+  - 4 prehľadné riadky na výber tickerov s bohatými predvoľbami (európske ETF, indexy, kovy, krypto).
+- 🔧 **Oprava vertikálneho posunu obrazu a časovania ST7701:**
+  - Odstránené volanie `LCD_Restart()` pri prechodoch a potiahnutí, čím sa zabránilo rozladeniu interného čítača riadkov radiča ST7701 a trvalému posunu obrazu nahor.
+  - Nastavené korektné vertikálne a horizontálne synchronizačné pulzy (`VBP 20`, `VPW 8`, `VFP 10`) podľa špecifikácie displeja.
+- 🔄 **Zosúladenie poradia obrazoviek:**
+  - Poradie obrazoviek na displeji zodpovedá webovému rozhraniu: Hodiny (0) -> Lietadlá (1) -> Počasie (2) -> Taktický radar (3) -> Predpoveď (4) -> Trhy & Krypto (5) -> Informácie (6) -> Nastavenia (7).
 
 ---
 

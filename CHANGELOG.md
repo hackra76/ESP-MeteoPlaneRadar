@@ -9,6 +9,26 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [1.8.0] - 2026-09-10
+
+### Pridané / Added
+- **Nová obrazovka Trhy, Akcie & Krypto (Markets & Crypto Screen - `SCREEN_FINANCE_I`):**
+  - Plnohodnotná nová obrazovka zaradená medzi Predpoveď počasia a Informácie (`Forecast` -> `Markets` -> `Info`).
+  - Sledovanie 4 voliteľných trhových inštrumentov (akcie, európske ETF fondy, komodity, kryptomeny a menové páry FX) pomocou Yahoo Finance v8 chart API.
+  - Interaktívny sparkline graf vývoja ceny pre vybraný aktívny ticker, farebné označenie trendu (% zmena) a automatické kategóriové badge (CRYPTO, COMMODITY, ETF, STOCK, FOREX).
+  - Dotykové ovládanie: ťuknutím prepínanie aktívneho inštrumentu/grafu, dvojitým ťuknutím okamžitá obnova dát.
+  - Asynchrónne sťahovanie na jadre 0 bez dopadu na plynulosť animácií a vykresľovania na displeji.
+- **Webové rozhranie pre správu sledovaných aktív:**
+  - Samostatná karta "📈 Trhy & Krypto" s priamym prepínačom na displej a zaradením do kolobehu obrazoviek.
+  - 4 samostatné riadky pre jednoduchý výber tickerov vrátane bohatých predvolieb (Amundi MSCI World, Stoxx 600, S&P 500, Zlato, Ropa, Bitcoin, Ethereum, EUR/USD a populárne technologické akcie).
+
+### Opravené / Fixed
+- **Vertikálny posun obrazovky nahor pri prepínaní / potiahnutí prstom (Vertical Screen Shift Fix):**
+  - Odstránené volanie `LCD_Restart()` (`esp_lcd_rgb_panel_restart`) počas prepínania obrazoviek a periodického behu, ktoré rozlaďovalo interný riadkový čítač ST7701 radiča a spôsobovalo posun obrazu nahor.
+  - Upravené časovanie vertikálnych a horizontálnych synchronizačných pulzov (`VBP 20`, `VPW 8`, `VFP 10`) podľa oficiálnej hardvérovej špecifikácie ST7701.
+- **Zosúladenie poradia obrazoviek:**
+  - Poradie obrazoviek na displeji a v karuseli plne zosúladené s webovým rozhraním: Hodiny (0) -> Lietadlá (1) -> Počasie (2) -> Taktický radar (3) -> Predpoveď (4) -> Trhy & Krypto (5) -> Informácie (6) -> Nastavenia (7).
+
 ## [1.7.0] - 2026-09-09
 
 ### Pridané / Added

@@ -476,7 +476,6 @@ void UI_DrawOtaProgress(const char* sourceName, int percent, size_t bytesWritten
 
   // Flush to ST7701
   gfx->flush();
-  LCD_Restart();
 }
 
 void UI_DrawOtaWritingStaticScreen(const char* sourceName, const char* customMsg) {
@@ -541,7 +540,6 @@ void UI_DrawOtaWritingStaticScreen(const char* sourceName, const char* customMsg
 
   // Flush to ST7701
   gfx->flush();
-  LCD_Restart();
 }
 
 void UI_DrawCompassWidget(int cx, int cy, int r, float headingDeg, uint16_t primaryCol, bool showCard) {

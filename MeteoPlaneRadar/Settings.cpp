@@ -36,10 +36,12 @@ static bool    s_metric = false;
 static uint8_t s_lang   = LANG_EN;
 static char    s_tz[64] = TZ_INFO;
 
-// Bit per data screen (bit 0 = clock ... bit 5 = info).
+// Bit per data screen (bit 0 = clock ... bit 6 = finance).
 static uint8_t s_scrMask = (1 << SCREEN_CLOCK_I) | (1 << SCREEN_PLANES_I) |
                            (1 << SCREEN_METEO_I) | (1 << SCREEN_TACTICAL_I) |
-                           (1 << SCREEN_FORECAST_I) | (1 << SCREEN_INFO_I);
+                           (1 << SCREEN_FORECAST_I) | (1 << SCREEN_INFO_I) |
+                           (1 << SCREEN_FINANCE_I);
+static char    s_finTickers[128] = DEFAULT_FINANCE_TICKERS;
 static uint16_t s_autoRot = 0;
 static uint8_t s_radarSrc = RADAR_SRC_CHMU;
 static bool    s_smoothRadar = true;
@@ -163,6 +165,8 @@ static void putStr(const char* k, const char* v) {
 
 void Settings_Begin() {
   bool migrateRotate = false;
+  bool migrateInfoScr = false;
+  bool migrateFinScr = false;
   if (prefs.begin(NS, true)) {
     s_lat    = prefs.getDouble("lat", DEFAULT_LAT);
     s_lon    = prefs.getDouble("lon", DEFAULT_LON);
@@ -178,7 +182,14 @@ void Settings_Begin() {
     s_scrMask = prefs.getUChar("scrM", s_scrMask);
     if (!prefs.isKey("infoScrInit")) {
       s_scrMask |= (1 << SCREEN_INFO_I);
-      prefs.putBool("infoScrInit", true);
+      migrateInfoScr = true;
+    }
+    if (!prefs.isKey("finScrInit")) {
+      s_scrMask |= (1 << SCREEN_FINANCE_I);
+      migrateFinScr = true;
+    }
+    if (prefs.isKey("finTk")) {
+      prefs.getString("finTk", s_finTickers, sizeof(s_finTickers));
     }
     // Cycling interval moved from minutes to seconds - see Settings.h. The old
     // key is converted exactly once, so an updated device keeps its setting.
@@ -277,6 +288,16 @@ void Settings_Begin() {
     prefs.remove("autoR");           // the old key would only confuse later
     prefs.end();
     if (s_autoRot) Serial.printf("Settings: auto-rotation migrated to %u s\n", s_autoRot);
+  }
+  if (migrateInfoScr && prefs.begin(NS, false)) {
+    prefs.putBool("infoScrInit", true);
+    prefs.putUChar("scrM", s_scrMask);
+    prefs.end();
+  }
+  if (migrateFinScr && prefs.begin(NS, false)) {
+    prefs.putBool("finScrInit", true);
+    prefs.putUChar("scrM", s_scrMask);
+    prefs.end();
   }
   Lang_Set(s_lang);
   Settings_ApplyTimezone();
@@ -527,6 +548,8 @@ void Settings_SetScreenEnabled(uint8_t idx, bool on) {
   if (next == 0) return;
   s_scrMask = next;
   putU8("scrM", s_scrMask);
+  putBool("infoScrInit", true);
+  putBool("finScrInit", true);
 }
 
 uint8_t Settings_EnabledCount() {
@@ -540,6 +563,14 @@ void     Settings_SetAutoRotateSec(uint16_t s) {
   if (s > 3600) s = 3600;
   s_autoRot = s;
   putU16("autoRS", s);
+}
+
+const char* Settings_FinanceTickers() { return s_finTickers; }
+void Settings_SetFinanceTickers(const char* tickers) {
+  if (!tickers || !*tickers) tickers = DEFAULT_FINANCE_TICKERS;
+  strncpy(s_finTickers, tickers, sizeof(s_finTickers) - 1);
+  s_finTickers[sizeof(s_finTickers) - 1] = '\0';
+  putStr("finTk", s_finTickers);
 }
 
 // --- Weather radar ----------------------------------------------------------
@@ -797,6 +828,8 @@ void Settings_ToJson(JsonObject o) {
   scr["tactical"] = Settings_ScreenEnabled(SCREEN_TACTICAL_I);
   scr["forecast"] = Settings_ScreenEnabled(SCREEN_FORECAST_I);
   scr["info"]     = Settings_ScreenEnabled(SCREEN_INFO_I);
+  scr["finance"]  = Settings_ScreenEnabled(SCREEN_FINANCE_I);
+  o["financeTickers"] = s_finTickers;
 }
 
 bool Settings_FromJson(JsonObjectConst in) {
@@ -866,6 +899,7 @@ bool Settings_FromJson(JsonObjectConst in) {
   setIf("buzzerHourly",    [](JsonVariantConst v){ Settings_SetBuzzerHourly(v.as<bool>()); });
   setIf("buzzerNightMute", [](JsonVariantConst v){ Settings_SetBuzzerNightMute(v.as<bool>()); });
   setIf("cPrecip",         [](JsonVariantConst v){ Settings_SetPrecipAlert(v.as<bool>()); });
+  setIf("financeTickers",  [](JsonVariantConst v){ Settings_SetFinanceTickers(v.as<const char*>()); });
 
   if (!in["altMin"].isNull() || !in["altMax"].isNull()) {
     uint16_t lo = in["altMin"].isNull() ? s_altMin : in["altMin"].as<uint16_t>();
@@ -883,6 +917,7 @@ bool Settings_FromJson(JsonObjectConst in) {
       { "tactical", SCREEN_TACTICAL_I },
       { "forecast", SCREEN_FORECAST_I },
       { "info",     SCREEN_INFO_I },
+      { "finance",  SCREEN_FINANCE_I },
     };
     for (auto& m : M) {
       JsonVariantConst v = scr[m.key];
@@ -917,7 +952,9 @@ void Settings_ClearAll() {
   s_metric = false; s_lang = LANG_EN; Lang_Set(s_lang);
   s_scrMask = (1 << SCREEN_CLOCK_I) | (1 << SCREEN_PLANES_I) |
               (1 << SCREEN_METEO_I) | (1 << SCREEN_TACTICAL_I) |
-              (1 << SCREEN_FORECAST_I) | (1 << SCREEN_INFO_I);
+              (1 << SCREEN_FORECAST_I) | (1 << SCREEN_INFO_I) |
+              (1 << SCREEN_FINANCE_I);
+  strncpy(s_finTickers, DEFAULT_FINANCE_TICKERS, sizeof(s_finTickers) - 1);
   s_autoRot = 0; s_radarSrc = RADAR_SRC_CHMU; s_smoothRadar = true;
   s_secStyle = SEC_STYLE_DOTS; s_clockCol = 0xFFFF; s_secCol = 0x05FF;
   s_clkShowOverhead = true; s_overheadRadiusKm = 10.0f;

@@ -9,3 +9,5 @@ __pycache__/
 *.pyc
 *.ino.cpp
 .wiki_clone/
+scratch/
+

@@ -89,6 +89,10 @@ uint8_t Settings_EnabledCount();           // data screens currently on
 uint16_t Settings_AutoRotateSec();
 void     Settings_SetAutoRotateSec(uint16_t s);
 
+// --- Finance / Markets ------------------------------------------------------
+const char* Settings_FinanceTickers();
+void        Settings_SetFinanceTickers(const char* tickers);
+
 // --- Weather radar ----------------------------------------------------------
 uint8_t Settings_RadarSource();            // RADAR_SRC_CHMU / RADAR_SRC_RAINVIEWER / RADAR_SRC_SHMU
 void    Settings_SetRadarSource(uint8_t s);

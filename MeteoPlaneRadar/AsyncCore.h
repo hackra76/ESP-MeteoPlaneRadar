@@ -29,12 +29,14 @@ void Async_SetAdsbTarget(double lat, double lon, float rangeKm);
 void Async_RequestAdsb();
 void Async_RequestRadar();
 void Async_RequestForecast();
+void Async_RequestFinance();
 void Async_RequestRoute(const char* callsign, float lat, float lon);
 
 // Check and consume data-updated flags (called by UI screens on Core 1)
 bool Async_TakeAdsbUpdated();
 bool Async_TakeRadarUpdated();
 bool Async_TakeForecastUpdated();
+bool Async_TakeFinanceUpdated();
 bool Async_TakeRouteUpdated();
 
 // Global mutex helpers for thread-safe access to shared models
@@ -49,6 +51,9 @@ void Async_UnlockRadar();
 
 void Async_LockForecast();
 void Async_UnlockForecast();
+
+void Async_LockFinance();
+void Async_UnlockFinance();
 
 void Async_LockRoute();
 void Async_UnlockRoute();

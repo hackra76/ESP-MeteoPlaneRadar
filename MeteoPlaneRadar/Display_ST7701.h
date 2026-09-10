@@ -31,11 +31,11 @@
 // for ESP32-S3 PSRAM bandwidth contention - do not raise it back to 16 MHz.
 #define RGB_FREQ_HZ  (8 * 1000 * 1000)
 #define RGB_HPW  8
-#define RGB_HBP  10
-#define RGB_HFP  50
-#define RGB_VPW  3
-#define RGB_VBP  8
-#define RGB_VFP  8
+#define RGB_HBP  50
+#define RGB_HFP  10
+#define RGB_VPW  8
+#define RGB_VBP  20
+#define RGB_VFP  10
 
 // --- RGB data pins (B0..B4, G0..G5, R0..R4) ---
 #define RGB_HSYNC 38

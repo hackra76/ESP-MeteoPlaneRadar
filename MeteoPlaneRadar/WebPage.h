@@ -153,6 +153,7 @@ td:first-child{color:var(--mut);width:45%}
   <button data-tab="tScrMeteo"    data-i18n="tabScrMeteo">🌧️ Meteoradar</button>
   <button data-tab="tScrTactical" data-i18n="tabScrTactical">🎯 Taktický radar</button>
   <button data-tab="tScrForecast" data-i18n="tabScrForecast">⛅ Predpoveď</button>
+  <button data-tab="tScrFinance"  data-i18n="tabScrFinance">📈 Trhy & Krypto</button>
   <button data-tab="tScrInfo"     data-i18n="tabScrInfo">ℹ️ Info & Štatistiky</button>
   <button data-tab="tSerial"      data-i18n="tabSerial" class="tab-serial">📟 Sériový monitor</button>
   <button data-tab="tCommon"      data-i18n="tabCommon" class="tab-common">⚙️ Spoločné nastavenia</button>
@@ -423,14 +424,136 @@ td:first-child{color:var(--mut);width:45%}
         </div>
       </section>
 
-      <!-- 6. OBRAZOVKA: INFO & ŠTATISTIKY -->
+      <!-- 6. OBRAZOVKA: FINANČNÉ TRHY & KRYPTO -->
+      <section id="tScrFinance" class="tab hide">
+        <div class="screen-hero">
+          <div class="hero-title">
+            <h2>📈 <span data-i18n="scrFinanceHdr">Finančné trhy, Akcie & Krypto</span></h2>
+          </div>
+          <div class="hero-actions">
+            <button type="button" class="btn-live" onclick="goScreen(5)">
+              ▶ <span data-i18n="btnShowOnDisp">Zobraziť na displeji</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="row" style="margin-top:0;">
+            <label class="chk" style="font-weight:600;font-size:14px;">
+              <input type="checkbox" id="sFinance">
+              <span data-i18n="scrFinanceActive">Zahrnúť obrazovku do automatického striedania</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;border-bottom:1px solid rgba(34,45,66,0.6);padding-bottom:8px;">
+            <h2 style="margin:0;border:0;padding:0;" data-i18n="finSlotsHdr">📈 Sledované trhy & aktíva (4 pozície)</h2>
+            <span class="pill pill-ok" style="font-size:11px;">Yahoo Finance</span>
+          </div>
+
+          <input type="hidden" id="financeTickers">
+
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <!-- Line 1: Hero -->
+            <div style="display:flex;align-items:center;gap:10px;background:#0d1523;border:1px solid rgba(56,189,248,0.3);border-radius:10px;padding:8px 12px;flex-wrap:wrap;">
+              <div style="display:flex;align-items:center;gap:8px;min-width:180px;">
+                <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;background:rgba(56,189,248,0.2);color:var(--acc);font-weight:700;font-size:13px;">1</span>
+                <div>
+                  <div style="font-weight:700;font-size:13.5px;color:#fff;" data-i18n="finSlot1">1. Hlavný trh (Hero graf)</div>
+                  <div style="font-size:11px;color:var(--acc);" data-i18n="finSlot1Sub">Veľký reálny graf + kurz</div>
+                </div>
+              </div>
+              <select id="finSel1" onchange="onFinSelChange(1)" style="flex:1 1 180px;min-width:160px;"></select>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <input type="text" id="finTk1" placeholder="BTC-USD" style="width:110px;text-transform:uppercase;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700;letter-spacing:0.5px;" oninput="onFinInputChange(1)">
+                <button type="button" class="sec" onclick="clearFinSlot(1)" style="padding:6px 10px;font-size:12px;" title="Vymazať" data-i18n="finClear">✕</button>
+              </div>
+            </div>
+
+            <!-- Line 2: Slot 2 -->
+            <div style="display:flex;align-items:center;gap:10px;background:#0a0e17;border:1px solid var(--line);border-radius:10px;padding:8px 12px;flex-wrap:wrap;">
+              <div style="display:flex;align-items:center;gap:8px;min-width:180px;">
+                <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;background:rgba(100,116,139,0.15);color:var(--mut);font-weight:700;font-size:13px;">2</span>
+                <div>
+                  <div style="font-weight:600;font-size:13px;color:var(--fg);" data-i18n="finSlot2">2. Sledovaný trh</div>
+                  <div style="font-size:11px;color:var(--mut);" data-i18n="finSlotWatchlist">Karta v spodnom zozname</div>
+                </div>
+              </div>
+              <select id="finSel2" onchange="onFinSelChange(2)" style="flex:1 1 180px;min-width:160px;"></select>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <input type="text" id="finTk2" placeholder="^GSPC" style="width:110px;text-transform:uppercase;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700;letter-spacing:0.5px;" oninput="onFinInputChange(2)">
+                <button type="button" class="sec" onclick="clearFinSlot(2)" style="padding:6px 10px;font-size:12px;" title="Vymazať" data-i18n="finClear">✕</button>
+              </div>
+            </div>
+
+            <!-- Line 3: Slot 3 -->
+            <div style="display:flex;align-items:center;gap:10px;background:#0a0e17;border:1px solid var(--line);border-radius:10px;padding:8px 12px;flex-wrap:wrap;">
+              <div style="display:flex;align-items:center;gap:8px;min-width:180px;">
+                <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;background:rgba(100,116,139,0.15);color:var(--mut);font-weight:700;font-size:13px;">3</span>
+                <div>
+                  <div style="font-weight:600;font-size:13px;color:var(--fg);" data-i18n="finSlot3">3. Sledovaný trh</div>
+                  <div style="font-size:11px;color:var(--mut);" data-i18n="finSlotWatchlist">Karta v spodnom zozname</div>
+                </div>
+              </div>
+              <select id="finSel3" onchange="onFinSelChange(3)" style="flex:1 1 180px;min-width:160px;"></select>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <input type="text" id="finTk3" placeholder="AAPL" style="width:110px;text-transform:uppercase;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700;letter-spacing:0.5px;" oninput="onFinInputChange(3)">
+                <button type="button" class="sec" onclick="clearFinSlot(3)" style="padding:6px 10px;font-size:12px;" title="Vymazať" data-i18n="finClear">✕</button>
+              </div>
+            </div>
+
+            <!-- Line 4: Slot 4 -->
+            <div style="display:flex;align-items:center;gap:10px;background:#0a0e17;border:1px solid var(--line);border-radius:10px;padding:8px 12px;flex-wrap:wrap;">
+              <div style="display:flex;align-items:center;gap:8px;min-width:180px;">
+                <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;background:rgba(100,116,139,0.15);color:var(--mut);font-weight:700;font-size:13px;">4</span>
+                <div>
+                  <div style="font-weight:600;font-size:13px;color:var(--fg);" data-i18n="finSlot4">4. Sledovaný trh</div>
+                  <div style="font-size:11px;color:var(--mut);" data-i18n="finSlotWatchlist">Karta v spodnom zozname</div>
+                </div>
+              </div>
+              <select id="finSel4" onchange="onFinSelChange(4)" style="flex:1 1 180px;min-width:160px;"></select>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <input type="text" id="finTk4" placeholder="GC=F" style="width:110px;text-transform:uppercase;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700;letter-spacing:0.5px;" oninput="onFinInputChange(4)">
+                <button type="button" class="sec" onclick="clearFinSlot(4)" style="padding:6px 10px;font-size:12px;" title="Vymazať" data-i18n="finClear">✕</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Chips -->
+          <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(34,45,66,0.6);">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+              <span style="font-size:12px;font-weight:600;color:var(--mut);" data-i18n="finPresets">⚡ Rýchle pridanie populárnych symbolov:</span>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+              <button type="button" class="sec" onclick="addFinPreset('CW8.PA')" style="padding:4px 8px;font-size:11.5px;">🇪🇺 Amundi World (CW8.PA)</button>
+              <button type="button" class="sec" onclick="addFinPreset('500.PA')" style="padding:4px 8px;font-size:11.5px;">🇪🇺 Amundi 500 (500.PA)</button>
+              <button type="button" class="sec" onclick="addFinPreset('VWCE.DE')" style="padding:4px 8px;font-size:11.5px;">🌍 Vanguard VWCE (VWCE.DE)</button>
+              <button type="button" class="sec" onclick="addFinPreset('SXR8.DE')" style="padding:4px 8px;font-size:11.5px;">🇺🇸 iShares SXR8 (SXR8.DE)</button>
+              <button type="button" class="sec" onclick="addFinPreset('BTC-USD')" style="padding:4px 8px;font-size:11.5px;">₿ Bitcoin (BTC-USD)</button>
+              <button type="button" class="sec" onclick="addFinPreset('ETH-USD')" style="padding:4px 8px;font-size:11.5px;">Ξ Ethereum (ETH-USD)</button>
+              <button type="button" class="sec" onclick="addFinPreset('SOL-USD')" style="padding:4px 8px;font-size:11.5px;">◎ Solana (SOL-USD)</button>
+              <button type="button" class="sec" onclick="addFinPreset('^GSPC')" style="padding:4px 8px;font-size:11.5px;">📈 S&P 500 (^GSPC)</button>
+              <button type="button" class="sec" onclick="addFinPreset('^IXIC')" style="padding:4px 8px;font-size:11.5px;">📊 Nasdaq (^IXIC)</button>
+              <button type="button" class="sec" onclick="addFinPreset('GC=F')" style="padding:4px 8px;font-size:11.5px;">🥇 Zlato (GC=F)</button>
+              <button type="button" class="sec" onclick="addFinPreset('CL=F')" style="padding:4px 8px;font-size:11.5px;">🛢️ Ropa WTI (CL=F)</button>
+              <button type="button" class="sec" onclick="addFinPreset('NVDA')" style="padding:4px 8px;font-size:11.5px;">💻 Nvidia (NVDA)</button>
+              <button type="button" class="sec" onclick="addFinPreset('AAPL')" style="padding:4px 8px;font-size:11.5px;">🍏 Apple (AAPL)</button>
+            </div>
+          </div>
+
+          <p class="hint" style="margin-top:12px;" data-i18n="financeHint">1. pozícia má veľký graf (Hero), pozície 2–4 sa zobrazujú v dolnom prehľade. Môžete vybrať z predvolieb alebo zadať ľubovoľný symbol z Yahoo Finance (napr. BTC-USD, ^GSPC, AAPL, GC=F).</p>
+        </div>
+      </section>
+
+      <!-- 7. OBRAZOVKA: INFO & ŠTATISTIKY -->
       <section id="tScrInfo" class="tab hide">
         <div class="screen-hero">
           <div class="hero-title">
             <h2>ℹ️ <span data-i18n="scrInfoHdr">Info & Denná štatistika letov</span></h2>
           </div>
           <div class="hero-actions">
-            <button type="button" class="btn-live" onclick="goScreen(5)">
+            <button type="button" class="btn-live" onclick="goScreen(6)">
               ▶ <span data-i18n="btnShowOnDisp">Zobraziť na displeji</span>
             </button>
           </div>
@@ -461,7 +584,8 @@ td:first-child{color:var(--mut);width:45%}
         </div>
       </section>
 
-      <!-- 7. SÉRIOVÝ MONITOR (WEB CONSOLE) -->
+
+      <!-- 8. SÉRIOVÝ MONITOR (WEB CONSOLE) -->
       <section id="tSerial" class="tab hide">
         <div class="screen-hero">
           <div class="hero-title">
@@ -844,10 +968,10 @@ td:first-child{color:var(--mut);width:45%}
 <script>
 const D={
  cs:{
-  tabScrClock:"🕒 Hodiny",tabScrPlanes:"✈️ Letadla",tabScrMeteo:"🌧️ Meteoradar",tabScrTactical:"🎯 Taktický radar",tabScrForecast:"⛅ Předpověď",tabCommon:"⚙️ Společná nastavení",
-  scrClockHdr:"Hodiny & Astro",scrPlanesHdr:"Letadla radar (ADS-B)",scrMeteoHdr:"Srážkový meteoradar",scrTacticalHdr:"Taktický radar (Letadla + Srážky)",scrForecastHdr:"Předpověď počasí",
+  tabScrClock:"🕒 Hodiny",tabScrPlanes:"✈️ Letadla",tabScrMeteo:"🌧️ Meteoradar",tabScrTactical:"🎯 Taktický radar",tabScrForecast:"⛅ Předpověď",tabScrInfo:"ℹ️ Info & Statistiky",tabScrFinance:"📈 Trhy & Krypto",tabCommon:"⚙️ Společná nastavení",
+  scrClockHdr:"Hodiny & Astro",scrPlanesHdr:"Letadla radar (ADS-B)",scrMeteoHdr:"Srážkový meteoradar",scrTacticalHdr:"Taktický radar (Letadla + Srážky)",scrForecastHdr:"Předpověď počasí",scrFinanceHdr:"Finanční trhy, Akcie & Krypto",
   btnShowOnDisp:"Zobrazit na displeji",liveDispLbl:"Na displeji:",
-  scrClockActive:"Zahrnout obrazovku do automatického střídání",scrPlanesActive:"Zahrnout obrazovku do automatického střídání",scrMeteoActive:"Zahrnout obrazovku do automatického střídání",scrTacticalActive:"Zahrnout obrazovku do automatického střídání",scrForecastActive:"Zahrnout obrazovku do automatického střídání",
+  scrClockActive:"Zahrnout obrazovku do automatického střídání",scrPlanesActive:"Zahrnout obrazovku do automatického střídání",scrMeteoActive:"Zahrnout obrazovku do automatického střídání",scrTacticalActive:"Zahrnout obrazovku do automatického střídání",scrForecastActive:"Zahrnout obrazovku do automatického střídání",scrFinanceActive:"Zahrnout obrazovku do automatického střídání",
   rotateHdr:"🔄 Automatické střídání obrazovek",
   remote:"🎮 Dálkové ovládání",rangeLbl:"Měřítko:",
   btnPrev:"← Předchozí",btnDblTap:"🔄 Legenda",btnNext:"Následující →",btnDec:"Přiblížit (− km)",btnInc:"Oddálit (+ km)",
@@ -912,7 +1036,8 @@ const D={
   otaUpToDate:"Máte nejnovější verzi",otaNewAvail:"K dispozici je nová verze!",otaChecking:"Kontroluji GitHub...",
   otaDownloading:"Stahování a zápis firmwaru...",otaSuccess:"Aktualizace úspěšná! Restartuji...",otaErr:"Chyba aktualizace",
   otaNoAsset:"Vydání neobsahuje soubor OTA (-ota.bin)",otaConfirm:"Opravdu spustit aktualizaci firmwaru na verzi",
-  scrClock:"Hodiny & Astro",scrPlanes:"Letadla radar",scrMeteo:"Meteoradar",scrTactical:"Taktický radar",scrForecast:"Předpověď počasí",scrInfo:"Info & Statistiky",scrSettings:"Nastavení",
+  scrClock:"Hodiny & Astro",scrPlanes:"Letadla radar",scrMeteo:"Meteoradar",scrTactical:"Taktický radar",scrForecast:"Předpověď počasí",scrInfo:"Info & Statistiky",scrFinance:"Trhy & Krypto",scrSettings:"Nastavení",
+  finSlotsHdr:"📈 Sledované trhy & aktiva (4 pozice)",finSlot1:"1. Hlavní trh (Hero graf)",finSlot1Sub:"Velký reálný graf + kurz",finSlot2:"2. Sledovaný trh",finSlot3:"3. Sledovaný trh",finSlot4:"4. Sledovaný trh",finSlotWatchlist:"Karta v dolním přehledu",finPresets:"⚡ Rychlé přidání populárních aktiv:",finClear:"Vymazat",financeHint:"1. pozice má velký graf (Hero), pozice 2–4 se zobrazují v dolním přehledu. Podporuje evropské ETF fondy (Amundi CW8.PA, 500.PA, Vanguard VWCE.DE), krypto, indexy, komodity i světové akcie z Yahoo Finance.",
   ultraNight:"🌙 Ultra Night režim (hluboká červená / spánkový monochróm, min. jas)",
   tabScrInfo:"ℹ️ Info & Statistiky",scrInfoHdr:"Info & Denní statistika letů",scrInfoActive:"Zahrnout obrazovku do automatického střídání",
   statsTrafficHdr:"✈️ Dnešní letecká statistika",btnResetStats:"🔄 Resetovat",stUnique:"Unikátní letadla dnes:",stTopSpeed:"Nejvyšší rychlost:",stMaxDist:"Maximální vzdálenost:",stAltSpan:"Rozpětí výšek:",stReports:"Přijaté ADS-B zprávy:",statsHint:"Statistika se automaticky nuluje o půlnoci a uchovává se v paměti PSRAM.",confirmResetStats:"Opravdu resetovat dnešní statistiku letů?",statsResetOk:"Statistiky byly resetovány",
@@ -922,10 +1047,10 @@ const D={
   tabSerial:"📟 Sériový monitor",serialHdr:"Sériový monitor (Live Web Console)",btnSerialStart:"Spustit monitor",btnSerialPause:"Pozastavit monitor",serialActive:"Aktivní (Live)",serialPaused:"Pozastaveno",serialAutoScroll:"Automatický posun",btnSerialCopy:"📋 Kopírovat",btnSerialDl:"💾 Stáhnout",btnSerialClear:"🧹 Vymazat",btnSerialSend:"Odeslat ↵",serialCopied:"Výpis zkopírován do schránky",serialCleared:"Konzole vymazána",serialHint:"Streamování výstupů sériového portu přes WiFi bez nutnosti USB kabelu. Při odchodu ze záložky se přenos automaticky pozastaví."
  },
  sk:{
-  tabScrClock:"🕒 Hodiny",tabScrPlanes:"✈️ Lietadlá",tabScrMeteo:"🌧️ Meteoradar",tabScrTactical:"🎯 Taktický radar",tabScrForecast:"⛅ Predpoveď",tabCommon:"⚙️ Spoločné nastavenia",
-  scrClockHdr:"Hodiny & Astro",scrPlanesHdr:"Lietadlá radar (ADS-B)",scrMeteoHdr:"Zrážkový meteoradar",scrTacticalHdr:"Taktický radar (Lietadlá + Zrážky)",scrForecastHdr:"Predpoveď počasia",
+  tabScrClock:"🕒 Hodiny",tabScrPlanes:"✈️ Lietadlá",tabScrMeteo:"🌧️ Meteoradar",tabScrTactical:"🎯 Taktický radar",tabScrForecast:"⛅ Predpoveď",tabScrInfo:"ℹ️ Info & Štatistiky",tabScrFinance:"📈 Trhy & Krypto",tabCommon:"⚙️ Spoločné nastavenia",
+  scrClockHdr:"Hodiny & Astro",scrPlanesHdr:"Lietadlá radar (ADS-B)",scrMeteoHdr:"Zrážkový meteoradar",scrTacticalHdr:"Taktický radar (Lietadlá + Zrážky)",scrForecastHdr:"Predpoveď počasia",scrFinanceHdr:"Finančné trhy, Akcie & Krypto",
   btnShowOnDisp:"Zobraziť na displeji",liveDispLbl:"Na displeji:",
-  scrClockActive:"Zahrnúť obrazovku do automatického striedania",scrPlanesActive:"Zahrnúť obrazovku do automatického striedania",scrMeteoActive:"Zahrnúť obrazovku do automatického striedania",scrTacticalActive:"Zahrnúť obrazovku do automatického striedania",scrForecastActive:"Zahrnúť obrazovku do automatického striedania",
+  scrClockActive:"Zahrnúť obrazovku do automatického striedania",scrPlanesActive:"Zahrnúť obrazovku do automatického striedania",scrMeteoActive:"Zahrnúť obrazovku do automatického striedania",scrTacticalActive:"Zahrnúť obrazovku do automatického striedania",scrForecastActive:"Zahrnúť obrazovku do automatického striedania",scrFinanceActive:"Zahrnúť obrazovku do automatického striedania",
   rotateHdr:"🔄 Automatické striedanie obrazoviek",
   remote:"🎮 Diaľkový ovládač",rangeLbl:"Mierka:",
   btnPrev:"← Predchádzajúca",btnDblTap:"🔄 Legenda",btnNext:"Nasledujúca →",btnDec:"Priblížiť (− km)",btnInc:"Oddialiť (+ km)",
@@ -990,7 +1115,8 @@ const D={
   otaUpToDate:"Máte najnovšiu verziu",otaNewAvail:"K dispozícii je nová verzia!",otaChecking:"Kontrolujem GitHub...",
   otaDownloading:"Sťahovanie a zápis firmvéru...",otaSuccess:"Aktualizácia úspešná! Reštartujem...",otaErr:"Chyba aktualizácie",
   otaNoAsset:"Vydanie neobsahuje súbor OTA (-ota.bin)",otaConfirm:"Naozaj spustiť aktualizáciu firmvéru na verziu",
-  scrClock:"Hodiny & Astro",scrPlanes:"Lietadlá radar",scrMeteo:"Meteoradar",scrTactical:"Taktický radar",scrForecast:"Predpoveď počasia",scrInfo:"Info & Štatistiky",scrSettings:"Nastavenia",
+  scrClock:"Hodiny & Astro",scrPlanes:"Lietadlá radar",scrMeteo:"Meteoradar",scrTactical:"Taktický radar",scrForecast:"Predpoveď počasia",scrInfo:"Info & Štatistiky",scrFinance:"Trhy & Krypto",scrSettings:"Nastavenia",
+  finSlotsHdr:"📈 Sledované trhy & aktíva (4 pozície)",finSlot1:"1. Hlavný trh (Hero graf)",finSlot1Sub:"Veľký reálny graf + kurz",finSlot2:"2. Sledovaný trh",finSlot3:"3. Sledovaný trh",finSlot4:"4. Sledovaný trh",finSlotWatchlist:"Karta v spodnom zozname",finPresets:"⚡ Rýchle pridanie populárnych aktív:",finClear:"Vymazať",financeHint:"1. pozícia má veľký graf (Hero), pozície 2–4 sa zobrazujú v dolnom prehľade. Podporuje európske ETF fondy (Amundi CW8.PA, 500.PA, Vanguard VWCE.DE), krypto, indexy, komodity aj svetové akcie z Yahoo Finance.",
   ultraNight:"🌙 Ultra Night režim (hlboká červená / spánkový monochróm, min. jas)",
   tabScrInfo:"ℹ️ Info & Štatistiky",scrInfoHdr:"Info & Denná štatistika letov",scrInfoActive:"Zahrnúť obrazovku do automatického striedania",
   statsTrafficHdr:"✈️ Dnešná letecká štatistika",btnResetStats:"🔄 Resetovať",stUnique:"Unikátne lietadlá dnes:",stTopSpeed:"Najvyššia rýchlosť:",stMaxDist:"Maximálna vzdialenosť:",stAltSpan:"Rozpätie výšok:",stReports:"Prijaté ADS-B správy:",statsHint:"Štatistika sa automaticky nuluje o polnoci a uchováva sa v pamäti PSRAM.",confirmResetStats:"Naozaj resetovať dnešnú štatistiku letov?",statsResetOk:"Štatistiky boli resetované",
@@ -1000,10 +1126,10 @@ const D={
   tabSerial:"📟 Sériový monitor",serialHdr:"Sériový monitor (Live Web Console)",btnSerialStart:"Spustiť monitor",btnSerialPause:"Pozastaviť monitor",serialActive:"Aktívny (Live)",serialPaused:"Pozastavené",serialAutoScroll:"Automatický posun",btnSerialCopy:"📋 Kopírovať",btnSerialDl:"💾 Stiahnuť",btnSerialClear:"🧹 Vymazať",btnSerialSend:"Odoslať ↵",serialCopied:"Výpis skopírovaný do schránky",serialCleared:"Konzola vymazaná",serialHint:"Streamovanie výstupov sériového portu cez WiFi bez nutnosti USB kábla. Pri odchode zo záložky sa prenos automaticky pozastaví."
  },
  en:{
-  tabScrClock:"🕒 Clock",tabScrPlanes:"✈️ Aircraft",tabScrMeteo:"🌧️ Weather Radar",tabScrTactical:"🎯 Tactical Radar",tabScrForecast:"⛅ Forecast",tabCommon:"⚙️ Shared Settings",
-  scrClockHdr:"Clock & Astro",scrPlanesHdr:"Aircraft radar (ADS-B)",scrMeteoHdr:"Precipitation radar",scrTacticalHdr:"Tactical radar (Aircraft + Rain)",scrForecastHdr:"Weather forecast",
+  tabScrClock:"🕒 Clock",tabScrPlanes:"✈️ Aircraft",tabScrMeteo:"🌧️ Weather Radar",tabScrTactical:"🎯 Tactical Radar",tabScrForecast:"⛅ Forecast",tabScrInfo:"ℹ️ Info & Stats",tabScrFinance:"📈 Markets & Crypto",tabCommon:"⚙️ Shared Settings",
+  scrClockHdr:"Clock & Astro",scrPlanesHdr:"Aircraft radar (ADS-B)",scrMeteoHdr:"Precipitation radar",scrTacticalHdr:"Tactical radar (Aircraft + Rain)",scrForecastHdr:"Weather forecast",scrFinanceHdr:"Financial Markets, Stocks & Crypto",
   btnShowOnDisp:"Show on display",liveDispLbl:"On display:",
-  scrClockActive:"Include screen in automatic cycling",scrPlanesActive:"Include screen in automatic cycling",scrMeteoActive:"Include screen in automatic cycling",scrTacticalActive:"Include screen in automatic cycling",scrForecastActive:"Include screen in automatic cycling",
+  scrClockActive:"Include screen in automatic cycling",scrPlanesActive:"Include screen in automatic cycling",scrMeteoActive:"Include screen in automatic cycling",scrTacticalActive:"Include screen in automatic cycling",scrForecastActive:"Include screen in automatic cycling",scrFinanceActive:"Include screen in automatic cycling",
   rotateHdr:"🔄 Auto Screen Cycling",
   remote:"🎮 Remote Control",rangeLbl:"Radar Scale:",
   btnPrev:"← Previous",btnDblTap:"🔄 Legend",btnNext:"Next →",btnDec:"Zoom In (− km)",btnInc:"Zoom Out (+ km)",
@@ -1068,7 +1194,8 @@ const D={
   otaUpToDate:"Up to date",otaNewAvail:"New version available!",otaChecking:"Checking GitHub...",
   otaDownloading:"Downloading & flashing firmware...",otaSuccess:"Update successful! Restarting...",otaErr:"Update failed",
   otaNoAsset:"Release missing OTA binary (-ota.bin)",otaConfirm:"Really install firmware update to version",
-  scrClock:"Clock & Astro",scrPlanes:"Aircraft radar",scrMeteo:"Weather radar",scrTactical:"Tactical radar",scrForecast:"Weather forecast",scrInfo:"Info & Stats",scrSettings:"Settings",
+  scrClock:"Clock & Astro",scrPlanes:"Aircraft radar",scrMeteo:"Weather radar",scrTactical:"Tactical radar",scrForecast:"Weather forecast",scrInfo:"Info & Stats",scrFinance:"Markets & Crypto",scrSettings:"Settings",
+  finSlotsHdr:"📈 Watched Markets & Assets (4 slots)",finSlot1:"1. Primary Market (Hero Chart)",finSlot1Sub:"Full sparkline chart + quote",finSlot2:"2. Watchlist Market",finSlot3:"3. Watchlist Market",finSlot4:"4. Watchlist Market",finSlotWatchlist:"Bottom watchlist card",finPresets:"⚡ Quick-add popular assets:",finClear:"Clear",financeHint:"Slot 1 features the large Hero sparkline chart; slots 2–4 appear in the bottom watchlist cards. Supports European ETFs (Amundi CW8.PA, 500.PA, Vanguard VWCE.DE), crypto, indices, commodities and global equities via Yahoo Finance.",
   ultraNight:"🌙 Ultra Night mode (deep red sleep monochrome, min. brightness)",
   tabScrInfo:"ℹ️ Info & Stats",scrInfoHdr:"Info & Daily Flight Statistics",scrInfoActive:"Include screen in automatic cycling",
   statsTrafficHdr:"✈️ Flight Traffic Today",btnResetStats:"🔄 Reset",stUnique:"Unique aircraft today:",stTopSpeed:"Top speed:",stMaxDist:"Max distance:",stAltSpan:"Altitude span:",stReports:"ADS-B reports received:",statsHint:"Statistics auto-reset at midnight and are kept in PSRAM.",confirmResetStats:"Really reset today's flight statistics?",statsResetOk:"Statistics reset successfully",
@@ -1118,7 +1245,7 @@ document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>showTab(b.dat
 
 function msg(t,c){$("msg").textContent=t;$("msg").className=c||"";setTimeout(()=>{$("msg").textContent=""},4000);}
 
-const SCR=[["scrClock",0],["scrPlanes",1],["scrMeteo",2],["scrTactical",3],["scrForecast",4],["scrInfo",5],["scrSettings",6]];
+const SCR=[["scrClock",0],["scrPlanes",1],["scrMeteo",2],["scrTactical",3],["scrForecast",4],["scrFinance",5],["scrInfo",6],["scrSettings",7]];
 function drawScrBtns(cur,enabled){
  if(!$("scrBtns")) return;
  $("scrBtns").innerHTML=SCR.map(([k,i])=>{
@@ -1341,9 +1468,155 @@ const AUTO = [
  ["sTactical","change","screens",()=>getScreensObj()],
  ["sForecast","change","screens",()=>getScreensObj()],
  ["sInfo","change","screens",()=>getScreensObj()],
+ ["sFinance","change","screens",()=>getScreensObj()],
+ ["financeTickers","change","financeTickers",e=>e.value.trim()],
  ["bzNightMute","change","buzzerNightMute",e=>e.checked],
  ["hostname","change","hostname",e=>{ if($("netHost")) $("netHost").textContent=e.value+".local"; return e.value.trim(); }],
 ];
+
+const FIN_PRESETS = [
+  { group: "Európske ETF fondy (Amundi, Vanguard, iShares)", items: [
+    { v: "CW8.PA", l: "🇪🇺 Amundi MSCI World (CW8.PA)" },
+    { v: "500.PA", l: "🇪🇺 Amundi S&P 500 (500.PA)" },
+    { v: "C50.PA", l: "🇪🇺 Amundi Euro Stoxx 50 (C50.PA)" },
+    { v: "C6E.PA", l: "🇪🇺 Amundi Stoxx Europe 600 (C6E.PA)" },
+    { v: "VWCE.DE", l: "🌍 Vanguard FTSE All-World (VWCE.DE)" },
+    { v: "SXR8.DE", l: "🇺🇸 iShares Core S&P 500 (SXR8.DE)" },
+    { v: "EUNL.DE", l: "🌍 iShares Core MSCI World (EUNL.DE)" },
+    { v: "EQQQ.DE", l: "💻 Invesco EQQQ Nasdaq 100 (EQQQ.DE)" }
+  ]},
+  { group: "Kryptomeny / Crypto", items: [
+    { v: "BTC-USD", l: "₿ Bitcoin (BTC-USD)" },
+    { v: "ETH-USD", l: "Ξ Ethereum (ETH-USD)" },
+    { v: "SOL-USD", l: "◎ Solana (SOL-USD)" },
+    { v: "XRP-USD", l: "✕ Ripple (XRP-USD)" },
+    { v: "DOGE-USD", l: "Ð Dogecoin (DOGE-USD)" }
+  ]},
+  { group: "Akciové indexy / Indices", items: [
+    { v: "^GSPC", l: "📈 S&P 500 (^GSPC)" },
+    { v: "^IXIC", l: "📊 Nasdaq Composite (^IXIC)" },
+    { v: "^DJI", l: "🏛️ Dow Jones (^DJI)" },
+    { v: "^GDAXI", l: "🇩🇪 DAX 40 Germany (^GDAXI)" },
+    { v: "^FTSE", l: "🇬🇧 FTSE 100 London (^FTSE)" }
+  ]},
+  { group: "Komodity / Commodities", items: [
+    { v: "GC=F", l: "🥇 Zlato / Gold (GC=F)" },
+    { v: "SI=F", l: "🥈 Striebro / Silver (SI=F)" },
+    { v: "CL=F", l: "🛢️ Ropa WTI Crude (CL=F)" },
+    { v: "BZ=F", l: "🛢️ Ropa Brent (BZ=F)" },
+    { v: "NG=F", l: "🔥 Zemný plyn (NG=F)" },
+    { v: "HG=F", l: "🧱 Meď / Copper (HG=F)" }
+  ]},
+  { group: "Svetové akcie / Equities", items: [
+    { v: "NVDA", l: "💻 Nvidia (NVDA)" },
+    { v: "AAPL", l: "🍏 Apple (AAPL)" },
+    { v: "MSFT", l: "🪟 Microsoft (MSFT)" },
+    { v: "TSLA", l: "🚗 Tesla (TSLA)" },
+    { v: "AMZN", l: "📦 Amazon (AMZN)" },
+    { v: "GOOGL", l: "🔍 Alphabet Google (GOOGL)" },
+    { v: "META", l: "♾️ Meta Platforms (META)" }
+  ]},
+  { group: "Meny & Forex", items: [
+    { v: "EURUSD=X", l: "💶 EUR / USD (EURUSD=X)" },
+    { v: "CZK=X", l: "💵 USD / CZK (CZK=X)" },
+    { v: "EURCZK=X", l: "💶 EUR / CZK (EURCZK=X)" }
+  ]}
+];
+
+function initFinPresets() {
+  for (let i = 1; i <= 4; i++) {
+    const sel = $("finSel" + i);
+    if (!sel || sel.options.length > 1) continue;
+    sel.innerHTML = '<option value="">-- Vlastný / Presets --</option>';
+    FIN_PRESETS.forEach(g => {
+      const grp = document.createElement("optgroup");
+      grp.label = g.group;
+      g.items.forEach(it => {
+        const opt = document.createElement("option");
+        opt.value = it.v;
+        opt.textContent = it.l;
+        grp.appendChild(opt);
+      });
+      sel.appendChild(grp);
+    });
+  }
+}
+
+function onFinSelChange(slot) {
+  const sel = $("finSel" + slot);
+  const tk = $("finTk" + slot);
+  if (!sel || !tk) return;
+  if (sel.value) tk.value = sel.value;
+  syncAndSaveFinance();
+}
+
+function onFinInputChange(slot) {
+  const sel = $("finSel" + slot);
+  const tk = $("finTk" + slot);
+  if (!tk) return;
+  tk.value = tk.value.toUpperCase().replace(/\s+/g, "");
+  if (sel) {
+    sel.value = tk.value;
+    if (sel.selectedIndex < 0) sel.value = "";
+  }
+  syncAndSaveFinance();
+}
+
+function clearFinSlot(slot) {
+  const sel = $("finSel" + slot);
+  const tk = $("finTk" + slot);
+  if (tk) tk.value = "";
+  if (sel) sel.value = "";
+  syncAndSaveFinance();
+}
+
+function addFinPreset(symbol) {
+  let target = 0;
+  for (let i = 1; i <= 4; i++) {
+    const el = $("finTk" + i);
+    if (el && !el.value.trim()) { target = i; break; }
+  }
+  if (!target) target = 4;
+  const tk = $("finTk" + target);
+  const sel = $("finSel" + target);
+  if (tk) tk.value = symbol;
+  if (sel) {
+    sel.value = symbol;
+    if (sel.selectedIndex < 0) sel.value = "";
+  }
+  syncAndSaveFinance();
+}
+
+function syncAndSaveFinance() {
+  const list = [];
+  for (let i = 1; i <= 4; i++) {
+    const el = $("finTk" + i);
+    if (el) {
+      const v = el.value.trim().toUpperCase();
+      if (v) list.push(v);
+    }
+  }
+  const csv = list.join(",");
+  if ($("financeTickers")) $("financeTickers").value = csv;
+  autoSave("financeTickers", csv);
+}
+
+function loadFinanceTickers(csv) {
+  initFinPresets();
+  const parts = (csv || "").split(",").map(s => s.trim().toUpperCase());
+  for (let i = 1; i <= 4; i++) {
+    const val = parts[i - 1] || "";
+    const tk = $("finTk" + i);
+    const sel = $("finSel" + i);
+    if (tk) tk.value = val;
+    if (sel) {
+      sel.value = val;
+      if (sel.selectedIndex < 0) sel.value = "";
+    }
+  }
+  if ($("financeTickers")) $("financeTickers").value = csv || "";
+}
+
 function wireAutoSave(){
  AUTO.forEach(([id,ev,key,get])=>{
   const el=$(id); if(!el) return;
@@ -1360,6 +1633,8 @@ async function load(){
  $("sClock").checked=CFG.screens.clock;$("sPlanes").checked=CFG.screens.planes;
  $("sMeteo").checked=CFG.screens.meteo;$("sTactical").checked=CFG.screens.tactical;$("sForecast").checked=CFG.screens.forecast;
  if($("sInfo")) $("sInfo").checked=CFG.screens.info!==false;
+ if($("sFinance")) $("sFinance").checked=CFG.screens.finance!==false;
+ if(CFG.financeTickers !== undefined) loadFinanceTickers(CFG.financeTickers);
  $("autoRotate").value=CFG.autoRotate;$("radarSrc").value=CFG.radarSrc;
  if($("showLegends")) $("showLegends").checked=!!CFG.showLegends;
  if($("showLegendsMeteo")) $("showLegendsMeteo").checked=!!CFG.showLegends;
@@ -1444,7 +1719,7 @@ async function status(){
   if($("rMinus")){ $("rMinus").disabled=!hasR; $("rMinus").style.opacity=hasR?"1":".4"; }
   if($("rPlus")){ $("rPlus").disabled=!hasR; $("rPlus").style.opacity=hasR?"1":".4"; }
   
-  const scrKeys=["scrClock","scrPlanes","scrMeteo","scrTactical","scrForecast","scrSettings"];
+  const scrKeys=["scrClock","scrPlanes","scrMeteo","scrTactical","scrForecast","scrInfo","scrFinance","scrSettings"];
   const curKey = scrKeys[s.screen] || "scrClock";
   const curName = (D[L] && D[L][curKey]) ? D[L][curKey] : ("Screen " + s.screen);
   if($("liveDispName")) $("liveDispName").textContent = curName;
@@ -1511,7 +1786,8 @@ function body(){return{
  hostname:$("hostname")?$("hostname").value.trim():undefined,
  cOver:$("cOver")?$("cOver").checked:true,
  ovRad:$("ovRad")?parseFloat($("ovRad").value)||10:10,
- screens:{clock:$("sClock").checked,planes:$("sPlanes").checked,meteo:$("sMeteo").checked,tactical:$("sTactical").checked,forecast:$("sForecast").checked,info:$("sInfo")?$("sInfo").checked:true}
+ screens:{clock:$("sClock").checked,planes:$("sPlanes").checked,meteo:$("sMeteo").checked,tactical:$("sTactical").checked,forecast:$("sForecast").checked,info:$("sInfo")?$("sInfo").checked:true,finance:$("sFinance")?$("sFinance").checked:true},
+ financeTickers:$("financeTickers")?$("financeTickers").value.trim():undefined
 };}
 
 function getScreensObj(){
@@ -1521,7 +1797,8 @@ function getScreensObj(){
   meteo: $("sMeteo") ? $("sMeteo").checked : true,
   tactical: $("sTactical") ? $("sTactical").checked : true,
   forecast: $("sForecast") ? $("sForecast").checked : true,
-  info: $("sInfo") ? $("sInfo").checked : true
+  info: $("sInfo") ? $("sInfo").checked : true,
+  finance: $("sFinance") ? $("sFinance").checked : true
  };
 }
 

@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20SK%20%7C%20CZ-green.svg)
-![Release](https://img.shields.io/badge/Release-v1.5.9-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v1.8.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, and designer clock faces on a round 2.1" IPS touchscreen.**  
@@ -28,6 +28,25 @@ Designed specifically for the **Waveshare ESP32-S3-Touch-LCD-2.1** development b
   <em>From left to right: <b>Tactical Radar</b> (live aircraft tracking over precipitation map), <b>Aircraft Detail</b> (live aircraft photo via Planespotters API), <b>Weather Radar</b> (animated loop), <b>Stacked Bold Watch Face</b>.</em>
 </p>
 
+
+---
+
+## 🌟 Key Highlights in v1.8.0
+
+- 📈 **New Markets, Stocks & Crypto Screen (`SCREEN_FINANCE_I`):**
+  - Brand new interactive display screen positioned between Forecast and Info (`Forecast` -> `Markets` -> `Info`).
+  - Real-time tracking of 4 customizable market tickers (Stocks, European ETFs like Amundi MSCI World, Stoxx 600, Commodities like Gold/Oil, Cryptocurrencies, and Forex pairs) using Yahoo Finance v8 chart API.
+  - Interactive sparkline chart for the active ticker, percentage gain/loss color indicators, and category badges (`CRYPTO`, `COMMODITY`, `ETF`, `STOCK`, `FOREX`).
+  - Touch interaction: tap to cycle active sparkline chart, double-tap to trigger immediate data refresh.
+  - Fully asynchronous non-blocking background fetching on Core 0.
+- 🌐 **Web Dashboard Markets Configuration:**
+  - Dedicated "📈 Markets & Crypto" tab with direct "Show on display" trigger and carousel inclusion toggle.
+  - 4 clean independent ticker input fields with fast preset selections for popular ETFs, commodities, and tech stocks.
+- 🔧 **Vertical Screen Shift & ST7701 Display Driver Fix:**
+  - Eliminated screen drift / vertical shift-up bug during swipes and transitions by preventing disruptive RGB panel restarts (`esp_lcd_rgb_panel_restart`) which desynchronized ST7701 gate driver counters.
+  - Calibrated ST7701 vertical back porch and sync timings (`VBP 20`, `VPW 8`, `VFP 10`) strictly to hardware spec.
+- 🔄 **Display Screen Order Synchronization:**
+  - Screen sequence on hardware matches web UI exactly: Clock (0) -> Planes (1) -> Meteo (2) -> Tactical (3) -> Forecast (4) -> Markets (5) -> Info (6) -> Settings (7).
 
 ---
 

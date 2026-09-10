@@ -23,12 +23,14 @@
 #include "NightMode.h"
 #include "Watchdog.h"
 #include "GithubOTA.h"
+#include "FinanceData.h"
 #include <WiFi.h>
 
 static SemaphoreHandle_t s_mtxSettings = NULL;
 static SemaphoreHandle_t s_mtxAdsb     = NULL;
 static SemaphoreHandle_t s_mtxRadar    = NULL;
 static SemaphoreHandle_t s_mtxForecast = NULL;
+static SemaphoreHandle_t s_mtxFinance  = NULL;
 static SemaphoreHandle_t s_mtxRoute    = NULL;
 
 static TaskHandle_t s_netTaskHandle = NULL;
@@ -38,6 +40,7 @@ static volatile bool s_paused = false;
 static volatile bool s_adsbUpdated = false;
 static volatile bool s_radarUpdated = false;
 static volatile bool s_forecastUpdated = false;
+static volatile bool s_financeUpdated = false;
 static volatile bool s_routeUpdated = false;
 
 // Active state for Core 0
@@ -48,6 +51,7 @@ static float  s_targetRangeKm = 25.0f;
 static volatile bool s_reqAdsb = false;
 static volatile bool s_reqRadar = false;
 static volatile bool s_reqForecast = false;
+static volatile bool s_reqFinance = false;
 
 // Mutex Helpers
 void Async_LockSettings()  { if (s_mtxSettings) xSemaphoreTake(s_mtxSettings, pdMS_TO_TICKS(200)); }
@@ -61,6 +65,9 @@ void Async_UnlockRadar()   { if (s_mtxRadar) xSemaphoreGive(s_mtxRadar); }
 
 void Async_LockForecast()  { if (s_mtxForecast) xSemaphoreTake(s_mtxForecast, pdMS_TO_TICKS(200)); }
 void Async_UnlockForecast(){ if (s_mtxForecast) xSemaphoreGive(s_mtxForecast); }
+
+void Async_LockFinance()   { if (s_mtxFinance) xSemaphoreTake(s_mtxFinance, pdMS_TO_TICKS(200)); }
+void Async_UnlockFinance() { if (s_mtxFinance) xSemaphoreGive(s_mtxFinance); }
 
 void Async_LockRoute()     { if (s_mtxRoute) xSemaphoreTake(s_mtxRoute, pdMS_TO_TICKS(200)); }
 void Async_UnlockRoute()   { if (s_mtxRoute) xSemaphoreGive(s_mtxRoute); }
@@ -91,6 +98,8 @@ void Async_RequestRoute(const char* callsign, float lat, float lon) {
   Route_Select(callsign, lat, lon);
 }
 
+void Async_RequestFinance() { s_reqFinance = true; }
+
 bool Async_TakeAdsbUpdated() {
   if (s_adsbUpdated) { s_adsbUpdated = false; return true; }
   return false;
@@ -103,6 +112,11 @@ bool Async_TakeRadarUpdated() {
 
 bool Async_TakeForecastUpdated() {
   if (s_forecastUpdated) { s_forecastUpdated = false; return true; }
+  return false;
+}
+
+bool Async_TakeFinanceUpdated() {
+  if (s_financeUpdated) { s_financeUpdated = false; return true; }
   return false;
 }
 
@@ -121,6 +135,7 @@ static void asyncWorkerTask(void* param) {
   unsigned long lastForecastFetch = 0;
   unsigned long lastOutsideFetch = 0;
   unsigned long lastRadarFetch = 0;
+  unsigned long lastFinanceFetch = 0;
 
   Serial.println("AsyncCore: Worker task running on Core 0");
 
@@ -244,6 +259,17 @@ static void asyncWorkerTask(void* param) {
             Outside_Tick();
             lastTlsTime = millis();
           }
+          // 6. Finance Data (Markets, Crypto, Stocks, Commodities)
+          else if (curScr == SCREEN_FINANCE_I || s_reqFinance || (now - lastFinanceFetch >= FINANCE_PERIOD_MS)) {
+            if (Finance_Step()) {
+              s_financeUpdated = true;
+              lastTlsTime = millis();
+            }
+            if (!Finance_IsBusy()) {
+              s_reqFinance = false;
+              lastFinanceFetch = now;
+            }
+          }
         }
       }
     }
@@ -258,6 +284,7 @@ void Async_Begin() {
   if (!s_mtxAdsb)     s_mtxAdsb     = xSemaphoreCreateMutex();
   if (!s_mtxRadar)    s_mtxRadar    = xSemaphoreCreateMutex();
   if (!s_mtxForecast) s_mtxForecast = xSemaphoreCreateMutex();
+  if (!s_mtxFinance)  s_mtxFinance  = xSemaphoreCreateMutex();
   if (!s_mtxRoute)    s_mtxRoute    = xSemaphoreCreateMutex();
   if (!s_mtxI2c)      s_mtxI2c      = xSemaphoreCreateRecursiveMutex();
 

@@ -31,6 +31,7 @@
 #include "GithubOTA.h"
 #include "FlightStats.h"
 #include "PrecipTracker.h"
+#include "FinanceData.h"
 #include <Wire.h>
 
 #include <WiFi.h>
@@ -147,7 +148,8 @@ static void handlePostConfig() {
                           (Settings_ScreenEnabled(SCREEN_METEO_I) << 2) |
                           (Settings_ScreenEnabled(SCREEN_TACTICAL_I) << 3) |
                           (Settings_ScreenEnabled(SCREEN_FORECAST_I) << 4) |
-                          (Settings_ScreenEnabled(SCREEN_INFO_I) << 5);
+                          (Settings_ScreenEnabled(SCREEN_FINANCE_I) << 5) |
+                          (Settings_ScreenEnabled(SCREEN_INFO_I) << 6);
 
   Settings_FromJson(doc.as<JsonObjectConst>());
   s_reqRedraw = true;
@@ -156,12 +158,17 @@ static void handlePostConfig() {
   // you are still looking at the slider.
   NightMode_Apply();
 
+  if (doc["financeTickers"].is<const char*>()) {
+    Finance_SetTickers(Settings_FinanceTickers());
+  }
+
   const uint8_t newMask = (Settings_ScreenEnabled(SCREEN_CLOCK_I) << 0) |
                           (Settings_ScreenEnabled(SCREEN_PLANES_I) << 1) |
                           (Settings_ScreenEnabled(SCREEN_METEO_I) << 2) |
                           (Settings_ScreenEnabled(SCREEN_TACTICAL_I) << 3) |
                           (Settings_ScreenEnabled(SCREEN_FORECAST_I) << 4) |
-                          (Settings_ScreenEnabled(SCREEN_INFO_I) << 5);
+                          (Settings_ScreenEnabled(SCREEN_FINANCE_I) << 5) |
+                          (Settings_ScreenEnabled(SCREEN_INFO_I) << 6);
   const bool moved = (fabs(oldLat - Settings_Lat()) > 1e-6) ||
                      (fabs(oldLon - Settings_Lon()) > 1e-6);
   if (moved) Forecast_Invalidate();
@@ -171,8 +178,8 @@ static void handlePostConfig() {
     Async_RequestRadar();
   }
 
-  // Location change or enabled screen set change requires a clean start / redraw
-  if (moved || oldMask != newMask)
+  // Location change requires a clean restart to re-calculate radar coordinates and weather
+  if (moved)
     s_wantRestart = true;
 
   JsonDocument res;

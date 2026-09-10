@@ -78,6 +78,7 @@ bool Net_GetString(const char* url, String& out, const char* tag) {
   http.setConnectTimeout(6000);
   http.setTimeout(10000);
   http.setReuse(false);
+  http.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
   if (!http.begin(client, url)) { Serial.printf("%s: begin() failed\n", tag); return false; }
   http.collectHeaders(DATE_HDR, 1);
 

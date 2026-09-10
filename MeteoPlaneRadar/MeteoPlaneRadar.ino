@@ -89,6 +89,8 @@
 #include "ScreenClock.h"
 #include "ScreenForecast.h"
 #include "ScreenInfo.h"
+#include "ScreenFinance.h"
+#include "FinanceData.h"
 #include "FlightStats.h"
 #include "PrecipTracker.h"
 #include "ScreenSettings.h"
@@ -297,6 +299,7 @@ static void drawActive() {
     case SCREEN_TACTICAL_I: ScreenTactical_Draw(); break;
     case SCREEN_FORECAST_I: ScreenForecast_Draw(); break;
     case SCREEN_INFO_I:     ScreenInfo_Draw();     break;
+    case SCREEN_FINANCE_I:  ScreenFinance_Draw();  break;
     case SCREEN_SETTINGS_I: ScreenSettings_Draw(); break;
   }
   if (!WebConfig_UpdateBusy() && !ScreenSettings_IsModalOpen()) {
@@ -316,6 +319,7 @@ static void enterActive() {
     case SCREEN_TACTICAL_I: ScreenTactical_Enter(); break;
     case SCREEN_FORECAST_I: ScreenForecast_Enter(); break;
     case SCREEN_INFO_I:     ScreenInfo_Enter();     break;
+    case SCREEN_FINANCE_I:  ScreenFinance_Enter();  break;
     case SCREEN_SETTINGS_I: ScreenSettings_Enter(); break;
   }
   drawActive();
@@ -358,6 +362,7 @@ static void switchScreen(int dir) {
     case SCREEN_TACTICAL_I: ScreenTactical_Enter(); break;
     case SCREEN_FORECAST_I: ScreenForecast_Enter(); break;
     case SCREEN_INFO_I:     ScreenInfo_Enter();     break;
+    case SCREEN_FINANCE_I:  ScreenFinance_Enter();  break;
     case SCREEN_SETTINGS_I: ScreenSettings_Enter(); break;
   }
 
@@ -368,6 +373,7 @@ static void switchScreen(int dir) {
     case SCREEN_TACTICAL_I: ScreenTactical_Draw(); break;
     case SCREEN_FORECAST_I: ScreenForecast_Draw(); break;
     case SCREEN_INFO_I:     ScreenInfo_Draw();     break;
+    case SCREEN_FINANCE_I:  ScreenFinance_Draw();  break;
     case SCREEN_SETTINGS_I: ScreenSettings_Draw(); break;
   }
   drawScreenDots();
@@ -425,6 +431,7 @@ static bool activeTick() {
     case SCREEN_TACTICAL_I: return ScreenTactical_Tick();
     case SCREEN_FORECAST_I: return ScreenForecast_Tick();
     case SCREEN_INFO_I:     return ScreenInfo_Tick();
+    case SCREEN_FINANCE_I:  return ScreenFinance_Tick();
     case SCREEN_SETTINGS_I: return ScreenSettings_Tick();
   }
   return false;
@@ -452,6 +459,7 @@ static bool activeTap(int x, int y) {
     case SCREEN_PLANES_I:   return ScreenPlanes_HandleTap(x, y);
     case SCREEN_TACTICAL_I: return ScreenTactical_HandleTap(x, y);
     case SCREEN_INFO_I:     return ScreenInfo_HandleTap(x, y);
+    case SCREEN_FINANCE_I:  return ScreenFinance_HandleTap(x, y);
     case SCREEN_SETTINGS_I: return ScreenSettings_HandleTap(x, y);
     default: return false;
   }
@@ -550,17 +558,18 @@ static void dispatchTouch() {
 // stops cycling because someone brushed the glass.
 static unsigned long s_lastRotate = 0;
 
-static void autoRotateTick() {
+static bool autoRotateTick() {
   const uint16_t secs = Settings_AutoRotateSec();
-  if (secs == 0) return;
-  if (s_screen == SCREEN_SETTINGS_I) return;      // never cycle away from settings
+  if (secs == 0) return false;
+  if (s_screen == SCREEN_SETTINGS_I) return false;      // never cycle away from settings
 
   // Night clock-only mode or Ultra Night mode: stay on clock screen all night
   if ((Settings_NightClockOnly() || Settings_UltraNight()) && Settings_IsNight()) {
     if (s_screen != SCREEN_CLOCK_I) {
       gotoScreen(SCREEN_CLOCK_I);
+      return true;
     }
-    return;
+    return false;
   }
 
   unsigned long now = millis();
@@ -569,10 +578,10 @@ static void autoRotateTick() {
   // timer is kept fresh rather than stopped, so when the panel closes - by a
   // tap, or because the aircraft dropped out of the data - cycling resumes with
   // a full interval instead of switching away immediately.
-  if (activeModalOpen()) { s_lastRotate = now; return; }
+  if (activeModalOpen()) { s_lastRotate = now; return false; }
 
-  if (now < s_touchPauseUntil) return;
-  if (now - s_lastRotate < (unsigned long)secs * 1000UL) return;
+  if (now < s_touchPauseUntil) return false;
+  if (now - s_lastRotate < (unsigned long)secs * 1000UL) return false;
   s_lastRotate = now;
 
   // Step to the next visible DATA screen, skipping settings.
@@ -581,9 +590,12 @@ static void autoRotateTick() {
     next = (next + 1) % SCREEN_N;
     if (next != SCREEN_SETTINGS_I && screenVisible(next)) break;
   }
-  if (next == s_screen || next == SCREEN_SETTINGS_I) return;
+  if (next == s_screen || next == SCREEN_SETTINGS_I) return false;
   s_screen = next;
+  Settings_SetScreen((uint8_t)s_screen);
+  Async_SetActiveScreen((uint8_t)s_screen);
   enterActive();
+  return true;
 }
 
 static const char* resetReasonText() {
@@ -709,6 +721,7 @@ void setup() {
     for (int i = 0; i < SCREEN_N; i++) if (screenVisible(i)) { s_screen = i; break; }
   }
 
+  Finance_Init();
   Async_Begin();
   Async_SetActiveScreen((uint8_t)s_screen);
 
@@ -729,6 +742,7 @@ static void displayWatchdog() {
 #if DISPLAY_WD
   static uint32_t lastCount = 0;
   static unsigned long lastMove = 0;
+  static unsigned long lastResync = 0;
   static bool repaired = false;
   static bool armed = false;
 
@@ -852,7 +866,16 @@ void loop() {
       s_touchPauseUntil = millis() + autoRotatePauseMs();
     }
     if (WebConfig_TakeRedraw()) {
-      drawActive();
+      if (!screenVisible(s_screen) && s_screen != SCREEN_SETTINGS_I) {
+        for (int i = 0; i < SCREEN_N; i++) {
+          if (screenVisible(i) && i != SCREEN_SETTINGS_I) {
+            gotoScreen(i);
+            break;
+          }
+        }
+      } else {
+        drawActive();
+      }
     }
     if (WebConfig_TakeSelectPlane()) {
       if (s_screen != SCREEN_PLANES_I) {
@@ -888,7 +911,9 @@ void loop() {
     lastDraw = millis();
   }
 
-  autoRotateTick();
+  if (autoRotateTick()) {
+    lastDraw = millis();
+  }
 
   // Auto-switch to Tactical screen when an emergency squawk (7500 / 7600 / 7700) is detected
   if (Settings_SquawkAlert()) {

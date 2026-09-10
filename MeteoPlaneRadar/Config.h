@@ -266,9 +266,18 @@
 #define SCREEN_METEO_I    2
 #define SCREEN_TACTICAL_I 3
 #define SCREEN_FORECAST_I 4
-#define SCREEN_INFO_I     5
-#define SCREEN_SETTINGS_I 6
-#define SCREEN_N          7
+#define SCREEN_FINANCE_I  5
+#define SCREEN_INFO_I     6
+#define SCREEN_SETTINGS_I 7
+#define SCREEN_N          8
+
+// ---------------------------------------------------------------------------
+//  Financial Markets & Crypto
+// ---------------------------------------------------------------------------
+#define DEFAULT_FINANCE_TICKERS  "BTC-USD,^GSPC,AAPL,GC=F"
+#define FINANCE_PERIOD_MS        (5UL * 60UL * 1000UL) // 5 minutes
+#define FINANCE_STEP_GAP_MS      2000UL                // 2 seconds between ticker queries
+#define FINANCE_MAX_ITEMS        8
 
 // Automatic screen cycling: 0 = off, otherwise SECONDS between switches (it was
 // minutes up to 0.6.0 - see Settings.h).
