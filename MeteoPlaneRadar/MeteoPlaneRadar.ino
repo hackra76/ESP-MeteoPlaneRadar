@@ -155,6 +155,7 @@ static unsigned long autoRotatePauseMs() {
 // Gesture state. File scope rather than static locals in loop(), because
 // touchPump() now runs from two places.
 static bool          s_touching = false;
+static bool          s_gestureConsumed = false;
 static int           s_startX = 0, s_startY = 0;
 static int           s_lastX = 0, s_lastY = 0;
 static unsigned long s_startMs = 0;
@@ -182,20 +183,50 @@ static void touchPump() {
   if (t.points > 0) {
     if (!s_touching) {
       s_touching = true;
+      s_gestureConsumed = false;
       s_startX = t.x; s_startY = t.y; s_startMs = now;
     }
     s_lastX = t.x; s_lastY = t.y;
     s_lastSeenMs = now;
-    // Deliberately NOT pausing the cycling here. Merely putting a finger on the
-    // glass - to pick an aircraft - is not a request to stop; only the gestures
-    // that mean "I am driving this myself" are, and those are handled in
-    // dispatchTouch() once the gesture is actually recognised.
+
+    // Immediate gesture dispatch while finger is still in motion (reduces perceived swipe latency by ~400-600ms)
+    if (!s_gestureConsumed) {
+      const int dx = s_lastX - s_startX;
+      const int dy = s_lastY - s_startY;
+      const unsigned long dur = now - s_startMs;
+
+      if (dur <= 750) {
+        // 1. Pull down from top edge (Control Center)
+        if (s_startY <= 120 && dy >= 60 && abs(dx) < 80) {
+          s_pendKind = PEND_PULL_DOWN;
+          s_gestureConsumed = true;
+        }
+        // 2. Horizontal swipe: change screen (left = next, right = prev)
+        else if (abs(dx) >= 60 && abs(dx) > (int)(abs(dy) * 1.3f)) {
+          s_pendKind = PEND_SWIPE_SCREEN;
+          s_pendA = (dx < 0) ? +1 : -1;
+          s_gestureConsumed = true;
+        }
+        // 3. Vertical swipe: change zoom (or swipe up to close control center)
+        else if (abs(dy) >= 60 && abs(dy) > (int)(abs(dx) * 1.3f)) {
+          s_pendKind = PEND_SWIPE_ZOOM;
+          s_pendA = (dy < 0) ? -1 : +1;
+          s_gestureConsumed = true;
+        }
+      }
+    }
     return;
   }
 
   if (!s_touching || now - s_lastSeenMs < TOUCH_RELEASE_MS) return;
 
   s_touching = false;
+  const bool wasConsumed = s_gestureConsumed;
+  s_gestureConsumed = false;
+
+  // If already triggered during drag, don't re-dispatch or interpret as tap on release
+  if (wasConsumed) return;
+
   const int dx = s_lastX - s_startX;
   const int dy = s_lastY - s_startY;
   const unsigned long dur = s_lastSeenMs - s_startMs;
@@ -207,19 +238,18 @@ static void touchPump() {
 #endif
 
   if (dur <= 750) {
-    // 1. Pull down from top edge (Control Center)
-    if (s_startY <= 120 && dy >= 60 && abs(dx) < 80) {
+    // 1. Pull down fallback
+    if (s_startY <= 120 && dy >= 50 && abs(dx) < 80) {
       s_pendKind = PEND_PULL_DOWN;
     }
-    // 2. Horizontal swipe: change screen (left = next, right = prev)
-    else if (abs(dx) >= 60 && abs(dx) > abs(dy)) {
+    // 2. Horizontal swipe fallback
+    else if (abs(dx) >= 50 && abs(dx) > abs(dy)) {
       s_pendKind = PEND_SWIPE_SCREEN;
       s_pendA = (dx < 0) ? +1 : -1;
     }
-    // 3. Vertical swipe: change zoom (or swipe up to close control center)
-    else if (abs(dy) >= 60 && abs(dy) > abs(dx)) {
+    // 3. Vertical swipe fallback
+    else if (abs(dy) >= 50 && abs(dy) > abs(dx)) {
       s_pendKind = PEND_SWIPE_ZOOM;
-      // dy < 0 is swipe up (zoom in / smaller radius), dy > 0 is swipe down (zoom out / larger radius)
       s_pendA = (dy < 0) ? -1 : +1;
     }
     // 4. Short tap
