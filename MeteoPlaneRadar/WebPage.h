@@ -154,6 +154,7 @@ td:first-child{color:var(--mut);width:45%}
   <button data-tab="tScrTactical" data-i18n="tabScrTactical">🎯 Taktický radar</button>
   <button data-tab="tScrForecast" data-i18n="tabScrForecast">⛅ Predpoveď</button>
   <button data-tab="tScrFinance"  data-i18n="tabScrFinance">📈 Trhy & Krypto</button>
+  <button data-tab="tScrIss"      data-i18n="tabScrIss">🛰️ ISS Tracker</button>
   <button data-tab="tScrInfo"     data-i18n="tabScrInfo">ℹ️ Info & Štatistiky</button>
   <button data-tab="tSerial"      data-i18n="tabSerial" class="tab-serial">📟 Sériový monitor</button>
   <button data-tab="tCommon"      data-i18n="tabCommon" class="tab-common">⚙️ Spoločné nastavenia</button>
@@ -546,6 +547,52 @@ td:first-child{color:var(--mut);width:45%}
         </div>
       </section>
 
+      <!-- 6. OBRAZOVKA: ISS TRACKER -->
+      <section id="tScrIss" class="tab hide">
+        <div class="screen-hero">
+          <div class="hero-title">
+            <h2>🛰️ <span data-i18n="scrIssHdr">ISS Tracker (Medzinárodná vesmírna stanica)</span></h2>
+          </div>
+          <div class="hero-actions">
+            <button type="button" class="btn-live" onclick="goScreen(6)">
+              ▶ <span data-i18n="btnShowOnDisp">Zobraziť na displeji</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="row" style="margin-top:0;">
+            <label class="chk" style="font-weight:600;font-size:14px;">
+              <input type="checkbox" id="sIss">
+              <span data-i18n="scrIssActive">Zahrnúť obrazovku do automatického striedania</span>
+            </label>
+          </div>
+          <div class="row">
+            <label class="chk" style="font-size:13.5px;">
+              <input type="checkbox" id="issAlert">
+              <span data-i18n="issAlertLbl">🔊 Zvuková výstraha pri prelete stanice nad obzorom (v dosahu / nad hlavou)</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <h2 style="margin:0;" data-i18n="issTelemetryHdr">🛰️ Živá telemetria stanice ISS</h2>
+            <button type="button" class="sec" onclick="refreshIssLive()" style="padding:4px 10px;font-size:12px;" data-i18n="btnIssRefresh">🔄 Aktualizovať</button>
+          </div>
+          <table style="margin-top:4px;">
+            <tr><td data-i18n="issStateLbl">Aktuálny stav:</td><td><span class="pill" id="issStatePill">-</span></td></tr>
+            <tr><td data-i18n="issLatLonLbl">Poloha (Lat / Lon):</td><td><span class="stat-val" id="issPos">-</span></td></tr>
+            <tr><td data-i18n="issAltLbl">Výška letu:</td><td><span class="stat-val" id="issAltVal">-</span></td></tr>
+            <tr><td data-i18n="issVelLbl">Rýchlosť:</td><td><span class="stat-val" id="issVelVal">-</span></td></tr>
+            <tr><td data-i18n="issDistLbl">Vzdialenosť:</td><td><span class="stat-val" id="issDistVal">-</span></td></tr>
+            <tr><td data-i18n="issElLbl">Elevácia / Azimut:</td><td><span class="stat-val" id="issElVal">-</span></td></tr>
+            <tr><td data-i18n="issSunLbl">Osvetlenie:</td><td><span class="stat-val" id="issSunVal">-</span></td></tr>
+          </table>
+          <p class="hint" data-i18n="issHint">Sledovanie preletu Medzinárodnej vesmírnej stanice ISS v reálnom čase (API WhereTheISS). Zobrazuje mapu sveta s dňom/nocou, orbitálnu dráhu, horizont priamej viditeľnosti (~2200 km) a časovač ďalšieho preletu.</p>
+        </div>
+      </section>
+
       <!-- 7. OBRAZOVKA: INFO & ŠTATISTIKY -->
       <section id="tScrInfo" class="tab hide">
         <div class="screen-hero">
@@ -553,7 +600,7 @@ td:first-child{color:var(--mut);width:45%}
             <h2>ℹ️ <span data-i18n="scrInfoHdr">Info & Denná štatistika letov</span></h2>
           </div>
           <div class="hero-actions">
-            <button type="button" class="btn-live" onclick="goScreen(6)">
+            <button type="button" class="btn-live" onclick="goScreen(7)">
               ▶ <span data-i18n="btnShowOnDisp">Zobraziť na displeji</span>
             </button>
           </div>
@@ -1044,7 +1091,8 @@ const D={
   cOver:"✈️ Let nad hlavou (Overhead widget)",ovRad:"Poloměr přeletu nad hlavou (km)",bzOverhead:"🔊 Přelet nad hlavou (Overhead výstraha)",
    cPrecip:"🌧️ Výstraha blížících se srážek",bzPrecip:"🔊 Pípnutí při blížících se srážkách",precipTrackerHdr:"🌧️ Detekce blížících se srážek (Nowcasting)",precipHint:"Vektorová analýza pohybu frontu (TREC). Upozorní na déšť, kroupy nebo sníh, pouze pokud srážky směřují přímo k vaší poloze.",precipLiveHdr:"Aktuální stav nowcastingu:",
   scrShotHdr:"📸 Snímek displeje",scrShotNone:"Klikněte pro zachycení",btnTakeScrShot:"📸 Zachytit obrazovku",btnDlScrShot:"💾 Stáhnout BMP",scrShotOk:"Snímek úspěšně načten",scrShotErr:"Chyba načtení snímku",
-  tabSerial:"📟 Sériový monitor",serialHdr:"Sériový monitor (Live Web Console)",btnSerialStart:"Spustit monitor",btnSerialPause:"Pozastavit monitor",serialActive:"Aktivní (Live)",serialPaused:"Pozastaveno",serialAutoScroll:"Automatický posun",btnSerialCopy:"📋 Kopírovat",btnSerialDl:"💾 Stáhnout",btnSerialClear:"🧹 Vymazat",btnSerialSend:"Odeslat ↵",serialCopied:"Výpis zkopírován do schránky",serialCleared:"Konzole vymazána",serialHint:"Streamování výstupů sériového portu přes WiFi bez nutnosti USB kabelu. Při odchodu ze záložky se přenos automaticky pozastaví."
+  tabScrIss:"🛰️ ISS Tracker",scrIssHdr:"ISS Tracker (Mezinárodní vesmírná stanice)",scrIssActive:"Zahrnout obrazovku do automatického střídání",scrIss:"ISS Tracker",issAlertLbl:"🔊 Zvuková výstraha při přeletu stanice nad obzorem (v dosahu / nad hlavou)",issTelemetryHdr:"🛰️ Živá telemetrie stanice ISS",issStateLbl:"Aktuální stav:",issLatLonLbl:"Poloha (Lat / Lon):",issAltLbl:"Výška letu:",issVelLbl:"Rychlost:",issDistLbl:"Vzdálenost:",issElLbl:"Elevace / Azimut:",issSunLbl:"Osvětlení:",issSunlit:"☀️ Na denním světle",issEclipsed:"🌑 Ve stínu Země",issInRange:"🛰️ V dosahu přímé viditelnosti",issOverhead:"⭐ PŘÍMO NAD HLAVOU (> 45°)",issOutRange:"Mimo dosah horizontu",btnIssRefresh:"🔄 Aktualizovat telemetrii",issHint:"Sledování přeletu Mezinárodní vesmírné stanice ISS v reálném čase (API WhereTheISS). Zobrazuje mapu světa se dnem/nocí, orbitální dráhu, horizont přímé viditelnosti (~2200 km) a odpočet dalšího přeletu.",
+   tabSerial:"📟 Sériový monitor",serialHdr:"Sériový monitor (Live Web Console)",btnSerialStart:"Spustit monitor",btnSerialPause:"Pozastavit monitor",serialActive:"Aktivní (Live)",serialPaused:"Pozastaveno",serialAutoScroll:"Automatický posun",btnSerialCopy:"📋 Kopírovat",btnSerialDl:"💾 Stáhnout",btnSerialClear:"🧹 Vymazat",btnSerialSend:"Odeslat ↵",serialCopied:"Výpis zkopírován do schránky",serialCleared:"Konzole vymazána",serialHint:"Streamování výstupů sériového portu přes WiFi bez nutnosti USB kabelu. Při odchodu ze záložky se přenos automaticky pozastaví."
  },
  sk:{
   tabScrClock:"🕒 Hodiny",tabScrPlanes:"✈️ Lietadlá",tabScrMeteo:"🌧️ Meteoradar",tabScrTactical:"🎯 Taktický radar",tabScrForecast:"⛅ Predpoveď",tabScrInfo:"ℹ️ Info & Štatistiky",tabScrFinance:"📈 Trhy & Krypto",tabCommon:"⚙️ Spoločné nastavenia",
@@ -1123,7 +1171,8 @@ const D={
   cOver:"✈️ Prelet nad hlavou (Overhead widget)",ovRad:"Polomer preletu nad hlavou (km)",bzOverhead:"🔊 Prelet nad hlavou (Overhead výstraha)",
    cPrecip:"🌧️ Výstraha blížiacich sa zrážok",bzPrecip:"🔊 Pípnutie pri blížiacich sa zrážkach",precipTrackerHdr:"🌧️ Detekcia blížiacich sa zrážok (Nowcasting)",precipHint:"Vektorová analýza pohybu frontu (TREC). Upozorní na dážď, krúpy alebo sneh, iba ak zrážky smerujú priamo k vašej polohe.",precipLiveHdr:"Aktuálny stav nowcastingu:",
   scrShotHdr:"📸 Snímka displeja",scrShotNone:"Kliknite pre zachytenie",btnTakeScrShot:"📸 Zachytiť obrazovku",btnDlScrShot:"💾 Stiahnuť BMP",scrShotOk:"Snímka úspešne načítaná",scrShotErr:"Chyba načítania snímky",
-  tabSerial:"📟 Sériový monitor",serialHdr:"Sériový monitor (Live Web Console)",btnSerialStart:"Spustiť monitor",btnSerialPause:"Pozastaviť monitor",serialActive:"Aktívny (Live)",serialPaused:"Pozastavené",serialAutoScroll:"Automatický posun",btnSerialCopy:"📋 Kopírovať",btnSerialDl:"💾 Stiahnuť",btnSerialClear:"🧹 Vymazať",btnSerialSend:"Odoslať ↵",serialCopied:"Výpis skopírovaný do schránky",serialCleared:"Konzola vymazaná",serialHint:"Streamovanie výstupov sériového portu cez WiFi bez nutnosti USB kábla. Pri odchode zo záložky sa prenos automaticky pozastaví."
+  tabScrIss:"🛰️ ISS Tracker",scrIssHdr:"ISS Tracker (Medzinárodná vesmírna stanica)",scrIssActive:"Zahrnúť obrazovku do automatického striedania",scrIss:"ISS Tracker",issAlertLbl:"🔊 Zvuková výstraha pri prelete stanice nad obzorom (v dosahu / nad hlavou)",issTelemetryHdr:"🛰️ Živá telemetria stanice ISS",issStateLbl:"Aktuálny stav:",issLatLonLbl:"Poloha (Lat / Lon):",issAltLbl:"Výška letu:",issVelLbl:"Rýchlosť:",issDistLbl:"Vzdialenosť:",issElLbl:"Elevácia / Azimut:",issSunLbl:"Osvetlenie:",issSunlit:"☀️ Na dennom svetle",issEclipsed:"🌑 V tieni Zeme",issInRange:"🛰️ V dosahu priamej viditeľnosti",issOverhead:"⭐ PRIAMO NAD HLAVOU (> 45°)",issOutRange:"Mimo dosahu horizontu",btnIssRefresh:"🔄 Aktualizovať telemetriu",issHint:"Sledovanie preletu Medzinárodnej vesmírnej stanice ISS v reálnom čase (API WhereTheISS). Zobrazuje mapu sveta s dňom/nocou, orbitálnu dráhu, horizont priamej viditeľnosti (~2200 km) a časovač ďalšieho preletu.",
+   tabSerial:"📟 Sériový monitor",serialHdr:"Sériový monitor (Live Web Console)",btnSerialStart:"Spustiť monitor",btnSerialPause:"Pozastaviť monitor",serialActive:"Aktívny (Live)",serialPaused:"Pozastavené",serialAutoScroll:"Automatický posun",btnSerialCopy:"📋 Kopírovať",btnSerialDl:"💾 Stiahnuť",btnSerialClear:"🧹 Vymazať",btnSerialSend:"Odoslať ↵",serialCopied:"Výpis skopírovaný do schránky",serialCleared:"Konzola vymazaná",serialHint:"Streamovanie výstupov sériového portu cez WiFi bez nutnosti USB kábla. Pri odchode zo záložky sa prenos automaticky pozastaví."
  },
  en:{
   tabScrClock:"🕒 Clock",tabScrPlanes:"✈️ Aircraft",tabScrMeteo:"🌧️ Weather Radar",tabScrTactical:"🎯 Tactical Radar",tabScrForecast:"⛅ Forecast",tabScrInfo:"ℹ️ Info & Stats",tabScrFinance:"📈 Markets & Crypto",tabCommon:"⚙️ Shared Settings",
@@ -1202,7 +1251,8 @@ const D={
   cOver:"✈️ Overhead aircraft widget",ovRad:"Overhead radius (km)",bzOverhead:"🔊 Overhead aircraft alert",
    cPrecip:"🌧️ Approaching precipitation alert",bzPrecip:"🔊 Approaching precipitation alert chime",precipTrackerHdr:"🌧️ Approaching Precipitation Detection (Nowcasting)",precipHint:"Vector motion analysis (TREC). Alerts on incoming rain, hail, or snow only when heading towards your location.",precipLiveHdr:"Current nowcasting status:",
   scrShotHdr:"📸 Screen Capture",scrShotNone:"Click to capture",btnTakeScrShot:"📸 Capture Screen",btnDlScrShot:"💾 Download BMP",scrShotOk:"Screenshot captured successfully",scrShotErr:"Failed to capture screenshot",
-  tabSerial:"📟 Serial Monitor",serialHdr:"Serial Monitor (Live Web Console)",btnSerialStart:"Start Monitor",btnSerialPause:"Pause Monitor",serialActive:"Active (Live)",serialPaused:"Paused",serialAutoScroll:"Auto-scroll",btnSerialCopy:"📋 Copy",btnSerialDl:"💾 Download",btnSerialClear:"🧹 Clear",btnSerialSend:"Send ↵",serialCopied:"Log copied to clipboard",serialCleared:"Console cleared",serialHint:"Real-time serial output streaming over WiFi without needing a USB cable. Polling automatically pauses when switching tabs."
+  tabScrIss:"🛰️ ISS Tracker",scrIssHdr:"ISS Tracker (International Space Station)",scrIssActive:"Include screen in automatic cycling",scrIss:"ISS Tracker",issAlertLbl:"🔊 Acoustic alert when ISS is in range / overhead",issTelemetryHdr:"🛰️ Live ISS Telemetry",issStateLbl:"Current status:",issLatLonLbl:"Coordinates (Lat / Lon):",issAltLbl:"Altitude:",issVelLbl:"Velocity:",issDistLbl:"Slant range:",issElLbl:"Elevation / Azimuth:",issSunLbl:"Illumination:",issSunlit:"☀️ Daylight (Sunlit)",issEclipsed:"🌑 Earth Shadow (Eclipsed)",issInRange:"🛰️ In line of sight",issOverhead:"⭐ OVERHEAD PASS (> 45°)",issOutRange:"Out of line of sight",btnIssRefresh:"🔄 Refresh Telemetry",issHint:"Real-time orbital tracking of the International Space Station (WhereTheISS API). Displays world day/night terminator, ground track orbit, line-of-sight visibility footprint (~2,200 km) and countdown to the next overhead pass.",
+   tabSerial:"📟 Serial Monitor",serialHdr:"Serial Monitor (Live Web Console)",btnSerialStart:"Start Monitor",btnSerialPause:"Pause Monitor",serialActive:"Active (Live)",serialPaused:"Paused",serialAutoScroll:"Auto-scroll",btnSerialCopy:"📋 Copy",btnSerialDl:"💾 Download",btnSerialClear:"🧹 Clear",btnSerialSend:"Send ↵",serialCopied:"Log copied to clipboard",serialCleared:"Console cleared",serialHint:"Real-time serial output streaming over WiFi without needing a USB cable. Polling automatically pauses when switching tabs."
  }
 };
 
@@ -1238,6 +1288,7 @@ function showTab(id){
  document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.tab==id));
  if(id=="tCommon" && !g_otaLatest) checkGithubUpdates(false);
  if(id=="tScrInfo") fetchStats();
+ if(id=="tScrIss") refreshIssLive();
  if(id=="tSerial") startSerialPolling(); else stopSerialPolling();
  window.scrollTo(0,0);
 }
@@ -1245,7 +1296,7 @@ document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>showTab(b.dat
 
 function msg(t,c){$("msg").textContent=t;$("msg").className=c||"";setTimeout(()=>{$("msg").textContent=""},4000);}
 
-const SCR=[["scrClock",0],["scrPlanes",1],["scrMeteo",2],["scrTactical",3],["scrForecast",4],["scrFinance",5],["scrInfo",6],["scrSettings",7]];
+const SCR=[["scrClock",0],["scrPlanes",1],["scrMeteo",2],["scrTactical",3],["scrForecast",4],["scrFinance",5],["scrIss",6],["scrInfo",7],["scrSettings",8]];
 function drawScrBtns(cur,enabled){
  if(!$("scrBtns")) return;
  $("scrBtns").innerHTML=SCR.map(([k,i])=>{
@@ -1470,6 +1521,8 @@ const AUTO = [
  ["sInfo","change","screens",()=>getScreensObj()],
  ["sFinance","change","screens",()=>getScreensObj()],
  ["financeTickers","change","financeTickers",e=>e.value.trim()],
+ ["sIss","change","screens",()=>getScreensObj()],
+ ["issAlert","change","issAlert",e=>e.checked],
  ["bzNightMute","change","buzzerNightMute",e=>e.checked],
  ["hostname","change","hostname",e=>{ if($("netHost")) $("netHost").textContent=e.value+".local"; return e.value.trim(); }],
 ];
@@ -1634,6 +1687,8 @@ async function load(){
  $("sMeteo").checked=CFG.screens.meteo;$("sTactical").checked=CFG.screens.tactical;$("sForecast").checked=CFG.screens.forecast;
  if($("sInfo")) $("sInfo").checked=CFG.screens.info!==false;
  if($("sFinance")) $("sFinance").checked=CFG.screens.finance!==false;
+ if($("sIss")) $("sIss").checked=CFG.screens.iss!==false;
+ if($("issAlert")) $("issAlert").checked=!!CFG.issAlert;
  if(CFG.financeTickers !== undefined) loadFinanceTickers(CFG.financeTickers);
  $("autoRotate").value=CFG.autoRotate;$("radarSrc").value=CFG.radarSrc;
  if($("showLegends")) $("showLegends").checked=!!CFG.showLegends;
@@ -1719,11 +1774,31 @@ async function status(){
   if($("rMinus")){ $("rMinus").disabled=!hasR; $("rMinus").style.opacity=hasR?"1":".4"; }
   if($("rPlus")){ $("rPlus").disabled=!hasR; $("rPlus").style.opacity=hasR?"1":".4"; }
   
-  const scrKeys=["scrClock","scrPlanes","scrMeteo","scrTactical","scrForecast","scrInfo","scrFinance","scrSettings"];
+  const scrKeys=["scrClock","scrPlanes","scrMeteo","scrTactical","scrForecast","scrFinance","scrIss","scrInfo","scrSettings"];
   const curKey = scrKeys[s.screen] || "scrClock";
   const curName = (D[L] && D[L][curKey]) ? D[L][curKey] : ("Screen " + s.screen);
   if($("liveDispName")) $("liveDispName").textContent = curName;
   if($("hwCurScreenName")) $("hwCurScreenName").textContent = curName;
+    if(s.iss !== undefined){
+    if($("issStatePill")){
+      if(s.issOverhead){
+        $("issStatePill").textContent = (D[L]&&D[L].issOverhead) ? D[L].issOverhead : "⭐ OVERHEAD PASS";
+        $("issStatePill").className = "pill pill-warn";
+      } else if(s.issInRange){
+        $("issStatePill").textContent = (D[L]&&D[L].issInRange) ? D[L].issInRange : "🛰️ IN RANGE";
+        $("issStatePill").className = "pill pill-ok";
+      } else {
+        $("issStatePill").textContent = (D[L]&&D[L].issOutRange) ? D[L].issOutRange : "Out of range";
+        $("issStatePill").className = "pill";
+      }
+    }
+    if($("issPos") && s.issLat !== undefined) $("issPos").textContent = (s.issLat >= 0 ? s.issLat.toFixed(2)+"°N" : Math.abs(s.issLat).toFixed(2)+"°S") + ", " + (s.issLon >= 0 ? s.issLon.toFixed(2)+"°E" : Math.abs(s.issLon).toFixed(2)+"°W");
+    if($("issAltVal") && s.issAlt !== undefined) $("issAltVal").textContent = s.issAlt + " km (" + Math.round(s.issAlt * 0.621371) + " mi)";
+    if($("issVelVal") && s.issVel !== undefined) $("issVelVal").textContent = s.issVel + " km/h (" + Math.round(s.issVel * 0.621371) + " mph / " + (s.issVel / 3600).toFixed(2) + " km/s)";
+    if($("issDistVal") && s.issDist !== undefined) $("issDistVal").textContent = s.issDist + " km";
+    if($("issElVal") && s.issEl !== undefined) $("issElVal").textContent = s.issEl + "° / " + s.issAz + "°";
+    if($("issSunVal") && s.issSun !== undefined) $("issSunVal").textContent = s.issSun ? ((D[L]&&D[L].issSunlit) ? D[L].issSunlit : "☀️ Sunlit") : ((D[L]&&D[L].issEclipsed) ? D[L].issEclipsed : "🌑 Eclipsed");
+  }
   if(s.precip && $("livePrecipStatus")){
     $("livePrecipStatus").textContent = s.precip;
     if(s.precipStatus === 2){
@@ -1786,7 +1861,8 @@ function body(){return{
  hostname:$("hostname")?$("hostname").value.trim():undefined,
  cOver:$("cOver")?$("cOver").checked:true,
  ovRad:$("ovRad")?parseFloat($("ovRad").value)||10:10,
- screens:{clock:$("sClock").checked,planes:$("sPlanes").checked,meteo:$("sMeteo").checked,tactical:$("sTactical").checked,forecast:$("sForecast").checked,info:$("sInfo")?$("sInfo").checked:true,finance:$("sFinance")?$("sFinance").checked:true},
+ screens:{clock:$("sClock").checked,planes:$("sPlanes").checked,meteo:$("sMeteo").checked,tactical:$("sTactical").checked,forecast:$("sForecast").checked,finance:$("sFinance")?$("sFinance").checked:true,iss:$("sIss")?$("sIss").checked:true,info:$("sInfo")?$("sInfo").checked:true},
+ issAlert:$("issAlert")?$("issAlert").checked:false,
  financeTickers:$("financeTickers")?$("financeTickers").value.trim():undefined
 };}
 
@@ -1797,9 +1873,18 @@ function getScreensObj(){
   meteo: $("sMeteo") ? $("sMeteo").checked : true,
   tactical: $("sTactical") ? $("sTactical").checked : true,
   forecast: $("sForecast") ? $("sForecast").checked : true,
-  info: $("sInfo") ? $("sInfo").checked : true,
-  finance: $("sFinance") ? $("sFinance").checked : true
+  finance: $("sFinance") ? $("sFinance").checked : true,
+  iss: $("sIss") ? $("sIss").checked : true,
+  info: $("sInfo") ? $("sInfo").checked : true
  };
+}
+
+async function refreshIssLive(){
+  try{
+    await fetch("/api/iss/refresh",{method:"POST"});
+    await status();
+    msg((D[L]&&D[L].autoSaved)?D[L].autoSaved:"OK","ok");
+  }catch(e){}
 }
 
 function saveScreens(){

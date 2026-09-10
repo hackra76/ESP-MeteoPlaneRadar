@@ -9,6 +9,23 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [1.9.0] - 2026-09-10
+
+### Pridané / Added
+- **Nová obrazovka Sledovanie ISS & Obežnej dráhy (ISS Orbit Tracker - `SCREEN_ISS_I`):**
+  - Plnohodnotná nová obrazovka zaradená medzi Trhy & Krypto a Informácie (`Markets` -> `ISS` -> `Info`).
+  - Globálna mapa sveta (360×180 equirectangular) s dynamickým vykresľovaním dňa a noci (solárny terminátor vypočítaný podľa reálneho slnečného času a deklinácie).
+  - Vykreslenie trajektórie ISS: minulá dráha (45 min, prerušovaná čiara) a budúca predpovedaná dráha (92 min, plná jantárová krivka).
+  - Kruh zemského horizontu / viditeľnosti z paluby stanice (~2 200 km) s pulzujúcim stredovým piktogramom ISS a zameriavačom domácej polohy.
+  - Telemetrický HUD panel: Výška (Altitude v km), Rýchlosť (Velocity v tisíckach km/h), Šikmá vzdialenosť od pozorovateľa (Distance v km) a Elevácia / výškový uhol nad obzorom.
+  - Spodná karta stavu preletu: Indikátor viditeľnosti (IN RANGE / OUT OF RANGE), Azimut stanice so svetovou stranou, osvetlenie (Sunlit / In Eclipse), odpočet nasledujúceho preletu a maximálna elevácia.
+  - Akustický sonarový ping (`BEEP_SONAR_PING`) pri vstupe ISS do zóny viditeľnosti zo zeme.
+  - Interaktívne dotykové tlačidlo zapnutia/vypnutia zvukového upozornenia priamo na displeji a možnosť vynútenia obnovy dvojitým ťuknutím.
+- **Webové rozhranie pre správu a živú telemetriu ISS:**
+  - Samostatná karta "🛰️ ISS" v prehliadači s okamžitým prepínačom na displej a zaradením do kolobehu obrazoviek.
+  - Živá tabuľka telemetrických dát (zemepisná šírka, dĺžka, rýchlosť, stav viditeľnosti, azimut a elevácia) aktualizovaná cez REST API.
+  - Prepínač akustického upozornenia pri prelete (`issAlert`).
+
 ## [1.8.0] - 2026-09-10
 
 ### Pridané / Added

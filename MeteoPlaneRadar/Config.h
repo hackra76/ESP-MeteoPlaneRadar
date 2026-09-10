@@ -193,9 +193,9 @@
 // ---------------------------------------------------------------------------
 //  Network
 // ---------------------------------------------------------------------------
-// A TLS handshake needs roughly 35-40 kB of internal RAM on ESP32-S3.
-#define NET_MIN_HEAP  45000
-#define NET_MIN_BLOCK 24000
+// A TLS handshake with dynamic buffers in PSRAM needs roughly 20-25 kB of internal RAM on ESP32-S3.
+#define NET_MIN_HEAP  30000
+#define NET_MIN_BLOCK 12000
 
 // WiFiClientSecure defaults the mbedTLS handshake to 120 s, six times
 // WDT_TIMEOUT_S. setConnectTimeout() does NOT cover it - that only bounds the
@@ -267,9 +267,10 @@
 #define SCREEN_TACTICAL_I 3
 #define SCREEN_FORECAST_I 4
 #define SCREEN_FINANCE_I  5
-#define SCREEN_INFO_I     6
-#define SCREEN_SETTINGS_I 7
-#define SCREEN_N          8
+#define SCREEN_ISS_I      6
+#define SCREEN_INFO_I     7
+#define SCREEN_SETTINGS_I 8
+#define SCREEN_N          9
 
 // ---------------------------------------------------------------------------
 //  Financial Markets & Crypto
@@ -278,6 +279,14 @@
 #define FINANCE_PERIOD_MS        (5UL * 60UL * 1000UL) // 5 minutes
 #define FINANCE_STEP_GAP_MS      2000UL                // 2 seconds between ticker queries
 #define FINANCE_MAX_ITEMS        8
+
+// ---------------------------------------------------------------------------
+//  International Space Station (ISS) Tracker
+// ---------------------------------------------------------------------------
+#define ISS_PERIOD_ACTIVE_MS     8000UL     // 8 seconds when viewing ISS screen
+#define ISS_PERIOD_BG_MS         30000UL    // 30 seconds background polling
+#define ISS_VISIBILITY_RADIUS_KM 2200.0f    // horizon visibility radius
+#define ISS_OVERHEAD_ELEV_DEG    45.0f      // zenith / overhead threshold
 
 // Automatic screen cycling: 0 = off, otherwise SECONDS between switches (it was
 // minutes up to 0.6.0 - see Settings.h).

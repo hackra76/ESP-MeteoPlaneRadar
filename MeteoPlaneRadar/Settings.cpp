@@ -36,12 +36,13 @@ static bool    s_metric = false;
 static uint8_t s_lang   = LANG_EN;
 static char    s_tz[64] = TZ_INFO;
 
-// Bit per data screen (bit 0 = clock ... bit 6 = finance).
-static uint8_t s_scrMask = (1 << SCREEN_CLOCK_I) | (1 << SCREEN_PLANES_I) |
-                           (1 << SCREEN_METEO_I) | (1 << SCREEN_TACTICAL_I) |
-                           (1 << SCREEN_FORECAST_I) | (1 << SCREEN_INFO_I) |
-                           (1 << SCREEN_FINANCE_I);
-static char    s_finTickers[128] = DEFAULT_FINANCE_TICKERS;
+// Bit per data screen (bit 0 = clock ... bit 7 = info).
+static uint16_t s_scrMask = (1 << SCREEN_CLOCK_I) | (1 << SCREEN_PLANES_I) |
+                            (1 << SCREEN_METEO_I) | (1 << SCREEN_TACTICAL_I) |
+                            (1 << SCREEN_FORECAST_I) | (1 << SCREEN_FINANCE_I) |
+                            (1 << SCREEN_ISS_I) | (1 << SCREEN_INFO_I);
+static char     s_finTickers[128] = DEFAULT_FINANCE_TICKERS;
+static bool     s_issAlert = true;
 static uint16_t s_autoRot = 0;
 static uint8_t s_radarSrc = RADAR_SRC_CHMU;
 static bool    s_smoothRadar = true;
@@ -167,6 +168,7 @@ void Settings_Begin() {
   bool migrateRotate = false;
   bool migrateInfoScr = false;
   bool migrateFinScr = false;
+  bool migrateIssScr = false;
   if (prefs.begin(NS, true)) {
     s_lat    = prefs.getDouble("lat", DEFAULT_LAT);
     s_lon    = prefs.getDouble("lon", DEFAULT_LON);
@@ -179,7 +181,11 @@ void Settings_Begin() {
     s_nightOff  = (int8_t)prefs.getChar("nOff", 0);
     s_metric = prefs.getBool("metric", false);
     s_lang   = prefs.getUChar("lang", LANG_EN);
-    s_scrMask = prefs.getUChar("scrM", s_scrMask);
+    if (prefs.isKey("scrM16")) {
+      s_scrMask = prefs.getUShort("scrM16", s_scrMask);
+    } else {
+      s_scrMask = prefs.getUChar("scrM", (uint8_t)s_scrMask);
+    }
     if (!prefs.isKey("infoScrInit")) {
       s_scrMask |= (1 << SCREEN_INFO_I);
       migrateInfoScr = true;
@@ -188,6 +194,11 @@ void Settings_Begin() {
       s_scrMask |= (1 << SCREEN_FINANCE_I);
       migrateFinScr = true;
     }
+    if (!prefs.isKey("issScrInit")) {
+      s_scrMask |= (1 << SCREEN_ISS_I);
+      migrateIssScr = true;
+    }
+    s_issAlert = prefs.getBool("issAlert", true);
     if (prefs.isKey("finTk")) {
       prefs.getString("finTk", s_finTickers, sizeof(s_finTickers));
     }
@@ -296,7 +307,14 @@ void Settings_Begin() {
   }
   if (migrateFinScr && prefs.begin(NS, false)) {
     prefs.putBool("finScrInit", true);
-    prefs.putUChar("scrM", s_scrMask);
+    prefs.putUChar("scrM", (uint8_t)s_scrMask);
+    prefs.putUShort("scrM16", s_scrMask);
+    prefs.end();
+  }
+  if (migrateIssScr && prefs.begin(NS, false)) {
+    prefs.putBool("issScrInit", true);
+    prefs.putUChar("scrM", (uint8_t)s_scrMask);
+    prefs.putUShort("scrM16", s_scrMask);
     prefs.end();
   }
   Lang_Set(s_lang);
@@ -541,15 +559,17 @@ bool Settings_ScreenEnabled(uint8_t idx) {
 
 void Settings_SetScreenEnabled(uint8_t idx, bool on) {
   if (idx >= SCREEN_SETTINGS_I) return;
-  uint8_t next = on ? (s_scrMask | (1 << idx)) : (s_scrMask & ~(1 << idx));
+  uint16_t next = on ? (s_scrMask | (1 << idx)) : (s_scrMask & ~(1 << idx));
   // Never allow the last data screen to be turned off. With all of them gone
   // the device would boot into Settings and show nothing else - technically
   // recoverable, but it looks broken.
   if (next == 0) return;
   s_scrMask = next;
-  putU8("scrM", s_scrMask);
+  putU8("scrM", (uint8_t)s_scrMask);
+  putU16("scrM16", s_scrMask);
   putBool("infoScrInit", true);
   putBool("finScrInit", true);
+  putBool("issScrInit", true);
 }
 
 uint8_t Settings_EnabledCount() {
@@ -571,6 +591,13 @@ void Settings_SetFinanceTickers(const char* tickers) {
   strncpy(s_finTickers, tickers, sizeof(s_finTickers) - 1);
   s_finTickers[sizeof(s_finTickers) - 1] = '\0';
   putStr("finTk", s_finTickers);
+}
+
+bool Settings_IssAlert() { return s_issAlert; }
+void Settings_SetIssAlert(bool on) {
+  if (s_issAlert == on) return;
+  s_issAlert = on;
+  putBool("issAlert", on);
 }
 
 // --- Weather radar ----------------------------------------------------------
@@ -829,7 +856,9 @@ void Settings_ToJson(JsonObject o) {
   scr["forecast"] = Settings_ScreenEnabled(SCREEN_FORECAST_I);
   scr["info"]     = Settings_ScreenEnabled(SCREEN_INFO_I);
   scr["finance"]  = Settings_ScreenEnabled(SCREEN_FINANCE_I);
+  scr["iss"]      = Settings_ScreenEnabled(SCREEN_ISS_I);
   o["financeTickers"] = s_finTickers;
+  o["issAlert"]   = s_issAlert;
 }
 
 bool Settings_FromJson(JsonObjectConst in) {
@@ -900,6 +929,7 @@ bool Settings_FromJson(JsonObjectConst in) {
   setIf("buzzerNightMute", [](JsonVariantConst v){ Settings_SetBuzzerNightMute(v.as<bool>()); });
   setIf("cPrecip",         [](JsonVariantConst v){ Settings_SetPrecipAlert(v.as<bool>()); });
   setIf("financeTickers",  [](JsonVariantConst v){ Settings_SetFinanceTickers(v.as<const char*>()); });
+  setIf("issAlert",        [](JsonVariantConst v){ Settings_SetIssAlert(v.as<bool>()); });
 
   if (!in["altMin"].isNull() || !in["altMax"].isNull()) {
     uint16_t lo = in["altMin"].isNull() ? s_altMin : in["altMin"].as<uint16_t>();
@@ -916,8 +946,9 @@ bool Settings_FromJson(JsonObjectConst in) {
       { "meteo",    SCREEN_METEO_I },
       { "tactical", SCREEN_TACTICAL_I },
       { "forecast", SCREEN_FORECAST_I },
-      { "info",     SCREEN_INFO_I },
       { "finance",  SCREEN_FINANCE_I },
+      { "iss",      SCREEN_ISS_I },
+      { "info",     SCREEN_INFO_I },
     };
     for (auto& m : M) {
       JsonVariantConst v = scr[m.key];
@@ -952,8 +983,9 @@ void Settings_ClearAll() {
   s_metric = false; s_lang = LANG_EN; Lang_Set(s_lang);
   s_scrMask = (1 << SCREEN_CLOCK_I) | (1 << SCREEN_PLANES_I) |
               (1 << SCREEN_METEO_I) | (1 << SCREEN_TACTICAL_I) |
-              (1 << SCREEN_FORECAST_I) | (1 << SCREEN_INFO_I) |
-              (1 << SCREEN_FINANCE_I);
+              (1 << SCREEN_FORECAST_I) | (1 << SCREEN_FINANCE_I) |
+              (1 << SCREEN_ISS_I) | (1 << SCREEN_INFO_I);
+  s_issAlert = true;
   strncpy(s_finTickers, DEFAULT_FINANCE_TICKERS, sizeof(s_finTickers) - 1);
   s_autoRot = 0; s_radarSrc = RADAR_SRC_CHMU; s_smoothRadar = true;
   s_secStyle = SEC_STYLE_DOTS; s_clockCol = 0xFFFF; s_secCol = 0x05FF;

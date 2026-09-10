@@ -32,6 +32,7 @@
 #include "FlightStats.h"
 #include "PrecipTracker.h"
 #include "FinanceData.h"
+#include "IssData.h"
 #include <Wire.h>
 
 #include <WiFi.h>
@@ -143,13 +144,14 @@ static void handlePostConfig() {
 
   const double oldLat = Settings_Lat(), oldLon = Settings_Lon();
   const uint8_t oldSrc = Settings_RadarSource();
-  const uint8_t oldMask = (Settings_ScreenEnabled(SCREEN_CLOCK_I) << 0) |
-                          (Settings_ScreenEnabled(SCREEN_PLANES_I) << 1) |
-                          (Settings_ScreenEnabled(SCREEN_METEO_I) << 2) |
-                          (Settings_ScreenEnabled(SCREEN_TACTICAL_I) << 3) |
-                          (Settings_ScreenEnabled(SCREEN_FORECAST_I) << 4) |
-                          (Settings_ScreenEnabled(SCREEN_FINANCE_I) << 5) |
-                          (Settings_ScreenEnabled(SCREEN_INFO_I) << 6);
+  const uint16_t oldMask = (Settings_ScreenEnabled(SCREEN_CLOCK_I) << 0) |
+                           (Settings_ScreenEnabled(SCREEN_PLANES_I) << 1) |
+                           (Settings_ScreenEnabled(SCREEN_METEO_I) << 2) |
+                           (Settings_ScreenEnabled(SCREEN_TACTICAL_I) << 3) |
+                           (Settings_ScreenEnabled(SCREEN_FORECAST_I) << 4) |
+                           (Settings_ScreenEnabled(SCREEN_FINANCE_I) << 5) |
+                           (Settings_ScreenEnabled(SCREEN_ISS_I) << 6) |
+                           (Settings_ScreenEnabled(SCREEN_INFO_I) << 7);
 
   Settings_FromJson(doc.as<JsonObjectConst>());
   s_reqRedraw = true;
@@ -162,13 +164,14 @@ static void handlePostConfig() {
     Finance_SetTickers(Settings_FinanceTickers());
   }
 
-  const uint8_t newMask = (Settings_ScreenEnabled(SCREEN_CLOCK_I) << 0) |
-                          (Settings_ScreenEnabled(SCREEN_PLANES_I) << 1) |
-                          (Settings_ScreenEnabled(SCREEN_METEO_I) << 2) |
-                          (Settings_ScreenEnabled(SCREEN_TACTICAL_I) << 3) |
-                          (Settings_ScreenEnabled(SCREEN_FORECAST_I) << 4) |
-                          (Settings_ScreenEnabled(SCREEN_FINANCE_I) << 5) |
-                          (Settings_ScreenEnabled(SCREEN_INFO_I) << 6);
+  const uint16_t newMask = (Settings_ScreenEnabled(SCREEN_CLOCK_I) << 0) |
+                           (Settings_ScreenEnabled(SCREEN_PLANES_I) << 1) |
+                           (Settings_ScreenEnabled(SCREEN_METEO_I) << 2) |
+                           (Settings_ScreenEnabled(SCREEN_TACTICAL_I) << 3) |
+                           (Settings_ScreenEnabled(SCREEN_FORECAST_I) << 4) |
+                           (Settings_ScreenEnabled(SCREEN_FINANCE_I) << 5) |
+                           (Settings_ScreenEnabled(SCREEN_ISS_I) << 6) |
+                           (Settings_ScreenEnabled(SCREEN_INFO_I) << 7);
   const bool moved = (fabs(oldLat - Settings_Lat()) > 1e-6) ||
                      (fabs(oldLon - Settings_Lon()) > 1e-6);
   if (moved) Forecast_Invalidate();
@@ -282,7 +285,37 @@ static void handleStatus() {
   doc["precipSpeed"]   = pa ? (int)roundf(pa->speedKmh) : 0;
   doc["precipBearing"] = pa ? PrecipTracker_GetBearingStr(pa->bearingDeg) : "-";
 
+  IssData iss;
+  if (Iss_GetData(&iss)) {
+    char ib[64];
+    if (iss.inRange) {
+      snprintf(ib, sizeof(ib), "Visible! %.0f km (El: %.0f deg)", iss.distanceKm, iss.elevationDeg);
+    } else if (iss.nextPassMinutes > 0) {
+      snprintf(ib, sizeof(ib), "Pass in %dm (Max: %.0f deg)", iss.nextPassMinutes, iss.nextPassMaxEl);
+    } else {
+      snprintf(ib, sizeof(ib), "OK, %.0f km", iss.distanceKm);
+    }
+    doc["iss"] = ib;
+    doc["issInRange"] = iss.inRange;
+    doc["issOverhead"] = iss.isOverhead;
+    doc["issDist"] = (int)roundf(iss.distanceKm);
+    doc["issEl"] = (int)roundf(iss.elevationDeg);
+    doc["issAz"] = (int)roundf(iss.azimuthDeg);
+    doc["issSun"] = iss.visibility;
+    doc["issLat"] = (int)roundf(iss.lat * 100.0f) / 100.0f;
+    doc["issLon"] = (int)roundf(iss.lon * 100.0f) / 100.0f;
+    doc["issAlt"] = (int)roundf(iss.alt);
+    doc["issVel"] = (int)roundf(iss.velocity);
+  } else {
+    doc["iss"] = "--";
+  }
+
   sendJson(200, doc);
+}
+
+static void handleRefreshIss() {
+  Async_RequestIss();
+  s_srv.send(200, "application/json", "{\"ok\":true}");
 }
 
 static void handleHardware() {
@@ -1112,6 +1145,7 @@ void WebConfig_Begin(bool apMode) {
   s_srv.on("/api/serial/read", HTTP_GET, handleSerialRead);
   s_srv.on("/api/serial/clear", HTTP_POST, handleSerialClear);
   s_srv.on("/api/serial/send", HTTP_POST, handleSerialSend);
+  s_srv.on("/api/iss/refresh", HTTP_POST, handleRefreshIss);
   // The update page authenticates with HTTP Basic when a password is set. See
   // the note in Settings.h about why the password is stored in the clear.
   s_srv.on("/update", HTTP_GET, handleUpdatePage);

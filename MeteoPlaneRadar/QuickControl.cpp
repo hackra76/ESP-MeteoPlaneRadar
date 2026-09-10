@@ -114,6 +114,10 @@ void QuickControl_Draw(int currentScreen) {
   } else if (currentScreen == SCREEN_FORECAST_I) {
     drawButton(CW_X + 16,  y3, CW_W - 32, 34, Settings_MetricUnits() ? "Jednotky: Metrické" : "Jednotky: Letecké", false);
     drawButton(CW_X + 16,  y4, CW_W - 32, 34, "Aktualizovať predpoveď", true, 0x07E0);
+  } else if (currentScreen == SCREEN_ISS_I) {
+    const char* aLbl = Settings_IssAlert() ? "Výstraha preletu: ZAP" : "Výstraha preletu: VYP";
+    drawButton(CW_X + 16,  y3, CW_W - 32, 34, aLbl, Settings_IssAlert(), 0x07E0);
+    drawButton(CW_X + 16,  y4, CW_W - 32, 34, "Aktualizovať polohu ISS", true, 0x07E0);
   }
 
   // Bottom pull-up hint
@@ -272,6 +276,15 @@ bool QuickControl_HandleTap(int x, int y, int currentScreen) {
   } else if (currentScreen == SCREEN_FORECAST_I) {
     if (y >= y3 && y <= y3 + 34) {
       Settings_SetMetricUnits(!Settings_MetricUnits());
+      return true;
+    }
+  } else if (currentScreen == SCREEN_ISS_I) {
+    if (y >= y3 && y <= y3 + 34) {
+      Settings_SetIssAlert(!Settings_IssAlert());
+      return true;
+    }
+    if (y >= y4 && y <= y4 + 34) {
+      Async_RequestIss();
       return true;
     }
   }

@@ -4,11 +4,11 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-SK%20%7C%20CZ%20%7C%20EN-green.svg)
-![Release](https://img.shields.io/badge/Release-v1.8.0-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v1.9.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
-**Multifunkčná meteostanica, živý letecký radar ADS-B, animovaný zrážkový radar (SHMÚ, ČHMÚ, RainViewer), kombinovaný taktický radar a dizajnové ciferníky na okrúhlom 2.1" IPS dotykovom displeji.**  
-Vyvinuté špeciálne pre vývojovú dosku **Waveshare ESP32-S3-Touch-LCD-2.1** s moderným dotykovým ovládaním gestami, výsuvným ovládacím panelom (Control Center), fotkami lietadiel v reálnom čase, bilineárnym vyhladzovaním zrážok a responzívnym webovým rozhraním pre vzdialené ovládanie a kompletnú konfiguráciu.
+**Multifunkčná meteorologická stanica, živý letecký ADS-B radar, animovaný radar zrážok (SHMÚ, ČHMÚ, RainViewer), kombinovaný taktický radar, sledovanie stanice ISS a dizajnové ciferníky hodín na okrúhlom 2.1" IPS dotykovom displeji.**  
+Vyvinuté špeciálne pre vývojovú dosku **Waveshare ESP32-S3-Touch-LCD-2.1** s modernými dotykovými gestami v štýle smartfónu, sťahovacím Ovládacím centrom (Control Center), reálnymi fotografiami lietadiel, bilineárnym vyhladzovaním radaru a responzívnym webovým rozhraním pre diaľkové ovládanie a kompletnú konfiguráciu.
 
 > 🇬🇧 English documentation: **[README.md](README.md)**  
 > 📌 Forknuté a výrazne vylepšené z pôvodného projektu **[petus/MeteoPlaneRadar](https://github.com/petus/MeteoPlaneRadar)**.
@@ -18,15 +18,33 @@ Vyvinuté špeciálne pre vývojovú dosku **Waveshare ESP32-S3-Touch-LCD-2.1** 
 ## 📸 Živé ukážky zo zariadenia
 
 <p align="center">
-  <img src="docs/media/tactical_radar_live.gif" width="24%" alt="Taktický radar (Lietadlá + Zrážky)" />
-  <img src="docs/media/plane_detail_photo.png" width="24%" alt="Detail lietadla s fotkou" />
-  <img src="docs/media/weather_radar_chmu.gif" width="24%" alt="Animovaný radar zrážok" />
-  <img src="docs/media/clock_stacked_bold.png" width="24%" alt="Ciferník Stacked Bold" />
+  <img src="docs/media/tactical_radar_live.gif" width="19%" alt="Taktický radar (Lietadlá + Zrážky)" />
+  <img src="docs/media/screen_iss_live.png" width="19%" alt="Sledovanie dráhy ISS a deň/noc mapa" />
+  <img src="docs/media/plane_detail_photo.png" width="19%" alt="Detail lietadla s fotkou" />
+  <img src="docs/media/weather_radar_chmu.gif" width="19%" alt="Animovaný radar zrážok" />
+  <img src="docs/media/clock_stacked_bold.png" width="19%" alt="Ciferník Stacked Bold" />
 </p>
 
 <p align="center">
-  <em>Zľava doprava: <b>Taktický radar</b> (sledovanie lietadiel nad mapou zrážok), <b>Detail lietadla</b> (živá fotka cez Planespotters API), <b>Meteorologický radar</b> (animovaná slučka), <b>Ciferník Stacked Bold</b>.</em>
+  <em>Zľava doprava: <b>Taktický radar</b>, <b>Sledovanie ISS</b> (solárny terminátor deň/noc, minulá a budúca trajektória, kruh viditeľnosti), <b>Detail lietadla</b>, <b>Meteorologický radar</b>, <b>Ciferník Stacked Bold</b>.</em>
 </p>
+
+---
+
+## 🌟 Kľúčové novinky vo verzii v1.9.0
+
+- 🛰️ **Nová obrazovka Sledovanie stanice ISS (`SCREEN_ISS_I`):**
+  - Nová vesmírna obrazovka zaradená medzi Trhy & Krypto a Informácie (`Forecast` -> `Markets` -> `ISS` -> `Info`).
+  - Globálna mapa sveta (320×160 equirectangular) vycentrovaná v okrúhlom displeji s dynamickým vykresľovaním dňa a noci (astronomický solárny terminátor).
+  - Vykreslenie obežnej dráhy ISS: minulá dráha (45 min, bodkovaná čiara) a predpoveď budúcej dráhy (92 min, plná jantárová krivka).
+  - Kruh viditeľnosti z paluby stanice (~2 200 km horizon ring), piktogram satelitu a zameriavač domácej polohy.
+  - Telemetrický HUD panel: Výška (km), Rýchlosť (tis. km/h) a Šikmá vzdialenosť od pozorovateľa (km).
+  - Karta stavu preletu: Indikátor viditeľnosti (`IN RANGE` / `OUT OF RANGE`), Azimut stanice so svetovou stranou, osvetlenie (`Sunlit` / `In Eclipse`), odpočet do najbližšieho preletu a maximálna elevácia.
+  - Akustický sonarový ping (`BEEP_SONAR_PING`) pri vstupe stanice do zóny viditeľnosti.
+  - Integrácia do Ovládacieho centra: samostatné tlačidlo v sťahovacom menu pre zapnutie/stlmenie zvukového upozornenia; dvojitým ťuknutím okamžitá obnova údajov z API.
+- 🌐 **Webová správa a telemetria ISS:**
+  - Samostatná karta "🛰️ ISS" so živou telemetrickou tabuľkou údajov.
+  - Priamy prepínač obrazovky na displeji a voľba zaradenia do rotácie obrazoviek.
 
 ---
 
@@ -127,8 +145,10 @@ Unikátna obrazovka kombinujúca **zrážkový radar (SHMÚ / ČHMÚ / RainViewe
 | **3. Meteoradar** | <img src="docs/media/weather_radar_chmu.gif" width="70" /> | Animovaná radarová slučka zrážok s plynulým prelínaním, legendou odrazivosti dBZ a mestami | SHMÚ (SK), ČHMÚ (CZ), RainViewer |
 | **4. Taktický radar** | <img src="docs/media/tactical_radar_live.gif" width="70" /> | **Kombinovaný taktický pohľad:** Živá zrážková oblačnosť + prelety lietadiel na jedinej obrazovke | SHMÚ / ČHMÚ / RainViewer + adsb.fi |
 | **5. Predpoveď** | <img src="docs/media/forecast_screen.png" width="70" /> | Hodinové krivky teploty, vetra a zrážok, 3-dňový výhľad, index kvality ovzdušia (AQI), PM2.5 a peľ | Open-Meteo Weather & Air Quality |
-| **6. Štatistiky letov** | <img src="docs/media/flight_stats_screen.png" width="70" /> | Denná 24h štatistika: počet unikátnych lietadiel, rýchlostný rekord, letové hladiny, max dosah, ADS-B správy | FreeRTOS PSRAM Tracker |
-| **7. Nastavenia** | <img src="docs/media/settings_screen.png" width="70" /> | Stav zariadenia, IP adresa, regulácia jasu, orientácia mapy, voľba jazyka a vyhladenie | Systém |
+| **6. Trhy a Krypto** | <img src="docs/media/finance_screen.png" width="70" /> | Živé sledovanie 4 konfigurovateľných trhových tickerov (ETF, akcie, komodity, kryptomeny, forex) so sparkline grafmi | Yahoo Finance v8 |
+| **7. Sledovanie dráhy ISS** | <img src="docs/media/screen_iss_live.png" width="70" /> | Globálna mapa sveta s reálnym solárnym terminátorom deň/noc, trajektória obehu, kruh viditeľnosti a odpočet preletu | WhereTheISS API |
+| **8. Štatistiky letov** | <img src="docs/media/flight_stats_screen.png" width="70" /> | Denná 24h štatistika: počet unikátnych lietadiel, rýchlostný rekord, letové hladiny, max dosah, ADS-B správy | FreeRTOS PSRAM Tracker |
+| **9. Nastavenia** | <img src="docs/media/settings_screen.png" width="70" /> | Stav zariadenia, IP adresa, regulácia jasu, orientácia mapy, voľba jazyka a vyhladenie | Systém |
 
 
 

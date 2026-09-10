@@ -4,10 +4,10 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20SK%20%7C%20CZ-green.svg)
-![Release](https://img.shields.io/badge/Release-v1.8.0-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v1.9.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
-**Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, and designer clock faces on a round 2.1" IPS touchscreen.**  
+**Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, ISS orbit tracking, and designer clock faces on a round 2.1" IPS touchscreen.**  
 Designed specifically for the **Waveshare ESP32-S3-Touch-LCD-2.1** development board with modern smartphone-like touch gestures, a pull-down Control Center, live aircraft photos, bilinear radar smoothing, and a responsive web dashboard for remote control and complete configuration.
 
 > 🇸🇰 Slovenská dokumentácia: **[README_SK.md](README_SK.md)**  
@@ -18,18 +18,34 @@ Designed specifically for the **Waveshare ESP32-S3-Touch-LCD-2.1** development b
 ## 📸 Live Device Demo
 
 <p align="center">
-  <img src="docs/media/tactical_radar_live.gif" width="24%" alt="Tactical Radar (Planes + Rain)" />
-  <img src="docs/media/plane_detail_photo.png" width="24%" alt="Aircraft Detail with Live Photo" />
-  <img src="docs/media/weather_radar_chmu.gif" width="24%" alt="Animated Rain Radar loop" />
-  <img src="docs/media/clock_stacked_bold.png" width="24%" alt="Stacked Bold Watch Face" />
+  <img src="docs/media/tactical_radar_live.gif" width="19%" alt="Tactical Radar (Planes + Rain)" />
+  <img src="docs/media/screen_iss_live.png" width="19%" alt="ISS Orbit Tracker with Day/Night Map" />
+  <img src="docs/media/plane_detail_photo.png" width="19%" alt="Aircraft Detail with Live Photo" />
+  <img src="docs/media/weather_radar_chmu.gif" width="19%" alt="Animated Rain Radar loop" />
+  <img src="docs/media/clock_stacked_bold.png" width="19%" alt="Stacked Bold Watch Face" />
 </p>
 
 <p align="center">
-  <em>From left to right: <b>Tactical Radar</b> (live aircraft tracking over precipitation map), <b>Aircraft Detail</b> (live aircraft photo via Planespotters API), <b>Weather Radar</b> (animated loop), <b>Stacked Bold Watch Face</b>.</em>
+  <em>From left to right: <b>Tactical Radar</b>, <b>ISS Orbit Tracker</b> (day/night terminator, past/future orbits, footprint ring), <b>Aircraft Detail</b>, <b>Weather Radar</b>, <b>Stacked Bold Watch Face</b>.</em>
 </p>
 
 
 ---
+
+## 🌟 Key Highlights in v1.9.0
+
+- 🛰️ **New ISS Orbit Tracker Screen (`SCREEN_ISS_I`):**
+  - Mission control screen positioned between Markets and Info (`Forecast` -> `Markets` -> `ISS` -> `Info`).
+  - High-contrast 320×160 equirectangular world map centered inside the round bezel with real-time astronomical day/night solar terminator shading.
+  - Complete orbital ground track: past trajectory (45 min dashed path) and future predicted path (92 min solid amber curve).
+  - Ground footprint horizon circle (~2,200 km line-of-sight range), live ISS satellite sprite, and home location crosshair reticle.
+  - Telemetry HUD: Altitude (km), Velocity (thousands km/h), and Distance to observer (km).
+  - Bottom Pass Status card: `IN RANGE` / `OUT OF RANGE` pill badge, Azimuth bearing & illumination state (`Sunlit` / `In Eclipse`), countdown to next orbital pass with peak elevation prediction.
+  - Acoustic sonar ping (`BEEP_SONAR_PING`) when ISS enters visible range from your location.
+  - Quick Control Center integration: dedicated toggle button in the pull-down drawer for ISS Overhead Alert; double-tap screen to force immediate API refresh.
+- 🌐 **Web Dashboard ISS Telemetry & Settings:**
+  - Dedicated "🛰️ ISS" tab with live telemetry data table (Lat, Lon, Alt, Vel, Az, El, Pass ETA).
+  - One-click screen switch button and carousel inclusion toggle.
 
 ## 🌟 Key Highlights in v1.8.0
 
@@ -129,8 +145,10 @@ A unique real-time screen overlaying **animated precipitation radar tiles (SHMÚ
 | **3. Weather Radar** | <img src="docs/media/weather_radar_chmu.gif" width="70" /> | Animated precipitation radar loop with smooth cross-dissolve, reflectivity scale, and city markers | SHMÚ (SK), ČHMÚ (CZ), RainViewer |
 | **4. Tactical Radar** | <img src="docs/media/tactical_radar_live.gif" width="70" /> | **Combined tactical view:** Live precipitation radar + ADS-B flights overlay on a single screen | SHMÚ / ČHMÚ / RainViewer + adsb.fi |
 | **5. Forecast** | <img src="docs/media/forecast_screen.png" width="70" /> | Hourly temperature, wind, and rain curves, 3-day forecast, Air Quality (AQI), PM2.5, and pollen count | Open-Meteo Weather & Air Quality |
-| **6. Air Traffic Stats** | <img src="docs/media/flight_stats_screen.png" width="70" /> | Daily 24h airspace activity: unique aircraft count, speed record, altitude span, max range, ADS-B reports | FreeRTOS PSRAM Tracker |
-| **7. Settings** | <img src="docs/media/settings_screen.png" width="70" /> | Device telemetry, IP address, brightness slider, map orientation, radar smoothing, language selector | System |
+| **6. Markets & Crypto** | <img src="docs/media/finance_screen.png" width="70" /> | Real-time tracking of 4 customizable market tickers (ETFs, Stocks, Commodities, Crypto, Forex) with interactive sparkline charts | Yahoo Finance v8 |
+| **7. ISS Orbit Tracker** | <img src="docs/media/screen_iss_live.png" width="70" /> | Global equirectangular world map with real-time day/night solar terminator, past/future orbits, footprint ring, next pass countdown | WhereTheISS API |
+| **8. Air Traffic Stats** | <img src="docs/media/flight_stats_screen.png" width="70" /> | Daily 24h airspace activity: unique aircraft count, speed record, altitude span, max range, ADS-B reports | FreeRTOS PSRAM Tracker |
+| **9. Settings** | <img src="docs/media/settings_screen.png" width="70" /> | Device telemetry, IP address, brightness slider, map orientation, radar smoothing, language selector | System |
 
 
 ---

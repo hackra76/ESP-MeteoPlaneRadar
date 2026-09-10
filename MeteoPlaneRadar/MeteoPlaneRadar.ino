@@ -91,6 +91,8 @@
 #include "ScreenInfo.h"
 #include "ScreenFinance.h"
 #include "FinanceData.h"
+#include "ScreenIss.h"
+#include "IssData.h"
 #include "FlightStats.h"
 #include "PrecipTracker.h"
 #include "ScreenSettings.h"
@@ -298,8 +300,9 @@ static void drawActive() {
     case SCREEN_METEO_I:    ScreenWeather_Draw();  break;
     case SCREEN_TACTICAL_I: ScreenTactical_Draw(); break;
     case SCREEN_FORECAST_I: ScreenForecast_Draw(); break;
-    case SCREEN_INFO_I:     ScreenInfo_Draw();     break;
     case SCREEN_FINANCE_I:  ScreenFinance_Draw();  break;
+    case SCREEN_ISS_I:      ScreenIss_Draw();      break;
+    case SCREEN_INFO_I:     ScreenInfo_Draw();     break;
     case SCREEN_SETTINGS_I: ScreenSettings_Draw(); break;
   }
   if (!WebConfig_UpdateBusy() && !ScreenSettings_IsModalOpen()) {
@@ -318,8 +321,9 @@ static void enterActive() {
     case SCREEN_METEO_I:    ScreenWeather_Enter();  break;
     case SCREEN_TACTICAL_I: ScreenTactical_Enter(); break;
     case SCREEN_FORECAST_I: ScreenForecast_Enter(); break;
-    case SCREEN_INFO_I:     ScreenInfo_Enter();     break;
     case SCREEN_FINANCE_I:  ScreenFinance_Enter();  break;
+    case SCREEN_ISS_I:      ScreenIss_Enter();      break;
+    case SCREEN_INFO_I:     ScreenInfo_Enter();     break;
     case SCREEN_SETTINGS_I: ScreenSettings_Enter(); break;
   }
   drawActive();
@@ -361,8 +365,9 @@ static void switchScreen(int dir) {
     case SCREEN_METEO_I:    ScreenWeather_Enter();  break;
     case SCREEN_TACTICAL_I: ScreenTactical_Enter(); break;
     case SCREEN_FORECAST_I: ScreenForecast_Enter(); break;
-    case SCREEN_INFO_I:     ScreenInfo_Enter();     break;
     case SCREEN_FINANCE_I:  ScreenFinance_Enter();  break;
+    case SCREEN_ISS_I:      ScreenIss_Enter();      break;
+    case SCREEN_INFO_I:     ScreenInfo_Enter();     break;
     case SCREEN_SETTINGS_I: ScreenSettings_Enter(); break;
   }
 
@@ -372,8 +377,9 @@ static void switchScreen(int dir) {
     case SCREEN_METEO_I:    ScreenWeather_Draw();  break;
     case SCREEN_TACTICAL_I: ScreenTactical_Draw(); break;
     case SCREEN_FORECAST_I: ScreenForecast_Draw(); break;
-    case SCREEN_INFO_I:     ScreenInfo_Draw();     break;
     case SCREEN_FINANCE_I:  ScreenFinance_Draw();  break;
+    case SCREEN_ISS_I:      ScreenIss_Draw();      break;
+    case SCREEN_INFO_I:     ScreenInfo_Draw();     break;
     case SCREEN_SETTINGS_I: ScreenSettings_Draw(); break;
   }
   drawScreenDots();
@@ -430,8 +436,9 @@ static bool activeTick() {
     case SCREEN_METEO_I:    return ScreenWeather_Tick();
     case SCREEN_TACTICAL_I: return ScreenTactical_Tick();
     case SCREEN_FORECAST_I: return ScreenForecast_Tick();
-    case SCREEN_INFO_I:     return ScreenInfo_Tick();
     case SCREEN_FINANCE_I:  return ScreenFinance_Tick();
+    case SCREEN_ISS_I:      return ScreenIss_Tick();
+    case SCREEN_INFO_I:     return ScreenInfo_Tick();
     case SCREEN_SETTINGS_I: return ScreenSettings_Tick();
   }
   return false;
@@ -458,8 +465,9 @@ static bool activeTap(int x, int y) {
     case SCREEN_CLOCK_I:    return ScreenClock_HandleTap(x, y);
     case SCREEN_PLANES_I:   return ScreenPlanes_HandleTap(x, y);
     case SCREEN_TACTICAL_I: return ScreenTactical_HandleTap(x, y);
-    case SCREEN_INFO_I:     return ScreenInfo_HandleTap(x, y);
     case SCREEN_FINANCE_I:  return ScreenFinance_HandleTap(x, y);
+    case SCREEN_ISS_I:      return ScreenIss_HandleTap(x, y);
+    case SCREEN_INFO_I:     return ScreenInfo_HandleTap(x, y);
     case SCREEN_SETTINGS_I: return ScreenSettings_HandleTap(x, y);
     default: return false;
   }
@@ -722,6 +730,7 @@ void setup() {
   }
 
   Finance_Init();
+  Iss_Init();
   Async_Begin();
   Async_SetActiveScreen((uint8_t)s_screen);
 

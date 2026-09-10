@@ -93,6 +93,10 @@ void     Settings_SetAutoRotateSec(uint16_t s);
 const char* Settings_FinanceTickers();
 void        Settings_SetFinanceTickers(const char* tickers);
 
+// --- ISS Tracker ------------------------------------------------------------
+bool        Settings_IssAlert();
+void        Settings_SetIssAlert(bool on);
+
 // --- Weather radar ----------------------------------------------------------
 uint8_t Settings_RadarSource();            // RADAR_SRC_CHMU / RADAR_SRC_RAINVIEWER / RADAR_SRC_SHMU
 void    Settings_SetRadarSource(uint8_t s);
