@@ -18,15 +18,16 @@ Vyvinuté špeciálne pre vývojovú dosku **Waveshare ESP32-S3-Touch-LCD-2.1** 
 ## 📸 Živé ukážky zo zariadenia
 
 <p align="center">
-  <img src="docs/media/tactical_radar_live.gif" width="19%" alt="Taktický radar (Lietadlá + Zrážky)" />
-  <img src="docs/media/screen_iss_live.png" width="19%" alt="Sledovanie dráhy ISS a deň/noc mapa" />
-  <img src="docs/media/plane_detail_photo.png" width="19%" alt="Detail lietadla s fotkou" />
-  <img src="docs/media/weather_radar_chmu.gif" width="19%" alt="Animovaný radar zrážok" />
-  <img src="docs/media/clock_stacked_bold.png" width="19%" alt="Ciferník Stacked Bold" />
+  <img src="docs/media/tactical_radar_live.gif" width="16%" alt="Taktický radar (Lietadlá + Zrážky)" />
+  <img src="docs/media/screen_iss_live.png" width="16%" alt="Sledovanie dráhy ISS a deň/noc mapa" />
+  <img src="docs/media/finance_screen.png" width="16%" alt="Finančné trhy a krypto" />
+  <img src="docs/media/plane_detail_photo.png" width="16%" alt="Detail lietadla s fotkou" />
+  <img src="docs/media/weather_radar_chmu.gif" width="16%" alt="Animovaný radar zrážok" />
+  <img src="docs/media/clock_stacked_bold.png" width="16%" alt="Ciferník Stacked Bold" />
 </p>
 
 <p align="center">
-  <em>Zľava doprava: <b>Taktický radar</b>, <b>Sledovanie ISS</b> (solárny terminátor deň/noc, minulá a budúca trajektória, kruh viditeľnosti), <b>Detail lietadla</b>, <b>Meteorologický radar</b>, <b>Ciferník Stacked Bold</b>.</em>
+  <em>Zľava doprava: <b>Taktický radar</b>, <b>Sledovanie ISS</b> (solárny terminátor deň/noc, minulá a budúca trajektória, kruh viditeľnosti), <b>Trhy & Krypto</b> (živé grafy a tickery), <b>Detail lietadla</b>, <b>Meteorologický radar</b>, <b>Ciferník Stacked Bold</b>.</em>
 </p>
 
 ---
@@ -50,6 +51,8 @@ Vyvinuté špeciálne pre vývojovú dosku **Waveshare ESP32-S3-Touch-LCD-2.1** 
 
 ## 🌟 Kľúčové novinky vo verzii v1.8.0
 
+<img src="docs/media/finance_screen.png" width="170" align="right" alt="Trhy a Krypto" />
+
 - 📈 **Nová obrazovka Trhy, Akcie & Krypto (`SCREEN_FINANCE_I`):**
   - Úplne nová interaktívna obrazovka zaradená medzi Predpoveď počasia a Informácie (`Forecast` -> `Markets` -> `Info`).
   - Sledovanie 4 voliteľných inštrumentov v reálnom čase (akcie, európske ETF ako Amundi MSCI World, Stoxx 600, komodity ako zlato/ropa, kryptomeny a menové páry) cez Yahoo Finance v8 chart API.
@@ -63,7 +66,7 @@ Vyvinuté špeciálne pre vývojovú dosku **Waveshare ESP32-S3-Touch-LCD-2.1** 
   - Odstránené volanie `LCD_Restart()` pri prechodoch a potiahnutí, čím sa zabránilo rozladeniu interného čítača riadkov radiča ST7701 a trvalému posunu obrazu nahor.
   - Nastavené korektné vertikálne a horizontálne synchronizačné pulzy (`VBP 20`, `VPW 8`, `VFP 10`) podľa špecifikácie displeja.
 - 🔄 **Zosúladenie poradia obrazoviek:**
-  - Poradie obrazoviek na displeji zodpovedá webovému rozhraniu: Hodiny (0) -> Lietadlá (1) -> Počasie (2) -> Taktický radar (3) -> Predpoveď (4) -> Trhy & Krypto (5) -> Informácie (6) -> Nastavenia (7).
+  - Poradie obrazoviek na displeji zodpovedá webovému rozhraniu: Hodiny (0) -> Lietadlá (1) -> Počasie (2) -> Taktický radar (3) -> Predpoveď (4) -> Trhy & Krypto (5) -> ISS (6) -> Informácie (7) -> Nastavenia (8).
 
 ---
 
@@ -132,6 +135,25 @@ Unikátna obrazovka kombinujúca **zrážkový radar (SHMÚ / ČHMÚ / RainViewe
 ### ⚡ 6. Bezpečná dvojjadrová FreeRTOS architektúra (Dual-Core)
 - **Jadro 1 (Core 1):** Vyhradené výhradne pre plynulé vykresľovanie displeja ST7701 (dvojitý framebuffer bez blikania), čítanie dotyku CST820 a detekciu gest z IMU.
 - **Jadro 0 (Core 0):** Asynchrónny worker (`AsyncNetWorker`) na pozadí spracováva TLS šifrovanie, sťahuje radarové snímky, komunikuje s ADS-B API a obsluhuje webový server.
+
+### 📈 7. Finančné trhy & Krypto (`ScreenFinance`)
+<img src="docs/media/finance_screen.png" width="160" align="right" alt="Obrazovka Trhy a Krypto" />
+
+Telemetria finančných trhov v reálnom čase poháňaná Yahoo Finance v8 API:
+- **4 voliteľné sloty pre aktíva**: Plná podpora pre európske ETF fondy (Amundi MSCI World, Stoxx Europe 600), americké indexy, technologické akcie, komodity (zlato, ropa), kryptomeny a menové páry (forex).
+- **Interaktívny sparkline graf**: Zobrazuje krivku vývoja ceny pre vybraný aktívny ticker.
+- **Dotykové ovládanie**: Ťuknutím prepínate aktívny inštrument/graf; dvojitým ťuknutím vyvoláte okamžitú obnovu dát z internetu.
+- **Neblokujúce sťahovanie**: Beží asynchrónne na pozadí na jadre 0.
+
+### 🛰️ 8. Sledovanie dráhy stanice ISS (`ScreenIss`)
+<img src="docs/media/screen_iss_live.png" width="160" align="right" alt="Obrazovka ISS Tracker" />
+
+Sledovanie polohy a preletov Medzinárodnej vesmírnej stanice ISS:
+- **Globálna mapa sveta Deň/Noc**: Vysoko kontrastná mapa 320×160 so slnečným terminátorom počítaným v reálnom čase podľa astronomickej deklinácie Slnka.
+- **Trajektória obehu**: Minulá preletová dráha (45 min, bodkovaná) a predpoveď budúceho obletu (92 min, plná jantárová krivka).
+- **Kruh viditeľnosti zo zeme**: Zóna dosahu priamej viditeľnosti (~2 200 km) okolo stanice so zameriavačom domácej polohy.
+- **Telemetrický HUD**: Okamžitá výška, orbitálna rýchlosť, šikmá vzdialenosť, odpočet do ďalšieho preletu a maximálny uhol elevácie.
+- **Akustické upozornenie**: Sonarový ping (`BEEP_SONAR_PING`) pri vstupe stanice do zóny viditeľnosti.
 
 ---
 

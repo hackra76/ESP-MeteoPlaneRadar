@@ -18,15 +18,16 @@ Designed specifically for the **Waveshare ESP32-S3-Touch-LCD-2.1** development b
 ## 📸 Live Device Demo
 
 <p align="center">
-  <img src="docs/media/tactical_radar_live.gif" width="19%" alt="Tactical Radar (Planes + Rain)" />
-  <img src="docs/media/screen_iss_live.png" width="19%" alt="ISS Orbit Tracker with Day/Night Map" />
-  <img src="docs/media/plane_detail_photo.png" width="19%" alt="Aircraft Detail with Live Photo" />
-  <img src="docs/media/weather_radar_chmu.gif" width="19%" alt="Animated Rain Radar loop" />
-  <img src="docs/media/clock_stacked_bold.png" width="19%" alt="Stacked Bold Watch Face" />
+  <img src="docs/media/tactical_radar_live.gif" width="16%" alt="Tactical Radar (Planes + Rain)" />
+  <img src="docs/media/screen_iss_live.png" width="16%" alt="ISS Orbit Tracker with Day/Night Map" />
+  <img src="docs/media/finance_screen.png" width="16%" alt="Markets & Crypto Tracker" />
+  <img src="docs/media/plane_detail_photo.png" width="16%" alt="Aircraft Detail with Live Photo" />
+  <img src="docs/media/weather_radar_chmu.gif" width="16%" alt="Animated Rain Radar loop" />
+  <img src="docs/media/clock_stacked_bold.png" width="16%" alt="Stacked Bold Watch Face" />
 </p>
 
 <p align="center">
-  <em>From left to right: <b>Tactical Radar</b>, <b>ISS Orbit Tracker</b> (day/night terminator, past/future orbits, footprint ring), <b>Aircraft Detail</b>, <b>Weather Radar</b>, <b>Stacked Bold Watch Face</b>.</em>
+  <em>From left to right: <b>Tactical Radar</b>, <b>ISS Orbit Tracker</b> (day/night terminator, past/future orbits, footprint ring), <b>Markets & Crypto</b> (custom tickers & sparkline), <b>Aircraft Detail</b>, <b>Weather Radar</b>, <b>Stacked Bold Watch Face</b>.</em>
 </p>
 
 
@@ -49,6 +50,8 @@ Designed specifically for the **Waveshare ESP32-S3-Touch-LCD-2.1** development b
 
 ## 🌟 Key Highlights in v1.8.0
 
+<img src="docs/media/finance_screen.png" width="170" align="right" alt="Markets & Crypto Screen" />
+
 - 📈 **New Markets, Stocks & Crypto Screen (`SCREEN_FINANCE_I`):**
   - Brand new interactive display screen positioned between Forecast and Info (`Forecast` -> `Markets` -> `Info`).
   - Real-time tracking of 4 customizable market tickers (Stocks, European ETFs like Amundi MSCI World, Stoxx 600, Commodities like Gold/Oil, Cryptocurrencies, and Forex pairs) using Yahoo Finance v8 chart API.
@@ -62,7 +65,7 @@ Designed specifically for the **Waveshare ESP32-S3-Touch-LCD-2.1** development b
   - Eliminated screen drift / vertical shift-up bug during swipes and transitions by preventing disruptive RGB panel restarts (`esp_lcd_rgb_panel_restart`) which desynchronized ST7701 gate driver counters.
   - Calibrated ST7701 vertical back porch and sync timings (`VBP 20`, `VPW 8`, `VFP 10`) strictly to hardware spec.
 - 🔄 **Display Screen Order Synchronization:**
-  - Screen sequence on hardware matches web UI exactly: Clock (0) -> Planes (1) -> Meteo (2) -> Tactical (3) -> Forecast (4) -> Markets (5) -> Info (6) -> Settings (7).
+  - Screen sequence on hardware matches web UI exactly: Clock (0) -> Planes (1) -> Meteo (2) -> Tactical (3) -> Forecast (4) -> Markets (5) -> ISS (6) -> Info (7) -> Settings (8).
 
 ---
 
@@ -132,6 +135,25 @@ A unique real-time screen overlaying **animated precipitation radar tiles (SHMÚ
 ### ⚡ 6. Robust Dual-Core FreeRTOS Architecture
 - **Core 1:** Dedicated to high-speed ST7701 RGB rendering (double-framebuffer, zero flicker), CST820 capacitive touch pumping, and IMU gesture processing.
 - **Core 0 (`AsyncNetWorker`):** Non-blocking background worker handling mbedTLS handshakes, radar tile caching, ADS-B JSON parsing, and HTTP web serving.
+
+### 📈 7. Financial Markets & Crypto Tracker (`ScreenFinance`)
+<img src="docs/media/finance_screen.png" width="160" align="right" alt="Markets Screen" />
+
+Real-time financial telemetry powered by Yahoo Finance v8 API:
+- **4 Custom Asset Slots**: Configurable for European ETFs (Amundi MSCI World, Stoxx Europe 600), US indices, commodities (Gold, Crude Oil), tech equities, cryptocurrencies, and Forex currency pairs.
+- **Interactive Sparkline**: Shows historical price trajectory for the selected active asset.
+- **Touch Interaction**: Tap any ticker row to switch the active sparkline; double-tap the screen to trigger an immediate live price refresh.
+- **Non-blocking Fetching**: Runs asynchronously in background tasks on Core 0.
+
+### 🛰️ 8. ISS Orbit Tracker (`ScreenIss`)
+<img src="docs/media/screen_iss_live.png" width="160" align="right" alt="ISS Tracker Screen" />
+
+Space Situational Awareness tracking the International Space Station:
+- **Day/Night World Map**: High-contrast 320×160 equirectangular world map with real-time astronomical solar terminator day/night shading.
+- **Orbit Ground Track**: Past trajectory (45-min dashed path) and forward predicted ground track (92-min solid amber curve).
+- **Line-of-Sight Footprint**: Radio/visual horizon ring (~2,200 km line-of-sight range) around the ISS with observer reticle.
+- **Orbital Telemetry HUD**: Live altitude, orbital velocity, slant distance, next pass countdown, and peak elevation prediction.
+- **Acoustic Proximity Alert**: Sonar ping (`BEEP_SONAR_PING`) when ISS enters visible line of sight.
 
 ---
 
