@@ -16,6 +16,7 @@ void ScreenWeather_Enter();
 bool ScreenWeather_Tick();          // downloads/animates; true = needs redraw
 void ScreenWeather_Draw();
 void ScreenWeather_ChangeRange(int dir);   // swipe: change the range
+bool ScreenWeather_IsLoading();             // true while downloading radar frames on Core 1
 
 // The current range as text ("50 km" / "cela CR"), for the web UI.
 void ScreenWeather_RangeText(char* out, size_t cap);

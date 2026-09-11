@@ -30,6 +30,7 @@
 #include "EuBorder.h"
 #include "PrecipTracker.h"
 #include "Forecast.h"
+#include "Watchdog.h"
 
 #include <WiFi.h>
 #include <PNGdec.h>
@@ -510,6 +511,10 @@ void ScreenWeather_FreeBuffers() {
   s_frameCount = 0;
 }
 
+bool ScreenWeather_IsLoading() {
+  return s_loading;
+}
+
 // Download frames + build crops. The fetch blocks for a few seconds, so the
 // screen is repainted first WITH the "Nacitam" note on it - the last good
 // animation stays visible the whole time instead of going black.
@@ -517,6 +522,14 @@ static void loadAndBuild() {
   s_loading = true;
   ScreenWeather_Draw();          // last good frame + the note
   gfx->flush();
+
+  // If Core 0 is currently in the middle of a short network request (~100-300 ms),
+  // yield cooperatively and feed watchdog to avoid simultaneous dual-core TLS handshakes.
+  uint32_t waitStart = millis();
+  while (Async_IsNetBusy() && (millis() - waitStart < 1500)) {
+    Watchdog_Feed();
+    delay(20);
+  }
 
   const int prevCount = s_frameCount;   // what we already have on screen
   int n = shmuMode() ? SHMU_FetchAnim(ANIM_FRAMES) : CHMU_FetchAnim(ANIM_FRAMES);

@@ -16,7 +16,7 @@
 #define SHMU_LAT_TOP    50.700f
 #define SHMU_LAT_BOTTOM 46.050f
 
-#define SHMU_MAX_PNG 131072      // Max buffer for one PNG (~30-35 kB with margin)
+#define SHMU_MAX_PNG 262144      // Max buffer for one PNG (typically ~30-70 kB, up to ~180 kB during heavy rain across SK)
 #define SHMU_ANIM_MAX 6          // Max animation frames kept
 
 void        SHMU_SetPollFn(void (*fn)());

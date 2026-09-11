@@ -9,6 +9,17 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [1.9.1] - 2026-09-11
+
+### Opravené / Fixed
+- **Sťahovanie radarových snímok SHMÚ počas plošných zrážok (SHMÚ Radar Buffer Overflow Fix):**
+  - Zvýšená alokácia vyrovnávacej pamäte `SHMU_MAX_PNG` zo 128 kB (`131072`) na 256 kB (`262144`) v externej PSRAM pamäti.
+  - Pri intenzívnych plošných zrážkach a búrkach na území SR klesá efektivita kompresie PNG a veľkosť kompozitu `cmax.kruh` dosahuje až ~175 kB, čo spôsobovalo okamžité odmietnutie sťahovania v `Net_GetBinary()` s chybou `response does not fit into buffer` a výpadok celého radaru SHMÚ.
+- **Kooperatívna sieťová koordinácia medzi jadrami (Dual-Core Network Arbitration):**
+  - Zabránené súbežným TLS spojeniam medzi jadrom 0 (AsyncNetWorker: predpoveď, ADS-B, ISS) a jadrom 1 (sťahovanie radarových snímok) pomocou neblokujúcich stavových príznakov a kooperatívneho yieldovania, čím sa predišlo vyčerpaniu pamäte mbedTLS (chyba -10368 / -32512) bez rizika zablokovania watchdogu.
+- **Rýchlejšia odozva dotykových gest (Instant Touch Swipes):**
+  - Prepnutie obrazovky vľavo/vpravo a stiahnutie horného Ovládacieho centra sa po prekročení prahovej vzdialenosti aktivujú okamžite počas pohybu prsta bez nutnosti čakať na jeho zdvihnutie z dotykovej plochy.
+
 ## [1.9.0] - 2026-09-10
 
 ### Pridané / Added

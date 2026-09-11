@@ -25,6 +25,7 @@
 #include "GithubOTA.h"
 #include "FinanceData.h"
 #include "IssData.h"
+#include "ScreenWeather.h"
 #include <WiFi.h>
 
 static SemaphoreHandle_t s_mtxSettings = NULL;
@@ -37,6 +38,8 @@ static SemaphoreHandle_t s_mtxRoute    = NULL;
 
 static TaskHandle_t s_netTaskHandle = NULL;
 static volatile bool s_paused = false;
+static volatile bool s_core0NetBusy = false;
+bool Async_IsNetBusy() { return s_core0NetBusy; }
 
 // Flags for Core 1 (UI)
 static volatile bool s_adsbUpdated = false;
@@ -187,8 +190,14 @@ static void asyncWorkerTask(void* param) {
 
       // Fast clock sync on first WiFi connect if time is not yet valid from RTC
       if (!s_firstTimeReseed && !Outside_TimeValid() && !rvBusy) {
+        if (ScreenWeather_IsLoading()) {
+          vTaskDelay(pdMS_TO_TICKS(50));
+          continue;
+        }
         s_firstTimeReseed = true;
+        s_core0NetBusy = true;
         Outside_Tick();
+        s_core0NetBusy = false;
         lastTlsTime = millis();
       }
 
@@ -204,14 +213,22 @@ static void asyncWorkerTask(void* param) {
       // 1. Radar Tile Download (RainViewer background stepping - highest priority when on radar)
       if (rvBusy) {
         Watchdog_Feed();
+        s_core0NetBusy = true;
         if (RainViewer_Step()) {
           s_radarUpdated = true;
         }
+        s_core0NetBusy = false;
         Watchdog_Feed();
         lastTlsTime = millis();
         vTaskDelay(pdMS_TO_TICKS(15));
       }
       else if (now - lastTlsTime >= 600) {
+        if (ScreenWeather_IsLoading()) {
+          vTaskDelay(pdMS_TO_TICKS(50));
+          continue;
+        }
+
+        s_core0NetBusy = true;
         unsigned long adsbPeriod = (s_targetRangeKm <= ADSB_NEAR_KM) ? ADSB_PERIOD_NEAR_MS :
                                    (s_targetRangeKm <= ADSB_MID_KM)  ? ADSB_PERIOD_MID_MS  : ADSB_PERIOD_FAR_MS;
 
@@ -295,6 +312,7 @@ static void asyncWorkerTask(void* param) {
             lastIssFetch = now;
           }
         }
+        s_core0NetBusy = false;
       }
     }
 
