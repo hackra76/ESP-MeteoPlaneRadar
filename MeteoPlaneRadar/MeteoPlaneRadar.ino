@@ -955,7 +955,8 @@ void loop() {
   }
 
   // Auto-switch to Tactical screen when an emergency squawk (7500 / 7600 / 7700) is detected
-  if (Settings_SquawkAlert()) {
+  // Only evaluate alerts on fresh live data to avoid false alarms from stale memory caches
+  if (Settings_SquawkAlert() && ADSB_IsFresh()) {
     static char s_alertedEmergHex[10] = "";
     Async_LockAdsb();
     const Aircraft* emergPlane = ADSB_GetEmergencyAircraft();
@@ -988,8 +989,8 @@ void loop() {
     Async_UnlockAdsb();
   }
 
-  // Alert when a watched aircraft or rescue helicopter enters range
-  if (Settings_BuzzerWatch()) {
+  // Alert when a watched aircraft or rescue helicopter enters range (fresh live data only)
+  if (Settings_BuzzerWatch() && ADSB_IsFresh()) {
     const char* watchCs = Settings_WatchCallsign();
     static char s_alertedWatchHex[10] = "";
     static char s_alertedRescueHex[10] = "";

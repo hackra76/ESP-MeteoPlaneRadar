@@ -763,6 +763,8 @@ void ScreenTactical_Draw() {
     int tw = Layout_TextW(sub, 2);
     gfx->fillRect(LCD_WIDTH / 2 - tw / 2 - 6, LY_SUB - 3, tw + 12, 20, C_RED);
     UI_TextCentered(sub, LY_SUB, C_WHITE, 2);
+  } else if (!ADSB_IsFresh()) {
+    UI_TextCentered(T(S_LOADING), LY_SUB, C_YELLOW, 1);
   } else if (specialIdx >= 0 && emergIdx < 0) {
     const Aircraft& spAc = list[specialIdx];
     const char* cname = spAc.callsign[0] ? spAc.callsign : spAc.hex;

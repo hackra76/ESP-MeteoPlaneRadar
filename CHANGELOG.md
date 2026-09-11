@@ -19,6 +19,9 @@ pohromadě v `MeteoPlaneRadar/Config.h`.
   - Zabránené súbežným TLS spojeniam medzi jadrom 0 (AsyncNetWorker: predpoveď, ADS-B, ISS) a jadrom 1 (sťahovanie radarových snímok) pomocou neblokujúcich stavových príznakov a kooperatívneho yieldovania, čím sa predišlo vyčerpaniu pamäte mbedTLS (chyba -10368 / -32512) bez rizika zablokovania watchdogu.
 - **Východzia obrazovka po štarte (Always Boot into Clock Screen):**
   - Zariadenie po každom reštarte, resete alebo zotavení z pádu vždy nabieha priamo na obrazovku 1 (Hodiny / `SCREEN_CLOCK_I`), bez ohľadu na to, na akej obrazovke sa nachádzalo pred reštartom.
+- **Odstránenie falošných poplachov zo starej vyrovnávacej pamäte (Stale Aircraft Cache Alert Suppression):**
+  - Pri prepnutí na radar lietadiel alebo taktický radar sa poplašné zvuky bzučiaka (`Buzzer`) a výstražné lišty pre vojenské, núdzové a sledované lety aktivujú výhradne nad čerstvými živými dátami (`ADSB_IsFresh()`).
+  - Ak sú dáta v pamäti staršie ako prah platnosti, audio poplach a hlásenie sa potlačia a na obrazovke sa zobrazuje stav načítavania (`Načítavam...`), kým nedorazia aktuálne živé dáta. Tým sa zabránilo falošnému spusteniu poplachu a okamžitému vypnutiu, ak už lietadlo dávno opustilo vzdušný priestor.
 - **Rýchlejšia odozva dotykových gest (Instant Touch Swipes):**
   - Prepnutie obrazovky vľavo/vpravo a stiahnutie horného Ovládacieho centra sa po prekročení prahovej vzdialenosti aktivujú okamžite počas pohybu prsta bez nutnosti čakať na jeho zdvihnutie z dotykovej plochy.
 

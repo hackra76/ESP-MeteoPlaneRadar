@@ -33,6 +33,24 @@ static int s_count = 0;
 // aircraft until the next good fetch.
 static Aircraft* s_tmp = nullptr;
 static void (*s_poll)() = nullptr;
+static unsigned long s_lastFetchTime = 0;
+
+unsigned long ADSB_LastFetchTime() {
+  return s_lastFetchTime;
+}
+
+bool ADSB_IsFresh(unsigned long maxAgeMs) {
+  if (s_lastFetchTime == 0) return false;
+  return (millis() - s_lastFetchTime) < maxAgeMs;
+}
+
+void ADSB_Clear() {
+  Async_LockAdsb();
+  s_count = 0;
+  s_lastFetchTime = 0;
+  if (s_list) memset(s_list, 0, sizeof(Aircraft) * ADSB_MAX);
+  Async_UnlockAdsb();
+}
 
 static bool ensureAdsbBuffers() {
   if (!s_list) {
@@ -480,6 +498,7 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
     Async_LockAdsb();
     for (int i = 0; i < n; i++) s_list[i] = s_tmp[i];
     s_count = n;
+    s_lastFetchTime = millis();
     PlaneTrail_Update(s_list, s_count);
     FlightStats_Update(s_list, s_count);
     Async_UnlockAdsb();

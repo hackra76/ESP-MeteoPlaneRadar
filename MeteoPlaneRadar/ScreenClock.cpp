@@ -943,7 +943,7 @@ void ScreenClock_Draw() {
     if (strcmp(s_lastChirpHex, overheadAc->hex) != 0) {
       strncpy(s_lastChirpHex, overheadAc->hex, sizeof(s_lastChirpHex) - 1);
       s_lastChirpHex[sizeof(s_lastChirpHex) - 1] = '\0';
-      if (Settings_BuzzerOverhead()) {
+      if (Settings_BuzzerOverhead() && ADSB_IsFresh()) {
         Buzzer_Play(BEEP_OVERHEAD);
       }
     }

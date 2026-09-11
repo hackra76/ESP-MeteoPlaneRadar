@@ -692,6 +692,8 @@ void ScreenPlanes_Draw() {
     UI_TextCentered(sub, LY_SUB - 1, C_WHITE, 2);
   } else if (WiFi.status() != WL_CONNECTED || !s_dataOk) {
     UI_TextCentered(s_status.c_str(), LY_SUB, C_YELLOW, 1);
+  } else if (!ADSB_IsFresh()) {
+    UI_TextCentered(T(S_LOADING), LY_SUB, C_YELLOW, 1);
   } else if (specialIdx >= 0 && emergIdx < 0) {
     const Aircraft& spAc = list[specialIdx];
     const char* cname = spAc.callsign[0] ? spAc.callsign : spAc.hex;

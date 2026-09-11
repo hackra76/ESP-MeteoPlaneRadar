@@ -65,3 +65,8 @@ const Aircraft* ADSB_GetEmergencyAircraft();
 
 // Return pointer to closest airborne aircraft within maxDistKm from home (or nullptr)
 const Aircraft* ADSB_GetOverheadAircraft(float maxDistKm, float* outDistKm = nullptr);
+
+// Airspace data freshness and cache management
+unsigned long ADSB_LastFetchTime();
+bool          ADSB_IsFresh(unsigned long maxAgeMs = 45000UL);
+void          ADSB_Clear();
