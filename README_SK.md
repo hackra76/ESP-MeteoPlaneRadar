@@ -32,6 +32,23 @@ Vyvinuté špeciálne pre vývojovú dosku **Waveshare ESP32-S3-Touch-LCD-2.1** 
 
 ---
 
+## 🌟 Kľúčové novinky vo verzii v1.9.1
+
+- 🌧️ **Rozšírenie vyrovnávacej pamäte radaru SHMÚ v PSRAM (256 kB):**
+  - Zdvojnásobená alokácia `SHMU_MAX_PNG` zo 128 kB na 256 kB v externej PSRAM pamäti, čím sa zabránilo chybám pretečenia vyrovnávacej pamäte (`response does not fit into buffer`) a výpadkom zobrazenia radaru počas rozsiahlych intenzívnych búrok.
+- ⚡ **Kooperatívna dvojjadrová sieťová arbitráž (Dual-Core TLS Arbitration):**
+  - Neblokujúce stavové príznaky koordinujú jadro 0 (úlohy na pozadí) a jadro 1 (sťahovanie radarových snímok), čo zamedzuje vyčerpaniu pamäte mbedTLS (chyby -10368 / -32512) bez rizika zablokovania watchdogu.
+- 🕒 **Spoľahlivý štart do obrazovky Hodín (Always Boot into Clock Screen):**
+  - Po každom reštarte, zapnutí alebo zotavení z pádu zariadenie vždy automaticky nabieha priamo na obrazovku 1 (Hodiny / `SCREEN_CLOCK_I`).
+- 🔕 **Potlačenie falošných poplachov zo starej pamäte lietadiel (Stale Cache Alert Suppression):**
+  - Pri prepnutí na radar lietadiel alebo taktický radar sa zvukové chrómy bzučiaka a poplašné lišty pre vojenské, núdzové a sledované lety aktivujú výlučne nad čerstvými živými dátami, čím sa eliminovali falošné poplachy pri načítaní starých dát z pamäte.
+- 👆 **Okamžitá odozva dotykových gest (Instant Touch Swipes):**
+  - Prepínanie obrazoviek a stiahnutie horného Ovládacieho centra reagujú okamžite po prekonaní prahovej vzdialenosti potiahnutia prsta bez čakania na jeho uvoľnenie z displeja.
+- 🎯 **Zjednotený vizuálny dizajn (Unified Round HUD & Anti-Collision):**
+  - Štandardizované zaoblené podkladové pilulky naprieč všetkými obrazovkami, ochrana proti orezaniu značiek lietadiel kruhovým rámom displeja a spresnená lokalizovaná detekcia búrkových jadier (nowcasting).
+
+---
+
 ## 🌟 Kľúčové novinky vo verzii v1.9.0
 
 - 🛰️ **Nová obrazovka Sledovanie stanice ISS (`SCREEN_ISS_I`):**

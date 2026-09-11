@@ -33,6 +33,23 @@ Designed specifically for the **Waveshare ESP32-S3-Touch-LCD-2.1** development b
 
 ---
 
+## 🌟 Key Highlights in v1.9.1
+
+- 🌧️ **SHMÚ Radar Buffer PSRAM Expansion (256 kB):**
+  - Doubled `SHMU_MAX_PNG` allocation from 128 kB to 256 kB in external PSRAM, preventing buffer overflow errors (`response does not fit into buffer`) and radar blackouts during widespread severe convective storms.
+- ⚡ **Cooperative Dual-Core TLS Arbitration:**
+  - Non-blocking state flags coordinate Core 0 (background tasks) and Core 1 (radar downloads) to eliminate concurrent TLS connections and mbedTLS memory starvation (-10368 / -32512 errors) without watchdog trip risks.
+- 🕒 **Always Boot to Clock Screen:**
+  - On every startup, crash recovery, or reboot, the device always launches directly into Screen 1 (Clock / `SCREEN_CLOCK_I`).
+- 🔕 **Stale Aircraft Cache Alert Suppression:**
+  - When switching to Planes or Tactical radar, buzzer alert chimes and warning banners for military, emergency, or watched flights are suppressed until fresh live data arrives, preventing misleading false alarms from outdated memory cache.
+- 👆 **Instant Touch Gestures:**
+  - Screen swipe transitions and pull-down Control Center trigger immediately upon crossing threshold displacement without waiting for finger release.
+- 🎯 **Unified Round UI & Anti-Collision Engine:**
+  - Standardized rounded HUD backing pills across all screens, circular display perimeter clipping for flight callsign labels, and refined localized nowcast storm/hail core detection.
+
+---
+
 ## 🌟 Key Highlights in v1.9.0
 
 - 🛰️ **New ISS Orbit Tracker Screen (`SCREEN_ISS_I`):**
