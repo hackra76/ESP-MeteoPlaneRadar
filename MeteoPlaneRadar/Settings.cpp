@@ -91,7 +91,7 @@ static bool     s_precipAlert = true;
 static uint8_t  s_rngP = 1;
 static uint8_t  s_rngM = 1;
 static uint8_t  s_rngT = 1;
-static uint8_t  s_scr  = SCREEN_PLANES_I;
+static uint8_t  s_scr  = SCREEN_CLOCK_I;
 static uint16_t s_top  = 0;
 static bool     s_showLegends = true;
 static bool     s_autoRotateBearing = false;
@@ -994,7 +994,7 @@ void Settings_ClearAll() {
   s_altMin = 0; s_altMax = 60000; s_onlyCs = false; s_sqAlert = true; s_watch[0] = '\0';
   s_typeFilterMask = 0x3F;
   s_bzOn = true; s_bzEm = true; s_bzWatch = true; s_bzOverhead = false; s_bzPrecip = false; s_bzTouch = false; s_bzHour = false; s_bzNMute = true;
-  s_rngP = 1; s_rngM = 1; s_rngT = 1; s_scr = SCREEN_PLANES_I; s_top = 0;
+  s_rngP = 1; s_rngM = 1; s_rngT = 1; s_scr = SCREEN_CLOCK_I; s_top = 0;
   s_pw[0] = '\0';
   s_ssid[0] = '\0'; s_wpass[0] = '\0';
   s_wifiNetCount = 0;

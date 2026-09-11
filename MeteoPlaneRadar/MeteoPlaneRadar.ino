@@ -751,13 +751,13 @@ void setup() {
     GeoIP_DetectIfNeeded();   // fill in the location by IP if none is stored
   }
 
-  s_screen = Settings_Screen();
-  if (s_screen >= SCREEN_N || !screenVisible(s_screen)) {
-    // The stored screen was switched off since the last run - start on the
-    // first one that is actually enabled.
+  s_screen = SCREEN_CLOCK_I;
+  if (!screenVisible(s_screen)) {
+    // Clock screen was disabled: fall back to the first enabled screen
     s_screen = SCREEN_SETTINGS_I;
     for (int i = 0; i < SCREEN_N; i++) if (screenVisible(i)) { s_screen = i; break; }
   }
+  Settings_SetScreen((uint8_t)s_screen);
 
   Finance_Init();
   Iss_Init();
