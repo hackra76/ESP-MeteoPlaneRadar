@@ -15,6 +15,7 @@
 static PrecipAlert s_alert;
 static uint8_t s_grid0[GRID_SIZE][GRID_SIZE];
 static uint8_t s_grid1[GRID_SIZE][GRID_SIZE];
+static bool    s_hail1[GRID_SIZE][GRID_SIZE];
 static bool s_hasGrid0 = false;
 static time_t s_lastGridTime = 0;
 
@@ -22,6 +23,7 @@ void PrecipTracker_Init() {
   memset(&s_alert, 0, sizeof(s_alert));
   memset(s_grid0, 0, sizeof(s_grid0));
   memset(s_grid1, 0, sizeof(s_grid1));
+  memset(s_hail1, 0, sizeof(s_hail1));
   s_hasGrid0 = false;
 }
 
@@ -42,25 +44,31 @@ void PrecipTracker_DismissAlert() {
 }
 
 static uint8_t extractIntensity(uint16_t col, bool* isHail) {
+  if (isHail) *isHail = false;
   if (col == 0x0000) return 0;
-  // Ignore SHMU radar background grey colors
-  if (col == 0xE71C || col == 0xD6DA || col == 0xE73C || col == 0xD69A || col == 0xFFFF) {
+  // Ignore SHMU / CHMU radar background grey/white colors
+  if (col == 0xE71C || col == 0xD6DA || col == 0xE73C || col == 0xD69A || col == 0xFFFF || col == 0xC618) {
     return 0;
   }
   uint8_t r = (col >> 11) & 0x1F;
   uint8_t g = (col >> 5)  & 0x3F;
   uint8_t b = col & 0x1F;
 
-  // Detect intense convective core / hail (>50-55 dBZ, purple/pink or bright core)
+  // Weight RGB channels to reflect meteorological radar reflectivity
+  int val = (r * 4 + g * 2 + b * 4);
+  if (val > 255) val = 255;
+
+  // Detect intense convective core / hail (>50-55 dBZ):
+  // True radar storm cores are represented by magenta / purple / deep violet:
+  // - Magenta / purple: high R, high B, low G (e.g., r >= 24, b >= 20, g <= 18)
+  // - Pure white core (>60 dBZ): maxed R, G, B with high overall intensity
+  // Note: yellow/orange rain (high R, high G, low B) is standard moderate rain, NOT hail.
   if (isHail) {
-    if ((r >= 24 && b >= 18) || (r >= 28 && g >= 48) || (r >= 26 && g <= 12 && b >= 16)) {
+    if ((r >= 24 && b >= 20 && g <= 18) || (val >= 245 && r >= 30 && b >= 28 && g >= 58)) {
       *isHail = true;
     }
   }
 
-  // Weight RGB channels to reflect meteorological radar reflectivity
-  int val = (r * 4 + g * 2 + b * 4);
-  if (val > 255) val = 255;
   return (uint8_t)val;
 }
 
@@ -70,15 +78,13 @@ void PrecipTracker_ProcessFrames(const uint16_t* prevFrame, const uint16_t* curF
   if (!curFrame || w <= 0 || h <= 0 || rangeKm <= 0.0f) return;
   if (dtMin <= 0.0f) dtMin = 5.0f;
 
-  bool severeHailDetected = false;
-
-  // Sample current frame into 32x32 grid
+  // Sample current frame into 32x32 grid with localized hail flags
   for (int gy = 0; gy < GRID_SIZE; gy++) {
     int py = (gy * h) / GRID_SIZE;
     for (int gx = 0; gx < GRID_SIZE; gx++) {
       int px = (gx * w) / GRID_SIZE;
       uint16_t c0 = curFrame[py * w + px];
-      s_grid1[gy][gx] = extractIntensity(c0, &severeHailDetected);
+      s_grid1[gy][gx] = extractIntensity(c0, &s_hail1[gy][gx]);
     }
   }
 
@@ -99,19 +105,23 @@ void PrecipTracker_ProcessFrames(const uint16_t* prevFrame, const uint16_t* curF
 
   // Check if precipitation is currently falling directly at user's location (center: 15..16)
   int centerIntensity = 0;
+  bool centerHail = false;
   for (int cy = 15; cy <= 16; cy++) {
     for (int cx = 15; cx <= 16; cx++) {
       if (s_grid1[cy][cx] > centerIntensity) {
         centerIntensity = s_grid1[cy][cx];
       }
+      if (s_hail1[cy][cx]) {
+        centerHail = true;
+      }
     }
   }
 
-  if (centerIntensity > 20) {
+  if (centerIntensity > 32) {
     s_alert.status = PRECIP_STAT_CURRENTLY_ACTIVE;
     s_alert.distKm = 0.0f;
     s_alert.etaMin = 0;
-    if (severeHailDetected) {
+    if (centerHail || centerIntensity >= 235) {
       s_alert.type = PRECIP_HAIL_STORM;
     } else if (curTemp <= 1.0f) {
       s_alert.type = PRECIP_SNOW;
@@ -197,6 +207,7 @@ void PrecipTracker_ProcessFrames(const uint16_t* prevFrame, const uint16_t* curF
   // Scan all cells in grid1 to find cells heading towards the center (15.5, 15.5)
   const float centerG = 15.5f;
   bool foundApproaching = false;
+  bool approachingHail = false;
   float minEta = 999.0f;
   float closestDist = 999.0f;
   int peakIntensity = 0;
@@ -236,6 +247,7 @@ void PrecipTracker_ProcessFrames(const uint16_t* prevFrame, const uint16_t* curF
               closestDist = distKm;
             }
             if (intVal > peakIntensity) peakIntensity = intVal;
+            if (s_hail1[gy][gx]) approachingHail = true;
           }
         }
       }
@@ -248,7 +260,7 @@ void PrecipTracker_ProcessFrames(const uint16_t* prevFrame, const uint16_t* curF
     s_alert.etaMin = (int)roundf(minEta);
     s_alert.distKm = closestDist;
 
-    if (severeHailDetected || peakIntensity >= 220) {
+    if (approachingHail || peakIntensity >= 235) {
       s_alert.type = PRECIP_HAIL_STORM;
     } else if (curTemp <= 1.0f) {
       s_alert.type = PRECIP_SNOW;

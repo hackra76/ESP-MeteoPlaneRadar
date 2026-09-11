@@ -382,8 +382,7 @@ void ScreenPlanes_Draw() {
   if (Settings_ShowLegends()) {
     Layout_ReserveBand(LY_LEGEND - 2, 24);    // altitude legend + numbers
   }
-  Layout_ReserveBand(LY_RANGE - 2, 20);       // range readout
-  Layout_ReserveBand(LY_RANGE_DOTS - 6, 12);  // range dots
+  Layout_ReserveBand(LY_RANGE - 6, 46);       // unified range indicator pill (text + dots)
 
   // --- Map underlay ---
   static Aircraft* s_drawList = nullptr;
@@ -581,7 +580,11 @@ void ScreenPlanes_Draw() {
           int th = LY_CHAR_H(c.size);
           int tx = (c.dx == 0) ? (sx - tw / 2) : (sx + c.dx);
           int ty = sy + c.dy;
-          if (tx < 6 || tx + tw > LCD_WIDTH - 6 || ty < 6 || ty + th > LCD_HEIGHT - 6) continue;
+          auto inGlass = [](int x, int y) {
+            long dx = x - 240, dy = y - 240;
+            return (dx * dx + dy * dy) <= (228L * 228L);
+          };
+          if (!inGlass(tx, ty) || !inGlass(tx + tw, ty) || !inGlass(tx, ty + th) || !inGlass(tx + tw, ty + th)) continue;
           if (Layout_Claim(tx - 2, ty - 1, tw + 4, th + 2)) {
             UI_Text(label, tx, ty, lCol, c.size);
 
@@ -595,7 +598,7 @@ void ScreenPlanes_Draw() {
                 int rh = LY_CHAR_H(1);
                 int rx = (c.dx == 0) ? (sx - rw / 2) : tx;
                 int ry = ty + th + 1;
-                if (rx >= 6 && rx + rw <= LCD_WIDTH - 6 && ry + rh <= LCD_HEIGHT - 6) {
+                if (inGlass(rx, ry) && inGlass(rx + rw, ry) && inGlass(rx, ry + rh) && inGlass(rx + rw, ry + rh)) {
                   if (Layout_Claim(rx - 1, ry, rw + 2, rh + 1)) {
                     UI_Text(rl, rx, ry, C_YELLOW, 1);
                   }
@@ -644,7 +647,7 @@ void ScreenPlanes_Draw() {
                                                                : T(S_EMERGENCY);
     snprintf(sub, sizeof(sub), "! %s  %s !", alertCode, what);
     int tw = Layout_TextW(sub, 2);
-    gfx->fillRect(LCD_WIDTH / 2 - tw / 2 - 8, LY_SUB - 4, tw + 16, 20, C_RED);
+    gfx->fillRoundRect(LCD_WIDTH / 2 - tw / 2 - 8, LY_SUB - 4, tw + 16, 20, 5, C_RED);
     UI_TextCentered(sub, LY_SUB - 1, C_WHITE, 2);
 
     // Emergency Telemetry HUD Card
@@ -688,7 +691,7 @@ void ScreenPlanes_Draw() {
                                                                : T(S_EMERGENCY);
     snprintf(sub, sizeof(sub), "%s  %s", alertCode, what);
     int tw = Layout_TextW(sub, 2);
-    gfx->fillRect(LCD_WIDTH / 2 - tw / 2 - 6, LY_SUB - 4, tw + 12, 20, C_RED);
+    gfx->fillRoundRect(LCD_WIDTH / 2 - tw / 2 - 6, LY_SUB - 4, tw + 12, 20, 5, C_RED);
     UI_TextCentered(sub, LY_SUB - 1, C_WHITE, 2);
   } else if (WiFi.status() != WL_CONNECTED || !s_dataOk) {
     UI_TextCentered(s_status.c_str(), LY_SUB, C_YELLOW, 1);

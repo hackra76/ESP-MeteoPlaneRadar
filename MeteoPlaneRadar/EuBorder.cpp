@@ -156,6 +156,7 @@ static void drawOneCity(const EuCity& c, ProjectFn project, int cx, int cy,
     if (Settings_ShowLegends()) {
       // Check collision: prevent city labels from colliding with each other or chrome
       if (Layout_Claim(tx - 2, ty - 2, tw + 4, 12)) {
+        gfx->fillRoundRect(tx - 2, ty - 1, tw + 4, 11, 3, C_BLACK);
         UI_Text(label, tx, ty, textColor, 1);
       }
     }

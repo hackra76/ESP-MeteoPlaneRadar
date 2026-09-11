@@ -602,7 +602,8 @@ static void drawOverlay() {
     const char* const* lbl = rv ? LBL_RV : (shmu ? LBL_SHMU : LBL_CHMU);
 
     const int lx = 30, ly = 142, boxW = 96, boxH = 22 + 6 * 13 + 2;
-    gfx->fillRect(lx - 2, ly - 2, boxW, boxH, C_BLACK);   // readability backing
+    gfx->fillRoundRect(lx - 4, ly - 4, boxW + 4, boxH + 4, 8, C_BLACK);   // unified rounded HUD backing
+    gfx->drawRoundRect(lx - 4, ly - 4, boxW + 4, boxH + 4, 8, 0x2104);   // subtle slate border
     const char* srcText = rv ? "RainViewer" : (shmu ? "SHMÚ" : "ČHMÚ");
     uint16_t    srcCol  = rv ? C_CYAN : (shmu ? C_WHITE : C_GREEN);
     UI_Text(srcText, lx, ly, srcCol, 1);
@@ -628,7 +629,7 @@ static void drawOverlay() {
     String hhmm = (have > 0) ? srcTimeText(s_curFrame) : String("");
     if (minAgo <= 0) snprintf(lbl, sizeof(lbl), "%s  %s", T(S_NOW), hhmm.c_str());
     else             snprintf(lbl, sizeof(lbl), "-%d %s  %s", minAgo, T(S_MIN), hhmm.c_str());
-    gfx->fillRect(CX - 70, LY_SUB, 140, 34, C_BLACK);   // backing
+    gfx->fillRoundRect(CX - 72, LY_SUB + 2, 144, 32, 8, C_BLACK);   // unified rounded HUD backing
     int gap = 16, totalW = (n - 1) * gap, sx0 = CX - totalW / 2, dy = LY_SUB + 10;
     for (int i = 0; i < n; i++) {
       int x = sx0 + i * gap;
@@ -643,7 +644,8 @@ static void drawOverlay() {
                      : s_lastFail ? T(S_OLD_DATA)
                                   : nullptr;
     if (note) {
-      gfx->fillRect(CX - 160, LY_NOTE, 320, 10, C_BLACK);
+      int nw = Layout_TextW(note, 1);
+      gfx->fillRoundRect(CX - nw / 2 - 8, LY_NOTE - 2, nw + 16, 14, 4, C_BLACK);
       UI_TextCenteredIn(note, 0, LCD_WIDTH, LY_NOTE, C_YELLOW, 1);
     } else if (Settings_PrecipAlert()) {
       const PrecipAlert* pa = PrecipTracker_GetAlert();

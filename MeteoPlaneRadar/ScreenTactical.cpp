@@ -18,6 +18,7 @@
 #include "PlanePhoto.h"
 #include "EuBorder.h"
 #include "Airports.h"
+#include "Outside.h"
 #include "UI.h"
 #include "Layout.h"
 #include "Lang.h"
@@ -432,6 +433,14 @@ static void buildTacticalComposite() {
   }
 }
 
+static inline uint16_t dimRadarPixel(uint16_t c) {
+  uint32_t r = (((c >> 11) & 0x1F) * 7) >> 4;
+  uint32_t g = (((c >> 5)  & 0x3F) * 7) >> 4;
+  uint32_t b = (( c        & 0x1F) * 7) >> 4;
+  if ((r | g | b) == 0) g = 1;
+  return (uint16_t)((r << 11) | (g << 5) | b);
+}
+
 static void blitRainViewer(const uint16_t* fb) {
   if (!fb) return;
   const long R2 = (long)DISP_R * DISP_R;
@@ -447,7 +456,7 @@ static void blitRainViewer(const uint16_t* fb) {
     for (int dx = x0; dx <= x1; dx++) {
       uint16_t c = src[dx];
       if (c != 0x0000) {
-        gfx->drawPixel(dx, dy, c);
+        gfx->drawPixel(dx, dy, dimRadarPixel(c));
       }
     }
   }
@@ -457,6 +466,12 @@ void ScreenTactical_Draw() {
   gfx->fillScreen(C_BLACK);
   Layout_Begin();
   refreshRotation();
+
+  // Chrome reservations to prevent aircraft labels from clobbering top/bottom UI
+  Layout_ReserveBand(LY_DOTS - 6, 12);        // screen selector dots
+  Layout_ReserveBand(LY_STATUS - 3, 22);      // clock + outside temperature
+  Layout_ReserveBand(LY_SUB - 4, 20);         // aircraft count / alert banner
+  Layout_ReserveBand(LY_RANGE - 6, 46);       // unified range pill & dots (Y: 398..444)
 
   // 1. Weather background
   if (rvMode()) {
@@ -625,6 +640,9 @@ void ScreenTactical_Draw() {
       PlaneTrail_Draw(list[i].hex, cityProject, col, sx, sy);
     }
 
+    // High-contrast silhouette shadow disc behind aircraft icon
+    gfx->fillCircle(sx, sy, 8, C_BLACK);
+
     float screenTrack = list[i].track - (float)s_topDeg;
     while (screenTrack < 0.0f) screenTrack += 360.0f;
     drawPlane(sx, sy, screenTrack, list[i].hasTrack, col, iconType);
@@ -659,8 +677,14 @@ void ScreenTactical_Draw() {
           int th = LY_CHAR_H(c.size);
           int tx = (c.dx == 0) ? (sx - tw / 2) : (sx + c.dx);
           int ty = sy + c.dy;
-          if (tx < 6 || tx + tw > LCD_WIDTH - 6 || ty < 6 || ty + th > LCD_HEIGHT - 6) continue;
+          auto inGlass = [](int x, int y) {
+            long dx = x - 240, dy = y - 240;
+            return (dx * dx + dy * dy) <= (228L * 228L);
+          };
+          if (!inGlass(tx, ty) || !inGlass(tx + tw, ty) || !inGlass(tx, ty + th) || !inGlass(tx + tw, ty + th)) continue;
           if (Layout_Claim(tx - 2, ty - 1, tw + 4, th + 2)) {
+            // High-contrast dark backing pill behind callsign
+            gfx->fillRoundRect(tx - 3, ty - 1, tw + 6, th + 2, 3, C_BLACK);
             UI_Text(label, tx, ty, lCol, c.size);
 
             // Route label (e.g. "VIE>LHR") on the line below the callsign
@@ -673,8 +697,9 @@ void ScreenTactical_Draw() {
                 int rh = LY_CHAR_H(1);
                 int rx = (c.dx == 0) ? (sx - rw / 2) : tx;
                 int ry = ty + th + 1;
-                if (rx >= 6 && rx + rw <= LCD_WIDTH - 6 && ry + rh <= LCD_HEIGHT - 6) {
+                if (inGlass(rx, ry) && inGlass(rx + rw, ry) && inGlass(rx, ry + rh) && inGlass(rx + rw, ry + rh)) {
                   if (Layout_Claim(rx - 1, ry, rw + 2, rh + 1)) {
+                    gfx->fillRoundRect(rx - 2, ry - 1, rw + 4, rh + 2, 2, C_BLACK);
                     UI_Text(rl, rx, ry, C_YELLOW, 1);
                   }
                 }
@@ -707,18 +732,25 @@ void ScreenTactical_Draw() {
   }
 
   // 5. Header status
-  UI_DrawStatusLine(LY_STATUS);
-
-  char sub[48];
+  char sub[48] = "";
   if (emergIdx >= 0) {
     const Aircraft& emAc = list[emergIdx];
     const char* what = (strcmp(alertCode, SQUAWK_HIJACK) == 0) ? T(S_HIJACK)
                      : (strcmp(alertCode, SQUAWK_RADIO)  == 0) ? T(S_RADIO_FAIL)
                                                                : T(S_EMERGENCY);
     snprintf(sub, sizeof(sub), "! %s  %s !", alertCode, what);
+
+    char stTxt[OUTSIDE_TEXT_MAX] = "";
+    Outside_StatusText(stTxt, sizeof(stTxt));
+    if (stTxt[0]) {
+      int twStatus = Font_TextWidth(stTxt, 2);
+      gfx->fillRoundRect(LCD_WIDTH / 2 - twStatus / 2 - 8, 23, twStatus + 16, 20, 5, C_BLACK);
+      Font_DrawCentered(stTxt, LCD_WIDTH / 2, 26, C_WHITE, 2);
+    }
+
     int tw = Layout_TextW(sub, 2);
-    gfx->fillRect(LCD_WIDTH / 2 - tw / 2 - 8, LY_SUB - 4, tw + 16, 20, C_RED);
-    UI_TextCentered(sub, LY_SUB - 1, C_WHITE, 2);
+    gfx->fillRoundRect(LCD_WIDTH / 2 - tw / 2 - 8, 48, tw + 16, 20, 5, C_RED);
+    UI_TextCentered(sub, 50, C_WHITE, 2);
 
     // Emergency Telemetry HUD Card
     const int boxW = 320;
@@ -760,25 +792,69 @@ void ScreenTactical_Draw() {
                      : (strcmp(alertCode, SQUAWK_RADIO)  == 0) ? T(S_RADIO_FAIL)
                                                                : T(S_EMERGENCY);
     snprintf(sub, sizeof(sub), "%s  %s", alertCode, what);
+
+    char stTxt[OUTSIDE_TEXT_MAX] = "";
+    Outside_StatusText(stTxt, sizeof(stTxt));
+    if (stTxt[0]) {
+      int twStatus = Font_TextWidth(stTxt, 2);
+      gfx->fillRoundRect(LCD_WIDTH / 2 - twStatus / 2 - 8, 23, twStatus + 16, 20, 5, C_BLACK);
+      Font_DrawCentered(stTxt, LCD_WIDTH / 2, 26, C_WHITE, 2);
+    }
+
     int tw = Layout_TextW(sub, 2);
-    gfx->fillRect(LCD_WIDTH / 2 - tw / 2 - 6, LY_SUB - 3, tw + 12, 20, C_RED);
-    UI_TextCentered(sub, LY_SUB, C_WHITE, 2);
-  } else if (!ADSB_IsFresh()) {
-    UI_TextCentered(T(S_LOADING), LY_SUB, C_YELLOW, 1);
-  } else if (specialIdx >= 0 && emergIdx < 0) {
-    const Aircraft& spAc = list[specialIdx];
-    const char* cname = spAc.callsign[0] ? spAc.callsign : spAc.hex;
-    snprintf(sub, sizeof(sub), "! %s: %s (%.0f km) !", specialLabel, cname, specialDistKm);
-    UI_TextCentered(sub, LY_SUB, specialCol, 1);
+    gfx->fillRoundRect(LCD_WIDTH / 2 - tw / 2 - 8, 48, tw + 16, 20, 5, C_RED);
+    UI_TextCentered(sub, 50, C_WHITE, 2);
   } else {
-    if (closestIdx >= 0 && minDistKm <= crng) {
+    // Non-emergency: build sub text
+    uint16_t subCol = watchedSeen ? C_GREEN : C_CYAN;
+    bool isSpecial = false;
+
+    if (!ADSB_IsFresh()) {
+      strncpy(sub, T(S_LOADING), sizeof(sub) - 1);
+      sub[sizeof(sub) - 1] = '\0';
+      subCol = C_YELLOW;
+    } else if (specialIdx >= 0) {
+      const Aircraft& spAc = list[specialIdx];
+      const char* cname = spAc.callsign[0] ? spAc.callsign : spAc.hex;
+      snprintf(sub, sizeof(sub), "! %s: %s (%.0f km) !", specialLabel, cname, specialDistKm);
+      subCol = specialCol;
+      isSpecial = true;
+    } else if (closestIdx >= 0 && minDistKm <= crng) {
       const char* cname = list[closestIdx].callsign[0] ? list[closestIdx].callsign : list[closestIdx].hex;
       snprintf(sub, sizeof(sub), "%s: %d  [%s: %.1f km]", T(S_AIRCRAFT), drawnCount, cname, minDistKm);
     } else {
-      snprintf(sub, sizeof(sub), "%s: %d%s", T(S_AIRCRAFT), drawnCount,
-               watchedSeen ? " *" : "");
+      snprintf(sub, sizeof(sub), "%s: %d%s", T(S_AIRCRAFT), drawnCount, watchedSeen ? " *" : "");
     }
-    UI_TextCentered(sub, LY_SUB, watchedSeen ? C_GREEN : C_CYAN, 1);
+
+    char stTxt[OUTSIDE_TEXT_MAX] = "";
+    Outside_StatusText(stTxt, sizeof(stTxt));
+
+    int wStatus = stTxt[0] ? Font_TextWidth(stTxt, 2) : 0;
+    int wSub    = Font_TextWidth(sub, 1);
+    int cardW   = max(wStatus, wSub) + 24;
+    if (cardW < 130) cardW = 130;
+    int cardX   = LCD_WIDTH / 2 - cardW / 2;
+
+    if (stTxt[0]) {
+      // Unified two-line HUD card
+      int cardY = 24;
+      int cardH = 38;
+      if (isSpecial) {
+        gfx->fillRoundRect(cardX, cardY, cardW, cardH, 8, 0x1800);
+        gfx->drawRoundRect(cardX, cardY, cardW, cardH, 8, specialCol);
+      } else {
+        gfx->fillRoundRect(cardX, cardY, cardW, cardH, 8, C_BLACK);
+      }
+      Font_DrawCentered(stTxt, LCD_WIDTH / 2, 26, C_WHITE, 2);
+      Font_DrawCentered(sub, LCD_WIDTH / 2, 46, subCol, 1);
+    } else {
+      // Standalone single-line sub pill
+      int pillW = wSub + 18;
+      int pillX = LCD_WIDTH / 2 - pillW / 2;
+      gfx->fillRoundRect(pillX, 36, pillW, 20, 6, isSpecial ? 0x1800 : C_BLACK);
+      if (isSpecial) gfx->drawRoundRect(pillX, 36, pillW, 20, 6, specialCol);
+      Font_DrawCentered(sub, LCD_WIDTH / 2, 40, subCol, 1);
+    }
   }
 
   // 5. Range indicator at the bottom

@@ -42,7 +42,7 @@
 #define ROT_VAL_W     56
 #define ROT_PLUS_X   350
 
-#define COMPASS_CX    48
+#define COMPASS_CX    56
 #define COMPASS_CY   252
 #define COMPASS_R     24
 

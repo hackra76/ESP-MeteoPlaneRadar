@@ -44,9 +44,8 @@ void UI_DrawStatusLine(int cy) {
   int room = 2 * UI_ChordHalfWidth(cy + 16) - 8;
   if (tw > room) return;
 
-  // Dark backing - on the weather screen this sits straight on top of the radar
-  // image, where white on yellow rain would be unreadable.
-  gfx->fillRect(LCD_WIDTH / 2 - tw / 2 - 6, cy - 3, tw + 12, 22, C_BLACK);
+  // Unified rounded pill matching all radar screens
+  gfx->fillRoundRect(LCD_WIDTH / 2 - tw / 2 - 8, cy - 3, tw + 16, 22, 6, C_BLACK);
   Font_DrawCentered(txt, LCD_WIDTH / 2, cy, C_WHITE, 2);
 }
 
@@ -87,22 +86,26 @@ void UI_DrawWifiQR(const char* ssid, const char* password, bool open,
 void UI_DrawRangeIndicator(const char* text, int activeIdx, int totalCount, bool showText) {
   if (totalCount <= 0) return;
 
-  // 1. Text readout (e.g. "50 km") with dark backing
-  if (showText && text && text[0]) {
-    int tw = Font_TextWidth(text, 2);
-    gfx->fillRoundRect(LCD_WIDTH / 2 - tw / 2 - 8, LY_RANGE - 3, tw + 16, 22, 4, C_BLACK);
-    Font_DrawCentered(text, LCD_WIDTH / 2, LY_RANGE, C_YELLOW, 2);
-  }
-
-  // 2. Standardized zoom dots: radius 4 px, gap 20 px, dark backing
+  // Standardized zoom dots: radius 4 px, gap 20 px
   const int dotGap = 20;
   const int dotR = 4;
   const int dotY = LY_RANGE_DOTS;
   const int totalW = (totalCount - 1) * dotGap;
   const int startX = LCD_WIDTH / 2 - totalW / 2;
 
-  // Clean dark backing so radar clouds or plane tracks don't cross under dots
-  gfx->fillRoundRect(startX - dotR - 4, dotY - dotR - 3, totalW + 2 * (dotR + 4), 2 * dotR + 6, 6, C_BLACK);
+  // Unified single pill when text is present, or clean pill for dots only
+  if (showText && text && text[0]) {
+    int tw = Font_TextWidth(text, 2);
+    int pillW = max(tw + 20, totalW + 2 * (dotR + 8));
+    int pillX = LCD_WIDTH / 2 - pillW / 2;
+    int pillY = LY_RANGE - 4;
+    int pillH = (dotY + dotR + 4) - pillY;
+    gfx->fillRoundRect(pillX, pillY, pillW, pillH, 8, C_BLACK);
+
+    Font_DrawCentered(text, LCD_WIDTH / 2, LY_RANGE, C_YELLOW, 2);
+  } else {
+    gfx->fillRoundRect(startX - dotR - 4, dotY - dotR - 3, totalW + 2 * (dotR + 4), 2 * dotR + 6, 6, C_BLACK);
+  }
 
   for (int i = 0; i < totalCount; i++) {
     int x = startX + i * dotGap;

@@ -884,7 +884,7 @@ static void drawPrecipWidget(const PrecipAlert* pa) {
   const int w = 310;
   const int h = 40;
   const int x = CX - w / 2;
-  const int y = s_overheadActive ? 370 : 66;
+  const int y = s_overheadActive ? 370 : 80;
   s_precipCardX = x; s_precipCardY = y; s_precipCardW = w; s_precipCardH = h;
 
   uint16_t bg = (pa->type == PRECIP_HAIL_STORM) ? 0x2800 : ((pa->type == PRECIP_SNOW) ? 0x0113 : 0x0842);
