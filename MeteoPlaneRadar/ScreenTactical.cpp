@@ -25,7 +25,6 @@
 #include "Status.h"
 #include "Display_ST7701.h"
 #include "AircraftType.h"
-#include "QMI8658.h"
 #include "Buzzer.h"
 
 #include <WiFi.h>
@@ -97,9 +96,6 @@ void ScreenTactical_CloseDetail() { selectNone("manual"); }
 
 static void refreshRotation() {
   uint16_t deg = Settings_TopBearing();
-  if (Settings_AutoRotateBearing() && QMI8658_Available()) {
-    deg = (uint16_t)(((int)roundf(QMI8658_GetHeading()) % 360 + 360) % 360);
-  }
   if (deg == s_topDeg) return;
   s_topDeg = deg;
   float r = (float)deg * 0.0174532925f;
@@ -867,11 +863,11 @@ void ScreenTactical_Draw() {
     UI_DrawRangeIndicator(rbuf, s_rangeIdx, RANGE_COUNT, true);
   }
 
-  // Real Electronic Gyrocompass Widget (top right)
-  if (Settings_RadarShowCompass() && QMI8658_Available() && !ScreenTactical_DetailOpen()) {
+  // Compass Widget (top right)
+  if (Settings_RadarShowCompass() && !ScreenTactical_DetailOpen()) {
     float needleAngle = 360.0f - (float)s_topDeg;
     while (needleAngle < 0.0f) needleAngle += 360.0f;
-    UI_DrawCompassWidget(390, 85, 16, needleAngle, Settings_AutoRotateBearing() ? C_GREEN : 0x2FE6, true);
+    UI_DrawCompassWidget(390, 85, 16, needleAngle, 0x2FE6, true);
   }
 
   // 6. Detail overlay
@@ -1078,15 +1074,7 @@ bool ScreenTactical_Tick() {
     return true;
   }
 
-  // Smooth live compass heading tracking
-  if (Settings_AutoRotateBearing() && QMI8658_Available()) {
-    static uint16_t s_lastTacHdgTick = 0;
-    uint16_t curHdg = (uint16_t)(((int)roundf(QMI8658_GetHeading()) % 360 + 360) % 360);
-    if (abs((int)curHdg - (int)s_lastTacHdgTick) >= 2) {
-      s_lastTacHdgTick = curHdg;
-      return true;
-    }
-  }
+
 
   return routeChanged || radarChanged || srcChanged || smoothChanged;
 }
@@ -1108,13 +1096,9 @@ bool ScreenTactical_HandleTap(int x, int y) {
     return true;
   }
 
-  // Tap on Compass widget (top-right corner, 390, 85): toggle auto-rotate / recalibrate North
-  if (Settings_RadarShowCompass() && QMI8658_Available() && x >= 360 && x <= 425 && y >= 55 && y <= 125) {
-    if (!Settings_AutoRotateBearing()) {
-      Settings_SetAutoRotateBearing(true);
-    } else {
-      QMI8658_ResetHeading(0.0f);
-    }
+  // Tap on Compass widget (top-right corner, 390, 85): toggle compass display
+  if (Settings_RadarShowCompass() && x >= 360 && x <= 425 && y >= 55 && y <= 125) {
+    Settings_SetRadarShowCompass(false);
     Buzzer_Play(BEEP_CLICK);
     return true;
   }
@@ -1133,4 +1117,25 @@ bool ScreenTactical_HandleTap(int x, int y) {
   }
 
   return false;
+}
+
+void ScreenTactical_FreeBuffers() {
+  if (s_radarFb) {
+    heap_caps_free(s_radarFb);
+    s_radarFb = nullptr;
+  }
+  if (s_crop565) {
+    heap_caps_free(s_crop565);
+    s_crop565 = nullptr;
+    s_cropCap = 0;
+  }
+  if (s_lineBuf) {
+    heap_caps_free(s_lineBuf);
+    s_lineBuf = nullptr;
+    s_lineCap = 0;
+  }
+  if (s_png) {
+    heap_caps_free(s_png);
+    s_png = nullptr;
+  }
 }

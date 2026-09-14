@@ -6,6 +6,7 @@
 #include "FlightStats.h"
 #include "Settings.h"
 #include "Outside.h"
+#include "Config.h"
 #include <esp_heap_caps.h>
 #include <time.h>
 #include <math.h>
@@ -109,8 +110,32 @@ void FlightStats_Update(const Aircraft* list, int count) {
   const float homeLon = (float)Settings_Lon();
   const bool hasHome = (homeLat != 0.0f || homeLon != 0.0f);
 
+  const bool filterZoom = Settings_StatsFilterRange();
+  float maxAllowedKm = 999999.0f;
+  if (filterZoom) {
+    const float RANGES[] = PLANE_RANGES_KM;
+    uint8_t rIdx = Settings_PlaneRange();
+    if (rIdx < sizeof(RANGES) / sizeof(RANGES[0])) {
+      maxAllowedKm = RANGES[rIdx];
+    } else {
+      maxAllowedKm = 25.0f;
+    }
+  }
+
   for (int i = 0; i < count; i++) {
     const Aircraft& a = list[i];
+    float d = 0.0f;
+    if (hasHome && a.lat != 0.0f && a.lon != 0.0f) {
+      d = haversineKm(homeLat, homeLon, a.lat, a.lon);
+    }
+
+    // When zoom filtering is active, ignore planes outside the selected Aircraft radar zoom level
+    if (filterZoom) {
+      if (!hasHome || a.lat == 0.0f || a.lon == 0.0f || d > maxAllowedKm) {
+        continue;
+      }
+    }
+
     s_totalSightings++;
 
     // Register ICAO
@@ -121,7 +146,6 @@ void FlightStats_Update(const Aircraft* list, int count) {
 
     // Distance
     if (hasHome && a.lat != 0.0f && a.lon != 0.0f) {
-      float d = haversineKm(homeLat, homeLon, a.lat, a.lon);
       if (d > s_maxDistKm) s_maxDistKm = d;
     }
 

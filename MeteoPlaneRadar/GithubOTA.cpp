@@ -13,6 +13,13 @@
 #include "UI.h"
 #include "Lang.h"
 #include "Display_ST7701.h"
+#include "RainViewer.h"
+#include "CHMU.h"
+#include "SHMU.h"
+#include "ScreenWeather.h"
+#include "ScreenTactical.h"
+#include "PlanePhoto.h"
+#include "Route.h"
 
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
@@ -337,34 +344,49 @@ static void downloadAndFlashTask(void* param) {
   s_totalBytes = (totalLen > 0) ? (size_t)totalLen : 0;
   size_t updateSize = (totalLen > 0) ? (size_t)totalLen : UPDATE_SIZE_UNKNOWN;
 
-  if (!Update.begin(updateSize)) {
-    s_otaError = Update.errorString();
-    while (client.available()) client.read();
-    http.end();
-    client.stop();
-    s_otaState = GH_OTA_ERROR;
-    Async_Resume();
-    s_updateTaskHandle = nullptr;
-    vTaskDelete(NULL);
-    return;
-  }
-
   s_otaState = GH_OTA_FLASHING;
+  UI_DrawOtaProgress("GitHub OTA", 0, 0, (size_t)totalLen, (Lang_Get() == LANG_EN) ? "Preparing memory..." : "Pripravujem pamäť...");
+
+  // Free all large radar, weather, camera and route caches before allocating OTA buffer
+  RainViewer_FreeBuffers();
+  CHMU_FreeBuffers();
+  SHMU_FreeBuffers();
+  ScreenWeather_FreeBuffers();
+  ScreenTactical_FreeBuffers();
+  PlanePhoto_ClearCache();
+  Route_ClearQueue();
+  Serial.printf("GithubOTA: Cleared PSRAM caches. Free PSRAM: %u B, Largest Block: %u B\n",
+                (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
+                (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
+
   UI_DrawOtaProgress("GitHub OTA", 0, 0, (size_t)totalLen, (Lang_Get() == LANG_EN) ? "Downloading firmware..." : "Sťahujem firmvér...");
 
   size_t ramCap = (totalLen > 0) ? ((size_t)totalLen + 65536) : 2600000;
   uint8_t* ramBuf = (uint8_t*)heap_caps_malloc(ramCap, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
   if (!ramBuf) {
-    s_otaError = "No PSRAM buffer";
-    while (client.available()) client.read();
-    http.end();
-    client.stop();
-    s_otaState = GH_OTA_ERROR;
-    UI_DrawOtaProgress("GitHub OTA", 0, 0, 0, s_otaError.c_str());
-    Async_Resume();
-    s_updateTaskHandle = nullptr;
-    vTaskDelete(NULL);
-    return;
+    size_t largest = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (largest > 1000000 && (totalLen <= 0 || largest > (size_t)totalLen + 32768)) {
+      ramCap = largest - 65536;
+      ramBuf = (uint8_t*)heap_caps_malloc(ramCap, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    }
+  }
+
+  bool directFlash = false;
+  if (!ramBuf) {
+    Serial.println("GithubOTA: PSRAM buffer unavailable, falling back to direct flash streaming OTA");
+    if (!Update.begin(updateSize)) {
+      s_otaError = Update.errorString();
+      while (client.available()) client.read();
+      http.end();
+      client.stop();
+      s_otaState = GH_OTA_ERROR;
+      UI_DrawOtaProgress("GitHub OTA", 0, 0, 0, s_otaError.c_str());
+      Async_Resume();
+      s_updateTaskHandle = nullptr;
+      vTaskDelete(NULL);
+      return;
+    }
+    directFlash = true;
   }
 
   size_t downloaded = 0;
@@ -376,28 +398,52 @@ static void downloadAndFlashTask(void* param) {
   while (http.connected() && (totalLen <= 0 || downloaded < (size_t)totalLen)) {
     size_t avail = stream ? stream->available() : 0;
     if (avail) {
-      if (downloaded + avail > ramCap) {
-        size_t newCap = ramCap + 524288;
-        uint8_t* newBuf = (uint8_t*)heap_caps_realloc(ramBuf, newCap, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-        if (!newBuf) {
-          s_otaError = "PSRAM realloc failed";
-          break;
+      if (directFlash) {
+        uint8_t chunk[512];
+        size_t toRead = (avail > sizeof(chunk)) ? sizeof(chunk) : avail;
+        int r = stream->readBytes(chunk, toRead);
+        if (r > 0) {
+          if (Update.write(chunk, (size_t)r) != (size_t)r) {
+            s_otaError = Update.errorString();
+            Update.abort();
+            break;
+          }
+          downloaded += (size_t)r;
+          s_bytesWritten = downloaded;
+          if (totalLen > 0) {
+            s_otaProgress = (int)(downloaded * 100 / (size_t)totalLen);
+          }
+          if (s_otaProgress != lastDrawnProg && (millis() - lastDrawnMs >= 150 || s_otaProgress == 100)) {
+            lastDrawnProg = s_otaProgress;
+            lastDrawnMs = millis();
+            UI_DrawOtaProgress("GitHub OTA", s_otaProgress, downloaded, (size_t)totalLen, nullptr);
+          }
+          LCD_Restart();
         }
-        ramBuf = newBuf;
-        ramCap = newCap;
-      }
-      int r = stream->readBytes(ramBuf + downloaded, avail);
-      if (r > 0) {
-        downloaded += (size_t)r;
-        s_bytesWritten = downloaded;
-        if (totalLen > 0) {
-          s_otaProgress = (int)(downloaded * 100 / (size_t)totalLen);
+      } else {
+        if (downloaded + avail > ramCap) {
+          size_t newCap = ramCap + 524288;
+          uint8_t* newBuf = (uint8_t*)heap_caps_realloc(ramBuf, newCap, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+          if (!newBuf) {
+            s_otaError = "PSRAM realloc failed";
+            break;
+          }
+          ramBuf = newBuf;
+          ramCap = newCap;
         }
-        // Smooth 100% stable progress on display!
-        if (s_otaProgress != lastDrawnProg && (millis() - lastDrawnMs >= 150 || s_otaProgress == 100)) {
-          lastDrawnProg = s_otaProgress;
-          lastDrawnMs = millis();
-          UI_DrawOtaProgress("GitHub OTA", s_otaProgress, downloaded, (size_t)totalLen, nullptr);
+        int r = stream->readBytes(ramBuf + downloaded, avail);
+        if (r > 0) {
+          downloaded += (size_t)r;
+          s_bytesWritten = downloaded;
+          if (totalLen > 0) {
+            s_otaProgress = (int)(downloaded * 100 / (size_t)totalLen);
+          }
+          // Smooth 100% stable progress on display!
+          if (s_otaProgress != lastDrawnProg && (millis() - lastDrawnMs >= 150 || s_otaProgress == 100)) {
+            lastDrawnProg = s_otaProgress;
+            lastDrawnMs = millis();
+            UI_DrawOtaProgress("GitHub OTA", s_otaProgress, downloaded, (size_t)totalLen, nullptr);
+          }
         }
       }
     } else {
@@ -415,6 +461,26 @@ static void downloadAndFlashTask(void* param) {
 
   if (totalLen > 0 && downloaded < (size_t)totalLen && s_otaError.length() == 0) {
     s_otaError = "Incomplete download";
+  }
+
+  if (directFlash) {
+    if (s_otaError.length() == 0 && Update.end(true)) {
+      s_otaProgress = 100;
+      s_otaState = GH_OTA_SUCCESS;
+      Serial.printf("GithubOTA: Direct flash write complete (%u B), restarting...\n", (unsigned)downloaded);
+      UI_DrawOtaWritingStaticScreen("GitHub OTA", (Lang_Get() == LANG_EN) ? "Success! Restarting..." : "Hotovo! Reštartujem...");
+      vTaskDelay(pdMS_TO_TICKS(1500));
+      ESP.restart();
+    } else {
+      if (s_otaError.length() == 0) s_otaError = Update.errorString();
+      s_otaState = GH_OTA_ERROR;
+      UI_DrawOtaWritingStaticScreen("GitHub OTA", s_otaError.c_str());
+      vTaskDelay(pdMS_TO_TICKS(3000));
+      Async_Resume();
+    }
+    s_updateTaskHandle = nullptr;
+    vTaskDelete(NULL);
+    return;
   }
 
   if (s_otaError.length() == 0 && downloaded > 0) {

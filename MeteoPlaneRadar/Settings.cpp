@@ -4,6 +4,7 @@
 //
 // =============================================================================
 #include "Settings.h"
+#include "FlightStats.h"
 #include "Lang.h"
 #include <Preferences.h>
 #include <string.h>
@@ -94,7 +95,7 @@ static uint8_t  s_rngT = 1;
 static uint8_t  s_scr  = SCREEN_CLOCK_I;
 static uint16_t s_top  = 0;
 static bool     s_showLegends = true;
-static bool     s_autoRotateBearing = false;
+static bool     s_statsFilterRange = false;
 
 // --- Admin password (see the note in Settings.h) ---
 static char s_pw[33] = "";
@@ -252,7 +253,7 @@ void Settings_Begin() {
     s_scr    = prefs.getUChar("scr", SCREEN_PLANES_I);
     s_top    = prefs.getUShort("topb", 0);
     s_showLegends = prefs.getBool("sLeg", true);
-    s_autoRotateBearing = prefs.getBool("autoRot", false);
+    s_statsFilterRange = prefs.getBool("stFlt", false);
     if (prefs.isKey("pw"))    prefs.getString("pw", s_pw, sizeof(s_pw));
     s_wifiNetCount = 0;
     for (int i = 0; i < MAX_WIFI_NETWORKS; i++) {
@@ -745,11 +746,13 @@ void    Settings_SetShowLegends(bool show) {
 void    Settings_ToggleLegends() {
   Settings_SetShowLegends(!s_showLegends);
 }
-bool    Settings_AutoRotateBearing() { return s_autoRotateBearing; }
-void    Settings_SetAutoRotateBearing(bool on) {
-  if (on != s_autoRotateBearing) {
-    s_autoRotateBearing = on;
-    putBool("autoRot", on);
+bool    Settings_StatsFilterRange() { return s_statsFilterRange; }
+void    Settings_SetStatsFilterRange(bool on) {
+  if (on != s_statsFilterRange) {
+    s_statsFilterRange = on;
+    putBool("stFlt", on);
+    FlightStats_Reset();
+    markDirty();
   }
 }
 
@@ -815,7 +818,7 @@ void Settings_ToJson(JsonObject o) {
   o["rAirports"] = s_radShowAirports;
   o["rRings"] = s_radShowRings;
   o["rCompass"] = s_radShowCompass;
-  o["autoRotateBearing"] = s_autoRotateBearing;
+  o["statsFilterRange"] = s_statsFilterRange;
   o["altMin"] = s_altMin;
   o["altMax"] = s_altMax;
   o["onlyCallsign"] = s_onlyCs;
@@ -907,7 +910,7 @@ bool Settings_FromJson(JsonObjectConst in) {
   setIf("hostname",     [](JsonVariantConst v){ Settings_SetHostname(v.as<const char*>()); });
   setIf("rRings",       [](JsonVariantConst v){ Settings_SetRadarShowRings(v.as<bool>()); });
   setIf("rCompass",     [](JsonVariantConst v){ Settings_SetRadarShowCompass(v.as<bool>()); });
-  setIf("autoRotateBearing", [](JsonVariantConst v){ Settings_SetAutoRotateBearing(v.as<bool>()); });
+  setIf("statsFilterRange", [](JsonVariantConst v){ Settings_SetStatsFilterRange(v.as<bool>()); });
   setIf("showLegends",  [](JsonVariantConst v){ Settings_SetShowLegends(v.as<bool>()); });
   setIf("onlyCallsign", [](JsonVariantConst v){ Settings_SetOnlyWithCallsign(v.as<bool>()); });
   setIf("squawkAlert",  [](JsonVariantConst v){ Settings_SetSquawkAlert(v.as<bool>()); });
@@ -992,6 +995,7 @@ void Settings_ClearAll() {
   s_clkShowOverhead = true; s_overheadRadiusKm = 10.0f;
   s_precipAlert = true;
   s_altMin = 0; s_altMax = 60000; s_onlyCs = false; s_sqAlert = true; s_watch[0] = '\0';
+  s_statsFilterRange = false;
   s_typeFilterMask = 0x3F;
   s_bzOn = true; s_bzEm = true; s_bzWatch = true; s_bzOverhead = false; s_bzPrecip = false; s_bzTouch = false; s_bzHour = false; s_bzNMute = true;
   s_rngP = 1; s_rngM = 1; s_rngT = 1; s_scr = SCREEN_CLOCK_I; s_top = 0;

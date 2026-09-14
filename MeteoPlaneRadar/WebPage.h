@@ -620,8 +620,15 @@ td:first-child{color:var(--mut);width:45%}
             <h2 style="margin:0;" data-i18n="statsTrafficHdr">✈️ Dnešná letecká štatistika</h2>
             <button type="button" class="sec" onclick="resetStats()" style="padding:4px 10px;font-size:12px;" data-i18n="btnResetStats">🔄 Resetovať</button>
           </div>
+          <div class="row" style="margin:10px 0;">
+            <label data-i18n="statsFilterLbl" style="font-weight:600;">Rozsah započítavania lietadiel:</label>
+            <select id="statsFilterRange" onchange="autoSave('statsFilterRange',+this.value===1);fetchStats()">
+              <option value="0" data-i18n="statsOptAll">Všetky prijaté lietadlá (celý ADS-B feed)</option>
+              <option value="1" data-i18n="statsOptZoom">Iba v nastavenom rozsahu obrazovky Lietadlá (Zoom)</option>
+            </select>
+          </div>
           <table style="margin-top:4px;">
-            <tr><td data-i18n="stUnique">Unikátne lietadlá dnes:</td><td><span class="stat-val" id="stCount" style="color:var(--acc);font-weight:700;font-size:16px;">-</span></td></tr>
+            <tr><td id="stCountLbl" data-i18n="stUnique">Unikátne lietadlá dnes:</td><td><span class="stat-val" id="stCount" style="color:var(--acc);font-weight:700;font-size:16px;">-</span></td></tr>
             <tr><td data-i18n="stTopSpeed">Najvyššia rýchlosť:</td><td><span class="stat-val" id="stSpeed" style="color:var(--warn);">-</span></td></tr>
             <tr><td data-i18n="stMaxDist">Maximálna vzdialenosť:</td><td><span class="stat-val" id="stDist">-</span></td></tr>
             <tr><td data-i18n="stAltSpan">Rozpätie letových výšok:</td><td><span class="stat-val" id="stAlt">-</span></td></tr>
@@ -770,11 +777,10 @@ td:first-child{color:var(--mut);width:45%}
           </div>
           <div class="grid" style="margin-top:10px;">
             <label class="chk"><input type="checkbox" id="rCompassCommon" onchange="$('rCompass').checked=this.checked;autoSave('rCompass',this.checked)"><span data-i18n="rCompass">Elektronický kompas (miniatúra na mape)</span></label>
-            <label class="chk"><input type="checkbox" id="autoRotateBearing"><span data-i18n="autoRotateBearing">Auto-rotácia radaru podľa kompasu (Live Heading)</span></label>
             <label class="chk"><input type="checkbox" id="metric"><span data-i18n="metric">Metrické jednotky (km, km/h, m namiesto NM, kt, ft)</span></label>
           </div>
           <p class="hint" data-i18n="planesViewHint">Nastavte smer podľa toho, kam smeruje váš výhľad. Meteoradar sa zámerne orientuje na sever.</p>
-          <p class="hint" data-i18n="compassHint" style="margin-top:6px;">Elektronický kompas (QMI8658) umožňuje zobraziť miniatúru kompasu v rohu mapy, alebo dynamicky otáčať celú radarovú mapu podľa natočenia zariadenia. Klepnutím na kompas na displeji nakalibrujete sever.</p>
+          <p class="hint" data-i18n="compassHint" style="margin-top:6px;">Elektronický kompas zobrazuje miniatúru kompasu v rohu mapy s ručičkou smerujúcou na sever.</p>
         </div>
 
         <!-- 6. Časové pásmo & Posun GMT -->
@@ -1030,8 +1036,7 @@ const D={
   planesView:"🧭 Orientace, Kompas & Jednotky",topBearing:"Směr nahoře na radaru",metric:"Metrické jednotky (km, km/h, m místo NM, kt, ft)",
   tb0:"Sever (Sever nahoře / North-Up)",tb45:"Severovýchod (45°)",tb90:"Východ (90°)",tb135:"Jihovýchod (135°)",tb180:"Jih (180°)",tb225:"Jihozápad (225°)",tb270:"Západ (270°)",tb315:"Severozápad (315°)",
   planesViewHint:"Nastavte směr podle toho, kam se díváte z okna. Meteoradar je orientován na sever.",
-  compassHint:"Elektronický kompas (QMI8658) umožňuje buď zobrazit miniaturu kompasu v rohu mapy, nebo dynamicky otáčet celou mapu podle fyzického natočení displeje. Klepnutím na kompas na displeji zkalibrujete sever.",
-  autoRotateBearing:"Auto-rotace mapy podle kompasu (Live Heading)",
+  compassHint:"Elektronický kompas zobrazuje miniaturu kompasu v rohu mapy s ručičkou ukazující na sever.",
   autoRotate:"Automatické střídání (sekundy, 0 = vypnuto)",
   rotHint:"Střídání pozastaví potažení prstem nebo přepnutí z prohlížeče. Otevřený detail letadla střídání drží.",
   radar:"🌧️ Meteoradar & Zobrazení",radarSrc:"Zdroj radarových dat",srcRv:"RainViewer (Evropa a svět)",srcChmu:"ČHMÚ (velmi ostrá data, jen ČR)",srcShmu:"SHMÚ (velmi ostrá data, Slovensko)",
@@ -1087,7 +1092,7 @@ const D={
   finSlotsHdr:"📈 Sledované trhy & aktiva (4 pozice)",finSlot1:"1. Hlavní trh (Hero graf)",finSlot1Sub:"Velký reálný graf + kurz",finSlot2:"2. Sledovaný trh",finSlot3:"3. Sledovaný trh",finSlot4:"4. Sledovaný trh",finSlotWatchlist:"Karta v dolním přehledu",finPresets:"⚡ Rychlé přidání populárních aktiv:",finClear:"Vymazat",financeHint:"1. pozice má velký graf (Hero), pozice 2–4 se zobrazují v dolním přehledu. Podporuje evropské ETF fondy (Amundi CW8.PA, 500.PA, Vanguard VWCE.DE), krypto, indexy, komodity i světové akcie z Yahoo Finance.",
   ultraNight:"🌙 Ultra Night režim (hluboká červená / spánkový monochróm, min. jas)",
   tabScrInfo:"ℹ️ Info & Statistiky",scrInfoHdr:"Info & Denní statistika letů",scrInfoActive:"Zahrnout obrazovku do automatického střídání",
-  statsTrafficHdr:"✈️ Dnešní letecká statistika",btnResetStats:"🔄 Resetovat",stUnique:"Unikátní letadla dnes:",stTopSpeed:"Nejvyšší rychlost:",stMaxDist:"Maximální vzdálenost:",stAltSpan:"Rozpětí výšek:",stReports:"Přijaté ADS-B zprávy:",statsHint:"Statistika se automaticky nuluje o půlnoci a uchovává se v paměti PSRAM.",confirmResetStats:"Opravdu resetovat dnešní statistiku letů?",statsResetOk:"Statistiky byly resetovány",
+  statsTrafficHdr:"✈️ Dnešní letecká statistika",btnResetStats:"🔄 Resetovat",statsFilterLbl:"Rozsah započítávání letadel do statistik:",statsOptAll:"Všechna přijatá letadla (celý ADS-B feed)",statsOptZoom:"Pouze v nastaveném rozsahu obrazovky Letadla (Zoom)",stUniqueZoom:"Unikátní letadla (Zoom ",stUniqueAll:"Unikátní letadla (Všechna):",stUnique:"Unikátní letadla dnes:",stTopSpeed:"Nejvyšší rychlost:",stMaxDist:"Maximální vzdálenost:",stAltSpan:"Rozpětí výšek:",stReports:"Přijaté ADS-B zprávy:",statsHint:"Statistika se automaticky nuluje o půlnoci a uchovává se v paměti PSRAM.",confirmResetStats:"Opravdu resetovat dnešní statistiku letů?",statsResetOk:"Statistiky byly resetovány",
   cOver:"✈️ Let nad hlavou (Overhead widget)",ovRad:"Poloměr přeletu nad hlavou (km)",bzOverhead:"🔊 Přelet nad hlavou (Overhead výstraha)",
    cPrecip:"🌧️ Výstraha blížících se srážek",bzPrecip:"🔊 Pípnutí při blížících se srážkách",precipTrackerHdr:"🌧️ Detekce blížících se srážek (Nowcasting)",precipHint:"Vektorová analýza pohybu frontu (TREC). Upozorní na déšť, kroupy nebo sníh, pouze pokud srážky směřují přímo k vaší poloze.",precipLiveHdr:"Aktuální stav nowcastingu:",
   scrShotHdr:"📸 Snímek displeje",scrShotNone:"Klikněte pro zachycení",btnTakeScrShot:"📸 Zachytit obrazovku",btnDlScrShot:"💾 Stáhnout BMP",scrShotOk:"Snímek úspěšně načten",scrShotErr:"Chyba načtení snímku",
@@ -1110,8 +1115,7 @@ const D={
   planesView:"🧭 Orientácia, Kompas & Jednotky",topBearing:"Smer hore na radare",metric:"Metrické jednotky (km, km/h, m namiesto NM, kt, ft)",
   tb0:"Sever (Sever hore / North-Up)",tb45:"Severovýchod (45°)",tb90:"Východ (90°)",tb135:"Juhovýchod (135°)",tb180:"Juh (180°)",tb225:"Juhozápad (225°)",tb270:"Západ (270°)",tb315:"Severozápad (315°)",
   planesViewHint:"Nastavte smer podľa toho, kam smeruje váš výhľad. Meteoradar sa zámerne orientuje na sever.",
-  compassHint:"Elektronický kompas (QMI8658) umožňuje buď zobraziť miniatúru kompasu v rohu mapy, alebo dynamicky otáčať celú radarovú mapu podľa natočenia zariadenia. Klepnutím na kompas na displeji nakalibrujete sever.",
-  autoRotateBearing:"Auto-rotácia mapy podľa kompasu (Live Heading)",
+  compassHint:"Elektronický kompas zobrazuje miniatúru kompasu v rohu mapy s ručičkou smerujúcou na sever.",
   autoRotate:"Automatické striedanie (sekundy, 0 = vypnuté)",
   rotHint:"Striedanie pozastaví potiahnutie prstom alebo prepnutie z prehliadača. Otvorený detail lietadla striedanie pozastaví.",
   radar:"🌧️ Meteoradar & Zobrazenie",radarSrc:"Zdroj radarových dát",srcRv:"RainViewer (Európa a svet)",srcChmu:"ČHMÚ (veľmi ostré dáta, len ČR)",srcShmu:"SHMÚ (veľmi ostré dáta, Slovensko)",
@@ -1167,7 +1171,7 @@ const D={
   finSlotsHdr:"📈 Sledované trhy & aktíva (4 pozície)",finSlot1:"1. Hlavný trh (Hero graf)",finSlot1Sub:"Veľký reálny graf + kurz",finSlot2:"2. Sledovaný trh",finSlot3:"3. Sledovaný trh",finSlot4:"4. Sledovaný trh",finSlotWatchlist:"Karta v spodnom zozname",finPresets:"⚡ Rýchle pridanie populárnych aktív:",finClear:"Vymazať",financeHint:"1. pozícia má veľký graf (Hero), pozície 2–4 sa zobrazujú v dolnom prehľade. Podporuje európske ETF fondy (Amundi CW8.PA, 500.PA, Vanguard VWCE.DE), krypto, indexy, komodity aj svetové akcie z Yahoo Finance.",
   ultraNight:"🌙 Ultra Night režim (hlboká červená / spánkový monochróm, min. jas)",
   tabScrInfo:"ℹ️ Info & Štatistiky",scrInfoHdr:"Info & Denná štatistika letov",scrInfoActive:"Zahrnúť obrazovku do automatického striedania",
-  statsTrafficHdr:"✈️ Dnešná letecká štatistika",btnResetStats:"🔄 Resetovať",stUnique:"Unikátne lietadlá dnes:",stTopSpeed:"Najvyššia rýchlosť:",stMaxDist:"Maximálna vzdialenosť:",stAltSpan:"Rozpätie výšok:",stReports:"Prijaté ADS-B správy:",statsHint:"Štatistika sa automaticky nuluje o polnoci a uchováva sa v pamäti PSRAM.",confirmResetStats:"Naozaj resetovať dnešnú štatistiku letov?",statsResetOk:"Štatistiky boli resetované",
+  statsTrafficHdr:"✈️ Dnešná letecká štatistika",btnResetStats:"🔄 Resetovať",statsFilterLbl:"Rozsah započítavania lietadiel do štatistík:",statsOptAll:"Všetky prijaté lietadlá (celý ADS-B feed)",statsOptZoom:"Iba v nastavenom rozsahu obrazovky Lietadlá (Zoom)",stUniqueZoom:"Unikátne lietadlá (Zoom ",stUniqueAll:"Unikátne lietadlá (Všetky):",stUnique:"Unikátne lietadlá dnes:",stTopSpeed:"Najvyššia rýchlosť:",stMaxDist:"Maximálna vzdialenosť:",stAltSpan:"Rozpätie výšok:",stReports:"Prijaté ADS-B správy:",statsHint:"Štatistika sa automaticky nuluje o polnoci a uchováva sa v pamäti PSRAM.",confirmResetStats:"Naozaj resetovať dnešnú štatistiku letov?",statsResetOk:"Štatistiky boli resetované",
   cOver:"✈️ Prelet nad hlavou (Overhead widget)",ovRad:"Polomer preletu nad hlavou (km)",bzOverhead:"🔊 Prelet nad hlavou (Overhead výstraha)",
    cPrecip:"🌧️ Výstraha blížiacich sa zrážok",bzPrecip:"🔊 Pípnutie pri blížiacich sa zrážkach",precipTrackerHdr:"🌧️ Detekcia blížiacich sa zrážok (Nowcasting)",precipHint:"Vektorová analýza pohybu frontu (TREC). Upozorní na dážď, krúpy alebo sneh, iba ak zrážky smerujú priamo k vašej polohe.",precipLiveHdr:"Aktuálny stav nowcastingu:",
   scrShotHdr:"📸 Snímka displeja",scrShotNone:"Kliknite pre zachytenie",btnTakeScrShot:"📸 Zachytiť obrazovku",btnDlScrShot:"💾 Stiahnuť BMP",scrShotOk:"Snímka úspešne načítaná",scrShotErr:"Chyba načítania snímky",
@@ -1190,8 +1194,7 @@ const D={
   planesView:"🧭 Orientation, Compass & Units",topBearing:"Radar top orientation",metric:"Metric units (km, km/h, m instead of NM, kt, ft)",
   tb0:"North (North-Up)",tb45:"Northeast (45°)",tb90:"East (90°)",tb135:"Southeast (135°)",tb180:"South (180°)",tb225:"Southwest (225°)",tb270:"West (270°)",tb315:"Northwest (315°)",
   planesViewHint:"Set the bearing you are looking out of your window. Weather radar is North-Up.",
-  compassHint:"Electronic compass (QMI8658) enables either a corner compass widget or dynamic real-time map auto-rotation based on physical orientation. Tap the compass on display to recalibrate North.",
-  autoRotateBearing:"Auto-rotate map by compass (Live Heading)",
+  compassHint:"Electronic compass displays a corner compass widget showing the North needle on the radar map.",
   autoRotate:"Auto cycle (seconds, 0 = off)",
   rotHint:"Cycling is paused by swiping or browser actions. An open aircraft detail keeps cycling paused.",
   radar:"🌧️ Weather Radar & Feeds",radarSrc:"Radar Data Source",srcRv:"RainViewer (Europe & Global)",srcChmu:"CHMU (high-res, Czechia only)",srcShmu:"SHMU (high-res, Slovakia)",
@@ -1247,7 +1250,7 @@ const D={
   finSlotsHdr:"📈 Watched Markets & Assets (4 slots)",finSlot1:"1. Primary Market (Hero Chart)",finSlot1Sub:"Full sparkline chart + quote",finSlot2:"2. Watchlist Market",finSlot3:"3. Watchlist Market",finSlot4:"4. Watchlist Market",finSlotWatchlist:"Bottom watchlist card",finPresets:"⚡ Quick-add popular assets:",finClear:"Clear",financeHint:"Slot 1 features the large Hero sparkline chart; slots 2–4 appear in the bottom watchlist cards. Supports European ETFs (Amundi CW8.PA, 500.PA, Vanguard VWCE.DE), crypto, indices, commodities and global equities via Yahoo Finance.",
   ultraNight:"🌙 Ultra Night mode (deep red sleep monochrome, min. brightness)",
   tabScrInfo:"ℹ️ Info & Stats",scrInfoHdr:"Info & Daily Flight Statistics",scrInfoActive:"Include screen in automatic cycling",
-  statsTrafficHdr:"✈️ Flight Traffic Today",btnResetStats:"🔄 Reset",stUnique:"Unique aircraft today:",stTopSpeed:"Top speed:",stMaxDist:"Max distance:",stAltSpan:"Altitude span:",stReports:"ADS-B reports received:",statsHint:"Statistics auto-reset at midnight and are kept in PSRAM.",confirmResetStats:"Really reset today's flight statistics?",statsResetOk:"Statistics reset successfully",
+  statsTrafficHdr:"✈️ Flight Traffic Today",btnResetStats:"🔄 Reset",statsFilterLbl:"Aircraft statistics counting scope:",statsOptAll:"All received aircraft (full ADS-B feed)",statsOptZoom:"Only within Aircraft screen zoom range",stUniqueZoom:"Unique aircraft (Zoom ",stUniqueAll:"Unique aircraft (All):",stUnique:"Unique aircraft today:",stTopSpeed:"Top speed:",stMaxDist:"Max distance:",stAltSpan:"Altitude span:",stReports:"ADS-B reports received:",statsHint:"Statistics auto-reset at midnight and are kept in PSRAM.",confirmResetStats:"Really reset today's flight statistics?",statsResetOk:"Statistics reset successfully",
   cOver:"✈️ Overhead aircraft widget",ovRad:"Overhead radius (km)",bzOverhead:"🔊 Overhead aircraft alert",
    cPrecip:"🌧️ Approaching precipitation alert",bzPrecip:"🔊 Approaching precipitation alert chime",precipTrackerHdr:"🌧️ Approaching Precipitation Detection (Nowcasting)",precipHint:"Vector motion analysis (TREC). Alerts on incoming rain, hail, or snow only when heading towards your location.",precipLiveHdr:"Current nowcasting status:",
   scrShotHdr:"📸 Screen Capture",scrShotNone:"Click to capture",btnTakeScrShot:"📸 Capture Screen",btnDlScrShot:"💾 Download BMP",scrShotOk:"Screenshot captured successfully",scrShotErr:"Failed to capture screenshot",
@@ -1488,7 +1491,7 @@ const AUTO = [
  ["rCompass","change","rCompass",e=>{ if($("rCompassTac")) $("rCompassTac").checked=e.checked; if($("rCompassCommon")) $("rCompassCommon").checked=e.checked; return e.checked; }],
  ["rCompassTac","change","rCompass",e=>{ if($("rCompass")) $("rCompass").checked=e.checked; if($("rCompassCommon")) $("rCompassCommon").checked=e.checked; return e.checked; }],
  ["rCompassCommon","change","rCompass",e=>{ if($("rCompass")) $("rCompass").checked=e.checked; if($("rCompassTac")) $("rCompassTac").checked=e.checked; return e.checked; }],
- ["autoRotateBearing","change","autoRotateBearing",e=>e.checked],
+ ["statsFilterRange","change","statsFilterRange",e=>+e.value===1],
  ["timezone","change","timezone",e=>{ applyTzNow(e.value); return e.value; }],
  ["tfAirliner","change","typeAirliner",e=>e.checked],
  ["tfLight","change","typeLight",e=>e.checked],
@@ -1720,7 +1723,7 @@ async function load(){
  if($("rCompass")) $("rCompass").checked=CFG.rCompass!==false;
  if($("rCompassTac")) $("rCompassTac").checked=CFG.rCompass!==false;
  if($("rCompassCommon")) $("rCompassCommon").checked=CFG.rCompass!==false;
- if($("autoRotateBearing")) $("autoRotateBearing").checked=!!CFG.autoRotateBearing;
+ if($("statsFilterRange")) $("statsFilterRange").value=CFG.statsFilterRange?1:0;
  if($("timezone") && CFG.timezone) $("timezone").value=CFG.timezone;
  if($("tfAirliner")) $("tfAirliner").checked=CFG.typeAirliner!==false;
  if($("tfLight")) $("tfLight").checked=CFG.typeLight!==false;
@@ -1841,7 +1844,7 @@ function body(){return{
  rAirports:$("rAirports")?$("rAirports").checked:true,
  rRings:$("rRings")?$("rRings").checked:true,
  rCompass:$("rCompass")?$("rCompass").checked:true,
- autoRotateBearing:$("autoRotateBearing")?$("autoRotateBearing").checked:false,
+ statsFilterRange:$("statsFilterRange")?(+$("statsFilterRange").value===1):false,
  timezone:$("timezone")?$("timezone").value:undefined,
  typeAirliner:$("tfAirliner")?$("tfAirliner").checked:true,
  typeLight:$("tfLight")?$("tfLight").checked:true,
@@ -1896,6 +1899,13 @@ async function fetchStats(){
   const r=await fetch("/api/stats");
   const s=await r.json();
   if($("stCount")) $("stCount").textContent=s.todayCount;
+  if($("stCountLbl")) {
+    if(s.filterRange) {
+      $("stCountLbl").textContent=(D[L]&&D[L].stUniqueZoom?D[L].stUniqueZoom:"Unikátne lietadlá (Zoom ")+s.rangeKm+" km):";
+    } else {
+      $("stCountLbl").textContent=(D[L]&&D[L].stUniqueAll?D[L].stUniqueAll:"Unikátne lietadlá (Všetky):");
+    }
+  }
   if($("stSpeed")){
     let spd=s.maxSpeedKt>0?(CFG&&CFG.metric?Math.round(s.maxSpeedKt*1.852)+" km/h":Math.round(s.maxSpeedKt)+" kt"):"-";
     if(s.maxSpeedCallsign) spd += " ("+s.maxSpeedCallsign+")";

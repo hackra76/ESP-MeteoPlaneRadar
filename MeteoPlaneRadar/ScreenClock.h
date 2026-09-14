@@ -16,3 +16,4 @@ void ScreenClock_Enter();
 void ScreenClock_Draw();
 bool ScreenClock_Tick();                  // true = needs a redraw
 bool ScreenClock_HandleTap(int x, int y); // toggles night mode when auto is off
+void ScreenClock_ChangeStyle(int dir);    // swipe up/down: change watchface

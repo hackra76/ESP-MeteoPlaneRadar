@@ -45,6 +45,13 @@ bool ScreenInfo_Tick() {
 }
 
 bool ScreenInfo_HandleTap(int x, int y) {
+  // Tap Card 1 top area (Y in [52, 106], X in [95, 385]) to toggle filter mode (All ADS-B vs Zoom)
+  if (y >= 52 && y <= 106 && x >= 95 && x <= 385) {
+    Settings_SetStatsFilterRange(!Settings_StatsFilterRange());
+    Buzzer_Play(BEEP_CLICK);
+    return true;
+  }
+
   // Tap bottom button area (Y in [395, 440], X in [135, 345]) to reset stats
   if (y >= 395 && y <= 440 && x >= 135 && x <= 345) {
     FlightStats_Reset();
@@ -108,7 +115,20 @@ void ScreenInfo_Draw() {
   gfx->fillRect(cardX, c1Y + 11, cardW, 11, 0x10A2);
   gfx->drawLine(cardX, c1Y + 22, cardX + cardW - 1, c1Y + 22, 0x29E8);
 
-  const char* trafficTitle = isEn ? "AIR TRAFFIC TODAY" : (isSk ? "PREMAVKA DNES" : "PROVOZ DNES");
+  const bool filterZoom = Settings_StatsFilterRange();
+  float zoomKm = 25.0f;
+  {
+    const float RANGES[] = PLANE_RANGES_KM;
+    uint8_t rIdx = Settings_PlaneRange();
+    if (rIdx < sizeof(RANGES) / sizeof(RANGES[0])) zoomKm = RANGES[rIdx];
+  }
+
+  char trafficTitle[40];
+  if (filterZoom) {
+    snprintf(trafficTitle, sizeof(trafficTitle), isEn ? "TRAFFIC (ZOOM %.0fkm)" : (isSk ? "PREMAVKA (ZOOM %.0fkm)" : "PROVOZ (ZOOM %.0fkm)"), zoomKm);
+  } else {
+    snprintf(trafficTitle, sizeof(trafficTitle), isEn ? "AIR TRAFFIC (ALL)" : (isSk ? "PREMAVKA (VSETKO)" : "PROVOZ (VSE)"));
+  }
   UI_TextCenteredIn(trafficTitle, cardX, cardW, c1Y + 4, C_CYAN, 2);
 
   // Row 1: Unique Aircraft Count
@@ -117,7 +137,12 @@ void ScreenInfo_Draw() {
   char countBuf[16];
   snprintf(countBuf, sizeof(countBuf), "%u", count);
 
-  const char* unqLbl = isEn ? "Unique aircraft:" : (isSk ? "Unikatne stroje:" : "Unikatni letadla:");
+  char unqLbl[32];
+  if (filterZoom) {
+    snprintf(unqLbl, sizeof(unqLbl), isEn ? "In zoom (<=%.0fkm):" : (isSk ? "V zoome (<=%.0fkm):" : "V zoomu (<=%.0fkm):"), zoomKm);
+  } else {
+    snprintf(unqLbl, sizeof(unqLbl), isEn ? "Unique aircraft:" : (isSk ? "Unikatne stroje:" : "Unikatni letadla:"));
+  }
   UI_Text(unqLbl, cardX + padX, r1Y + 4, C_GRAY, 1);
   UI_Text(countBuf, cardX + cardW - Layout_TextW(countBuf, 2) - padX, r1Y, C_WHITE, 2);
 

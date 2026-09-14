@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-SK%20%7C%20CZ%20%7C%20EN-green.svg)
-![Release](https://img.shields.io/badge/Release-v1.9.1-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v1.9.2-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunkčná meteorologická stanica, živý letecký ADS-B radar, animovaný radar zrážok (SHMÚ, ČHMÚ, RainViewer), kombinovaný taktický radar, sledovanie stanice ISS a dizajnové ciferníky hodín na okrúhlom 2.1" IPS dotykovom displeji.**  
@@ -29,6 +29,21 @@ Vyvinuté špeciálne pre vývojovú dosku **Waveshare ESP32-S3-Touch-LCD-2.1** 
 <p align="center">
   <em>Zľava doprava: <b>Taktický radar</b>, <b>Sledovanie ISS</b> (solárny terminátor deň/noc, minulá a budúca trajektória, kruh viditeľnosti), <b>Trhy & Krypto</b> (živé grafy a tickery), <b>Detail lietadla</b>, <b>Meteorologický radar</b>, <b>Ciferník Stacked Bold</b>.</em>
 </p>
+
+---
+
+## 🌟 Kľúčové novinky vo verzii v1.9.2
+
+- 🖥️ **Odstránenie posunu a zalamovania obrazu ST7701 (ST7701 Shift & Wrap Fix):**
+  - Kalibrovaný stabilný 8 MHz pixel clock RGB periférie s rozšírenými synchronizačnými intervalmi (`HBP 50`, `VPW 8`, `VBP 20`), znížená 4 MHz SPI inicializácia a zapnutie displeja až po nábehu RGB taktovania natrvalo odstraňujú hardvérové rozladenie riadkového čítača panela pri štarte a prepínaní obrazoviek.
+- 💾 **Uvoľnenie PSRAM pred OTA aktualizáciou a priamy zápis do flash:**
+  - Automatické vyčistenie všetkých vyrovnávacích pamätí (radarové snímky, počasie, fotky lietadiel a trasy) pred spustením aktualizácie sprístupňuje viac ako 6 MB súvislej PSRAM. V prípade akejkoľvek fragmentácie systém automaticky prepína na priame streamovanie do flash pamäte bez zlyhania.
+- ⌚ **Zmena štýlu ciferníka zvislým potiahnutím (Swipe Hore / Dole):**
+  - Náhodné prepínanie ciferníka dvojitým ťuknutím bolo nahradené úmyselným zvislým potiahnutím prsta (Swipe).
+- 📊 **Filtrovanie počtu lietadiel na obrazovke Informácie:**
+  - Možnosť voľby počítania všetkých prijatých ADS-B lietadiel vs. len lietadiel v aktuálnom polomere (zoome) na obrazovke Lietadiel, nastaviteľné dotykom aj cez Web Dashboard.
+- 🔄 **Manuálne nastavenie orientácie displeja:**
+  - Odstránené nechcené automatické pretáčanie displeja podľa interných senzorov; orientácia je plne voliteľná používateľom (0°, 90°, 180°, 270°).
 
 ---
 

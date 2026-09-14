@@ -82,7 +82,7 @@ void QuickControl_Draw(int currentScreen) {
     drawButton(CW_X + 16,  y3, 158, 34, Settings_RadarShowAirports() ? "Letiská: ZAP" : "Letiská: VYP", Settings_RadarShowAirports());
     drawButton(CW_X + 186, y3, 158, 34, Settings_RadarShowRings()    ? "Okruhy: ZAP"  : "Okruhy: VYP",  Settings_RadarShowRings());
     drawButton(CW_X + 16,  y4, 158, 34, Settings_ShowLegends()       ? "Popisy: ZAP"  : "Popisy: VYP",  Settings_ShowLegends());
-    drawButton(CW_X + 186, y4, 158, 34, Settings_AutoRotateBearing() ? "Auto-rotácia: ZAP" : "Auto-rotácia: VYP", Settings_AutoRotateBearing());
+    drawButton(CW_X + 186, y4, 158, 34, Settings_RadarShowCompass()   ? "Kompas: ZAP"  : "Kompas: VYP",  Settings_RadarShowCompass());
   } else if (currentScreen == SCREEN_TACTICAL_I) {
     drawButton(CW_X + 16,  y3, 158, 34, Settings_RadarShowTrails()   ? "Trasy: ZAP"   : "Trasy: VYP",   Settings_RadarShowTrails());
     const char* tSrc = (Settings_RadarSource() == RADAR_SRC_SHMU) ? "Zdroj: SHMU" :
@@ -223,7 +223,7 @@ bool QuickControl_HandleTap(int x, int y, int currentScreen) {
         return true;
       }
       if (x >= CW_X + 186 && x <= CW_X + 344) {
-        Settings_SetAutoRotateBearing(!Settings_AutoRotateBearing());
+        Settings_SetRadarShowCompass(!Settings_RadarShowCompass());
         return true;
       }
     }

@@ -60,9 +60,9 @@ static void ST7701_CS_Dis() { TCA9554_SetPin(EXIO_LCD_CS, true);  vTaskDelay(pdM
 
 static void ST7701_Reset() {
   TCA9554_SetPin(EXIO_LCD_RST, false);
-  vTaskDelay(pdMS_TO_TICKS(10));
+  vTaskDelay(pdMS_TO_TICKS(20));
   TCA9554_SetPin(EXIO_LCD_RST, true);
-  vTaskDelay(pdMS_TO_TICKS(50));
+  vTaskDelay(pdMS_TO_TICKS(120));
 }
 
 // Register init sequence - exactly as in the proven Waveshare demo for this board.
@@ -134,10 +134,16 @@ static void ST7701_SendInit() {
   ST7701_Cmd(0x36); ST7701_Dat(0x00);
   ST7701_Cmd(0x3A); ST7701_Dat(0x66);   // RGB666/565
   ST7701_Cmd(0x11);                      // sleep out
-  vTaskDelay(pdMS_TO_TICKS(480));
-  ST7701_Cmd(0x20);                      // display inversion off
   vTaskDelay(pdMS_TO_TICKS(120));
+  ST7701_Cmd(0x20);                      // display inversion off
+  vTaskDelay(pdMS_TO_TICKS(20));
+  ST7701_CS_Dis();                       // deassert SPI CS before RGB peripheral starts
+}
+
+static void ST7701_EnableDisplay() {
+  ST7701_CS_En();
   ST7701_Cmd(0x29);                      // display on
+  vTaskDelay(pdMS_TO_TICKS(20));
   ST7701_CS_Dis();
 }
 
@@ -162,7 +168,7 @@ bool ST7701_Init() {
   devcfg.command_bits = 1;
   devcfg.address_bits = 8;
   devcfg.mode = 0;
-  devcfg.clock_speed_hz = 40 * 1000 * 1000;
+  devcfg.clock_speed_hz = 4 * 1000 * 1000;  // 4 MHz: safe within ST7701 10 MHz SPI spec
   devcfg.spics_io_num = -1;
   devcfg.queue_size = 1;
   err = spi_bus_add_device(SPI2_HOST, &devcfg, &s_spi);
@@ -202,7 +208,7 @@ bool ST7701_Init() {
   rgb.data_width = 16;
   rgb.bits_per_pixel = 16;
   rgb.num_fbs = 2;                               // double buffering (no tearing)
-  rgb.bounce_buffer_size_px = 30 * LCD_WIDTH;    // 30 lines DMA feed (resilient to bus contention during screen cycling)
+  rgb.bounce_buffer_size_px = 30 * LCD_WIDTH;    // 30 lines DMA feed (resilient to bus contention)
   rgb.psram_trans_align = 64;
   rgb.hsync_gpio_num = RGB_HSYNC;
   rgb.vsync_gpio_num = RGB_VSYNC;
@@ -234,6 +240,10 @@ bool ST7701_Init() {
   }
   esp_lcd_panel_reset(panel_handle);
   esp_lcd_panel_init(panel_handle);
+
+  // Turn on display now that continuous RGB clocks/VSYNC are stably driving the panel
+  vTaskDelay(pdMS_TO_TICKS(50));
+  ST7701_EnableDisplay();
 
   // Register a VSYNC callback so LCD_Flush can synchronise the frame copy to the
   // start of a scan-out cycle (removes the mid-screen tearing band).
@@ -306,7 +316,7 @@ void Set_Backlight(uint8_t light) {
   ledcWrite(LCD_BL_PIN, duty);
 }
 
-// Reset RGB timing / line state and sync with VSYNC
+// Reset RGB timing / line state and sync with VSYNC (used for OTA recovery)
 void LCD_Restart() {
   if (panel_handle) {
     esp_lcd_rgb_panel_restart(panel_handle);

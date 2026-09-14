@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20SK%20%7C%20CZ-green.svg)
-![Release](https://img.shields.io/badge/Release-v1.9.1-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v1.9.2-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, ISS orbit tracking, and designer clock faces on a round 2.1" IPS touchscreen.**  
@@ -30,6 +30,21 @@ Designed specifically for the **Waveshare ESP32-S3-Touch-LCD-2.1** development b
   <em>From left to right: <b>Tactical Radar</b>, <b>ISS Orbit Tracker</b> (day/night terminator, past/future orbits, footprint ring), <b>Markets & Crypto</b> (custom tickers & sparkline), <b>Aircraft Detail</b>, <b>Weather Radar</b>, <b>Stacked Bold Watch Face</b>.</em>
 </p>
 
+
+---
+
+## 🌟 Key Highlights in v1.9.2
+
+- 🖥️ **ST7701 Display Shift & Wrap Elimination:**
+  - Calibrated 8 MHz RGB pixel clock with widened timing porches (`HBP 50`, `VPW 8`, `VBP 20`), 4 MHz SPI init, and deferred display enablement permanently eliminates panel desynchronization and vertical image wrapping on startup and screen transitions.
+- 💾 **OTA PSRAM Cache Reclamation & Direct-Flash Fallback:**
+  - Proactive reclamation of radar, weather, camera, and flight route caches releases > 6 MB of contiguous PSRAM before updates start, backed by automatic direct streaming flash writes if PSRAM allocation ever fails.
+- ⌚ **Vertical Swipe Watchface Switching:**
+  - Replaced double-tap clock switching with smooth vertical swipe gestures (Swipe Up / Down) to prevent accidental watchface changes.
+- 📊 **Aircraft Count Statistics Filter:**
+  - Added configurable flight statistics filter mode on the Info screen (All received ADS-B aircraft vs. planes inside the active radar zoom radius), togglable directly via tap or the Web Dashboard.
+- 🔄 **Manual Orientation Control:**
+  - Replaced sensor-based auto-rotation with reliable user-selectable screen orientation in Settings and Web UI (0°, 90°, 180°, 270°).
 
 ---
 

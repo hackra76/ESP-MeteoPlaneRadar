@@ -54,6 +54,16 @@ static int  s_precipCardX = 85, s_precipCardY = 66, s_precipCardW = 310, s_preci
 
 void ScreenClock_Enter() { s_lastMin = -1; s_lastSec = -1; }
 
+void ScreenClock_ChangeStyle(int dir) {
+  const int total = CLOCK_STYLE_MAX + 1;
+  int cur = (int)Settings_ClockStyle();
+  int next = (cur + dir) % total;
+  if (next < 0) next += total;
+  Settings_SetClockStyle((uint8_t)next);
+  ScreenClock_Enter();
+  Serial.printf("Watchface changed: %d\n", next);
+}
+
 bool ScreenClock_Tick() {
   if (!Outside_TimeValid()) return false;
   time_t now = time(nullptr);

@@ -9,6 +9,26 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [1.9.2] - 2026-09-14
+
+### Opravené / Fixed
+- **Hardvérový posun a zalamovanie obrazu ST7701 (ST7701 Hardware Shift/Wrap Permanent Fix):**
+  - Znížená inicializačná SPI frekvencia zo 40 MHz na 4 MHz (špecifikácia radiča ST7701 definuje SPI maximum na 10 MHz), predĺžený hardvérový resetovací interval na 120 ms.
+  - Stabilný pixel clock RGB periférie ESP32-S3 nastavený na 8 MHz s precízne kalibrovaným časovaním horizontálnych a vertikálnych synchronizačných intervalov (HBP 50, HFP 10, VPW 8, VBP 20, VFP 10).
+  - Explicitné riadenie CS zbernice a aktivácia displeja (príkaz `0x29`) až po stabilizácii živých RGB taktovacích signálov zabraňuje desynchronizácii interného riadkového čítača panela pri štarte a prepínaní obrazoviek.
+- **Uvoľnenie pamäte PSRAM pred aktualizáciou firmvéru (OTA PSRAM Cache Reclamation & Zero-Fail Flash Fallback):**
+  - Pri otvorení webovej stránky `/update` a na začiatku nahrávania súboru sa automaticky uvoľnia všetky veľké vyrovnávacie pamäte (snímky radarov RainViewer, ČHMÚ, SHMÚ, vyrovnávacia pamäť počasia, framebuffer taktického radaru, dekódované fotografie lietadiel a fronta letových trás), čím sa okamžite sprístupní viac ako 6 MB súvislej pamäte PSRAM.
+  - V obidvoch aktualizačných motoroch (Web Dashboard OTA aj online GitHub OTA) implementovaný dynamický záložný mechanizmus priameho streamovania zápisu do flash pamäte (`direct-to-flash streaming`) pri nedostupnosti súvislého bloku PSRAM, vďaka čomu aktualizácia nikdy nezlyhá na chybe "Out of PSRAM memory" bez ohľadu na veľkosť nahrávaného binárneho súboru.
+
+### Zmenené / Changed
+- **Zmena gesta prepínania štýlu ciferníka na obrazovke Hodín (Clock Watchface Swipe Gesture):**
+  - Dvojité ťuknutie na obrazovke hodín bolo zrušené z dôvodu nechceného a náhodného prepínania vzhľadu ciferníka.
+  - Nový štýl ciferníka sa teraz prepína intuitívnym zvislým potiahnutím prsta (Swipe Hore / Dole).
+- **Filtrovanie štatistiky lietadiel na obrazovke Informácie (Aircraft Count Statistics Filter):**
+  - Pridaná voľba rozsahu počítania lietadiel: používateľ si môže zvoliť zobrazenie všetkých prijatých lietadiel v pamäti ADS-B alebo iba tých, ktoré sa nachádzajú v rámci aktuálne nastaveného polomeru (zoomu) na obrazovke Lietadiel. Prepínateľné ťuknutím priamo na štatistiku aj cez webové rozhranie.
+- **Odstránenie automatického otáčania obrazovky podľa interných senzorov:**
+  - Odstránená automatická rotácia displeja cez akcelerometer QMI8658 kvôli nechcenému pretáčaniu. Orientácia obrazovky je teraz plne pod kontrolou používateľa cez menu Nastavení a webový dashboard (0°, 90°, 180°, 270°).
+
 ## [1.9.1] - 2026-09-11
 
 ### Opravené / Fixed

@@ -359,14 +359,6 @@ static void enterActive() {
   drawActive();
 }
 
-static uint16_t* s_transFb = nullptr;
-
-static void initTransitionBuffer() {
-  if (!s_transFb) {
-    s_transFb = (uint16_t*)heap_caps_malloc(LCD_WIDTH * LCD_HEIGHT * sizeof(uint16_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-  }
-}
-
 // dir -1 = previous, +1 = next. Walks over disabled screens; the guard stops it
 // looping forever if somehow nothing is enabled at all.
 static void switchScreen(int dir) {
@@ -377,73 +369,12 @@ static void switchScreen(int dir) {
   }
   if (next == s_screen) return;
 
-  // Snapshot the old screen before switching
-  initTransitionBuffer();
-  const uint16_t* activeFb = LCD_GetActiveBuffer();
-  if (s_transFb && activeFb) {
-    memcpy(s_transFb, activeFb, LCD_WIDTH * LCD_HEIGHT * sizeof(uint16_t));
-  }
-
   s_screen = next;
   Settings_SetScreen((uint8_t)s_screen);
   Async_SetActiveScreen((uint8_t)s_screen);
   Serial.printf("Screen: %d\n", s_screen);
 
-  switch (s_screen) {
-    case SCREEN_CLOCK_I:    ScreenClock_Enter();    break;
-    case SCREEN_PLANES_I:   ScreenPlanes_Enter();   break;
-    case SCREEN_METEO_I:    ScreenWeather_Enter();  break;
-    case SCREEN_TACTICAL_I: ScreenTactical_Enter(); break;
-    case SCREEN_FORECAST_I: ScreenForecast_Enter(); break;
-    case SCREEN_FINANCE_I:  ScreenFinance_Enter();  break;
-    case SCREEN_ISS_I:      ScreenIss_Enter();      break;
-    case SCREEN_INFO_I:     ScreenInfo_Enter();     break;
-    case SCREEN_SETTINGS_I: ScreenSettings_Enter(); break;
-  }
-
-  switch (s_screen) {
-    case SCREEN_CLOCK_I:    ScreenClock_Draw();    break;
-    case SCREEN_PLANES_I:   ScreenPlanes_Draw();   break;
-    case SCREEN_METEO_I:    ScreenWeather_Draw();  break;
-    case SCREEN_TACTICAL_I: ScreenTactical_Draw(); break;
-    case SCREEN_FORECAST_I: ScreenForecast_Draw(); break;
-    case SCREEN_FINANCE_I:  ScreenFinance_Draw();  break;
-    case SCREEN_ISS_I:      ScreenIss_Draw();      break;
-    case SCREEN_INFO_I:     ScreenInfo_Draw();     break;
-    case SCREEN_SETTINGS_I: ScreenSettings_Draw(); break;
-  }
-  drawScreenDots();
-
-  // Perform smooth horizontal slide transition
-  if (s_transFb) {
-    Canvas16* c16 = (Canvas16*)gfx;
-    uint16_t* newFb = c16->getFramebuffer();
-    int otherIdx = (newFb == LCD_FrameBuffer(0)) ? 1 : 0;
-    uint16_t* drawFb = LCD_FrameBuffer(otherIdx);
-
-    if (newFb && drawFb) {
-      const int steps[4] = { 140, 270, 390, 455 };
-      for (int s = 0; s < 4; s++) {
-        int shift = steps[s];
-        for (int y = 0; y < LCD_HEIGHT; y++) {
-          uint16_t* dst = &drawFb[y * LCD_WIDTH];
-          if (dir > 0) {
-            int oldW = LCD_WIDTH - shift;
-            if (oldW > 0) memcpy(dst, &s_transFb[y * LCD_WIDTH + shift], oldW * sizeof(uint16_t));
-            if (shift > 0) memcpy(dst + oldW, &newFb[y * LCD_WIDTH], shift * sizeof(uint16_t));
-          } else {
-            int oldW = LCD_WIDTH - shift;
-            if (shift > 0) memcpy(dst, &newFb[y * LCD_WIDTH + oldW], shift * sizeof(uint16_t));
-            if (oldW > 0) memcpy(dst + shift, &s_transFb[y * LCD_WIDTH], oldW * sizeof(uint16_t));
-          }
-        }
-        LCD_Flush(drawFb);
-        Buzzer_Tick();
-      }
-    }
-  }
-
-  gfx->flush();
+  enterActive();
 }
 
 // Jump straight to a screen. Used by the web remote control; a disabled screen
@@ -476,6 +407,7 @@ static bool activeTick() {
 
 static void activeChangeRange(int dir) {
   switch (s_screen) {
+    case SCREEN_CLOCK_I:    ScreenClock_ChangeStyle(dir);    break;
     case SCREEN_PLANES_I:   ScreenPlanes_ChangeRange(dir);   break;
     case SCREEN_METEO_I:    ScreenWeather_ChangeRange(dir);  break;
     case SCREEN_TACTICAL_I: ScreenTactical_ChangeRange(dir); break;
@@ -715,22 +647,20 @@ void setup() {
   // 6-Axis IMU (accelerometer / gyroscope for gestures and tilt)
   if (QMI8658_Init()) {
     QMI8658_OnDoubleTap([]() {
-      if (Settings_BuzzerTouch()) Buzzer_Play(BEEP_CLICK);
       if (NightMode_IsUltraNightActive()) {
+        if (Settings_BuzzerTouch()) Buzzer_Play(BEEP_CLICK);
         NightMode_WakeTemporary(10000);
         drawActive();
         return;
       }
       if (s_screen == SCREEN_CLOCK_I) {
-        uint8_t nextStyle = (Settings_ClockStyle() + 1) % (CLOCK_STYLE_MAX + 1);
-        Settings_SetClockStyle(nextStyle);
-        drawActive();
-        Serial.printf("IMU Gesture: Double-tap on Clock -> ClockStyle = %d\n", nextStyle);
-      } else {
-        Settings_ToggleLegends();
-        drawActive();
-        Serial.printf("IMU Gesture: Double-tap detected -> ShowLegends = %d\n", Settings_ShowLegends());
+        // Double-tap on Clock screen removed per user request (caused unwanted watchface changes)
+        return;
       }
+      if (Settings_BuzzerTouch()) Buzzer_Play(BEEP_CLICK);
+      Settings_ToggleLegends();
+      drawActive();
+      Serial.printf("IMU Gesture: Double-tap detected -> ShowLegends = %d\n", Settings_ShowLegends());
     });
   }
 
@@ -778,6 +708,8 @@ void setup() {
 // peripheral that stops scanning (black screen, backlight still on, only a
 // power cycle helps). So watch the frame counter fed by the VSYNC interrupt.
 static void displayWatchdog() {
+  const unsigned long ms = millis();
+
 #if DISPLAY_WD
   static uint32_t lastCount = 0;
   static unsigned long lastMove = 0;
@@ -786,7 +718,6 @@ static void displayWatchdog() {
   static bool armed = false;
 
   uint32_t now = LCD_VsyncCount();
-  unsigned long ms = millis();
   if (now != lastCount) {           // panel is scanning - all good
     lastCount = now;
     lastMove = ms;
@@ -1061,18 +992,6 @@ void loop() {
   displayWatchdog();
   NightMode_Tick();   // day/night brightness
   QMI8658_Tick();     // IMU gestures (double-tap detection)
-
-  // Continuous Electronic Compass orientation tracking from IMU QMI8658
-  static unsigned long s_lastOrientCheck = 0;
-  if (Settings_AutoRotateBearing() && millis() - s_lastOrientCheck >= 150) {
-    s_lastOrientCheck = millis();
-    float hdg = QMI8658_GetHeading();
-    uint16_t targetBearing = (uint16_t)(((int)roundf(hdg) % 360 + 360) % 360);
-    if (abs((int)targetBearing - (int)Settings_TopBearing()) >= 4) {
-      Settings_SetTopBearing(targetBearing);
-      drawActive();
-    }
-  }
 
   Settings_Tick();    // debounced persist of UI state to NVS
   Watchdog_Feed();

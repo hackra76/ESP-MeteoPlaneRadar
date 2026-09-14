@@ -33,6 +33,8 @@
 #include "PrecipTracker.h"
 #include "FinanceData.h"
 #include "IssData.h"
+#include "PlanePhoto.h"
+#include "Route.h"
 #include <Wire.h>
 
 #include <WiFi.h>
@@ -540,9 +542,7 @@ static void handleGeocode() {
 
 static void handleToggleLegends() {
   if (Settings_Screen() == SCREEN_CLOCK_I) {
-    uint8_t nextStyle = (Settings_ClockStyle() + 1) % (CLOCK_STYLE_MAX + 1);
-    Settings_SetClockStyle(nextStyle);
-    s_reqRedraw = true;
+    // Double tap on clock does not change watchface anymore
   } else {
     Settings_ToggleLegends();
   }
@@ -559,15 +559,13 @@ static void handleInput() {
   const char* cmd = doc["cmd"] | "";
   if (strcmp(cmd, "toggle_legends") == 0 || strcmp(cmd, "dbl_tap") == 0) {
     if (Settings_Screen() == SCREEN_CLOCK_I) {
-      uint8_t nextStyle = (Settings_ClockStyle() + 1) % (CLOCK_STYLE_MAX + 1);
-      Settings_SetClockStyle(nextStyle);
-      s_reqRedraw = true;
+      // Double tap on clock does not change watchface anymore
     } else {
       Settings_ToggleLegends();
     }
-  } else if (strcmp(cmd, "swipe_left") == 0 || strcmp(cmd, "range_plus") == 0) {
+  } else if (strcmp(cmd, "swipe_left") == 0 || strcmp(cmd, "range_plus") == 0 || strcmp(cmd, "swipe_down") == 0) {
     s_reqRangeStep = +1;
-  } else if (strcmp(cmd, "swipe_right") == 0 || strcmp(cmd, "range_minus") == 0) {
+  } else if (strcmp(cmd, "swipe_right") == 0 || strcmp(cmd, "range_minus") == 0 || strcmp(cmd, "swipe_up") == 0) {
     s_reqRangeStep = -1;
   } else if (strcmp(cmd, "next_screen") == 0) {
     s_reqScreenStep = +1;
@@ -708,6 +706,11 @@ static void handleStats() {
   doc["maxAltFt"] = FlightStats_MaxAltFt();
   doc["minAltFt"] = (FlightStats_MinAltFt() > 900000.0f) ? 0.0f : FlightStats_MinAltFt();
   doc["totalSightings"] = FlightStats_TotalSightings();
+  doc["filterRange"] = Settings_StatsFilterRange();
+  const float RANGES[] = PLANE_RANGES_KM;
+  uint8_t rIdx = Settings_PlaneRange();
+  if (rIdx >= sizeof(RANGES) / sizeof(RANGES[0])) rIdx = 1;
+  doc["rangeKm"] = RANGES[rIdx];
   sendJson(200, doc);
 }
 
@@ -776,6 +779,8 @@ static void handleNotFound() {
 static uint8_t* s_ramOtaBuf = nullptr;
 static size_t   s_ramOtaCap = 0;
 static size_t   s_ramOtaLen = 0;
+static bool     s_directFlashOta = false;
+static size_t   s_directWritten  = 0;
 
 static void otaFreeRam() {
   if (s_ramOtaBuf) {
@@ -784,12 +789,28 @@ static void otaFreeRam() {
   }
   s_ramOtaCap = 0;
   s_ramOtaLen = 0;
+  s_directFlashOta = false;
+  s_directWritten = 0;
+}
+
+static void otaClearPsramCaches() {
+  RainViewer_FreeBuffers();
+  CHMU_FreeBuffers();
+  SHMU_FreeBuffers();
+  ScreenWeather_FreeBuffers();
+  ScreenTactical_FreeBuffers();
+  PlanePhoto_ClearCache();
+  Route_ClearQueue();
+  Serial.printf("OTA: Cleared PSRAM caches. Free PSRAM: %u B, Largest Block: %u B\n",
+                (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
+                (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
 }
 
 static void otaStart() {
   Async_Pause();
   s_updating = true;
   otaFreeRam();
+  otaClearPsramCaches();
   UI_DrawOtaProgress("Web OTA", 0, 0, 0, (Lang_Get() == LANG_EN) ? "Preparing upload..." : "Pripravujem nahrávanie...");
 }
 
@@ -912,6 +933,7 @@ b.onclick=function(){
 
 static void handleUpdatePage() {
   if (!updateAuthed()) { s_srv.requestAuthentication(); return; }
+  otaClearPsramCaches();
   const uint8_t lang = Lang_Get();
   String p = FPSTR(UPDATE_HTML);
   p.replace("{{LANG}}",  (lang == LANG_EN) ? "en" : ((lang == LANG_SK) ? "sk" : "cs"));
@@ -951,6 +973,8 @@ static void handleUpdateUpload() {
       s_updErr = "";
       s_lastWebProg = -1;
       s_lastWebDraw = 0;
+      s_directFlashOta = false;
+      s_directWritten = 0;
       if (!updateAuthed()) { s_updErr = "auth"; return; }
       Serial.printf("OTA: %s\n", up.filename.c_str());
       if (strstr(up.filename.c_str(), "factory") || strstr(up.filename.c_str(), "Factory") ||
@@ -972,16 +996,50 @@ static void handleUpdateUpload() {
       s_ramOtaBuf = (uint8_t*)heap_caps_malloc(s_ramOtaCap, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
       s_ramOtaLen = 0;
       if (!s_ramOtaBuf) {
-        s_updErr = "Out of PSRAM memory";
-        UI_DrawOtaProgress("Web OTA", 0, 0, 0, s_updErr.c_str());
-        otaEnd(false);
-        return;
+        // Fallback: try allocating the largest available block if initial cap was too large
+        size_t largest = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (largest > 1000000 && (s_updExpectedSize == 0 || largest > s_updExpectedSize + 32768)) {
+          s_ramOtaCap = largest - 65536;
+          s_ramOtaBuf = (uint8_t*)heap_caps_malloc(s_ramOtaCap, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        }
+      }
+      if (!s_ramOtaBuf) {
+        // Ultimate fallback: direct streaming flash write (zero PSRAM buffer required)
+        Serial.println("OTA: PSRAM buffer unavailable, falling back to direct flash streaming OTA");
+        if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
+          s_updErr = Update.errorString();
+          UI_DrawOtaProgress("Web OTA", 0, 0, 0, s_updErr.c_str());
+          otaEnd(false);
+          return;
+        }
+        s_directFlashOta = true;
       }
       UI_DrawOtaProgress("Web OTA", 0, 0, s_updExpectedSize, (Lang_Get() == LANG_EN) ? "Receiving firmware..." : "Prijímam firmvér...");
       break;
 
     case UPLOAD_FILE_WRITE:
       if (s_updErr.length()) return;              // already failed, drain the body
+      if (s_directFlashOta) {
+        if (up.buf && up.currentSize > 0) {
+          if (Update.write(up.buf, up.currentSize) != up.currentSize) {
+            s_updErr = Update.errorString();
+            Update.abort();
+            otaEnd(false);
+            return;
+          }
+          s_directWritten += up.currentSize;
+          int prog = (s_updExpectedSize > 0) ? (int)(s_directWritten * 100 / s_updExpectedSize) : 0;
+          if (prog > 99) prog = 99;
+          if (prog != s_lastWebProg && (millis() - s_lastWebDraw >= 150 || prog == 100)) {
+            s_lastWebProg = prog;
+            s_lastWebDraw = millis();
+            UI_DrawOtaProgress("Web OTA", prog, s_directWritten, s_updExpectedSize, nullptr);
+          }
+          LCD_Restart();
+        }
+        Watchdog_Feed();
+        break;
+      }
       if (!s_ramOtaBuf) {
         s_updErr = "OTA buffer null";
         otaEnd(false);
@@ -1017,6 +1075,26 @@ static void handleUpdateUpload() {
 
     case UPLOAD_FILE_END:
       if (s_updErr.length()) return;
+      if (s_directFlashOta) {
+        if (s_directWritten == 0) {
+          s_updErr = "No data received";
+          otaEnd(false);
+          return;
+        }
+        if (Update.end(true)) {
+          s_updOk = true;
+          Serial.printf("OTA: direct flash write complete (%u B), restarting...\n", (unsigned)s_directWritten);
+          UI_DrawOtaWritingStaticScreen("Web OTA", (Lang_Get() == LANG_EN) ? "Success! Restarting..." : "Hotovo! Reštartujem...");
+          delay(800);
+          otaEnd(true);
+        } else {
+          s_updErr = Update.errorString();
+          UI_DrawOtaWritingStaticScreen("Web OTA", s_updErr.c_str());
+          delay(2500);
+          otaEnd(false);
+        }
+        break;
+      }
       if (!s_ramOtaBuf || s_ramOtaLen == 0) {
         s_updErr = "No data received";
         otaEnd(false);

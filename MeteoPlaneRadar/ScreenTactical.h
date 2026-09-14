@@ -15,3 +15,4 @@ void ScreenTactical_ChangeRange(int dir);
 void ScreenTactical_RangeText(char* out, size_t cap);
 bool ScreenTactical_DetailOpen();
 void ScreenTactical_CloseDetail();
+void ScreenTactical_FreeBuffers();
