@@ -631,9 +631,13 @@ td:first-child{color:var(--mut);width:45%}
           </div>
           <div class="row" style="margin:10px 0;">
             <label data-i18n="statsFilterLbl" style="font-weight:600;">Rozsah započítavania lietadiel:</label>
-            <select id="statsFilterRange" onchange="autoSave('statsFilterRange',+this.value===1);fetchStats()">
-              <option value="0" data-i18n="statsOptAll">Všetky prijaté lietadlá (celý ADS-B feed)</option>
-              <option value="1" data-i18n="statsOptZoom">Iba v nastavenom rozsahu obrazovky Lietadlá (Zoom)</option>
+            <select id="statsScope" onchange="autoSave('statsScope',+this.value);fetchStats()">
+              <option value="0" data-i18n="statsOptAll">Všetky prijaté lietadlá (ALL ADS-B)</option>
+              <option value="1">&le; 10 km</option>
+              <option value="2">&le; 25 km</option>
+              <option value="3">&le; 50 km</option>
+              <option value="4">&le; 100 km</option>
+              <option value="5">&le; 200 km</option>
             </select>
           </div>
           <table style="margin-top:4px;">
@@ -1500,7 +1504,7 @@ const AUTO = [
  ["rCompass","change","rCompass",e=>{ if($("rCompassTac")) $("rCompassTac").checked=e.checked; if($("rCompassCommon")) $("rCompassCommon").checked=e.checked; return e.checked; }],
  ["rCompassTac","change","rCompass",e=>{ if($("rCompass")) $("rCompass").checked=e.checked; if($("rCompassCommon")) $("rCompassCommon").checked=e.checked; return e.checked; }],
  ["rCompassCommon","change","rCompass",e=>{ if($("rCompass")) $("rCompass").checked=e.checked; if($("rCompassTac")) $("rCompassTac").checked=e.checked; return e.checked; }],
- ["statsFilterRange","change","statsFilterRange",e=>+e.value===1],
+ ["statsScope","change","statsScope",e=>+e.value],
  ["timezone","change","timezone",e=>{ applyTzNow(e.value); return e.value; }],
  ["tfAirliner","change","typeAirliner",e=>e.checked],
  ["tfLight","change","typeLight",e=>e.checked],
@@ -1734,7 +1738,7 @@ async function load(){
  if($("rCompass")) $("rCompass").checked=CFG.rCompass!==false;
  if($("rCompassTac")) $("rCompassTac").checked=CFG.rCompass!==false;
  if($("rCompassCommon")) $("rCompassCommon").checked=CFG.rCompass!==false;
- if($("statsFilterRange")) $("statsFilterRange").value=CFG.statsFilterRange?1:0;
+ if($("statsScope")) $("statsScope").value=(CFG.statsScope!==undefined)?CFG.statsScope:(CFG.statsFilterRange?2:0);
  if($("timezone") && CFG.timezone) $("timezone").value=CFG.timezone;
  if($("tfAirliner")) $("tfAirliner").checked=CFG.typeAirliner!==false;
  if($("tfLight")) $("tfLight").checked=CFG.typeLight!==false;
@@ -1855,7 +1859,8 @@ function body(){return{
  rAirports:$("rAirports")?$("rAirports").checked:true,
  rRings:$("rRings")?$("rRings").checked:true,
  rCompass:$("rCompass")?$("rCompass").checked:true,
- statsFilterRange:$("statsFilterRange")?(+$("statsFilterRange").value===1):false,
+ statsScope:$("statsScope")?+$("statsScope").value:(($("statsFilterRange")?(+$("statsFilterRange").value===1?2:0):0)),
+ statsFilterRange:$("statsScope")?(+$("statsScope").value>0):false,
  timezone:$("timezone")?$("timezone").value:undefined,
  typeAirliner:$("tfAirliner")?$("tfAirliner").checked:true,
  typeLight:$("tfLight")?$("tfLight").checked:true,
@@ -1908,14 +1913,16 @@ function saveScreens(){
 
 async function fetchStats(){
  try{
-  const r=await fetch("/api/stats");
+  const sc=$("statsScope")?$("statsScope").value:0;
+  const r=await fetch("/api/stats?scope="+encodeURIComponent(sc));
   const s=await r.json();
   if($("stCount")) $("stCount").textContent=s.todayCount;
   if($("stCountLbl")) {
-    if(s.filterRange) {
-      $("stCountLbl").textContent=(D[L]&&D[L].stUniqueZoom?D[L].stUniqueZoom:"Unikátne lietadlá (Zoom ")+s.rangeKm+" km):";
+    if(s.scope > 0 || s.filterRange) {
+      let pre = (D[L]&&D[L].stUnique)?D[L].stUnique.replace(" dnes:","").replace(" today:",""): "Unikátne lietadlá";
+      $("stCountLbl").textContent = pre + " (<= " + s.rangeKm + " km):";
     } else {
-      $("stCountLbl").textContent=(D[L]&&D[L].stUniqueAll?D[L].stUniqueAll:"Unikátne lietadlá (Všetky):");
+      $("stCountLbl").textContent = (D[L]&&D[L].stUniqueAll?D[L].stUniqueAll:"Unikátne lietadlá (Všetky):");
     }
   }
   if($("stSpeed")){
@@ -1931,6 +1938,7 @@ async function fetchStats(){
   if($("stReports")) $("stReports").textContent=s.totalSightings;
  }catch(e){}
 }
+
 async function resetStats(){
  if(!confirm((D[L]&&D[L].confirmResetStats)?D[L].confirmResetStats:"Naozaj resetovať dnešnú štatistiku letov?")) return;
  await fetch("/api/stats/reset",{method:"POST"});

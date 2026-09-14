@@ -9,7 +9,17 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [1.9.6] - 2026-09-14
+
+### Vylepšené / Improved
+- **Paralelné počítanie štatistík letov pre všetky úrovne priblíženia (Zero-Reset Multi-Scope Flight Statistics):**
+  - Všetky prijaté ADS-B správy sú v pamäti PSRAM paralelne a nezávisle vyhodnocované a započítavané do samostatných štatistických kategórií pre všetky zoom rozsahy (celý feed ALL, $\le 10\text{ km}$, $\le 25\text{ km}$, $\le 50\text{ km}$, $\le 100\text{ km}$, $\le 200\text{ km}$).
+  - Prepínanie rozsahu na obrazovke Info & Štatistiky ťuknutím na hlavičku karty premávky plynulo cykluje medzi rozsahmi bez akéhokoľvek resetovania alebo straty nazbieraných denných údajov.
+  - Resetovanie štatistík prebieha výhradne automaticky o polnoci alebo manuálnym stlačením tlačidla Reset v spodnej časti obrazovky.
+  - Webové rozhranie aj REST API `/api/stats?scope=X` umožňujú okamžité zobrazenie ľubovoľného rozsahu bez vymazania údajov.
+
 ## [1.9.5] - 2026-09-14
+
 
 ### Vylepšené / Improved
 - **Presná lokálna detekcia zrážok a filtrácia falošných poplachov (Localized Nowcasting & Ground Clutter Filtering):**

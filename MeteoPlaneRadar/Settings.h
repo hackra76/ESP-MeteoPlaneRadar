@@ -201,8 +201,12 @@ void     Settings_SetTopBearing(uint16_t deg);
 bool     Settings_ShowLegends();
 void     Settings_SetShowLegends(bool show);
 void     Settings_ToggleLegends();
+uint8_t  Settings_StatsScope();
+void     Settings_SetStatsScope(uint8_t scope);
+void     Settings_CycleStatsScope();
 bool     Settings_StatsFilterRange();
 void     Settings_SetStatsFilterRange(bool on);
+
 
 // --- Admin password (protects OTA, factory reset and config import) ---------
 //

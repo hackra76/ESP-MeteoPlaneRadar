@@ -45,9 +45,9 @@ bool ScreenInfo_Tick() {
 }
 
 bool ScreenInfo_HandleTap(int x, int y) {
-  // Tap Card 1 top area (Y in [52, 106], X in [95, 385]) to toggle filter mode (All ADS-B vs Zoom)
+  // Tap Card 1 top area (Y in [52, 106], X in [95, 385]) to cycle scope (ALL -> 10km -> 25km -> 50km -> 100km -> 200km -> ALL)
   if (y >= 52 && y <= 106 && x >= 95 && x <= 385) {
-    Settings_SetStatsFilterRange(!Settings_StatsFilterRange());
+    Settings_CycleStatsScope();
     Buzzer_Play(BEEP_CLICK);
     return true;
   }
@@ -115,31 +115,26 @@ void ScreenInfo_Draw() {
   gfx->fillRect(cardX, c1Y + 11, cardW, 11, 0x10A2);
   gfx->drawLine(cardX, c1Y + 22, cardX + cardW - 1, c1Y + 22, 0x29E8);
 
-  const bool filterZoom = Settings_StatsFilterRange();
-  float zoomKm = 25.0f;
-  {
-    const float RANGES[] = PLANE_RANGES_KM;
-    uint8_t rIdx = Settings_PlaneRange();
-    if (rIdx < sizeof(RANGES) / sizeof(RANGES[0])) zoomKm = RANGES[rIdx];
-  }
+  const uint8_t scope = Settings_StatsScope();
+  const float scopeKm = FlightStats_ScopeRangeKm(scope);
 
   char trafficTitle[40];
-  if (filterZoom) {
-    snprintf(trafficTitle, sizeof(trafficTitle), isEn ? "TRAFFIC (ZOOM %.0fkm)" : (isSk ? "PREMAVKA (ZOOM %.0fkm)" : "PROVOZ (ZOOM %.0fkm)"), zoomKm);
+  if (scope > 0) {
+    snprintf(trafficTitle, sizeof(trafficTitle), isEn ? "TRAFFIC (<=%.0fkm) >" : (isSk ? "PREMAVKA (<=%.0fkm) >" : "PROVOZ (<=%.0fkm) >"), scopeKm);
   } else {
-    snprintf(trafficTitle, sizeof(trafficTitle), isEn ? "AIR TRAFFIC (ALL)" : (isSk ? "PREMAVKA (VSETKO)" : "PROVOZ (VSE)"));
+    snprintf(trafficTitle, sizeof(trafficTitle), isEn ? "AIR TRAFFIC (ALL) >" : (isSk ? "PREMAVKA (VSETKO) >" : "PROVOZ (VSE) >"));
   }
   UI_TextCenteredIn(trafficTitle, cardX, cardW, c1Y + 4, C_CYAN, 2);
 
   // Row 1: Unique Aircraft Count
   const int r1Y = c1Y + 30;
-  uint32_t count = FlightStats_TodayCount();
+  uint32_t count = FlightStats_TodayCount(scope);
   char countBuf[16];
   snprintf(countBuf, sizeof(countBuf), "%u", count);
 
   char unqLbl[32];
-  if (filterZoom) {
-    snprintf(unqLbl, sizeof(unqLbl), isEn ? "In zoom (<=%.0fkm):" : (isSk ? "V zoome (<=%.0fkm):" : "V zoomu (<=%.0fkm):"), zoomKm);
+  if (scope > 0) {
+    snprintf(unqLbl, sizeof(unqLbl), isEn ? "In range (<=%.0fkm):" : (isSk ? "V dosahu (<=%.0fkm):" : "V dosahu (<=%.0fkm):"), scopeKm);
   } else {
     snprintf(unqLbl, sizeof(unqLbl), isEn ? "Unique aircraft:" : (isSk ? "Unikatne stroje:" : "Unikatni letadla:"));
   }
@@ -148,8 +143,8 @@ void ScreenInfo_Draw() {
 
   // Row 2: Top Ground Speed
   const int r2Y = c1Y + 56;
-  float topKt = FlightStats_MaxSpeedKt();
-  const char* topCs = FlightStats_MaxSpeedCallsign();
+  float topKt = FlightStats_MaxSpeedKt(scope);
+  const char* topCs = FlightStats_MaxSpeedCallsign(scope);
   const char* spdLbl = isEn ? "Max speed:" : (isSk ? "Max. rychlost:" : "Max. rychlost:");
   UI_Text(spdLbl, cardX + padX, r2Y + 4, C_GRAY, 1);
 
@@ -178,7 +173,7 @@ void ScreenInfo_Draw() {
 
   // Row 3: Max Distance
   const int r3Y = c1Y + 82;
-  float maxDist = FlightStats_MaxDistKm();
+  float maxDist = FlightStats_MaxDistKm(scope);
   const char* dstLbl = isEn ? "Max distance:" : (isSk ? "Max. vzdialenost:" : "Max. vzdalenost:");
   UI_Text(dstLbl, cardX + padX, r3Y + 4, C_GRAY, 1);
 
@@ -192,8 +187,8 @@ void ScreenInfo_Draw() {
 
   // Row 4: Altitude Range
   const int r4Y = c1Y + 108;
-  float minAlt = FlightStats_MinAltFt();
-  float maxAlt = FlightStats_MaxAltFt();
+  float minAlt = FlightStats_MinAltFt(scope);
+  float maxAlt = FlightStats_MaxAltFt(scope);
   const char* altLbl = isEn ? "Altitude span:" : (isSk ? "Rozpatie vysky:" : "Rozpeti vysek:");
   UI_Text(altLbl, cardX + padX, r4Y + 4, C_GRAY, 1);
 
@@ -211,12 +206,13 @@ void ScreenInfo_Draw() {
 
   // Row 5: Total Position Reports
   const int r5Y = c1Y + 134;
-  uint32_t totalSightings = FlightStats_TotalSightings();
+  uint32_t totalSightings = FlightStats_TotalSightings(scope);
   const char* repLbl = isEn ? "ADS-B reports:" : (isSk ? "Celkovo sprav:" : "Celkem zprav:");
   UI_Text(repLbl, cardX + padX, r5Y + 4, C_DKGRAY, 1);
   char repBuf[16];
   snprintf(repBuf, sizeof(repBuf), "%u", totalSightings);
   UI_Text(repBuf, cardX + cardW - Layout_TextW(repBuf, 1) - padX, r5Y + 4, C_GRAY, 1);
+
 
   // -------------------------------------------------------------------------
   // CARD 2: System & Network Status (Y: 224..388, H: 164)

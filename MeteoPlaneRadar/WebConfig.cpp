@@ -702,21 +702,29 @@ static void handleScreenshot() {
 
 static void handleStats() {
   FlightStats_CheckMidnight();
+  uint8_t scope = Settings_StatsScope();
+  if (s_srv.hasArg("scope")) {
+    int reqScope = s_srv.arg("scope").toInt();
+    if (reqScope >= 0 && reqScope < FlightStats_ScopeCount()) {
+      scope = (uint8_t)reqScope;
+    }
+  }
+
+
   JsonDocument doc;
-  doc["todayCount"] = FlightStats_TodayCount();
-  doc["maxDistKm"] = FlightStats_MaxDistKm();
-  doc["maxSpeedKt"] = FlightStats_MaxSpeedKt();
-  doc["maxSpeedCallsign"] = FlightStats_MaxSpeedCallsign();
-  doc["maxAltFt"] = FlightStats_MaxAltFt();
-  doc["minAltFt"] = (FlightStats_MinAltFt() > 900000.0f) ? 0.0f : FlightStats_MinAltFt();
-  doc["totalSightings"] = FlightStats_TotalSightings();
-  doc["filterRange"] = Settings_StatsFilterRange();
-  const float RANGES[] = PLANE_RANGES_KM;
-  uint8_t rIdx = Settings_PlaneRange();
-  if (rIdx >= sizeof(RANGES) / sizeof(RANGES[0])) rIdx = 1;
-  doc["rangeKm"] = RANGES[rIdx];
+  doc["todayCount"] = FlightStats_TodayCount(scope);
+  doc["maxDistKm"] = FlightStats_MaxDistKm(scope);
+  doc["maxSpeedKt"] = FlightStats_MaxSpeedKt(scope);
+  doc["maxSpeedCallsign"] = FlightStats_MaxSpeedCallsign(scope);
+  doc["maxAltFt"] = FlightStats_MaxAltFt(scope);
+  doc["minAltFt"] = (FlightStats_MinAltFt(scope) > 900000.0f) ? 0.0f : FlightStats_MinAltFt(scope);
+  doc["totalSightings"] = FlightStats_TotalSightings(scope);
+  doc["scope"] = scope;
+  doc["filterRange"] = (scope > 0);
+  doc["rangeKm"] = FlightStats_ScopeRangeKm(scope);
   sendJson(200, doc);
 }
+
 
 static void handleStatsReset() {
   FlightStats_Reset();

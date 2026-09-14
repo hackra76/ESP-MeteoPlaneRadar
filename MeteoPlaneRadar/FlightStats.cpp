@@ -15,15 +15,23 @@
 
 #define MAX_SEEN_ICAO 4096
 
-static uint32_t* s_seenIcao = nullptr;
-static uint32_t  s_uniqueCount = 0;
-static float     s_maxDistKm = 0.0f;
-static float     s_maxSpeedKt = 0.0f;
-static char      s_maxSpeedCallsign[12] = "";
-static float     s_maxAltFt = 0.0f;
-static float     s_minAltFt = 999999.0f;
-static uint32_t  s_totalSightings = 0;
-static int       s_lastDay = -1;
+static const float STATS_RANGES[] = PLANE_RANGES_KM;
+static const uint8_t NUM_STATS_RANGES = sizeof(STATS_RANGES) / sizeof(STATS_RANGES[0]);
+static const uint8_t TOTAL_STATS_SCOPES = NUM_STATS_RANGES + 1;
+
+struct ScopeStats {
+  uint32_t* seenIcao = nullptr;
+  uint32_t  uniqueCount = 0;
+  float     maxDistKm = 0.0f;
+  float     maxSpeedKt = 0.0f;
+  char      maxSpeedCallsign[12] = "";
+  float     maxAltFt = 0.0f;
+  float     minAltFt = 999999.0f;
+  uint32_t  totalSightings = 0;
+};
+
+static ScopeStats s_scopes[TOTAL_STATS_SCOPES];
+static int        s_lastDay = -1;
 
 static float haversineKm(float lat1, float lon1, float lat2, float lon2) {
   const float R = 6371.0f;
@@ -35,26 +43,42 @@ static float haversineKm(float lat1, float lon1, float lat2, float lon2) {
   return R * 2.0f * asinf(fminf(1.0f, sqrtf(a)));
 }
 
-void FlightStats_Init() {
-  if (!s_seenIcao) {
-    s_seenIcao = (uint32_t*)heap_caps_malloc(MAX_SEEN_ICAO * sizeof(uint32_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (!s_seenIcao) {
-      s_seenIcao = (uint32_t*)malloc(MAX_SEEN_ICAO * sizeof(uint32_t));
-    }
-  }
-  FlightStats_Reset();
+uint8_t FlightStats_ScopeCount() {
+  return TOTAL_STATS_SCOPES;
 }
 
-void FlightStats_Reset() {
-  s_uniqueCount = 0;
-  s_maxDistKm = 0.0f;
-  s_maxSpeedKt = 0.0f;
-  s_maxSpeedCallsign[0] = '\0';
-  s_maxAltFt = 0.0f;
-  s_minAltFt = 999999.0f;
-  s_totalSightings = 0;
-  if (s_seenIcao) {
-    memset(s_seenIcao, 0, MAX_SEEN_ICAO * sizeof(uint32_t));
+float FlightStats_ScopeRangeKm(uint8_t scope) {
+  if (scope == 0 || scope >= TOTAL_STATS_SCOPES) return 0.0f;
+  return STATS_RANGES[scope - 1];
+}
+
+void FlightStats_Init() {
+  for (int s = 0; s < TOTAL_STATS_SCOPES; s++) {
+    if (!s_scopes[s].seenIcao) {
+      s_scopes[s].seenIcao = (uint32_t*)heap_caps_malloc(MAX_SEEN_ICAO * sizeof(uint32_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+      if (!s_scopes[s].seenIcao) {
+        s_scopes[s].seenIcao = (uint32_t*)malloc(MAX_SEEN_ICAO * sizeof(uint32_t));
+      }
+    }
+  }
+  FlightStats_Reset(-1);
+}
+
+void FlightStats_Reset(int scope) {
+  int start = (scope >= 0 && scope < TOTAL_STATS_SCOPES) ? scope : 0;
+  int end   = (scope >= 0 && scope < TOTAL_STATS_SCOPES) ? scope + 1 : TOTAL_STATS_SCOPES;
+
+  for (int s = start; s < end; s++) {
+    s_scopes[s].uniqueCount = 0;
+    s_scopes[s].maxDistKm = 0.0f;
+    s_scopes[s].maxSpeedKt = 0.0f;
+    s_scopes[s].maxSpeedCallsign[0] = '\0';
+    s_scopes[s].maxAltFt = 0.0f;
+    s_scopes[s].minAltFt = 999999.0f;
+    s_scopes[s].totalSightings = 0;
+    if (s_scopes[s].seenIcao) {
+      memset(s_scopes[s].seenIcao, 0, MAX_SEEN_ICAO * sizeof(uint32_t));
+    }
   }
 }
 
@@ -72,30 +96,32 @@ void FlightStats_CheckMidnight() {
   // Day rollover at midnight
   if (lt.tm_yday != s_lastDay) {
     s_lastDay = lt.tm_yday;
-    FlightStats_Reset();
+    FlightStats_Reset(-1);
     Serial.printf("FlightStats: Midnight reset, starting new day %d\n", s_lastDay);
   }
 }
 
-static bool registerIcao(uint32_t icao) {
-  if (icao == 0 || !s_seenIcao) return false;
-  if (s_uniqueCount == 0) {
-    s_seenIcao[0] = icao;
-    s_uniqueCount = 1;
+static bool registerIcao(int scopeIdx, uint32_t icao) {
+  if (scopeIdx < 0 || scopeIdx >= TOTAL_STATS_SCOPES) return false;
+  ScopeStats& sc = s_scopes[scopeIdx];
+  if (icao == 0 || !sc.seenIcao) return false;
+  if (sc.uniqueCount == 0) {
+    sc.seenIcao[0] = icao;
+    sc.uniqueCount = 1;
     return true;
   }
 
   // Binary search in sorted array
-  uint32_t* it = std::lower_bound(s_seenIcao, s_seenIcao + s_uniqueCount, icao);
-  if (it != s_seenIcao + s_uniqueCount && *it == icao) {
-    return false; // Already seen today
+  uint32_t* it = std::lower_bound(sc.seenIcao, sc.seenIcao + sc.uniqueCount, icao);
+  if (it != sc.seenIcao + sc.uniqueCount && *it == icao) {
+    return false; // Already seen today in this scope
   }
 
-  if (s_uniqueCount < MAX_SEEN_ICAO) {
-    size_t idx = it - s_seenIcao;
-    memmove(s_seenIcao + idx + 1, s_seenIcao + idx, (s_uniqueCount - idx) * sizeof(uint32_t));
-    s_seenIcao[idx] = icao;
-    s_uniqueCount++;
+  if (sc.uniqueCount < MAX_SEEN_ICAO) {
+    size_t idx = it - sc.seenIcao;
+    memmove(sc.seenIcao + idx + 1, sc.seenIcao + idx, (sc.uniqueCount - idx) * sizeof(uint32_t));
+    sc.seenIcao[idx] = icao;
+    sc.uniqueCount++;
     return true;
   }
   return false;
@@ -103,74 +129,103 @@ static bool registerIcao(uint32_t icao) {
 
 void FlightStats_Update(const Aircraft* list, int count) {
   if (!list || count <= 0) return;
-  if (!s_seenIcao) FlightStats_Init();
+  if (!s_scopes[0].seenIcao) FlightStats_Init();
   FlightStats_CheckMidnight();
 
   const float homeLat = (float)Settings_Lat();
   const float homeLon = (float)Settings_Lon();
   const bool hasHome = (homeLat != 0.0f || homeLon != 0.0f);
 
-  const bool filterZoom = Settings_StatsFilterRange();
-  float maxAllowedKm = 999999.0f;
-  if (filterZoom) {
-    const float RANGES[] = PLANE_RANGES_KM;
-    uint8_t rIdx = Settings_PlaneRange();
-    if (rIdx < sizeof(RANGES) / sizeof(RANGES[0])) {
-      maxAllowedKm = RANGES[rIdx];
-    } else {
-      maxAllowedKm = 25.0f;
-    }
-  }
-
   for (int i = 0; i < count; i++) {
     const Aircraft& a = list[i];
-    float d = 0.0f;
+    float d = -1.0f;
     if (hasHome && a.lat != 0.0f && a.lon != 0.0f) {
       d = haversineKm(homeLat, homeLon, a.lat, a.lon);
     }
 
-    // When zoom filtering is active, ignore planes outside the selected Aircraft radar zoom level
-    if (filterZoom) {
-      if (!hasHome || a.lat == 0.0f || a.lon == 0.0f || d > maxAllowedKm) {
-        continue;
-      }
-    }
-
-    s_totalSightings++;
-
-    // Register ICAO
+    uint32_t icao = 0;
     if (a.hex[0]) {
-      uint32_t icao = (uint32_t)strtoul(a.hex, nullptr, 16);
-      registerIcao(icao);
+      icao = (uint32_t)strtoul(a.hex, nullptr, 16);
     }
 
-    // Distance
-    if (hasHome && a.lat != 0.0f && a.lon != 0.0f) {
-      if (d > s_maxDistKm) s_maxDistKm = d;
-    }
-
-    // Ground Speed
-    if (a.gsKt > s_maxSpeedKt && a.gsKt < 1500.0f) {
-      s_maxSpeedKt = a.gsKt;
-      if (a.callsign[0]) {
-        strncpy(s_maxSpeedCallsign, a.callsign, sizeof(s_maxSpeedCallsign) - 1);
-      } else if (a.hex[0]) {
-        strncpy(s_maxSpeedCallsign, a.hex, sizeof(s_maxSpeedCallsign) - 1);
+    // Update Scope 0 (ALL) and every zoom scope whose boundary contains the plane
+    for (int s = 0; s < TOTAL_STATS_SCOPES; s++) {
+      if (s > 0) {
+        float maxKm = STATS_RANGES[s - 1];
+        if (!hasHome || d < 0.0f || d > maxKm) {
+          continue; // Plane is outside this zoom range
+        }
       }
-    }
 
-    // Altitude
-    if (!a.onGround && a.altFt > 0.0f && a.altFt < 100000.0f) {
-      if (a.altFt > s_maxAltFt) s_maxAltFt = a.altFt;
-      if (a.altFt < s_minAltFt) s_minAltFt = a.altFt;
+      ScopeStats& sc = s_scopes[s];
+      sc.totalSightings++;
+
+      if (icao != 0) {
+        registerIcao(s, icao);
+      }
+
+      if (d >= 0.0f && d > sc.maxDistKm) {
+        sc.maxDistKm = d;
+      }
+
+      if (a.gsKt > sc.maxSpeedKt && a.gsKt < 1500.0f) {
+        sc.maxSpeedKt = a.gsKt;
+        if (a.callsign[0]) {
+          strncpy(sc.maxSpeedCallsign, a.callsign, sizeof(sc.maxSpeedCallsign) - 1);
+          sc.maxSpeedCallsign[sizeof(sc.maxSpeedCallsign) - 1] = '\0';
+        } else if (a.hex[0]) {
+          strncpy(sc.maxSpeedCallsign, a.hex, sizeof(sc.maxSpeedCallsign) - 1);
+          sc.maxSpeedCallsign[sizeof(sc.maxSpeedCallsign) - 1] = '\0';
+        }
+      }
+
+      if (!a.onGround && a.altFt > 0.0f && a.altFt < 100000.0f) {
+        if (a.altFt > sc.maxAltFt) sc.maxAltFt = a.altFt;
+        if (a.altFt < sc.minAltFt) sc.minAltFt = a.altFt;
+      }
     }
   }
 }
 
-uint32_t FlightStats_TodayCount() { return s_uniqueCount; }
-float    FlightStats_MaxDistKm()  { return s_maxDistKm; }
-float    FlightStats_MaxSpeedKt() { return s_maxSpeedKt; }
-const char* FlightStats_MaxSpeedCallsign() { return s_maxSpeedCallsign; }
-float    FlightStats_MaxAltFt()   { return s_maxAltFt; }
-float    FlightStats_MinAltFt()   { return (s_minAltFt >= 900000.0f) ? 0.0f : s_minAltFt; }
-uint32_t FlightStats_TotalSightings() { return s_totalSightings; }
+static inline int resolveScope(int scope) {
+  if (scope < 0 || scope >= TOTAL_STATS_SCOPES) {
+    return (int)Settings_StatsScope();
+  }
+  return scope;
+}
+
+uint32_t FlightStats_TodayCount(int scope) {
+  int s = resolveScope(scope);
+  return s_scopes[s].uniqueCount;
+}
+
+float FlightStats_MaxDistKm(int scope) {
+  int s = resolveScope(scope);
+  return s_scopes[s].maxDistKm;
+}
+
+float FlightStats_MaxSpeedKt(int scope) {
+  int s = resolveScope(scope);
+  return s_scopes[s].maxSpeedKt;
+}
+
+const char* FlightStats_MaxSpeedCallsign(int scope) {
+  int s = resolveScope(scope);
+  return s_scopes[s].maxSpeedCallsign;
+}
+
+float FlightStats_MaxAltFt(int scope) {
+  int s = resolveScope(scope);
+  return s_scopes[s].maxAltFt;
+}
+
+float FlightStats_MinAltFt(int scope) {
+  int s = resolveScope(scope);
+  return (s_scopes[s].minAltFt >= 900000.0f) ? 0.0f : s_scopes[s].minAltFt;
+}
+
+uint32_t FlightStats_TotalSightings(int scope) {
+  int s = resolveScope(scope);
+  return s_scopes[s].totalSightings;
+}
+
