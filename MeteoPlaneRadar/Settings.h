@@ -90,8 +90,13 @@ uint16_t Settings_AutoRotateSec();
 void     Settings_SetAutoRotateSec(uint16_t s);
 
 // --- Finance / Markets ------------------------------------------------------
+#define FIN_GRAPH_LINE        0
+#define FIN_GRAPH_CANDLESTICK 1
+
 const char* Settings_FinanceTickers();
 void        Settings_SetFinanceTickers(const char* tickers);
+uint8_t     Settings_FinanceGraphType();
+void        Settings_SetFinanceGraphType(uint8_t type);
 
 // --- ISS Tracker ------------------------------------------------------------
 bool        Settings_IssAlert();

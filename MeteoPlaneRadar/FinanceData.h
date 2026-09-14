@@ -11,6 +11,13 @@
 
 #define FINANCE_SPARK_MAX 24
 
+struct FinanceCandle {
+  float open;
+  float high;
+  float low;
+  float close;
+};
+
 struct FinanceItem {
   char symbol[16];
   char shortName[32];
@@ -22,6 +29,8 @@ struct FinanceItem {
   float dayLow;
   float sparkline[FINANCE_SPARK_MAX];
   uint8_t sparkCount;
+  FinanceCandle candles[FINANCE_SPARK_MAX];
+  uint8_t candleCount;
   bool valid;
   unsigned long lastUpdated;
 };

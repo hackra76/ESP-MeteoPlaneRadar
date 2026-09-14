@@ -455,6 +455,15 @@ td:first-child{color:var(--mut);width:45%}
 
           <input type="hidden" id="financeTickers">
 
+          <div class="row" style="margin-top:0;margin-bottom:14px;align-items:center;">
+            <label class="lbl" for="finGraphType" data-i18n="finGraphTypeLbl" style="font-weight:600;min-width:140px;">Typ hlavného grafu:</label>
+            <select id="finGraphType" style="flex:1 1 200px;max-width:280px;">
+              <option value="0" data-i18n="finGraphLine">📈 Čiarový graf (Line)</option>
+              <option value="1" data-i18n="finGraphCandle">🕯️ Sviečkový graf (Candlestick)</option>
+            </select>
+          </div>
+          <p class="hint" style="margin-top:-6px;margin-bottom:14px;" data-i18n="finGraphHint">Sviečkový graf zobrazuje farebné sviečky (zelená rastová, červená klesajúca) s knôtmi (High/Low) a telom (Open/Close).</p>
+
           <div style="display:flex;flex-direction:column;gap:10px;">
             <!-- Line 1: Hero -->
             <div style="display:flex;align-items:center;gap:10px;background:#0d1523;border:1px solid rgba(56,189,248,0.3);border-radius:10px;padding:8px 12px;flex-wrap:wrap;">
@@ -1089,7 +1098,7 @@ const D={
   otaDownloading:"Stahování a zápis firmwaru...",otaSuccess:"Aktualizace úspěšná! Restartuji...",otaErr:"Chyba aktualizace",
   otaNoAsset:"Vydání neobsahuje soubor OTA (-ota.bin)",otaConfirm:"Opravdu spustit aktualizaci firmwaru na verzi",
   scrClock:"Hodiny & Astro",scrPlanes:"Letadla radar",scrMeteo:"Meteoradar",scrTactical:"Taktický radar",scrForecast:"Předpověď počasí",scrInfo:"Info & Statistiky",scrFinance:"Trhy & Krypto",scrSettings:"Nastavení",
-  finSlotsHdr:"📈 Sledované trhy & aktiva (4 pozice)",finSlot1:"1. Hlavní trh (Hero graf)",finSlot1Sub:"Velký reálný graf + kurz",finSlot2:"2. Sledovaný trh",finSlot3:"3. Sledovaný trh",finSlot4:"4. Sledovaný trh",finSlotWatchlist:"Karta v dolním přehledu",finPresets:"⚡ Rychlé přidání populárních aktiv:",finClear:"Vymazat",financeHint:"1. pozice má velký graf (Hero), pozice 2–4 se zobrazují v dolním přehledu. Podporuje evropské ETF fondy (Amundi CW8.PA, 500.PA, Vanguard VWCE.DE), krypto, indexy, komodity i světové akcie z Yahoo Finance.",
+  finSlotsHdr:"📈 Sledované trhy & aktiva (4 pozice)",finGraphTypeLbl:"Typ hlavního grafu:",finGraphLine:"📈 Čárový graf (Line)",finGraphCandle:"🕯️ Svíčkový graf (Candlestick)",finGraphHint:"Svíčkový graf zobrazuje barevné svíčky (zelená růstová, červená klesající) s knoty (High/Low) a tělem (Open/Close).",finSlot1:"1. Hlavní trh (Hero graf)",finSlot1Sub:"Velký reálný graf + kurz",finSlot2:"2. Sledovaný trh",finSlot3:"3. Sledovaný trh",finSlot4:"4. Sledovaný trh",finSlotWatchlist:"Karta v dolním přehledu",finPresets:"⚡ Rychlé přidání populárních aktiv:",finClear:"Vymazat",financeHint:"1. pozice má velký graf (Hero), pozice 2–4 se zobrazují v dolním přehledu. Podporuje evropské ETF fondy (Amundi CW8.PA, 500.PA, Vanguard VWCE.DE), krypto, indexy, komodity i světové akcie z Yahoo Finance.",
   ultraNight:"🌙 Ultra Night režim (hluboká červená / spánkový monochróm, min. jas)",
   tabScrInfo:"ℹ️ Info & Statistiky",scrInfoHdr:"Info & Denní statistika letů",scrInfoActive:"Zahrnout obrazovku do automatického střídání",
   statsTrafficHdr:"✈️ Dnešní letecká statistika",btnResetStats:"🔄 Resetovat",statsFilterLbl:"Rozsah započítávání letadel do statistik:",statsOptAll:"Všechna přijatá letadla (celý ADS-B feed)",statsOptZoom:"Pouze v nastaveném rozsahu obrazovky Letadla (Zoom)",stUniqueZoom:"Unikátní letadla (Zoom ",stUniqueAll:"Unikátní letadla (Všechna):",stUnique:"Unikátní letadla dnes:",stTopSpeed:"Nejvyšší rychlost:",stMaxDist:"Maximální vzdálenost:",stAltSpan:"Rozpětí výšek:",stReports:"Přijaté ADS-B zprávy:",statsHint:"Statistika se automaticky nuluje o půlnoci a uchovává se v paměti PSRAM.",confirmResetStats:"Opravdu resetovat dnešní statistiku letů?",statsResetOk:"Statistiky byly resetovány",
@@ -1168,7 +1177,7 @@ const D={
   otaDownloading:"Sťahovanie a zápis firmvéru...",otaSuccess:"Aktualizácia úspešná! Reštartujem...",otaErr:"Chyba aktualizácie",
   otaNoAsset:"Vydanie neobsahuje súbor OTA (-ota.bin)",otaConfirm:"Naozaj spustiť aktualizáciu firmvéru na verziu",
   scrClock:"Hodiny & Astro",scrPlanes:"Lietadlá radar",scrMeteo:"Meteoradar",scrTactical:"Taktický radar",scrForecast:"Predpoveď počasia",scrInfo:"Info & Štatistiky",scrFinance:"Trhy & Krypto",scrSettings:"Nastavenia",
-  finSlotsHdr:"📈 Sledované trhy & aktíva (4 pozície)",finSlot1:"1. Hlavný trh (Hero graf)",finSlot1Sub:"Veľký reálny graf + kurz",finSlot2:"2. Sledovaný trh",finSlot3:"3. Sledovaný trh",finSlot4:"4. Sledovaný trh",finSlotWatchlist:"Karta v spodnom zozname",finPresets:"⚡ Rýchle pridanie populárnych aktív:",finClear:"Vymazať",financeHint:"1. pozícia má veľký graf (Hero), pozície 2–4 sa zobrazujú v dolnom prehľade. Podporuje európske ETF fondy (Amundi CW8.PA, 500.PA, Vanguard VWCE.DE), krypto, indexy, komodity aj svetové akcie z Yahoo Finance.",
+  finSlotsHdr:"📈 Sledované trhy & aktíva (4 pozície)",finGraphTypeLbl:"Typ hlavného grafu:",finGraphLine:"📈 Čiarový graf (Line)",finGraphCandle:"🕯️ Sviečkový graf (Candlestick)",finGraphHint:"Sviečkový graf zobrazuje farebné sviečky (zelená rastová, červená klesajúca) s knôtmi (High/Low) a telom (Open/Close).",finSlot1:"1. Hlavný trh (Hero graf)",finSlot1Sub:"Veľký reálny graf + kurz",finSlot2:"2. Sledovaný trh",finSlot3:"3. Sledovaný trh",finSlot4:"4. Sledovaný trh",finSlotWatchlist:"Karta v spodnom zozname",finPresets:"⚡ Rýchle pridanie populárnych aktív:",finClear:"Vymazať",financeHint:"1. pozícia má veľký graf (Hero), pozície 2–4 sa zobrazujú v dolnom prehľade. Podporuje európske ETF fondy (Amundi CW8.PA, 500.PA, Vanguard VWCE.DE), krypto, indexy, komodity aj svetové akcie z Yahoo Finance.",
   ultraNight:"🌙 Ultra Night režim (hlboká červená / spánkový monochróm, min. jas)",
   tabScrInfo:"ℹ️ Info & Štatistiky",scrInfoHdr:"Info & Denná štatistika letov",scrInfoActive:"Zahrnúť obrazovku do automatického striedania",
   statsTrafficHdr:"✈️ Dnešná letecká štatistika",btnResetStats:"🔄 Resetovať",statsFilterLbl:"Rozsah započítavania lietadiel do štatistík:",statsOptAll:"Všetky prijaté lietadlá (celý ADS-B feed)",statsOptZoom:"Iba v nastavenom rozsahu obrazovky Lietadlá (Zoom)",stUniqueZoom:"Unikátne lietadlá (Zoom ",stUniqueAll:"Unikátne lietadlá (Všetky):",stUnique:"Unikátne lietadlá dnes:",stTopSpeed:"Najvyššia rýchlosť:",stMaxDist:"Maximálna vzdialenosť:",stAltSpan:"Rozpätie výšok:",stReports:"Prijaté ADS-B správy:",statsHint:"Štatistika sa automaticky nuluje o polnoci a uchováva sa v pamäti PSRAM.",confirmResetStats:"Naozaj resetovať dnešnú štatistiku letov?",statsResetOk:"Štatistiky boli resetované",
@@ -1247,7 +1256,7 @@ const D={
   otaDownloading:"Downloading & flashing firmware...",otaSuccess:"Update successful! Restarting...",otaErr:"Update failed",
   otaNoAsset:"Release missing OTA binary (-ota.bin)",otaConfirm:"Really install firmware update to version",
   scrClock:"Clock & Astro",scrPlanes:"Aircraft radar",scrMeteo:"Weather radar",scrTactical:"Tactical radar",scrForecast:"Weather forecast",scrInfo:"Info & Stats",scrFinance:"Markets & Crypto",scrSettings:"Settings",
-  finSlotsHdr:"📈 Watched Markets & Assets (4 slots)",finSlot1:"1. Primary Market (Hero Chart)",finSlot1Sub:"Full sparkline chart + quote",finSlot2:"2. Watchlist Market",finSlot3:"3. Watchlist Market",finSlot4:"4. Watchlist Market",finSlotWatchlist:"Bottom watchlist card",finPresets:"⚡ Quick-add popular assets:",finClear:"Clear",financeHint:"Slot 1 features the large Hero sparkline chart; slots 2–4 appear in the bottom watchlist cards. Supports European ETFs (Amundi CW8.PA, 500.PA, Vanguard VWCE.DE), crypto, indices, commodities and global equities via Yahoo Finance.",
+  finSlotsHdr:"📈 Watched Markets & Assets (4 slots)",finGraphTypeLbl:"Primary Chart Style:",finGraphLine:"📈 Line Chart",finGraphCandle:"🕯️ Candlestick Chart",finGraphHint:"Candlestick chart renders colored candles (green bullish, red bearish) with wicks (High/Low) and bodies (Open/Close).",finSlot1:"1. Primary Market (Hero Chart)",finSlot1Sub:"Full sparkline chart + quote",finSlot2:"2. Watchlist Market",finSlot3:"3. Watchlist Market",finSlot4:"4. Watchlist Market",finSlotWatchlist:"Bottom watchlist card",finPresets:"⚡ Quick-add popular assets:",finClear:"Clear",financeHint:"Slot 1 features the large Hero sparkline chart; slots 2–4 appear in the bottom watchlist cards. Supports European ETFs (Amundi CW8.PA, 500.PA, Vanguard VWCE.DE), crypto, indices, commodities and global equities via Yahoo Finance.",
   ultraNight:"🌙 Ultra Night mode (deep red sleep monochrome, min. brightness)",
   tabScrInfo:"ℹ️ Info & Stats",scrInfoHdr:"Info & Daily Flight Statistics",scrInfoActive:"Include screen in automatic cycling",
   statsTrafficHdr:"✈️ Flight Traffic Today",btnResetStats:"🔄 Reset",statsFilterLbl:"Aircraft statistics counting scope:",statsOptAll:"All received aircraft (full ADS-B feed)",statsOptZoom:"Only within Aircraft screen zoom range",stUniqueZoom:"Unique aircraft (Zoom ",stUniqueAll:"Unique aircraft (All):",stUnique:"Unique aircraft today:",stTopSpeed:"Top speed:",stMaxDist:"Max distance:",stAltSpan:"Altitude span:",stReports:"ADS-B reports received:",statsHint:"Statistics auto-reset at midnight and are kept in PSRAM.",confirmResetStats:"Really reset today's flight statistics?",statsResetOk:"Statistics reset successfully",
@@ -1524,6 +1533,7 @@ const AUTO = [
  ["sInfo","change","screens",()=>getScreensObj()],
  ["sFinance","change","screens",()=>getScreensObj()],
  ["financeTickers","change","financeTickers",e=>e.value.trim()],
+ ["finGraphType","change","financeGraph",e=>parseInt(e.value,10)||0],
  ["sIss","change","screens",()=>getScreensObj()],
  ["issAlert","change","issAlert",e=>e.checked],
  ["bzNightMute","change","buzzerNightMute",e=>e.checked],
@@ -1693,6 +1703,7 @@ async function load(){
  if($("sIss")) $("sIss").checked=CFG.screens.iss!==false;
  if($("issAlert")) $("issAlert").checked=!!CFG.issAlert;
  if(CFG.financeTickers !== undefined) loadFinanceTickers(CFG.financeTickers);
+ if($("finGraphType") && CFG.financeGraph !== undefined) $("finGraphType").value = CFG.financeGraph;
  $("autoRotate").value=CFG.autoRotate;$("radarSrc").value=CFG.radarSrc;
  if($("showLegends")) $("showLegends").checked=!!CFG.showLegends;
  if($("showLegendsMeteo")) $("showLegendsMeteo").checked=!!CFG.showLegends;
@@ -1866,7 +1877,8 @@ function body(){return{
  ovRad:$("ovRad")?parseFloat($("ovRad").value)||10:10,
  screens:{clock:$("sClock").checked,planes:$("sPlanes").checked,meteo:$("sMeteo").checked,tactical:$("sTactical").checked,forecast:$("sForecast").checked,finance:$("sFinance")?$("sFinance").checked:true,iss:$("sIss")?$("sIss").checked:true,info:$("sInfo")?$("sInfo").checked:true},
  issAlert:$("issAlert")?$("issAlert").checked:false,
- financeTickers:$("financeTickers")?$("financeTickers").value.trim():undefined
+ financeTickers:$("financeTickers")?$("financeTickers").value.trim():undefined,
+ financeGraph:$("finGraphType")?parseInt($("finGraphType").value,10)||0:0
 };}
 
 function getScreensObj(){

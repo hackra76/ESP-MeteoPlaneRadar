@@ -43,6 +43,7 @@ static uint16_t s_scrMask = (1 << SCREEN_CLOCK_I) | (1 << SCREEN_PLANES_I) |
                             (1 << SCREEN_FORECAST_I) | (1 << SCREEN_FINANCE_I) |
                             (1 << SCREEN_ISS_I) | (1 << SCREEN_INFO_I);
 static char     s_finTickers[128] = DEFAULT_FINANCE_TICKERS;
+static uint8_t  s_finGraphType = FIN_GRAPH_LINE;
 static bool     s_issAlert = true;
 static uint16_t s_autoRot = 0;
 static uint8_t s_radarSrc = RADAR_SRC_CHMU;
@@ -203,6 +204,8 @@ void Settings_Begin() {
     if (prefs.isKey("finTk")) {
       prefs.getString("finTk", s_finTickers, sizeof(s_finTickers));
     }
+    s_finGraphType = prefs.getUChar("finGr", FIN_GRAPH_LINE);
+    if (s_finGraphType > FIN_GRAPH_CANDLESTICK) s_finGraphType = FIN_GRAPH_LINE;
     // Cycling interval moved from minutes to seconds - see Settings.h. The old
     // key is converted exactly once, so an updated device keeps its setting.
     if (prefs.isKey("autoRS")) {
@@ -593,6 +596,13 @@ void Settings_SetFinanceTickers(const char* tickers) {
   s_finTickers[sizeof(s_finTickers) - 1] = '\0';
   putStr("finTk", s_finTickers);
 }
+uint8_t Settings_FinanceGraphType() { return s_finGraphType; }
+void Settings_SetFinanceGraphType(uint8_t type) {
+  if (type > FIN_GRAPH_CANDLESTICK) type = FIN_GRAPH_LINE;
+  if (s_finGraphType == type) return;
+  s_finGraphType = type;
+  putU8("finGr", type);
+}
 
 bool Settings_IssAlert() { return s_issAlert; }
 void Settings_SetIssAlert(bool on) {
@@ -861,6 +871,7 @@ void Settings_ToJson(JsonObject o) {
   scr["finance"]  = Settings_ScreenEnabled(SCREEN_FINANCE_I);
   scr["iss"]      = Settings_ScreenEnabled(SCREEN_ISS_I);
   o["financeTickers"] = s_finTickers;
+  o["financeGraph"]   = s_finGraphType;
   o["issAlert"]   = s_issAlert;
 }
 
@@ -932,6 +943,7 @@ bool Settings_FromJson(JsonObjectConst in) {
   setIf("buzzerNightMute", [](JsonVariantConst v){ Settings_SetBuzzerNightMute(v.as<bool>()); });
   setIf("cPrecip",         [](JsonVariantConst v){ Settings_SetPrecipAlert(v.as<bool>()); });
   setIf("financeTickers",  [](JsonVariantConst v){ Settings_SetFinanceTickers(v.as<const char*>()); });
+  setIf("financeGraph",    [](JsonVariantConst v){ Settings_SetFinanceGraphType(v.as<uint8_t>()); });
   setIf("issAlert",        [](JsonVariantConst v){ Settings_SetIssAlert(v.as<bool>()); });
 
   if (!in["altMin"].isNull() || !in["altMax"].isNull()) {

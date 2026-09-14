@@ -166,6 +166,9 @@ static bool fetchOneItem(int idx) {
   filter["chart"]["result"][0]["meta"]["regularMarketChangePercent"] = true;
   filter["chart"]["result"][0]["meta"]["regularMarketDayHigh"] = true;
   filter["chart"]["result"][0]["meta"]["regularMarketDayLow"] = true;
+  filter["chart"]["result"][0]["indicators"]["quote"][0]["open"] = true;
+  filter["chart"]["result"][0]["indicators"]["quote"][0]["high"] = true;
+  filter["chart"]["result"][0]["indicators"]["quote"][0]["low"] = true;
   filter["chart"]["result"][0]["indicators"]["quote"][0]["close"] = true;
 
   JsonDocument doc;
@@ -201,7 +204,7 @@ static bool fetchOneItem(int idx) {
   item.dayHigh = meta["regularMarketDayHigh"] | item.price;
   item.dayLow = meta["regularMarketDayLow"] | item.price;
 
-  if (meta.containsKey("regularMarketChangePercent") && !meta["regularMarketChangePercent"].isNull()) {
+  if (!meta["regularMarketChangePercent"].isNull()) {
     item.changePct = meta["regularMarketChangePercent"].as<float>();
   } else if (item.prevClose > 0.0001f) {
     item.changePct = ((item.price - item.prevClose) / item.prevClose) * 100.0f;
@@ -209,8 +212,14 @@ static bool fetchOneItem(int idx) {
     item.changePct = 0.0f;
   }
 
+  JsonArray openArr  = doc["chart"]["result"][0]["indicators"]["quote"][0]["open"];
+  JsonArray highArr  = doc["chart"]["result"][0]["indicators"]["quote"][0]["high"];
+  JsonArray lowArr   = doc["chart"]["result"][0]["indicators"]["quote"][0]["low"];
   JsonArray closeArr = doc["chart"]["result"][0]["indicators"]["quote"][0]["close"];
+
   item.sparkCount = 0;
+  item.candleCount = 0;
+
   if (!closeArr.isNull() && closeArr.size() > 0) {
     int total = closeArr.size();
     int start = (total > FINANCE_SPARK_MAX) ? (total - FINANCE_SPARK_MAX) : 0;
@@ -224,14 +233,33 @@ static bool fetchOneItem(int idx) {
         }
       }
       item.sparkline[item.sparkCount++] = lastValid;
+
+      // Extract candle OHLC
+      float c = lastValid;
+      float o = (!openArr.isNull() && i < (int)openArr.size() && !openArr[i].isNull() && openArr[i].as<float>() > 0.0f)
+                  ? openArr[i].as<float>() : (item.candleCount > 0 ? item.candles[item.candleCount - 1].close : lastValid);
+      float h = (!highArr.isNull() && i < (int)highArr.size() && !highArr[i].isNull() && highArr[i].as<float>() > 0.0f)
+                  ? highArr[i].as<float>() : max(o, c);
+      float l = (!lowArr.isNull() && i < (int)lowArr.size() && !lowArr[i].isNull() && lowArr[i].as<float>() > 0.0f)
+                  ? lowArr[i].as<float>() : min(o, c);
+
+      if (h < max(o, c)) h = max(o, c);
+      if (l > min(o, c)) l = min(o, c);
+
+      item.candles[item.candleCount++] = { o, h, l, c };
     }
   }
 
   // If no sparkline points in response, add prevClose and current price
   if (item.sparkCount < 2) {
-    item.sparkline[0] = (item.prevClose > 0) ? item.prevClose : item.price;
+    float p0 = (item.prevClose > 0) ? item.prevClose : item.price;
+    item.sparkline[0] = p0;
     item.sparkline[1] = item.price;
     item.sparkCount = 2;
+
+    item.candles[0] = { p0, max(p0, item.price), min(p0, item.price), p0 };
+    item.candles[1] = { p0, max(p0, item.price), min(p0, item.price), item.price };
+    item.candleCount = 2;
   }
 
   item.valid = (item.price > 0.0f);

@@ -9,6 +9,17 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [1.9.4] - 2026-09-14
+
+### Pridané / Added
+- **Výber sledovaných aktív priamo na zariadení (On-Device Markets Asset Picker):**
+  - Do sťahovacieho Ovládacieho centra na obrazovke Trhov (`SCREEN_FINANCE_I`) boli pridané 4 interaktívne výberové boxy pre všetky sledované pozície (Hero graf aj watchlist).
+  - Vstavaný celoobrazovkový výberový dialóg s 6 kategóriami (ETF fondy, Krypto, Indexy, Komodity, Akcie, Forex) a 34 prednastavenými populárnymi aktívami s okamžitým uložením a vymazaním slotu jedným dotykom.
+- **Voľba štýlu grafu: Čiarový vs Sviečkový graf (Line vs Candlestick Chart):**
+  - Možnosť prepínania hlavného grafu trhov medzi klasickou čiarovou krivkou (Line) a sviečkovým grafom (Candlestick) používaným v profesionálnych obchodných platformách.
+  - Sviečkový graf presne vizualizuje knôty najvyššej a najnižšej ceny (High / Low) a telá otváracej a zatváracej ceny (Open / Close) vo výrazných kontrastných farbách (zelená pre rastové sviečky, červená pre klesajúce).
+  - Prepínanie štýlu grafu je dostupné priamo v Ovládacom centre na displeji aj vo webovom rozhraní s trvalým uložením v pamäti NVS (`finGr`).
+
 ## [1.9.3] - 2026-09-14
 
 ### Opravené / Fixed

@@ -14,6 +14,7 @@
 #include "Buzzer.h"
 #include "NightMode.h"
 #include "AsyncCore.h"
+#include "Settings.h"
 #include <WiFi.h>
 
 #define CX (LCD_WIDTH / 2)
@@ -115,6 +116,77 @@ static void drawSparkline(int x, int y, int w, int h, const float* data, int cou
   // End dot
   gfx->fillCircle(prevX, prevY, 3, C_WHITE);
   gfx->fillCircle(prevX, prevY, 2, lineCol);
+}
+
+static void drawCandlestick(int x, int y, int w, int h, const FinanceCandle* data, int count, float prevClose) {
+  if (!data || count < 1) {
+    gfx->drawLine(x, y + h / 2, x + w - 1, y + h / 2, 0x31A6);
+    return;
+  }
+
+  float minVal = data[0].low;
+  float maxVal = data[0].high;
+  for (int i = 0; i < count; i++) {
+    if (data[i].low < minVal) minVal = data[i].low;
+    if (data[i].high > maxVal) maxVal = data[i].high;
+  }
+  if (prevClose > 0.0f) {
+    if (prevClose < minVal) minVal = prevClose;
+    if (prevClose > maxVal) maxVal = prevClose;
+  }
+
+  float range = maxVal - minVal;
+  if (range <= 0.00001f) range = 1.0f;
+
+  auto toY = [&](float v) -> int {
+    int py = y + h - 1 - (int)(((v - minVal) / range) * (h - 10) + 5);
+    if (py < y) py = y;
+    if (py > y + h - 1) py = y + h - 1;
+    return py;
+  };
+
+  // Draw dashed baseline for previous close if within bounds
+  if (prevClose >= minVal && prevClose <= maxVal) {
+    int basePy = toY(prevClose);
+    for (int bx = x; bx < x + w - 1; bx += 6) {
+      gfx->drawFastHLine(bx, basePy, 3, 0x39E7);
+    }
+  }
+
+  float slotW = (float)w / count;
+  int bodyW = (int)(slotW * 0.65f);
+  if (bodyW > 15) bodyW = 15;
+  if (bodyW < 3 && slotW >= 4) bodyW = 3;
+  if (bodyW < 1) bodyW = 1;
+  if ((bodyW % 2) == 0 && bodyW > 1) bodyW--; // keep odd so center wick is centered
+
+  for (int i = 0; i < count; i++) {
+    int cx = x + (int)((i + 0.5f) * slotW);
+    int bx = cx - (bodyW / 2);
+
+    int yHigh  = toY(data[i].high);
+    int yLow   = toY(data[i].low);
+    int yOpen  = toY(data[i].open);
+    int yClose = toY(data[i].close);
+
+    bool bullish = (data[i].close >= data[i].open);
+    uint16_t col = bullish ? 0x27E8 : 0xF986; // Emerald vs Coral
+
+    // Upper & lower wicks
+    if (yLow > yHigh) {
+      gfx->drawFastVLine(cx, yHigh, yLow - yHigh + 1, col);
+    } else {
+      gfx->drawPixel(cx, yHigh, col);
+    }
+
+    // Candle body
+    int topY = (yOpen < yClose) ? yOpen : yClose;
+    int botY = (yOpen > yClose) ? yOpen : yClose;
+    int bHeight = botY - topY + 1;
+    if (bHeight < 2) bHeight = 2; // at least 2px body so flat/doji candles are distinct
+
+    gfx->fillRect(bx, topY, bodyW, bHeight, col);
+  }
 }
 
 void ScreenFinance_Draw() {
@@ -224,7 +296,11 @@ void ScreenFinance_Draw() {
   const int sparkW = cardW - 24;
   const int sparkH = 88;
 
-  drawSparkline(sparkX, sparkY, sparkW, sparkH, activeItem->sparkline, activeItem->sparkCount, activeItem->prevClose, positive);
+  if (Settings_FinanceGraphType() == FIN_GRAPH_CANDLESTICK && activeItem->candleCount > 0) {
+    drawCandlestick(sparkX, sparkY, sparkW, sparkH, activeItem->candles, activeItem->candleCount, activeItem->prevClose);
+  } else {
+    drawSparkline(sparkX, sparkY, sparkW, sparkH, activeItem->sparkline, activeItem->sparkCount, activeItem->prevClose, positive);
+  }
 
   // ---------------------------------------------------------------------------
   // WATCHLIST MINI-CARDS (Y: 232 .. 396)

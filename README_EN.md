@@ -82,7 +82,9 @@ The round 480×480 display features **7 completely distinct geometry styles** wi
 ### 📈 9. Financial Markets & Crypto Tracker (`ScreenFinance`)
 - Real-time financial telemetry powered by Yahoo Finance v8 API.
 - **4 Custom Asset Slots**: Configurable for European ETFs (Amundi MSCI World, Stoxx Europe 600), US indices, commodities (Gold, Crude Oil), equities, cryptocurrencies, and Forex currency pairs.
-- **Interactive Sparkline**: Historical price graph for the selected asset; tap rows to switch the sparkline, double-tap to trigger immediate refresh.
+- **On-Device Asset Picker**: Select any tracked slot directly from the pull-down Quick Control drawer with 34 popular presets across 6 categories.
+- **Line & Candlestick Charts**: Toggle between continuous sparkline trendlines and authentic colored trading candlesticks (emerald bullish, coral bearish, wicks for High/Low, bodies for Open/Close).
+- Tap rows to select focused asset, double-tap to trigger immediate refresh.
 
 ### 🛰️ 10. ISS Orbit Tracker (`ScreenIss`)
 - **Astronomical Day/Night World Map**: High-contrast 320×160 equirectangular world map with real-time solar terminator day/night shading.

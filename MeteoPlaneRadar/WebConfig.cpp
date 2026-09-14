@@ -164,6 +164,10 @@ static void handlePostConfig() {
 
   if (doc["financeTickers"].is<const char*>()) {
     Finance_SetTickers(Settings_FinanceTickers());
+    WebConfig_RequestRedraw();
+  }
+  if (!doc["financeGraph"].isNull()) {
+    WebConfig_RequestRedraw();
   }
 
   const uint16_t newMask = (Settings_ScreenEnabled(SCREEN_CLOCK_I) << 0) |
