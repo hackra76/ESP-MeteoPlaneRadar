@@ -33,109 +33,10 @@ Designed specifically for the **Waveshare ESP32-S3-Touch-LCD-2.1** development b
 
 ---
 
-## 🌟 Key Highlights in v1.9.2
-
-- 🖥️ **ST7701 Display Shift & Wrap Elimination:**
-  - Calibrated 8 MHz RGB pixel clock with widened timing porches (`HBP 50`, `VPW 8`, `VBP 20`), 4 MHz SPI init, and deferred display enablement permanently eliminates panel desynchronization and vertical image wrapping on startup and screen transitions.
-- 💾 **OTA PSRAM Cache Reclamation & Direct-Flash Fallback:**
-  - Proactive reclamation of radar, weather, camera, and flight route caches releases > 6 MB of contiguous PSRAM before updates start, backed by automatic direct streaming flash writes if PSRAM allocation ever fails.
-- ⌚ **Vertical Swipe Watchface Switching:**
-  - Replaced double-tap clock switching with smooth vertical swipe gestures (Swipe Up / Down) to prevent accidental watchface changes.
-- 📊 **Aircraft Count Statistics Filter:**
-  - Added configurable flight statistics filter mode on the Info screen (All received ADS-B aircraft vs. planes inside the active radar zoom radius), togglable directly via tap or the Web Dashboard.
-- 🔄 **Manual Orientation Control:**
-  - Replaced sensor-based auto-rotation with reliable user-selectable screen orientation in Settings and Web UI (0°, 90°, 180°, 270°).
-
----
-
-## 🌟 Key Highlights in v1.9.1
-
-- 🌧️ **SHMÚ Radar Buffer PSRAM Expansion (256 kB):**
-  - Doubled `SHMU_MAX_PNG` allocation from 128 kB to 256 kB in external PSRAM, preventing buffer overflow errors (`response does not fit into buffer`) and radar blackouts during widespread severe convective storms.
-- ⚡ **Cooperative Dual-Core TLS Arbitration:**
-  - Non-blocking state flags coordinate Core 0 (background tasks) and Core 1 (radar downloads) to eliminate concurrent TLS connections and mbedTLS memory starvation (-10368 / -32512 errors) without watchdog trip risks.
-- 🕒 **Always Boot to Clock Screen:**
-  - On every startup, crash recovery, or reboot, the device always launches directly into Screen 1 (Clock / `SCREEN_CLOCK_I`).
-- 🔕 **Stale Aircraft Cache Alert Suppression:**
-  - When switching to Planes or Tactical radar, buzzer alert chimes and warning banners for military, emergency, or watched flights are suppressed until fresh live data arrives, preventing misleading false alarms from outdated memory cache.
-- 👆 **Instant Touch Gestures:**
-  - Screen swipe transitions and pull-down Control Center trigger immediately upon crossing threshold displacement without waiting for finger release.
-- 🎯 **Unified Round UI & Anti-Collision Engine:**
-  - Standardized rounded HUD backing pills across all screens, circular display perimeter clipping for flight callsign labels, and refined localized nowcast storm/hail core detection.
-
----
-
-## 🌟 Key Highlights in v1.9.0
-
-- 🛰️ **New ISS Orbit Tracker Screen (`SCREEN_ISS_I`):**
-  - Mission control screen positioned between Markets and Info (`Forecast` -> `Markets` -> `ISS` -> `Info`).
-  - High-contrast 320×160 equirectangular world map centered inside the round bezel with real-time astronomical day/night solar terminator shading.
-  - Complete orbital ground track: past trajectory (45 min dashed path) and future predicted path (92 min solid amber curve).
-  - Ground footprint horizon circle (~2,200 km line-of-sight range), live ISS satellite sprite, and home location crosshair reticle.
-  - Telemetry HUD: Altitude (km), Velocity (thousands km/h), and Distance to observer (km).
-  - Bottom Pass Status card: `IN RANGE` / `OUT OF RANGE` pill badge, Azimuth bearing & illumination state (`Sunlit` / `In Eclipse`), countdown to next orbital pass with peak elevation prediction.
-  - Acoustic sonar ping (`BEEP_SONAR_PING`) when ISS enters visible range from your location.
-  - Quick Control Center integration: dedicated toggle button in the pull-down drawer for ISS Overhead Alert; double-tap screen to force immediate API refresh.
-- 🌐 **Web Dashboard ISS Telemetry & Settings:**
-  - Dedicated "🛰️ ISS" tab with live telemetry data table (Lat, Lon, Alt, Vel, Az, El, Pass ETA).
-  - One-click screen switch button and carousel inclusion toggle.
-
-## 🌟 Key Highlights in v1.8.0
-
-<img src="docs/media/finance_screen.png" width="170" align="right" alt="Markets & Crypto Screen" />
-
-- 📈 **New Markets, Stocks & Crypto Screen (`SCREEN_FINANCE_I`):**
-  - Brand new interactive display screen positioned between Forecast and Info (`Forecast` -> `Markets` -> `Info`).
-  - Real-time tracking of 4 customizable market tickers (Stocks, European ETFs like Amundi MSCI World, Stoxx 600, Commodities like Gold/Oil, Cryptocurrencies, and Forex pairs) using Yahoo Finance v8 chart API.
-  - Interactive sparkline chart for the active ticker, percentage gain/loss color indicators, and category badges (`CRYPTO`, `COMMODITY`, `ETF`, `STOCK`, `FOREX`).
-  - Touch interaction: tap to cycle active sparkline chart, double-tap to trigger immediate data refresh.
-  - Fully asynchronous non-blocking background fetching on Core 0.
-- 🌐 **Web Dashboard Markets Configuration:**
-  - Dedicated "📈 Markets & Crypto" tab with direct "Show on display" trigger and carousel inclusion toggle.
-  - 4 clean independent ticker input fields with fast preset selections for popular ETFs, commodities, and tech stocks.
-- 🔧 **Vertical Screen Shift & ST7701 Display Driver Fix:**
-  - Eliminated screen drift / vertical shift-up bug during swipes and transitions by preventing disruptive RGB panel restarts (`esp_lcd_rgb_panel_restart`) which desynchronized ST7701 gate driver counters.
-  - Calibrated ST7701 vertical back porch and sync timings (`VBP 20`, `VPW 8`, `VFP 10`) strictly to hardware spec.
-- 🔄 **Display Screen Order Synchronization:**
-  - Screen sequence on hardware matches web UI exactly: Clock (0) -> Planes (1) -> Meteo (2) -> Tactical (3) -> Forecast (4) -> Markets (5) -> ISS (6) -> Info (7) -> Settings (8).
-
----
-
-## 🌟 Key Highlights in v1.6.1
-
-- 🔧 **Planespotters.net API Fix (403 Forbidden):** Updated `User-Agent` to include application identity and contact URL to prevent Cloudflare blocks and restore reliable aircraft photo downloads.
-- 🔄 **Info Screen Auto-Cycling Fix:** Fixed screen toggle synchronization in Web UI to properly exclude the Info screen when deselected.
-- 🎯 **Tactical Radar Zoom Persistence:** Tactical radar zoom level (`rngT`) is now persisted across reboots.
-- 🌐 **Complete Codebase English Localization:** All remaining code comments and internal debug tags translated to English and cleaned of legacy artifacts.
-
----
-
-## 🌟 Key Highlights in v1.6.0
-
-- 🌧️ **Approaching Precipitation Detection & Nowcasting (TREC):** 2D spatial cross-correlation vector analysis tracks precipitation movements across radar frames. Strictly alerts **only when precipitation is heading towards your location** ($v_{radial} > 0$, miss distance $\le 15\text{ km}$, $\text{ETA} \le 60\text{ min}$) to eliminate false alarms. Displays ETA countdown and bearing arrow on radar, and a compact warning widget on the Clock face with tap-to-radar navigation.
-- ❄️ **Automatic Precipitation Typing:** Dynamically categorizes incoming fronts into **Rain**, **Sleet** ($1^\circ\text{C}\dots3^\circ\text{C}$), **Snow** ($\le 1^\circ\text{C}$), or severe **Hail** ($>50\text{ dBZ}$) using radar reflectivity and local temperature telemetry.
-- ✈️ **Daily Flight Traffic Statistics & Info Screen (`SCREEN_INFO_I`):** Dedicated 6th display screen tracking 24-hour airspace activity in PSRAM: unique aircraft count, peak ground speed with callsign, maximum detection distance with callsign, altitude flight level span (FL min/max), and total ADS-B reports received. Auto-resets at midnight.
-- 🛩️ **Overhead Aircraft Widget & Proximity Alert:** Monitors aircraft passing directly overhead in a customizable radius (1–50 km, default 10 km) with altitude and distance badges on the Clock face.
-- 🔊 **Comprehensive Active Buzzer System:** Onboard active buzzer integration for emergency squawks (7700/7600/7500), watched aircraft entry, overhead passes, approaching precipitation alerts, hourly chimes, touch clicks, and automatic night-time muting.
-- 🌙 **Ultra Night Mode:** Deep-red sleep monochrome mode running at ultra-low backlight brightness (0.5%) to preserve dark-adapted vision and eliminate room glow.
-- 📸 **Remote Screen Capture Tool:** One-click uncompressed 24-bit BMP screenshot capture directly from the display framebuffer over the web interface.
-- 🌐 **All-English Serial Monitor & Clean Credits:** Standardized all serial monitor console logging to English, cleaned legacy branding, and explicitly credited the original upstream project `petus/MeteoPlaneRadar`.
-
----
-
-## 🌟 Key Highlights in v1.5.9
-
-- 🖥️ **Screen-Centric Web Interface:** Navigation in the web dashboard has been completely restructured around actual device screens (**Clock**, **Aircraft**, **Weather Radar**, **Tactical Radar**, **Forecast**) with a dedicated **Shared Settings** tab.
-- ▶ **Direct Display Trigger:** Each screen tab features a prominent *▶ Show on display* button to instantly switch the physical IPS screen, alongside individual auto-rotation inclusion checkboxes.
-- ⚡ **Persistent Hardware & Remote Control Dashboard:** Hardware diagnostics and real-time remote controls (screen cycling, legend toggle, radar zoom) remain visible at all times across all tabs (as a sticky side panel on desktop).
-- 🎨 **Refined Aligned Header with Live Screen Indicator:** Clean brand typography, H4CKR4 badge, version pill, and a pulsating status badge displaying the currently active physical screen.
-
----
-
-## 🌟 Key Features & Innovations
+## 🌟 Implemented Features
 
 ### 🕒 1. Rich Collection of 7 Unique Clock Faces
-The round 480×480 display features **7 completely distinct geometry styles** with instant switching via the web dashboard, Control Center, or double-tap on the chassis:
+The round 480×480 display features **7 completely distinct geometry styles** with smooth vertical swipe switching:
 1. **Classic Digital** – Clean horizontal `HH:MM` layout with u8g2 font, date, centered weather condition icon, 3-hour forecast pills, wind, and moon phase.
 2. **Aviator Cockpit Analog** – Authentic pilot dial with luminous tapered hands, hour chapter ring, and two sub-dials (weather at 9 o'clock, moon phase at 3 o'clock).
 3. **🚀 Orbital Gauges** – Futuristic sci-fi face with three concentric circular arcs (minutes, hours, seconds) with glowing tip markers and a central telemetry hub.
@@ -149,43 +50,83 @@ The round 480×480 display features **7 completely distinct geometry styles** wi
 - `Off` (clean bezel), `Dot` (orbiting pip), `Smooth Arc` (filling neon ring), `Pulse` (breathing halo), `Radar Sweep` (rotating radar beam), `Swiss Ticks` (60 indices), `Orbital Satellite` (satellite tracking the bezel).
 
 ### 🛩️ 3. Advanced Aircraft Tracking & Intelligent Alert HUD
+- **360° Airspace Surveillance:** Tracks live flight traffic within a 25–300 km radius via adsb.fi / adsb.lol.
 - **Special Flight Recognition:** Rescue helicopters (green), VIP/Government flights (gold), Iconic heavy aircraft (cyan), and Military sorties (red) are automatically detected and highlighted with glowing target rings.
 - **Top Alert Banner:** Displays live alerts for special flights within range (e.g. `! Rescue Helicopter: ATE02 (18 km) !`).
 - **Emergency Squawk Auto-Focus (7500, 7600, 7700):** If an aircraft transmits an emergency code, all other flights are dimmed, the map smoothly locks onto and follows the aircraft, and a live telemetry banner displays altitude, ground speed, and vertical rate.
 - **Proximity Vector:** Real-time vector line pointing directly to the nearest aircraft with distance, bearing, and altitude delta.
 - **Airports & Route Database:** Nearby airports plotted on the radar with offline callsign route decoding (e.g., `Burgas -> Warsaw [BOJ>WAW]`).
 
-### 🛰️ 4. Combined Tactical Radar (`ScreenTactical`)
-A unique real-time screen overlaying **animated precipitation radar tiles (SHMÚ / ČHMÚ / RainViewer) in the background** with **live ADS-B aircraft traffic in the foreground**.
+### 🔍 4. Aircraft Detail Card with Live High-Res Photos
+- Tap any aircraft icon on the radar to open a detailed color-coded telemetry card.
+- Live aircraft photography fetched on-demand from the **Planespotters.net API**.
+- Tap the photo to view it full-screen on the round 480×480 display.
 
-### 🕒 5. Hardware RTC (PCF85063) & Power Independence
-- Automatic boot and network NTP synchronization with the onboard PCF85063 real-time clock.
-- Keeps precise time during power outages or network disconnects.
-- Supports soldering a **3.3V 1.0F–1.5F supercapacitor** to the `BAT` and `GND` pads for battery-free time preservation for weeks.
-- Web buttons for manual one-click sync from NTP or the browser's local clock.
+### 🌧️ 5. Animated Precipitation Radar (SHMÚ, ČHMÚ, RainViewer)
+- High-resolution precipitation composite loops with temporal cross-dissolve between radar frames.
+- 256 kB external PSRAM buffers per composite ensuring uninterrupted display even during severe widespread storm fronts.
+- Optional bilinear anti-aliasing / smoothing filter for smooth, organic radar contours.
 
-### ⚡ 6. Robust Dual-Core FreeRTOS Architecture
-- **Core 1:** Dedicated to high-speed ST7701 RGB rendering (double-framebuffer, zero flicker), CST820 capacitive touch pumping, and IMU gesture processing.
-- **Core 0 (`AsyncNetWorker`):** Non-blocking background worker handling mbedTLS handshakes, radar tile caching, ADS-B JSON parsing, and HTTP web serving.
+### ⚡ 6. Approaching Precipitation Nowcasting (TREC) & Precipitation Typing
+- **2D Vector Nowcasting:** Real-time 2D spatial cross-correlation tracking precipitation velocity and trajectory. Alerts strictly when rain or storms are heading towards your location ($v_{radial} > 0$, miss distance $\le 15\text{ km}$, $\text{ETA} \le 60\text{ min}$) to eliminate false alarms.
+- **Dynamic Precipitation Typing:** Automatically classifies incoming precipitation into **Rain**, **Sleet** ($1^\circ\text{C}\dots3^\circ\text{C}$), **Snow** ($\le 1^\circ\text{C}$), or severe **Hail** ($>50\text{ dBZ}$) using radar reflectivity and local temperature telemetry.
+- **Clock Face Alert Widget:** Displays an alert pill on the clock screen with tap-to-radar navigation.
 
-### 📈 7. Financial Markets & Crypto Tracker (`ScreenFinance`)
-<img src="docs/media/finance_screen.png" width="160" align="right" alt="Markets Screen" />
+### 🛰️ 7. Combined Tactical Radar (`ScreenTactical`)
+- Simultaneous real-time overlay of **animated precipitation radar tiles in the background** with **live ADS-B aircraft traffic in the foreground** on a single unified tactical screen.
 
-Real-time financial telemetry powered by Yahoo Finance v8 API:
-- **4 Custom Asset Slots**: Configurable for European ETFs (Amundi MSCI World, Stoxx Europe 600), US indices, commodities (Gold, Crude Oil), tech equities, cryptocurrencies, and Forex currency pairs.
-- **Interactive Sparkline**: Shows historical price trajectory for the selected active asset.
-- **Touch Interaction**: Tap any ticker row to switch the active sparkline; double-tap the screen to trigger an immediate live price refresh.
-- **Non-blocking Fetching**: Runs asynchronously in background tasks on Core 0.
+### 🌤️ 8. 3-Day Weather Forecast & Air Quality
+- Hourly temperature, precipitation probability, and wind speed curves powered by Open-Meteo.
+- 3-day weather overview, Air Quality Index (AQI), PM2.5, and European pollen count.
 
-### 🛰️ 8. ISS Orbit Tracker (`ScreenIss`)
-<img src="docs/media/screen_iss_live.png" width="160" align="right" alt="ISS Tracker Screen" />
+### 📈 9. Financial Markets & Crypto Tracker (`ScreenFinance`)
+- Real-time financial telemetry powered by Yahoo Finance v8 API.
+- **4 Custom Asset Slots**: Configurable for European ETFs (Amundi MSCI World, Stoxx Europe 600), US indices, commodities (Gold, Crude Oil), equities, cryptocurrencies, and Forex currency pairs.
+- **Interactive Sparkline**: Historical price graph for the selected asset; tap rows to switch the sparkline, double-tap to trigger immediate refresh.
 
-Space Situational Awareness tracking the International Space Station:
-- **Day/Night World Map**: High-contrast 320×160 equirectangular world map with real-time astronomical solar terminator day/night shading.
+### 🛰️ 10. ISS Orbit Tracker (`ScreenIss`)
+- **Astronomical Day/Night World Map**: High-contrast 320×160 equirectangular world map with real-time solar terminator day/night shading.
 - **Orbit Ground Track**: Past trajectory (45-min dashed path) and forward predicted ground track (92-min solid amber curve).
-- **Line-of-Sight Footprint**: Radio/visual horizon ring (~2,200 km line-of-sight range) around the ISS with observer reticle.
-- **Orbital Telemetry HUD**: Live altitude, orbital velocity, slant distance, next pass countdown, and peak elevation prediction.
-- **Acoustic Proximity Alert**: Sonar ping (`BEEP_SONAR_PING`) when ISS enters visible line of sight.
+- **Line-of-Sight Footprint**: Radio/visual horizon ring (~2,200 km range) around the ISS with observer reticle.
+- **Telemetry HUD**: Live altitude, velocity, slant distance, next pass countdown, and peak elevation prediction.
+- **Acoustic Proximity Ping**: Sonar ping (`BEEP_SONAR_PING`) when the ISS enters visible range.
+
+### 📊 11. Daily Air Traffic Statistics & Info Screen (`ScreenInfo`)
+- Tracks 24-hour airspace activity: unique aircraft count, speed record with callsign, maximum detection distance with callsign, altitude flight level span (FL min/max), and total ADS-B reports received.
+- **Configurable Filter**: Count all received ADS-B aircraft or only planes within the active zoom radius. Auto-resets at midnight.
+
+### 🔊 12. Active Buzzer Acoustic Alert System
+- Onboard active buzzer integration for emergency squawks (7700/7600/7500), watched aircraft entry, overhead passes, approaching storm alerts, sonar pings, hourly chimes, touch clicks, and automatic night-time muting.
+
+### 🌙 13. Ultra Night Mode & Ambient Display Control
+- **Deep-Red Night Mode**: Monochromatic deep-red sleep mode running at ultra-low backlight brightness (0.5%) to preserve dark-adapted vision.
+- **Night Clock Only Mode (`nightClockOnly`)**: Automatically stops screen cycling during sleep hours and locks the display dimmed onto the Clock face.
+
+### 📱 14. Quick Control Center & Smart Gestures
+- Pull-down drawer from top edge for instant control of brightness, night mode, buzzer mute, legend toggle, and screen cycling.
+- Smartphone-like touch gestures: horizontal swipes for screen transitions, vertical swipe for watchface style and radar zoom.
+
+### 🕒 15. Hardware RTC (PCF85063) & Power Independence
+- Automatic boot and network NTP synchronization with the onboard PCF85063 real-time clock.
+- Supports soldering a **3.3V 1.0F–1.5F supercapacitor** to the `BAT` and `GND` pads for battery-free timekeeping during power outages.
+
+### 🖥️ 16. Rock-Solid ST7701 Display Driver
+- Calibrated 8 MHz RGB pixel clock with widened timing porches (`HBP 50`, `VPW 8`, `VBP 20`), 4 MHz SPI init, and deferred display enablement permanently eliminating hardware vertical image wrap and row counter desynchronization.
+- Configurable manual screen orientation (0°, 90°, 180°, 270°).
+
+### ⚡ 17. Robust Dual-Core FreeRTOS Architecture
+- **Core 1:** Dedicated to ST7701 RGB rendering (double-framebuffer, zero flicker), CST820 capacitive touch, and UI animations.
+- **Core 0 (`AsyncNetWorker`):** Non-blocking background worker handling mbedTLS handshakes, radar tile caching, ADS-B JSON parsing, and HTTP web serving with cooperative dual-core network arbitration.
+
+### 🌐 18. Comprehensive Web Dashboard & Zero-Fail OTA
+- Complete device configuration, screen switching, and remote controls.
+- Live telemetry tables for ADS-B flights and ISS status.
+- Real-time web serial monitor (64 KB PSRAM ring buffer) over Wi-Fi without USB cables.
+- Remote uncompressed 24-bit BMP screenshot capture tool.
+- **Zero-Fail OTA**: Proactive PSRAM cache reclamation (>6 MB freed) and automatic direct-to-flash streaming fallback.
+
+### 🔌 19. Smart Home REST API
+- Direct JSON REST endpoints for Home Assistant, Node-RED, or scripts (`/api/status`, `/api/hardware`, `/api/screen`, `/api/toggle-legends`, `/api/rtc/sync_ntp`).
 
 ---
 
@@ -204,7 +145,6 @@ Space Situational Awareness tracking the International Space Station:
 | **8. Air Traffic Stats** | <img src="docs/media/flight_stats_screen.png" width="70" /> | Daily 24h airspace activity: unique aircraft count, speed record, altitude span, max range, ADS-B reports | FreeRTOS PSRAM Tracker |
 | **9. Settings** | <img src="docs/media/settings_screen.png" width="70" /> | Device telemetry, IP address, brightness slider, map orientation, radar smoothing, language selector | System |
 
-
 ---
 
 ## 🖐️ Gesture & Touch Controls
@@ -213,11 +153,11 @@ Space Situational Awareness tracking the International Space Station:
 | :--- | :--- |
 | **Swipe Left / Right** | Transitions smoothly to the next / previous screen with slide animation. |
 | **Pull Down from Top Edge** | Opens the **Quick Control Center** (brightness, night mode, screen toggles). |
-| **Swipe Up / Down in Center** | **On Radars:** Zoom In (swipe up) / Zoom Out (swipe down).<br>**On Control Center:** Closes the overlay. |
+| **Swipe Up / Down in Center** | **On Clock:** Cycles to previous / next watchface style.<br>**On Radars:** Zoom In (swipe up) / Zoom Out (swipe down).<br>**On Control Center:** Closes the overlay. |
 | **Tap Bottom Range Bar** | Left half zooms Out, right half zooms In. |
 | **Tap on Aircraft** | Opens full color-coded aircraft telemetry detail card with live photo. |
 | **Tap on Aircraft Photo** | Enlarge aircraft photo to full screen (tap anywhere to return to card). |
-| **Double-Tap (Knock on chassis / desk)** | **On Clock:** Cycles to next watchface.<br>**On Radars:** Toggles Clean Map Mode (hides legends). |
+| **Double-Tap (Knock on chassis / desk)** | **On Radars:** Toggles Clean Map Mode (hides legends).<br>**On Markets / ISS:** Forces immediate live data refresh. |
 | **Hold BOOT button at startup (~3 s)** | Factory Reset (clears stored Wi-Fi and NVS settings). |
 
 ---

@@ -32,111 +32,10 @@ Vyvinuté špeciálne pre vývojovú dosku **Waveshare ESP32-S3-Touch-LCD-2.1** 
 
 ---
 
-## 🌟 Kľúčové novinky vo verzii v1.9.2
-
-- 🖥️ **Odstránenie posunu a zalamovania obrazu ST7701 (ST7701 Shift & Wrap Fix):**
-  - Kalibrovaný stabilný 8 MHz pixel clock RGB periférie s rozšírenými synchronizačnými intervalmi (`HBP 50`, `VPW 8`, `VBP 20`), znížená 4 MHz SPI inicializácia a zapnutie displeja až po nábehu RGB taktovania natrvalo odstraňujú hardvérové rozladenie riadkového čítača panela pri štarte a prepínaní obrazoviek.
-- 💾 **Uvoľnenie PSRAM pred OTA aktualizáciou a priamy zápis do flash:**
-  - Automatické vyčistenie všetkých vyrovnávacích pamätí (radarové snímky, počasie, fotky lietadiel a trasy) pred spustením aktualizácie sprístupňuje viac ako 6 MB súvislej PSRAM. V prípade akejkoľvek fragmentácie systém automaticky prepína na priame streamovanie do flash pamäte bez zlyhania.
-- ⌚ **Zmena štýlu ciferníka zvislým potiahnutím (Swipe Hore / Dole):**
-  - Náhodné prepínanie ciferníka dvojitým ťuknutím bolo nahradené úmyselným zvislým potiahnutím prsta (Swipe).
-- 📊 **Filtrovanie počtu lietadiel na obrazovke Informácie:**
-  - Možnosť voľby počítania všetkých prijatých ADS-B lietadiel vs. len lietadiel v aktuálnom polomere (zoome) na obrazovke Lietadiel, nastaviteľné dotykom aj cez Web Dashboard.
-- 🔄 **Manuálne nastavenie orientácie displeja:**
-  - Odstránené nechcené automatické pretáčanie displeja podľa interných senzorov; orientácia je plne voliteľná používateľom (0°, 90°, 180°, 270°).
-
----
-
-## 🌟 Kľúčové novinky vo verzii v1.9.1
-
-- 🌧️ **Rozšírenie vyrovnávacej pamäte radaru SHMÚ v PSRAM (256 kB):**
-  - Zdvojnásobená alokácia `SHMU_MAX_PNG` zo 128 kB na 256 kB v externej PSRAM pamäti, čím sa zabránilo chybám pretečenia vyrovnávacej pamäte (`response does not fit into buffer`) a výpadkom zobrazenia radaru počas rozsiahlych intenzívnych búrok.
-- ⚡ **Kooperatívna dvojjadrová sieťová arbitráž (Dual-Core TLS Arbitration):**
-  - Neblokujúce stavové príznaky koordinujú jadro 0 (úlohy na pozadí) a jadro 1 (sťahovanie radarových snímok), čo zamedzuje vyčerpaniu pamäte mbedTLS (chyby -10368 / -32512) bez rizika zablokovania watchdogu.
-- 🕒 **Spoľahlivý štart do obrazovky Hodín (Always Boot into Clock Screen):**
-  - Po každom reštarte, zapnutí alebo zotavení z pádu zariadenie vždy automaticky nabieha priamo na obrazovku 1 (Hodiny / `SCREEN_CLOCK_I`).
-- 🔕 **Potlačenie falošných poplachov zo starej pamäte lietadiel (Stale Cache Alert Suppression):**
-  - Pri prepnutí na radar lietadiel alebo taktický radar sa zvukové chrómy bzučiaka a poplašné lišty pre vojenské, núdzové a sledované lety aktivujú výlučne nad čerstvými živými dátami, čím sa eliminovali falošné poplachy pri načítaní starých dát z pamäte.
-- 👆 **Okamžitá odozva dotykových gest (Instant Touch Swipes):**
-  - Prepínanie obrazoviek a stiahnutie horného Ovládacieho centra reagujú okamžite po prekonaní prahovej vzdialenosti potiahnutia prsta bez čakania na jeho uvoľnenie z displeja.
-- 🎯 **Zjednotený vizuálny dizajn (Unified Round HUD & Anti-Collision):**
-  - Štandardizované zaoblené podkladové pilulky naprieč všetkými obrazovkami, ochrana proti orezaniu značiek lietadiel kruhovým rámom displeja a spresnená lokalizovaná detekcia búrkových jadier (nowcasting).
-
----
-
-## 🌟 Kľúčové novinky vo verzii v1.9.0
-
-- 🛰️ **Nová obrazovka Sledovanie stanice ISS (`SCREEN_ISS_I`):**
-  - Nová vesmírna obrazovka zaradená medzi Trhy & Krypto a Informácie (`Forecast` -> `Markets` -> `ISS` -> `Info`).
-  - Globálna mapa sveta (320×160 equirectangular) vycentrovaná v okrúhlom displeji s dynamickým vykresľovaním dňa a noci (astronomický solárny terminátor).
-  - Vykreslenie obežnej dráhy ISS: minulá dráha (45 min, bodkovaná čiara) a predpoveď budúcej dráhy (92 min, plná jantárová krivka).
-  - Kruh viditeľnosti z paluby stanice (~2 200 km horizon ring), piktogram satelitu a zameriavač domácej polohy.
-  - Telemetrický HUD panel: Výška (km), Rýchlosť (tis. km/h) a Šikmá vzdialenosť od pozorovateľa (km).
-  - Karta stavu preletu: Indikátor viditeľnosti (`IN RANGE` / `OUT OF RANGE`), Azimut stanice so svetovou stranou, osvetlenie (`Sunlit` / `In Eclipse`), odpočet do najbližšieho preletu a maximálna elevácia.
-  - Akustický sonarový ping (`BEEP_SONAR_PING`) pri vstupe stanice do zóny viditeľnosti.
-  - Integrácia do Ovládacieho centra: samostatné tlačidlo v sťahovacom menu pre zapnutie/stlmenie zvukového upozornenia; dvojitým ťuknutím okamžitá obnova údajov z API.
-- 🌐 **Webová správa a telemetria ISS:**
-  - Samostatná karta "🛰️ ISS" so živou telemetrickou tabuľkou údajov.
-  - Priamy prepínač obrazovky na displeji a voľba zaradenia do rotácie obrazoviek.
-
----
-
-## 🌟 Kľúčové novinky vo verzii v1.8.0
-
-<img src="docs/media/finance_screen.png" width="170" align="right" alt="Trhy a Krypto" />
-
-- 📈 **Nová obrazovka Trhy, Akcie & Krypto (`SCREEN_FINANCE_I`):**
-  - Úplne nová interaktívna obrazovka zaradená medzi Predpoveď počasia a Informácie (`Forecast` -> `Markets` -> `Info`).
-  - Sledovanie 4 voliteľných inštrumentov v reálnom čase (akcie, európske ETF ako Amundi MSCI World, Stoxx 600, komodity ako zlato/ropa, kryptomeny a menové páry) cez Yahoo Finance v8 chart API.
-  - Interaktívny sparkline graf pre aktívny ticker, farebné indikátory zmeny v percentách a kategóriové štítky (`CRYPTO`, `COMMODITY`, `ETF`, `STOCK`, `FOREX`).
-  - Dotykové ovládanie: ťuknutím prepínanie aktívneho grafu, dvojitým ťuknutím okamžitá obnova údajov.
-  - Plne asynchrónne sťahovanie na jadre 0 bez vplyvu na plynulosť displeja.
-- 🌐 **Webová správa trhových aktív:**
-  - Samostatná karta "📈 Trhy & Krypto" s priamym prepínačom na displej a voľbou zaradenia do rotácie obrazoviek.
-  - 4 prehľadné riadky na výber tickerov s bohatými predvoľbami (európske ETF, indexy, kovy, krypto).
-- 🔧 **Oprava vertikálneho posunu obrazu a časovania ST7701:**
-  - Odstránené volanie `LCD_Restart()` pri prechodoch a potiahnutí, čím sa zabránilo rozladeniu interného čítača riadkov radiča ST7701 a trvalému posunu obrazu nahor.
-  - Nastavené korektné vertikálne a horizontálne synchronizačné pulzy (`VBP 20`, `VPW 8`, `VFP 10`) podľa špecifikácie displeja.
-- 🔄 **Zosúladenie poradia obrazoviek:**
-  - Poradie obrazoviek na displeji zodpovedá webovému rozhraniu: Hodiny (0) -> Lietadlá (1) -> Počasie (2) -> Taktický radar (3) -> Predpoveď (4) -> Trhy & Krypto (5) -> ISS (6) -> Informácie (7) -> Nastavenia (8).
-
----
-
-## 🌟 Kľúčové novinky vo verzii v1.6.1
-
-- 🔧 **Oprava Planespotters.net API (403 Forbidden):** Aktualizovaná hlavička `User-Agent` s kontaktnou URL na GitHub repozitár, čím sa predišlo blokovaniu Cloudflare firewallom a obnovilo spoľahlivé sťahovanie fotiek lietadiel.
-- 🔄 **Správne vyradenie Info obrazovky z cyklovania:** Opravená synchronizácia prepínačov obrazoviek vo webovom rozhraní – odškrtnutie Info obrazovky spoľahlivo zastaví jej automatické striedanie.
-- 🎯 **Ukladanie mierky taktického radaru (Tactical Zoom Persistence):** Taktický kombinovaný radar si pamätá nastavenú mierku (`rngT`) aj po reštarte zariadenia.
-- 🌐 **Kompletný preklad kódu do angličtiny:** Všetky komentáre a interné debug značky v kóde boli zjednotené do angličtiny a vyčistené od starých artefaktov.
-
----
-
-## 🌟 Kľúčové novinky vo verzii v1.6.0
-
-- 🌧️ **Detekcia blížiacich sa zrážok & Nowcasting (TREC):** 2D priestorová krížová korelácia analyzuje pohyb zrážkových buniek medzi radarovými snímkami. Upozornenie sa aktivuje **iba a výhradne vtedy, ak zrážky smerujú k vašej polohe** ($v_{radial} > 0$, minutie $\le 15\text{ km}$, $\text{ETA} \le 60\text{ min}$), čím eliminuje plané poplachy pri obchádzaní stanice.
-- ❄️ **Klasifikácia typu zrážok:** Automatické rozlíšenie na **Dážď**, **Dážď so snehom** ($1^\circ\text{C}\dots3^\circ\text{C}$), **Sneh** ($\le 1^\circ\text{C}$) alebo **Krúpy** ($>50\text{ dBZ}$) na základe odrazivosti radaru a teploty.
-- ✈️ **Denná štatistika letov & Samostatná obrazovka Info (`SCREEN_INFO_I`):** Nová 6. obrazovka v rotačnom cykle sledujúca 24-hodinovú leteckú premávku: počet unikátnych lietadiel za deň, rekordnú rýchlosť s volacím znakom, maximálnu vzdialenosť detekcie, rozpätie výšok a celkový počet správ. Automatický reset o polnoci.
-- 🛩️ **Prelet nad hlavou (Overhead Widget & Alert):** Monitorovanie lietadiel vo valcovom priestore priamo nad stanicou s nastaviteľným polomerom (1–50 km, predvolene 10 km) a widgetom na obrazovke hodín.
-- 🔊 **Komplexný systém akustických výstrah (Bzučiak):** Vstavaný aktívny bzučiak s tónmi pre núdzový squawk (7700/7600/7500), sledovaný let, prelet nad hlavou, blížiace sa zrážky, pípnutie na celú hodinu, dotykovú odozvu a nočný kľud.
-- 🌙 **Ultra Night režim (Hlboká červená):** Monochromatický tmavočervený nočný režim s minimálnym jasom (0.5%), ktorý šetrí nočné videnie a neruší spánok.
-- 📸 **Nástroj na zachytenie obrazovky (Screenshot Tool):** Okamžité stiahnutie nekomprimovaného 24-bitového BMP obrázka displeja priamo cez webové rozhranie.
-- 🌐 **Sériový monitor výhradne v angličtine & Čisté uvedenie autorov:** Prechod všetkých systémových výpisov na angličtinu a korektné uvedenie pôvodného projektu `petus/MeteoPlaneRadar`.
-
----
-
-## 🌟 Kľúčové novinky vo verzii v1.5.9
-
-- 🖥️ **Moderné webové rozhranie orientované na obrazovky:** Navigácia webového rozhrania bola kompletne prepracovaná. V riadku pod názvom sa nachádzajú priamo jednotlivé obrazovky zariadenia (**Hodiny**, **Lietadlá**, **Meteoradar**, **Taktický radar**, **Predpoveď**) a ako samostatné posledné tlačidlo **Spoločné nastavenia**.
-- ▶ **Priame prepnutie displeja z webu:** Každá obrazovka na webe má vyhradené tlačidlo *▶ Zobraziť na displeji* a prepínač pre zaradenie do automatického cyklu.
-- ⚡ **Trvalo viditeľný panel Hardvér & Ovládač:** Hardvérové diagnostické informácie a diaľkový ovládač displeja (vrátane prepínania legiend a zmeny rozsahu radaru) sú teraz trvalo viditeľné nezávisle od zvolenej obrazovky (na desktopoch ako fixný pravý stĺpec).
-- 🎨 **Uprataná a zarovnaná hlavička s indikátorom displeja:** Čisté centrovanie názvu, odznaku H4CKR4 a verzie s pulzujúcim indikátorom práve zobrazenej obrazovky na okrúhlom displeji.
-
----
-
-## 🌟 Kľúčové funkcie a inovácie
+## 🌟 Implementované funkcie
 
 ### 🕒 1. Bohatá kolekcia 7 unikátnych ciferníkov hodín
-Okrúhly 480×480 displej ponúka **7 odlišných geometrických štýlov ciferníka** s okamžitým prepínaním cez web, Ovládacie centrum alebo dvojitým poklepaním na telo prístroja:
+Okrúhly 480×480 displej ponúka **7 odlišných geometrických štýlov ciferníka** s plynulým prepínaním zvislým potiahnutím prsta (Swipe Hore / Dole):
 1. **Digitálny klasický (Classic Digital)** – čistý horizontálny čas, dátum, počasie, 3-hodinová minipredpoveď, vietor a fáza mesiaca.
 2. **Letecký kokpitový analóg (Aviator Cockpit)** – pilotné hodinky s luminiscenčnými ručičkami, hodinovými indexmi a dvoma sub-ciferníkmi.
 3. **🚀 Planetárne prstence (Orbital Gauges)** – sci-fi dizajn tvorený tromi sústrednými kruhovými oblúkmi (minúty, hodiny, sekundy) s dorastajúcimi svetelnými perlami.
@@ -150,42 +49,83 @@ Až **7 štýlov sekundového prstenca**:
 - `Vypnuté`, `Bodka`, `Plynulý oblúk`, `Pulz`, `Radarový lúč (Sweep)`, `Hodinárske indexy (Ticks)`, `Satelit na orbite (Orbit)`.
 
 ### 🛩️ 3. Pokročilé sledovanie letov & Inteligentný Alert HUD
+- **360° radar vzdušného priestoru:** Živá letecká premávka v okruhu 25–300 km cez adsb.fi / adsb.lol.
 - **Špeciálne kategórie letov:** Záchranári (zelená), vládne lety (zlatá), obrie a ikonické lietadlá (azúrová) a vojenské lety (červená) sú automaticky identifikované a zvýraznené pulzujúcim kruhom.
 - **Notifikačný Alert štítok:** Okamžité upozornenie na radare pod časom pri výskyte dôležitého letu (napr. `! Zachranny vrtulnik: ATE02 (18 km) !`).
 - **Núdzové lety (Squawk 7500, 7600, 7700):** Automatické uzamknutie a sledovanie lietadla v núdzi so živou telemetriou.
 - **Vektor k najbližšiemu lietadlu:** Dynamická čiara ukazujúca smer, vzdialenosť a prevýšenie k najbližšiemu lietadlu.
 - **Letiská & Databáza trás:** Zobrazenie letísk v okolí a offline dekódovanie letových trás z volacích znakov (napr. `Burgas -> Warsaw [BOJ>WAW]`).
 
-### 🛰️ 4. Taktický radar (`ScreenTactical`)
-Unikátna obrazovka kombinujúca **zrážkový radar (SHMÚ / ČHMÚ / RainViewer) v pozadí** a **letovú prevádzku v reálnom čase v popredí**.
+### 🔍 4. Detailná karta lietadla so živými fotografiami
+- Po kliknutí na lietadlo na radare sa zobrazí kompletná farebná telemetrická karta.
+- Živá fotografia konkrétneho stroja sťahovaná z **Planespotters.net API**.
+- Možnosť zväčšenia fotografie na celú plochu okrúhleho displeja.
 
-### 🕒 5. Hardware RTC čip (PCF85063) & Časová nezávislosť
-- Automatická synchronizácia palubného RTC čipu s internetovým časom.
-- Po odpojení od napájania beží čas ďalej (podpora pripojenia 1.0F / 1.5F 3.3V superkondenzátora na piny `BAT` a `GND`).
-- Tlačidlá vo webovom rozhraní pre okamžitú synchronizáciu s NTP serverom alebo priamo z hodín prehliadača.
+### 🌧️ 5. Animovaný radar zrážok (SHMÚ, ČHMÚ, RainViewer)
+- Slučka radarových kompozitov s vysokým rozlíšením a plynulým prelínaním snímok v čase.
+- 256 kB vyrovnávacia pamäť v PSRAM pre stabilitu aj pri intenzívnych plošných búrkach.
+- Voliteľný bilineárny anti-aliasing pre organické vyhladenie zrážkových polí.
 
-### ⚡ 6. Bezpečná dvojjadrová FreeRTOS architektúra (Dual-Core)
-- **Jadro 1 (Core 1):** Vyhradené výhradne pre plynulé vykresľovanie displeja ST7701 (dvojitý framebuffer bez blikania), čítanie dotyku CST820 a detekciu gest z IMU.
-- **Jadro 0 (Core 0):** Asynchrónny worker (`AsyncNetWorker`) na pozadí spracováva TLS šifrovanie, sťahuje radarové snímky, komunikuje s ADS-B API a obsluhuje webový server.
+### ⚡ 6. Predpoveď príchodu zrážok (TREC Nowcasting) & Typizácia
+- **2D vektorový nowcasting:** Priestorová krížová korelácia sleduje rýchlosť a smer zrážkových buniek. Upozornenie sa aktivuje iba a výhradne vtedy, ak zrážky smerujú k vašej polohe ($v_{radial} > 0$, minutie $\le 15\text{ km}$, $\text{ETA} \le 60\text{ min}$).
+- **Automatická klasifikácia zrážok:** Rozlíšenie na **Dážď**, **Dážď so snehom** ($1^\circ\text{C}\dots3^\circ\text{C}$), **Sneh** ($\le 1^\circ\text{C}$) alebo **Krúpy** ($>50\text{ dBZ}$).
+- **Výstražný widget na hodinách:** Štítok s odpočtom príchodu zrážok priamo na ciferníku s preklikom na radar.
 
-### 📈 7. Finančné trhy & Krypto (`ScreenFinance`)
-<img src="docs/media/finance_screen.png" width="160" align="right" alt="Obrazovka Trhy a Krypto" />
+### 🛰️ 7. Kombinovaný taktický radar (`ScreenTactical`)
+- Unikátna obrazovka spájajúca **animovanú zrážkovú oblačnosť v pozadí** a **letovú prevádzku v reálnom čase v popredí** na jednom zjednotenom taktickom displeji.
 
-Telemetria finančných trhov v reálnom čase poháňaná Yahoo Finance v8 API:
-- **4 voliteľné sloty pre aktíva**: Plná podpora pre európske ETF fondy (Amundi MSCI World, Stoxx Europe 600), americké indexy, technologické akcie, komodity (zlato, ropa), kryptomeny a menové páry (forex).
-- **Interaktívny sparkline graf**: Zobrazuje krivku vývoja ceny pre vybraný aktívny ticker.
-- **Dotykové ovládanie**: Ťuknutím prepínate aktívny inštrument/graf; dvojitým ťuknutím vyvoláte okamžitú obnovu dát z internetu.
-- **Neblokujúce sťahovanie**: Beží asynchrónne na pozadí na jadre 0.
+### 🌤️ 8. 3-dňová predpoveď počasia & Kvalita ovzdušia
+- Hodinové krivky teploty, pravdepodobnosti zrážok a vetra cez Open-Meteo.
+- 3-dňový prehľad, index kvality ovzdušia (AQI), PM2.5 a peľový monitoring.
 
-### 🛰️ 8. Sledovanie dráhy stanice ISS (`ScreenIss`)
-<img src="docs/media/screen_iss_live.png" width="160" align="right" alt="Obrazovka ISS Tracker" />
+### 📈 9. Finančné trhy a krypto (`ScreenFinance`)
+- Živé trhové dáta cez Yahoo Finance v8 API.
+- **4 voliteľné sloty:** Podpora pre európske ETF fondy (Amundi MSCI World, Stoxx Europe 600), americké indexy, akcie, komodity (zlato, ropa), kryptomeny a menové páry (forex).
+- **Interaktívny sparkline graf:** Zobrazenie krivky vývoja ceny vybraného aktíva; ťuknutím prepínanie aktívneho grafu, dvojitým ťuknutím okamžitá obnova.
 
-Sledovanie polohy a preletov Medzinárodnej vesmírnej stanice ISS:
-- **Globálna mapa sveta Deň/Noc**: Vysoko kontrastná mapa 320×160 so slnečným terminátorom počítaným v reálnom čase podľa astronomickej deklinácie Slnka.
-- **Trajektória obehu**: Minulá preletová dráha (45 min, bodkovaná) a predpoveď budúceho obletu (92 min, plná jantárová krivka).
-- **Kruh viditeľnosti zo zeme**: Zóna dosahu priamej viditeľnosti (~2 200 km) okolo stanice so zameriavačom domácej polohy.
-- **Telemetrický HUD**: Okamžitá výška, orbitálna rýchlosť, šikmá vzdialenosť, odpočet do ďalšieho preletu a maximálny uhol elevácie.
-- **Akustické upozornenie**: Sonarový ping (`BEEP_SONAR_PING`) pri vstupe stanice do zóny viditeľnosti.
+### 🛰️ 10. Sledovanie dráhy stanice ISS (`ScreenIss`)
+- **Astronomická mapa sveta Deň/Noc:** Mapa 320×160 s reálnym solárnym terminátorom počítaným v reálnom čase.
+- **Trajektória obehu:** Minulá dráha (45 min) a predpoveď budúceho obletu (92 min).
+- **Kruh viditeľnosti:** Zóna dosahu (~2 200 km) okolo stanice so zameriavačom domácej polohy.
+- **Telemetrický HUD:** Okamžitá výška, rýchlosť, vzdialenosť, odpočet do ďalšieho preletu a vrcholová elevácia.
+- **Akustické upozornenie:** Sonarový ping (`BEEP_SONAR_PING`) pri vstupe stanice do zóny viditeľnosti.
+
+### 📊 11. Denné štatistiky letov & Obrazovka Informácie (`ScreenInfo`)
+- 24-hodinový prehľad letovej premávky: počet unikátnych lietadiel za deň, rýchlostný rekord, maximálny dosah, rozpätie letových hladín a celkový počet správ.
+- **Konfigurovateľný filter:** Počítanie všetkých prijatých lietadiel alebo iba strojov v aktuálnom polomere (zoome) na obrazovke Lietadiel. Automatický reset o polnoci.
+
+### 🔊 12. Akustický výstražný systém (Aktívny bzučiak)
+- Vstavaný aktívny bzučiak s tónmi pre núdzový squawk (7700/7600/7500), sledovaný let, prelet nad hlavou, blížiace sa búrky, sonarový ping, celú hodinu a nočný kľud.
+
+### 🌙 13. Ultra Night režim & Nočné hodiny
+- **Hlboký červený nočný režim:** Monochromatický tmavočervený režim s minimálnym jasom (0.5%), ktorý chráni nočné videnie.
+- **Režim `nightClockOnly`:** Zastaví rotáciu obrazoviek počas spánku a uzamkne displej stlmený na hodinách.
+
+### 📱 14. Rýchle ovládacie centrum & Dotykové gestá
+- Sťahovacia lišta z horného okraja pre okamžité ovládanie jasu, nočného režimu, stlmenia bzučiaka, legiend a cyklovania.
+- Prirodzené dotykové gestá: potiahnutie do strán pre prepínanie obrazoviek, zvislé potiahnutie pre zmenu ciferníka a zoom radaru.
+
+### 🕒 15. Hardvérový RTC čip (PCF85063) & Prevádzka bez batérií
+- Automatická synchronizácia palubného RTC čipu s NTP serverom alebo hodinami prehliadača.
+- Podpora osadenia 3.3V superkondenzátora na piny `BAT` a `GND` pre zachovanie času bez batérií počas výpadkov napájania.
+
+### 🖥️ 16. Spoľahlivý radič displeja ST7701
+- Kalibrovaný 8 MHz RGB pixel clock s rozšírenými synchronizačnými intervalmi (`HBP 50`, `VPW 8`, `VBP 20`), 4 MHz SPI inicializácia a zapnutie displeja až po nábehu RGB taktovania eliminujúce posun a zalamovanie obrazu.
+- Manuálne nastavenie orientácie displeja (0°, 90°, 180°, 270°).
+
+### ⚡ 17. Bezpečná dvojjadrová FreeRTOS architektúra
+- **Jadro 1 (Core 1):** Plynulé vykresľovanie ST7701 (dvojitý framebuffer bez blikania), čítanie dotyku CST820 a animácie.
+- **Jadro 0 (Core 0):** Asynchrónny worker na pozadí spracováva TLS spojenia, radarové kompozity, ADS-B JSON dáta a webový server s kooperatívnou sieťovou arbitrážou.
+
+### 🌐 18. Responzívne webové rozhranie & Bezchybné OTA
+- Kompletná konfigurácia zariadenia, diaľkové prepínanie obrazoviek a ovládanie.
+- Živé telemetrické tabuľky pre ADS-B lety a ISS.
+- Bezdrôtový webový sériový monitor (64 kB PSRAM ring buffer) cez Wi-Fi bez káblov.
+- Nástroj na zachytenie obrazovky do 24-bitového BMP.
+- **Bezchybné OTA aktualizácie:** Automatické uvoľnenie PSRAM (>6 MB) pred nahrávaním a dynamický záložný mechanizmus priameho zápisu do flash pamäte.
+
+### 🔌 19. REST API pre inteligentnú domácnosť
+- JSON koncové body pre integráciu s Home Assistant, Node-RED alebo skriptami (`/api/status`, `/api/hardware`, `/api/screen`, `/api/toggle-legends`, `/api/rtc/sync_ntp`).
 
 ---
 
@@ -204,8 +144,6 @@ Sledovanie polohy a preletov Medzinárodnej vesmírnej stanice ISS:
 | **8. Štatistiky letov** | <img src="docs/media/flight_stats_screen.png" width="70" /> | Denná 24h štatistika: počet unikátnych lietadiel, rýchlostný rekord, letové hladiny, max dosah, ADS-B správy | FreeRTOS PSRAM Tracker |
 | **9. Nastavenia** | <img src="docs/media/settings_screen.png" width="70" /> | Stav zariadenia, IP adresa, regulácia jasu, orientácia mapy, voľba jazyka a vyhladenie | Systém |
 
-
-
 ---
 
 ## 🖐️ Dotykové gestá a ovládanie
@@ -214,11 +152,11 @@ Sledovanie polohy a preletov Medzinárodnej vesmírnej stanice ISS:
 | :--- | :--- |
 | **Potiahnutie doľava / doprava** | Plynulé prepnutie na nasledujúcu / predchádzajúcu obrazovku s animáciou. |
 | **Stiahnutie z horného okraja** | Otvorenie **Rýchleho ovládacieho centra (Control Center)** (jas, nočný režim, prepínače). |
-| **Potiahnutie hore / dolu v strede** | **Na radaroch:** Zoom In (hore) / Zoom Out (dolu).<br>**V Ovládacom centre:** Zatvorenie menu. |
+| **Potiahnutie hore / dolu v strede** | **Na hodinách:** Prepnutie na predchádzajúci / ďalší štýl ciferníka.<br>**Na radaroch:** Zoom In (hore) / Zoom Out (dolu).<br>**V Ovládacom centre:** Zatvorenie menu. |
 | **Dotyk na spodnú lištu rozsahu** | Ľavá polovica oddiali (Zoom Out), pravá polovica priblíži (Zoom In). |
 | **Dotyk na lietadlo** | Zobrazenie detailnej karty lietadla s fotkou, trasou a telemetriou. |
 | **Dotyk na fotografiu lietadla** | Zväčšenie fotografie na celú obrazovku (opätovné ťuknutie vráti detail). |
-| **Dvojité poklepanie (telo / stôl)** | **Na hodinách:** Prepnutie na ďalší ciferník.<br>**Na radaroch:** Čistý režim mapy (skrytie legiend). |
+| **Dvojité poklepanie (telo / stôl)** | **Na radaroch:** Čistý režim mapy (skrytie legiend).<br>**Na Trhoch / ISS:** Vynútenie okamžitej obnovy dát z internetu. |
 | **Podržanie tlačidla BOOT pri štarte (~3 s)** | Továrenský reset (vymazanie uloženej Wi-Fi a nastavení NVS). |
 
 ---
