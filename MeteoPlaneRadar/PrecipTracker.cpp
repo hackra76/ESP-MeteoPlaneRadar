@@ -103,21 +103,52 @@ void PrecipTracker_ProcessFrames(const uint16_t* prevFrame, const uint16_t* curF
   time_t now = time(nullptr);
   s_alert.lastUpdate = now;
 
-  // Check if precipitation is currently falling directly at user's location (center: 15..16)
+  // Check if precipitation is currently falling directly at user's location (tight 3 km physical radius)
   int centerIntensity = 0;
   bool centerHail = false;
-  for (int cy = 15; cy <= 16; cy++) {
-    for (int cx = 15; cx <= 16; cx++) {
-      if (s_grid1[cy][cx] > centerIntensity) {
-        centerIntensity = s_grid1[cy][cx];
+  int cx0 = w / 2;
+  int cy0 = h / 2;
+  float pxPerKm = (float)(w / 2) / rangeKm;
+  int rPx = (int)ceilf(3.0f * pxPerKm); // 3 km radius around user GPS coordinates
+  if (rPx < 1) rPx = 1;
+  if (rPx > w / 4) rPx = w / 4;
+
+  int sampleCount = 0;
+  int activeEchoCountInRadius = 0;
+
+  for (int dy = -rPx; dy <= rPx; dy++) {
+    int py = cy0 + dy;
+    if (py < 0 || py >= h) continue;
+    for (int dx = -rPx; dx <= rPx; dx++) {
+      if (dx * dx + dy * dy > rPx * rPx) continue;
+      int px = cx0 + dx;
+      if (px < 0 || px >= w) continue;
+
+      bool isH = false;
+      uint8_t intVal = extractIntensity(curFrame[py * w + px], &isH);
+      sampleCount++;
+      if (intVal > centerIntensity) {
+        centerIntensity = intVal;
       }
-      if (s_hail1[cy][cx]) {
+      if (isH) {
         centerHail = true;
+      }
+      if (intVal >= 55) { // Moderate rain threshold (~25+ dBZ)
+        activeEchoCountInRadius++;
       }
     }
   }
 
-  if (centerIntensity > 32) {
+  bool isRainingLocally = false;
+  if (sampleCount > 0) {
+    if (centerIntensity >= 160 || centerHail) {
+      isRainingLocally = true; // Severe convective core or hail directly over location
+    } else if (centerIntensity >= 55 && (activeEchoCountInRadius * 100 / sampleCount) >= 20) {
+      isRainingLocally = true; // Substantial rain coverage directly over location
+    }
+  }
+
+  if (isRainingLocally) {
     s_alert.status = PRECIP_STAT_CURRENTLY_ACTIVE;
     s_alert.distKm = 0.0f;
     s_alert.etaMin = 0;
@@ -215,19 +246,19 @@ void PrecipTracker_ProcessFrames(const uint16_t* prevFrame, const uint16_t* curF
   if (speedKmh >= 5.0f) {
     float ux = vx / speedKmh;
     float uy = vy / speedKmh;
-    const float impactRadiusKm = 15.0f;
+    const float impactRadiusKm = 6.0f; // Tight corridor: must be tracking directly towards user
 
     for (int gy = 0; gy < GRID_SIZE; gy++) {
       for (int gx = 0; gx < GRID_SIZE; gx++) {
         uint8_t intVal = s_grid1[gy][gx];
-        if (intVal <= 20) continue;
+        if (intVal < 50) continue; // Filter out faint cloud moisture and ground clutter (< 25 dBZ)
 
         // Vector from cell to user (km)
         float dxKm = (centerG - (float)gx) * kmPerCell;
         float dyKm = (centerG - (float)gy) * kmPerCell;
         float distKm = sqrtf(dxKm * dxKm + dyKm * dyKm);
 
-        if (distKm > 110.0f) continue;
+        if (distKm > 60.0f) continue; // Focus on cells within realistic imminent reach
 
         // Distance along cloud motion vector towards user
         float sParallel = dxKm * ux + dyKm * uy;
@@ -240,7 +271,7 @@ void PrecipTracker_ProcessFrames(const uint16_t* prevFrame, const uint16_t* curF
         float dPerp = sqrtf(fmaxf(0.0f, distKm * distKm - sParallel * sParallel));
         if (dPerp <= impactRadiusKm) {
           float eta = (sParallel / speedKmh) * 60.0f;
-          if (eta >= 1.0f && eta <= 75.0f) {
+          if (eta >= 1.0f && eta <= 35.0f) { // Imminent: within 35 minutes
             foundApproaching = true;
             if (eta < minEta) {
               minEta = eta;

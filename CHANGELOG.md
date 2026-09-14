@@ -9,6 +9,14 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [1.9.5] - 2026-09-14
+
+### Vylepšené / Improved
+- **Presná lokálna detekcia zrážok a filtrácia falošných poplachov (Localized Nowcasting & Ground Clutter Filtering):**
+  - Stav "Prebieha dážď / Prší" (`Raining now`) bol naviazaný na striktný fyzický rádius 3,0 km okolo reálnej GPS polohy používateľa namiesto predošlého kontrolovania fixných buniek v mriežke radaru, ktoré pri širokom zoome (150–300 km) nesprávne spúšťali hlásenie dažďa aj pri zrážkach vzdialených 20–40 km.
+  - Zvýšený prah odrazivosti na mierny dážď ($\ge 50$ / $\approx 25\text{ dBZ}$) spoľahlivo odfiltroval radarový šum, vlhkosť v hraničnej vrstve a virgu (zrážky vyparujúce sa pred dopadom na zem).
+  - Zúžený koridor zásahu blížiaceho sa zrážkového frontu z 15 km na 6 km a skrátené časové okno varovania zo 75 minút na $\le 35\text{ minút}$, vďaka čomu systém varuje výhradne pred bezprostredne hroziacim priamym zásahom.
+
 ## [1.9.4] - 2026-09-14
 
 ### Pridané / Added
