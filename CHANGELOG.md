@@ -9,6 +9,15 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [1.9.3] - 2026-09-14
+
+### Opravené / Fixed
+- **Oprava online aktualizácie firmvéru priamo z displeja (On-Device GitHub OTA HTTP -1 Fix):**
+  - Vyriešená chyba zlyhania TLS spojenia (`Update failed HTTP -1`) pri presmerovaní (HTTP 302 Redirect z `github.com` na úložisko binárnych súborov `release-assets.githubusercontent.com`). Predchádzajúca implementácia opakovane používala inštanciu `WiFiClientSecure`, ktorej interný kontext mbedTLS po ukončení spojenia neumožňoval čistý re-handshake so zmenou SNI (Server Name Indication) na inú doménu.
+  - Každé presmerovanie teraz dôsledne uvoľňuje a vytvára čistú inštanciu `WiFiClientSecure` aj `HTTPClient`, čím je garantovaný správny handshake a autentifikácia s CDN úložiskom.
+  - Proaktívne uvoľnenie všetkých vyrovnávacích pamätí (radarové snímky RainViewer, ČHMÚ, SHMÚ, počasie, fotografie lietadiel a trasy) sa teraz vykonáva okamžite pred inicializáciou TLS spojenia, čím je zabezpečený dostatok voľnej internej pamäte SRAM pre mbedTLS vyrovnávacie pamäte.
+  - Optimalizovaná veľkosť zásobníka asynchrónnej úlohy OTA sťahovania z 20 kB na 14 kB pre úsporu internej SRAM.
+
 ## [1.9.2] - 2026-09-14
 
 ### Opravené / Fixed

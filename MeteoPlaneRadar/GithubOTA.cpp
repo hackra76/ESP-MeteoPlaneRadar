@@ -265,6 +265,24 @@ bool GithubOTA_CheckSync() {
 }
 
 // -----------------------------------------------------------------------------
+//  Free large caches before and during OTA update
+// -----------------------------------------------------------------------------
+static void clearCachesForOTA() {
+  RainViewer_FreeBuffers();
+  CHMU_FreeBuffers();
+  SHMU_FreeBuffers();
+  ScreenWeather_FreeBuffers();
+  ScreenTactical_FreeBuffers();
+  PlanePhoto_ClearCache();
+  Route_ClearQueue();
+  Serial.printf("GithubOTA: Cleared caches. Free SRAM: %u B (largest %u B), Free PSRAM: %u B (largest %u B)\n",
+                (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+                (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
+                (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
+                (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
+}
+
+// -----------------------------------------------------------------------------
 //  Download & Flash Firmware
 // -----------------------------------------------------------------------------
 static void downloadAndFlashTask(void* param) {
@@ -276,6 +294,10 @@ static void downloadAndFlashTask(void* param) {
   s_otaError = "";
 
   Async_Pause();
+  clearCachesForOTA();
+
+  UI_DrawOtaProgress("GitHub OTA", 0, 0, 0,
+                     (Lang_Get() == LANG_EN) ? "Connecting to GitHub..." : "Pripajam sa k GitHubu...");
 
   String currentUrl = s_downloadUrl;
   if (currentUrl.length() == 0) {
@@ -287,32 +309,65 @@ static void downloadAndFlashTask(void* param) {
     return;
   }
 
-  WiFiClientSecure client;
-  client.setInsecure();
-  client.setHandshakeTimeout(15);
-
-  HTTPClient http;
-  http.setConnectTimeout(10000);
-  http.setTimeout(30000);
-  http.setUserAgent(HTTP_USER_AGENT);
-  static const char* WANTED_HEADERS[] = { "Location", "Content-Length" };
-  http.collectHeaders(WANTED_HEADERS, 2);
-
+  WiFiClientSecure* client = nullptr;
+  HTTPClient* http = nullptr;
   bool connected = false;
   int redirects = 0;
+
   while (redirects < 6) {
     Watchdog_Feed();
-    if (!http.begin(client, currentUrl)) {
-      s_otaError = "Connection failed";
+
+    // Clean up previous connection completely before following redirect
+    if (http) {
+      while (client && client->available()) client->read();
+      http->end();
+      delete http;
+      http = nullptr;
+    }
+    if (client) {
+      client->stop();
+      delete client;
+      client = nullptr;
+    }
+    vTaskDelay(pdMS_TO_TICKS(50));
+
+    Serial.printf("GithubOTA: [%d] Free SRAM: %u B (largest %u B)\n",
+                  redirects,
+                  (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+                  (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
+    Serial.printf("GithubOTA: Connecting to %s\n", currentUrl.c_str());
+
+    client = new WiFiClientSecure();
+    if (!client) {
+      s_otaError = "Client alloc failed";
       break;
     }
-    int code = http.GET();
+    client->setInsecure();
+    client->setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
+
+    http = new HTTPClient();
+    if (!http) {
+      s_otaError = "HTTP alloc failed";
+      break;
+    }
+    http->setConnectTimeout(12000);
+    http->setTimeout(30000);
+    http->setReuse(false);
+    http->setUserAgent(HTTP_USER_AGENT);
+
+    static const char* WANTED_HEADERS[] = { "Location", "Content-Length" };
+    http->collectHeaders(WANTED_HEADERS, 2);
+
+    if (!http->begin(*client, currentUrl)) {
+      s_otaError = "Connection begin failed";
+      break;
+    }
+
+    int code = http->GET();
+    Serial.printf("GithubOTA: HTTP response code %d (%s)\n", code, HTTPClient::errorToString(code).c_str());
+
     if (code == 301 || code == 302 || code == 307 || code == 308) {
-      String newLoc = http.header("Location");
-      while (client.available()) client.read();
-      http.end();
-      client.stop();
-      vTaskDelay(pdMS_TO_TICKS(50));
+      String newLoc = http->header("Location");
       if (newLoc.length() == 0) {
         s_otaError = "Empty redirect";
         break;
@@ -321,18 +376,28 @@ static void downloadAndFlashTask(void* param) {
       redirects++;
       continue;
     }
+
     if (code == HTTP_CODE_OK) {
       connected = true;
       break;
     }
+
     s_otaError = "HTTP " + String(code);
-    while (client.available()) client.read();
-    http.end();
-    client.stop();
     break;
   }
 
   if (!connected) {
+    if (http) {
+      while (client && client->available()) client->read();
+      http->end();
+      delete http;
+      http = nullptr;
+    }
+    if (client) {
+      client->stop();
+      delete client;
+      client = nullptr;
+    }
     s_otaState = GH_OTA_ERROR;
     Async_Resume();
     s_updateTaskHandle = nullptr;
@@ -340,26 +405,12 @@ static void downloadAndFlashTask(void* param) {
     return;
   }
 
-  int totalLen = http.getSize();
+  int totalLen = http->getSize();
   s_totalBytes = (totalLen > 0) ? (size_t)totalLen : 0;
   size_t updateSize = (totalLen > 0) ? (size_t)totalLen : UPDATE_SIZE_UNKNOWN;
 
-  s_otaState = GH_OTA_FLASHING;
-  UI_DrawOtaProgress("GitHub OTA", 0, 0, (size_t)totalLen, (Lang_Get() == LANG_EN) ? "Preparing memory..." : "Pripravujem pamäť...");
-
-  // Free all large radar, weather, camera and route caches before allocating OTA buffer
-  RainViewer_FreeBuffers();
-  CHMU_FreeBuffers();
-  SHMU_FreeBuffers();
-  ScreenWeather_FreeBuffers();
-  ScreenTactical_FreeBuffers();
-  PlanePhoto_ClearCache();
-  Route_ClearQueue();
-  Serial.printf("GithubOTA: Cleared PSRAM caches. Free PSRAM: %u B, Largest Block: %u B\n",
-                (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
-                (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
-
-  UI_DrawOtaProgress("GitHub OTA", 0, 0, (size_t)totalLen, (Lang_Get() == LANG_EN) ? "Downloading firmware..." : "Sťahujem firmvér...");
+  UI_DrawOtaProgress("GitHub OTA", 0, 0, (size_t)totalLen,
+                     (Lang_Get() == LANG_EN) ? "Downloading firmware..." : "Stahujem firmver...");
 
   size_t ramCap = (totalLen > 0) ? ((size_t)totalLen + 65536) : 2600000;
   uint8_t* ramBuf = (uint8_t*)heap_caps_malloc(ramCap, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
@@ -376,9 +427,10 @@ static void downloadAndFlashTask(void* param) {
     Serial.println("GithubOTA: PSRAM buffer unavailable, falling back to direct flash streaming OTA");
     if (!Update.begin(updateSize)) {
       s_otaError = Update.errorString();
-      while (client.available()) client.read();
-      http.end();
-      client.stop();
+      while (client && client->available()) client->read();
+      http->end();
+      delete http; http = nullptr;
+      delete client; client = nullptr;
       s_otaState = GH_OTA_ERROR;
       UI_DrawOtaProgress("GitHub OTA", 0, 0, 0, s_otaError.c_str());
       Async_Resume();
@@ -393,9 +445,9 @@ static void downloadAndFlashTask(void* param) {
   unsigned long lastFeed = millis();
   int lastDrawnProg = -1;
   unsigned long lastDrawnMs = 0;
-  WiFiClient* stream = http.getStreamPtr();
+  WiFiClient* stream = http->getStreamPtr();
 
-  while (http.connected() && (totalLen <= 0 || downloaded < (size_t)totalLen)) {
+  while (http->connected() && (totalLen <= 0 || downloaded < (size_t)totalLen)) {
     size_t avail = stream ? stream->available() : 0;
     if (avail) {
       if (directFlash) {
@@ -455,9 +507,18 @@ static void downloadAndFlashTask(void* param) {
     }
   }
 
-  while (client.available()) client.read();
-  http.end();
-  client.stop();
+  // Network transfer complete - tear down client and http before writing flash
+  if (http) {
+    while (client && client->available()) client->read();
+    http->end();
+    delete http;
+    http = nullptr;
+  }
+  if (client) {
+    client->stop();
+    delete client;
+    client = nullptr;
+  }
 
   if (totalLen > 0 && downloaded < (size_t)totalLen && s_otaError.length() == 0) {
     s_otaError = "Incomplete download";
@@ -484,6 +545,7 @@ static void downloadAndFlashTask(void* param) {
   }
 
   if (s_otaError.length() == 0 && downloaded > 0) {
+    s_otaState = GH_OTA_FLASHING;
     Serial.printf("GithubOTA: Download complete (%u bytes in PSRAM). Writing to flash...\n", (unsigned)downloaded);
     UI_DrawOtaWritingStaticScreen("GitHub OTA");
     vTaskDelay(pdMS_TO_TICKS(150));
@@ -553,6 +615,8 @@ bool GithubOTA_StartUpdateAsync(const char* url, const char* tag) {
     return false;
   }
 
-  BaseType_t ret = xTaskCreatePinnedToCore(downloadAndFlashTask, "GhOtaUpd", 20480, NULL, 5, &s_updateTaskHandle, 0);
+  clearCachesForOTA();
+
+  BaseType_t ret = xTaskCreatePinnedToCore(downloadAndFlashTask, "GhOtaUpd", 14336, NULL, 5, &s_updateTaskHandle, 0);
   return (ret == pdPASS);
 }
