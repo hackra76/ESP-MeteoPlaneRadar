@@ -36,6 +36,17 @@ void UI_TextCentered(const char* text, int cy, uint16_t color, uint8_t size);
 void UI_TextCenteredIn(const char* text, int x, int w, int cy,
                        uint16_t color, uint8_t size);
 
+// A filled sector of an annulus - the building block of both energy dials.
+// Angles in RADIANS, zero at three o'clock, increasing clockwise (screen y
+// grows downwards), a0 <= a1. Pass a0 == a1 for a single radial line.
+//
+// Radial lines rather than a scanline fill: the GFX build here has no arc
+// primitive, and the colour changes from one sector to the next, so a
+// span-based fill would need a separate pass per sector anyway. The step is
+// fine enough that the outer edge has no gaps at the radii these screens use.
+void UI_FillRing(int cx, int cy, int rIn, int rOut, float a0, float a1,
+                 uint16_t color);
+
 // Half the width of the display circle at height y - i.e. how much room a line
 // of text actually has there. On a round panel the usable width shrinks fast
 // towards the top, so anything near the edge has to be measured, not assumed.
@@ -44,3 +55,17 @@ void UI_TextCenteredIn(const char* text, int x, int w, int cy,
 // nothing when neither is known yet, and refuses to draw text that would not
 // fit inside the circle rather than letting it run off the edge.
 void UI_DrawStatusLine(int cy);
+
+// Has that line changed since the last time anyone asked?
+//
+// The screens only redraw when their own Tick() says something happened, and
+// the clock at the top is drawn as part of that redraw. On a screen whose data
+// changes rarely - the mix arrives every quarter of an hour, the forecast twice
+// an hour - the clock therefore sat still between updates and looked frozen.
+// Those screens call this from their Tick() so the minute keeps moving.
+//
+// Compares the whole line rather than just the minute, so the outside
+// temperature changing is caught too. One shared record of the last text is
+// enough because only the active screen is ticked, and switching screens
+// redraws everything anyway.
+bool UI_StatusLineChanged();

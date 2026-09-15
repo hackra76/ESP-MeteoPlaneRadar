@@ -5,6 +5,7 @@
 //  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
 // =============================================================================
 #include "Forecast.h"
+#include "TimeZone.h"
 #include "Net.h"
 #include "Settings.h"
 #include "Outside.h"
@@ -72,9 +73,9 @@ static bool fetchForecast() {
     "&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m"
     "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,"
     "wind_speed_10m_max,sunrise,sunset"
-    "&timeformat=unixtime&timezone=UTC&forecast_hours=%d&forecast_days=%d",
+    "&timeformat=unixtime&timezone=auto&forecast_hours=%d&forecast_days=%d",
     FORECAST_URL, Settings_Lat(), Settings_Lon(),
-    FORECAST_HOURS, FORECAST_DAYS + 1);
+    FORECAST_HOURS, FORECAST_DAYS);
 
   String body;
   if (!Net_GetString(url, body, "PREDPOVED")) {
@@ -82,10 +83,20 @@ static bool fetchForecast() {
     return false;
   }
 
-  // Filter first: the raw answer carries units and metadata we never look at,
-  // and on a device with 8 MB of PSRAM but very little internal RAM it is the
-  // parse that hurts, not the download.
+  // timezone=auto rather than timezone=UTC, which is what this asked for up to
+  // 0.7.0. Two things change and both are wanted:
+  //
+  //   1. The answer carries utc_offset_seconds for the user's own coordinates,
+  //      which is where the clock gets its time zone from (TimeZone.h). No
+  //      extra request, because this one runs every half hour anyway.
+  //   2. The DAILY rows are now bucketed by local days. They used to be UTC
+  //      days, so "today's maximum" ran from 02:00 to 02:00 in Czech summer.
+  //
+  // timeformat=unixtime keeps every timestamp a plain UTC epoch either way, so
+  // nothing downstream had to change: the hourly rows are still instants, and
+  // the daily rows are still the instant at which that local day began.
   JsonDocument filter;
+  filter["utc_offset_seconds"] = true;
   filter["current"]["temperature_2m"] = true;
   filter["current"]["precipitation"]  = true;
   filter["current"]["weather_code"]   = true;
@@ -104,6 +115,14 @@ static bool fetchForecast() {
                                              DeserializationOption::Filter(filter));
   body = String();                 // free the payload before touching anything else
   if (err) { Serial.printf("PREDPOVED: JSON %s\n", err.c_str()); return false; }
+
+  // --- time zone ---
+  // Applied BEFORE anything below is turned into a local date, so the sanity
+  // check at the end of this function judges the new offset and not the old one.
+  {
+    JsonVariantConst off = doc["utc_offset_seconds"];
+    if (!off.isNull()) TimeZone_SetOffset(off.as<int>());
+  }
 
   // --- current ---
   JsonObjectConst cur = doc["current"];
@@ -137,8 +156,11 @@ static bool fetchForecast() {
   }
 
   // --- daily ---
-  // Index 0 is today. The screen shows the days AFTER today, so start at 1 -
-  // "today" is already covered by the hourly rows above it.
+  // Index 0 is TODAY and is kept (0.7.0 - it used to be dropped). The hourly
+  // rows only reach six hours out, so on an evening they say nothing about the
+  // day as a whole; "today, 19/11, 4 mm" is a different and still useful fact
+  // at nine in the evening. The screen labels the first three days by name and
+  // the rest by weekday.
   JsonArrayConst dt  = doc["daily"]["time"];
   JsonArrayConst dC  = doc["daily"]["weather_code"];
   JsonArrayConst dMx = doc["daily"]["temperature_2m_max"];
@@ -151,7 +173,7 @@ static bool fetchForecast() {
   if (!dt.isNull()) {
     if (!dSr.isNull() && dSr.size() > 0) s_sunrise = (time_t)dSr[0].as<long long>();
     if (!dSs.isNull() && dSs.size() > 0) s_sunset  = (time_t)dSs[0].as<long long>();
-    for (size_t i = 1; i < dt.size() && s_dayN < FORECAST_DAYS; i++) {
+    for (size_t i = 0; i < dt.size() && s_dayN < FORECAST_DAYS; i++) {
       s_days[s_dayN].t      = (time_t)dt[i].as<long long>();
       s_days[s_dayN].code   = dC.isNull()  ? 0 : dC[i].as<int>();
       s_days[s_dayN].tmax   = dMx.isNull() ? 0 : dMx[i].as<float>();
@@ -165,6 +187,32 @@ static bool fetchForecast() {
   }
 
   s_valid = (s_hourN > 0 || s_dayN > 0);
+
+  // Does day zero really land on today?
+  //
+  // The screen labels every daily row by running localtime_r() over the epoch
+  // the API sent, and that only gives the right weekday if the epoch really is
+  // the instant the LOCAL day began. It should be - that is what timezone=auto
+  // means - but it is an assumption about someone else's encoding, and this
+  // firmware has been bitten once already by trusting a description of an API
+  // instead of the API. So it checks, on the device, where the answer counts.
+  //
+  // A mismatch is not fatal and nothing is thrown away: the temperatures are
+  // still right, only the labels would be off by a day. It goes in the log and
+  // on the status page so it cannot pass unnoticed.
+  if (s_dayN > 0 && Outside_TimeValid()) {
+    const time_t now = time(nullptr);
+    struct tm nowLt, dayLt;
+    localtime_r(&now, &nowLt);
+    localtime_r(&s_days[0].t, &dayLt);
+    if (nowLt.tm_yday != dayLt.tm_yday) {
+      Serial.printf("PREDPOVED: VAROVANI, prvni den vychazi na %d.%d., dnes je %d.%d.\n",
+                    dayLt.tm_mday, dayLt.tm_mon + 1, nowLt.tm_mday, nowLt.tm_mon + 1);
+      Status_Set(ST_FORECAST, "OK, %d h / %d d - dny nesedi", s_hourN, s_dayN);
+      return s_valid;
+    }
+  }
+
   Serial.printf("Predpoved: %d hodin, %d dnu, vychod/zapad %s\n",
                 s_hourN, s_dayN, (s_sunrise && s_sunset) ? "ok" : "chybi");
   Status_Set(ST_FORECAST, "OK, %d h / %d d", s_hourN, s_dayN);

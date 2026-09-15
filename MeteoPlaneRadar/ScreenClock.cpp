@@ -177,9 +177,9 @@ void ScreenClock_Draw() {
   // until the first one lands.
   if (Forecast_CurrentValid()) {
     char tbuf[16], pbuf[16];
-    // Space before the unit, as everywhere else in the project: the built-in
-    // font is ASCII, so the unit spells out as "degC" and "18degC" reads as one
-    // word. It stays correct if OUTSIDE_DEG_SYMBOL is ever switched on.
+    // Space before the unit, as everywhere else in the project and as SI asks
+    // for: "18 degC" and "18 °C" both want the gap, and "18°C" would be the
+    // one spelling that is wrong either way.
     snprintf(tbuf, sizeof(tbuf), "%d %s", (int)lroundf(Forecast_CurrentTemp()),
              OUTSIDE_DEG_TEXT);
 

@@ -16,8 +16,13 @@
 //    1) Clock       - time, date, current temperature, seconds ring
 //    2) Aircraft    - adsb.fi, tap an aircraft for details and its route
 //    3) Weather     - animated precipitation, CHMU or RainViewer
-//    4) Forecast    - next hours and days, plus air quality
-//    5) Settings    - always reachable, and shows the web address
+//    4) Forecast    - now/+3h/+6h, today/tomorrow/after, then the weekdays
+//    5) Price       - spot electricity price as a 24-hour dial (OTE)
+//    6) Generation  - what the Czech grid is running on right now (ENTSO-E)
+//    7) Settings    - always reachable, and shows the web address
+//
+//  The two energy screens are OFF on a device that is updated rather than newly
+//  set up - see the note above the screen indices in Config.h.
 //
 //  Configuration lives in a browser. The device serves its own settings page
 //  permanently at http://meteoplaneradar.local/ once it is on the home network,
@@ -52,6 +57,8 @@
 //    - Precip. CZ:  CHMU, https://opendata.chmi.cz
 //    - Precip. EU:  RainViewer, https://www.rainviewer.com
 //    - Weather:     Open-Meteo, https://open-meteo.com
+//    - Price:       OTE-CR via https://spotovaelektrina.cz
+//    - Generation:  ENTSO-E via https://api.energy-charts.info (Fraunhofer ISE)
 //    - Location:    ip-api.com
 //    - Map:         Natural Earth (public domain), GeoNames (CC BY 4.0)
 //    - Clock:       the "Date" header of the responses above. No NTP client.
@@ -88,9 +95,13 @@
 #include "ScreenWeather.h"
 #include "ScreenClock.h"
 #include "ScreenForecast.h"
+#include "ScreenPrice.h"
+#include "ScreenMix.h"
 #include "ScreenSettings.h"
 #include "Forecast.h"
+#include "Energy.h"
 #include "NightMode.h"
+#include "TimeZone.h"
 #include "Watchdog.h"
 #include "Outside.h"
 #include "Route.h"
@@ -272,6 +283,8 @@ static void drawActive() {
     case SCREEN_PLANES_I:   ScreenPlanes_Draw();   break;
     case SCREEN_METEO_I:    ScreenWeather_Draw();  break;
     case SCREEN_FORECAST_I: ScreenForecast_Draw(); break;
+    case SCREEN_PRICE_I:    ScreenPrice_Draw();    break;
+    case SCREEN_MIX_I:      ScreenMix_Draw();      break;
     case SCREEN_SETTINGS_I: ScreenSettings_Draw(); break;
   }
   drawScreenDots();
@@ -284,6 +297,8 @@ static void enterActive() {
     case SCREEN_PLANES_I:   ScreenPlanes_Enter();   break;
     case SCREEN_METEO_I:    ScreenWeather_Enter();  break;
     case SCREEN_FORECAST_I: ScreenForecast_Enter(); break;
+    case SCREEN_PRICE_I:    ScreenPrice_Enter();    break;
+    case SCREEN_MIX_I:      ScreenMix_Enter();      break;
     case SCREEN_SETTINGS_I: ScreenSettings_Enter(); break;
   }
   drawActive();
@@ -322,6 +337,8 @@ static bool activeTick() {
     case SCREEN_PLANES_I:   return ScreenPlanes_Tick();
     case SCREEN_METEO_I:    return ScreenWeather_Tick();
     case SCREEN_FORECAST_I: return ScreenForecast_Tick();
+    case SCREEN_PRICE_I:    return ScreenPrice_Tick();
+    case SCREEN_MIX_I:      return ScreenMix_Tick();
     case SCREEN_SETTINGS_I: return ScreenSettings_Tick();
   }
   return false;
@@ -331,6 +348,10 @@ static void activeChangeRange(int dir) {
   switch (s_screen) {
     case SCREEN_PLANES_I: ScreenPlanes_ChangeRange(dir);  break;
     case SCREEN_METEO_I:  ScreenWeather_ChangeRange(dir); break;
+    // The price screen has no range in kilometres, but a swipe there means the
+    // same thing it means everywhere else - show me the other one - so it is
+    // wired to the same gesture rather than inventing a second one.
+    case SCREEN_PRICE_I:  ScreenPrice_ChangeRange(dir);   break;
     default: break;   // the other screens have no range
   }
 }
@@ -339,6 +360,7 @@ static bool activeTap(int x, int y) {
   switch (s_screen) {
     case SCREEN_CLOCK_I:    return ScreenClock_HandleTap(x, y);
     case SCREEN_PLANES_I:   return ScreenPlanes_HandleTap(x, y);
+    case SCREEN_PRICE_I:    return ScreenPrice_HandleTap(x, y);
     case SCREEN_SETTINGS_I: return ScreenSettings_HandleTap(x, y);
     default: return false;
   }
@@ -431,14 +453,6 @@ static const char* resetReasonText() {
   }
 }
 
-// The time zone has to be in the environment even though there is no NTP
-// client: CHMU.cpp and the clock screen convert UTC with localtime_r(), and
-// without TZ that quietly hands back UTC - labels an hour or two out.
-static void applyTimezone() {
-  setenv("TZ", TZ_INFO, 1);
-  tzset();
-}
-
 void setup() {
   Serial.begin(115200);
   delay(300);
@@ -447,7 +461,7 @@ void setup() {
   Serial.printf("Volna pamet: %u B\n", (unsigned)ESP.getFreeHeap());
 
   Settings_Begin();          // also sets the interface language
-  applyTimezone();
+  TimeZone_Begin();      // compiled-in default; the forecast may correct it
   Layout_SelfTest();         // no-op unless LAYOUT_DEBUG is on
 
   Wire.begin(I2C_SDA, I2C_SCL, 400000);
@@ -693,6 +707,7 @@ void loop() {
   displayWatchdog();
   Outside_Tick();     // outside temperature and the clock safety net
   Forecast_Tick();    // forecast, sun times and air quality
+  Energy_Tick();      // spot price and generation mix (only if those screens are on)
   NightMode_Tick();   // day/night brightness
   Route_Tick();       // pending "where is it flying from/to" lookup
   Settings_Tick();    // debounced persist of UI state to NVS

@@ -11,6 +11,7 @@
 #include "Outside.h"
 #include "Display_ST7701.h"
 #include <math.h>
+#include <string.h>
 #include "qrcode.h"
 #include "Display_ST7701.h"
 
@@ -28,6 +29,32 @@ void UI_TextCentered(const char* text, int cy, uint16_t color, uint8_t size) {
   UI_TextCenteredIn(text, 0, LCD_WIDTH, cy, color, size);
 }
 
+void UI_FillRing(int cx, int cy, int rIn, int rOut, float a0, float a1,
+                 uint16_t color) {
+  if (rOut <= 0 || rIn > rOut) return;
+  if (a1 < a0) { const float t = a0; a0 = a1; a1 = t; }
+
+  // Step so that one step is at most a quarter pixel along the OUTER edge -
+  // the edge where a coarse step would show as scalloping. Clamped at both
+  // ends: a huge radius must not turn this into tens of thousands of lines,
+  // and a tiny one must not step so coarsely that the sector breaks up.
+  float step = 0.25f / (float)(rOut > 0 ? rOut : 1);
+  if (step < 0.0015f) step = 0.0015f;
+  if (step > 0.01f)   step = 0.01f;
+
+  for (float a = a0; a <= a1; a += step) {
+    const float c = cosf(a), s = sinf(a);
+    gfx->drawLine(cx + (int)(rIn * c), cy + (int)(rIn * s),
+                  cx + (int)(rOut * c), cy + (int)(rOut * s), color);
+  }
+  // Always paint the closing edge, whatever the step left over.
+  {
+    const float c = cosf(a1), s = sinf(a1);
+    gfx->drawLine(cx + (int)(rIn * c), cy + (int)(rIn * s),
+                  cx + (int)(rOut * c), cy + (int)(rOut * s), color);
+  }
+}
+
 static int UI_ChordHalfWidth(int y) {
   const int R = LCD_WIDTH / 2 - 2;          // same margin as the screens use
   long dy = (long)y - LCD_HEIGHT / 2;
@@ -36,14 +63,24 @@ static int UI_ChordHalfWidth(int y) {
   return (int)sqrtf((float)d2);
 }
 
+bool UI_StatusLineChanged() {
+  static char last[OUTSIDE_TEXT_MAX] = "";
+  char txt[OUTSIDE_TEXT_MAX];
+  Outside_StatusText(txt, sizeof(txt));
+  if (strcmp(txt, last) == 0) return false;
+  strncpy(last, txt, sizeof(last) - 1);
+  last[sizeof(last) - 1] = '\0';
+  return true;
+}
+
 void UI_DrawStatusLine(int cy) {
   char txt[OUTSIDE_TEXT_MAX];
   Outside_StatusText(txt, sizeof(txt));
   if (!txt[0]) return;                      // nothing known yet - leave it empty
 
   // Measure against the circle at the LOWER edge of the text, which is the
-  // narrower end. The longest string this can produce is "23:59   -12 degC"
-  // (~192 px at size 2) and the chord here is around 265 px, so it fits - but
+  // narrower end. The longest string this can produce is "23:59   -12 °C"
+  // (~168 px at size 2) and the chord here is around 265 px, so it fits - but
   // check anyway: a wider font or a lower line would silently overflow.
   int16_t x1, y1; uint16_t tw, th;
   gfx->setTextSize(2);

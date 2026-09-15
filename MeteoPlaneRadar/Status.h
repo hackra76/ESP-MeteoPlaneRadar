@@ -15,7 +15,12 @@
 #pragma once
 #include <Arduino.h>
 
-enum StatusSlot : uint8_t { ST_ADSB = 0, ST_RADAR, ST_FORECAST, ST_COUNT };
+enum StatusSlot : uint8_t {
+  ST_ADSB = 0, ST_RADAR, ST_FORECAST,
+  ST_PRICE,        // spot electricity price
+  ST_MIX,          // generation mix
+  ST_COUNT
+};
 
 // printf-style; the text is truncated to something the page can show.
 void Status_Set(StatusSlot slot, const char* fmt, ...);

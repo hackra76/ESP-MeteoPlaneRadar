@@ -82,6 +82,30 @@ void    Settings_SetRadarSource(uint8_t s);
 bool    Settings_MeteoLegend();
 void    Settings_SetMeteoLegend(bool on);
 
+// --- Energy -----------------------------------------------------------------
+//
+// What the user pays on top of the exchange price. Everything the device knows
+// about their tariff, and deliberately nothing more: there is no national
+// "correct" surcharge to default to, so both start at zero and the screen then
+// shows the bare spot price and says so. See the note at the top of Energy.h.
+//
+// The fee is in CZK per MEGAWATT hour, the same unit the price arrives in, so
+// it can be added before the single conversion to kWh. Suppliers quote it per
+// kWh, so the web page does that multiplication where the user can see it.
+uint16_t Settings_PriceFee();
+void     Settings_SetPriceFee(uint16_t czkPerMwh);
+// VAT in per cent. 0 = do not add any, which is what a business wanting the
+// price without it would choose.
+uint8_t  Settings_PriceVat();
+void     Settings_SetPriceVat(uint8_t pct);
+
+// Which country's generation mix to draw. A lower-case energy-charts code
+// ("cz", "sk", "de", ...) or "eu" for the continent as a whole. Anything that
+// is not two letters is refused, so a typo cannot turn into a 404 every fifteen
+// minutes.
+const char* Settings_MixCountry();
+void        Settings_SetMixCountry(const char* code);
+
 // --- Clock appearance -------------------------------------------------------
 uint8_t  Settings_SecondsStyle();          // SEC_STYLE_*
 void     Settings_SetSecondsStyle(uint8_t s);

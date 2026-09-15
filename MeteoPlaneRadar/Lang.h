@@ -72,7 +72,29 @@
   X(S_POLLEN,        "Pyl",                "Pyl",                "Pollen") \
   X(S_TODAY,         "dnes",               "dnes",               "today") \
   X(S_LAT_LABEL,     "Zemepisna sirka",    "Zeměpisná šířka",    "Latitude") \
-  X(S_LON_LABEL,     "Zemepisna delka",    "Zeměpisná délka",    "Longitude")
+  X(S_LON_LABEL,     "Zemepisna delka",    "Zeměpisná délka",    "Longitude") \
+  X(S_TOMORROW,      "zitra",              "zítra",              "tomorrow") \
+  X(S_PRICE,         "Cena elektriny",     "Cena elektřiny",     "Electricity price") \
+  X(S_NO_TOMORROW,   "zitrek zatim neni",  "zítřek zatím není",  "tomorrow not out yet") \
+  X(S_SPOT,          "burza",              "burza",              "spot") \
+  X(S_DATA_FROM,     "data z",             "data z",             "as of") \
+  X(S_PRICE_CZ_ONLY, "jen pro CR",         "jen pro ČR",         "Czechia only") \
+  X(S_MIX_EU_ONLY,   "jen pro Evropu",     "jen pro Evropu",     "Europe only") \
+  X(S_OUT_OF_AREA,   "mimo oblast zdroje", "mimo oblast zdroje", "outside the source area") \
+  X(S_MIX,           "Vyroba CR",          "Výroba ČR",          "Czech generation") \
+  X(S_MIX_GEN,       "Vyroba",             "Výroba",             "Generation") \
+  X(S_RENEWABLE,     "OZE",                "OZE",                "renewable") \
+  X(S_CONSUMPTION,   "spotreba",           "spotřeba",           "load") \
+  X(S_EXPORT,        "vyvoz",              "vývoz",              "export") \
+  X(S_IMPORT,        "dovoz",              "dovoz",              "import") \
+  X(S_NUCLEAR,       "jadro",              "jádro",              "nuclear") \
+  X(S_COAL,          "uhli",               "uhlí",               "coal") \
+  X(S_GAS,           "plyn",               "plyn",               "gas") \
+  X(S_SOLAR,         "slunce",             "slunce",             "solar") \
+  X(S_WIND,          "vitr",               "vítr",               "wind") \
+  X(S_HYDRO,         "voda",               "voda",               "hydro") \
+  X(S_BIOMASS,       "biomasa",            "biomasa",            "biomass") \
+  X(S_OTHER,         "ostatni",            "ostatní",            "other")
 
 enum StrId : uint16_t {
 #define X(id, cz, czw, en) id,

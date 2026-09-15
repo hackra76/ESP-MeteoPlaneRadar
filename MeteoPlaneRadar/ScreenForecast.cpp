@@ -2,6 +2,19 @@
 //  MeteoPlaneRadar
 //  Screen: weather forecast (Open-Meteo).
 //
+//  0.7.0 rewrite. It used to be six consecutive hours and three days, which
+//  answered "what is the next six hours doing" and nothing else. It now reads
+//  the way people actually ask:
+//
+//      now / 12-15h / 15-18h  - the rest of your afternoon, by the clock
+//      today                  - the one day nobody counts to
+//      St 16.9., Ct 17.9. ... - as many as the circle has room for
+//
+//  How many weekday rows appear is worked out while drawing rather than fixed
+//  in a constant: the air-quality line at the foot owns its band, the rows fill
+//  what is left, and on a future panel with different proportions the same code
+//  fits a different number of days instead of overrunning.
+//
 //  Author:  Petr / chiptron.cz   (vyvoj / development: chiptron.cz)
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)
 // =============================================================================
@@ -21,54 +34,65 @@
 
 #define CX (LCD_WIDTH / 2)
 
-// Vertical stack. The hourly block is denser than the daily one - six rows have
-// to fit where the circle is still narrowing, so they get less height each.
-//
-// Every number is size 2 with its unit in size 1 beside it: full-size units
-// would force the numbers down to an unreadable size, and bare numbers at the
-// end of a row mean nothing to the reader.
-#define HOUR_Y0    58
-#define HOUR_H     27
-#define SEP_Y      (HOUR_Y0 + FORECAST_HOURS * HOUR_H + 6)
+// --- Vertical stack ---------------------------------------------------------
+// The rows live between y=69 and y=411. That is not a taste decision: the
+// widest row reaches 165 px either side of the centre, and the chord of a
+// 480 px circle is narrower than that outside those two lines. Anything put
+// above or below them would have its outer columns silently dropped by
+// Layout_Claim, which looks like a bug rather than a margin.
+#define HOUR_Y0    72
+#define HOUR_H     30
+#define HOUR_ROWS   3
+#define SEP_Y      (HOUR_Y0 + HOUR_ROWS * HOUR_H + 6)
 #define DAY_Y0     (SEP_Y + 8)
-#define DAY_H      37
-#define AQ_Y0      (DAY_Y0 + FORECAST_DAYS * DAY_H + 10)
-#define AQ_H       24     // line spacing in the air-quality block
+#define DAY_H      31
+#define AQ_Y      404     // the air-quality line, which the days must not reach
 
-// Columns, measured from the centre. The narrowest row is the top one, where
-// the chord is about 320 px, so everything has to live inside +/-160.
+// --- Columns, measured from the centre --------------------------------------
+// The label column holds "St 31.12." at size 2 - nine characters, 108 px, the
+// widest date this screen can ever produce. That is what sets everything else:
+// with the icon, both temperatures, the rain and the wind behind it the row
+// comes to 344 px, which needs a half-chord of 172 and therefore fits between
+// y=76 and y=404. The rows below are laid out inside that window.
 //
-// The temperature-to-precipitation gap fits the worst case on a DAY row:
-// "-12/-19" is 84 px. Any tighter and the precipitation would be dropped on
-// exactly the cold days you want it.
-#define COL_LABEL  (CX - 150)
-#define COL_ICON   (CX - 104)
-#define COL_TEMP   (CX -  80)
-#define COL_PRECIP (CX +  16)
-#define COL_WIND   (CX +  92)
+// The gaps between columns are 6 px rather than 8 for the same reason. Eight
+// made the row 352 px, which fits only between y=80 and y=400 - and that is a
+// row short of what the circle will hold.
+#define COL_LABEL  (CX - 172)
+#define COL_ICON   (CX -  45)
+#define COL_TEMP   (CX -  26)
+#define COL_PRECIP (CX +  64)
+#define COL_WIND   (CX + 121)
+
+// Wind below this is not news anywhere, and the column is better spent on
+// nothing at all - the same rule precipitation has always followed here.
+#define WIND_SHOW_KMH 12.0f
 
 static unsigned long s_lastSeen = 0;
 
 void ScreenForecast_Enter() {
-  // Nudge the fetcher: entering the screen is exactly when a stale forecast is
-  // most annoying. Forecast_Tick() decides whether anything actually happens.
   s_lastSeen = 0;
 }
 
 bool ScreenForecast_Tick() {
-  // The data itself is fetched centrally (Forecast_Tick in the main loop), so
-  // all this has to do is notice when it changed and ask for a redraw.
   static bool lastValid = false;
   static int  lastHour  = -1;
+  bool want = false;
+
   bool valid = Forecast_Valid();
   time_t now = time(nullptr);
   struct tm lt; localtime_r(&now, &lt);
   if (valid != lastValid || lt.tm_hour != lastHour) {
     lastValid = valid;
     lastHour = lt.tm_hour;
-    return true;
+    want = true;
   }
-  return false;
+
+  // The rows only change on the hour. The clock at the top changes every
+  // minute, and it is drawn as part of the same redraw.
+  if (UI_StatusLineChanged()) want = true;
+
+  return want;
 }
 
 // One text field, claimed before it is drawn so it can never sit on top of a
@@ -108,54 +132,149 @@ static void valueWithUnit(const char* val, const char* unit,
   }
 }
 
-static void drawHourRow(const FcHour& h, int y) {
+// The row label. One string, one size: the labels are now self-explanatory
+// ("12-15h", "Ct"), so the small grey qualifier that used to sit beside them -
+// the clock hour, the date - was repeating what the label already said.
+static void rowLabel(const char* s, int y, uint16_t col) {
+  field(s, COL_LABEL, y, 2, col);
+}
+
+// Shared tail of both row kinds: icon, temperature, rain, wind.
+static void drawValues(int y, int code, const char* temp, uint16_t tempCol,
+                       float precip, float wind, int iconR) {
   char buf[16];
-  struct tm lt; localtime_r(&h.t, &lt);
 
-  snprintf(buf, sizeof(buf), "%02d", lt.tm_hour);
-  field(buf, COL_LABEL, y + 5, 2, C_GRAY);
+  if (Layout_Claim(COL_ICON - iconR, y - iconR + 8, 2 * iconR, 2 * iconR))
+    WxIcon_Draw(COL_ICON, y + 8, iconR, code, false);
 
-  if (Layout_Claim(COL_ICON - 11, y + 1, 22, 22))
-    WxIcon_Draw(COL_ICON, y + 12, 11, h.code, false);
-
-  snprintf(buf, sizeof(buf), "%d", (int)lroundf(h.temp));
-  valueWithUnit(buf, OUTSIDE_DEG_TEXT, COL_TEMP, y + 5, WxIcon_Color(h.code));
+  field(temp, COL_TEMP, y, 2, tempCol);
 
   // Precipitation is only interesting when there is some - a column of "0.0"
   // is noise, and the space is better spent on nothing at all.
-  if (h.precip >= 0.05f) {
-    snprintf(buf, sizeof(buf), "%.1f", h.precip);
-    valueWithUnit(buf, "mm", COL_PRECIP, y + 5, C_CYAN);
+  if (precip >= 0.05f) {
+    snprintf(buf, sizeof(buf), "%.1f", precip);
+    valueWithUnit(buf, "mm", COL_PRECIP, y, C_CYAN);
   }
 
-  snprintf(buf, sizeof(buf), "%d", (int)lroundf(h.wind));
-  valueWithUnit(buf, "km/h", COL_WIND, y + 5, C_GRAY);
+  if (wind >= WIND_SHOW_KMH) {
+    snprintf(buf, sizeof(buf), "%d", (int)lroundf(wind));
+    valueWithUnit(buf, "km/h", COL_WIND, y, C_GRAY);
+  }
 }
 
-static void drawDayRow(const FcDay& d, int y) {
-  char buf[24];
+// --- The "now" row ----------------------------------------------------------
+// Prefers the API's own current block over hourly[0]: the hourly value is that
+// whole hour's model figure, so at 14:55 it describes an hour that is nearly
+// over. The current block is measured much closer to now.
+static void drawNowRow(int y) {
+  const FcHour* hrs = Forecast_Hours();
+  if (Forecast_HourCount() < 1 && !Forecast_CurrentValid()) return;
+
+  float temp, precip, wind;
+  int   code;
+
+  if (Forecast_CurrentValid()) {
+    temp   = Forecast_CurrentTemp();
+    precip = Forecast_CurrentPrecip();
+    wind   = Forecast_CurrentWind();
+    code   = Forecast_CurrentCode();
+  } else {
+    temp   = hrs[0].temp;
+    precip = hrs[0].precip;
+    wind   = hrs[0].wind;
+    code   = hrs[0].code;
+  }
+
+  rowLabel(T(S_NOW), y + 7, C_WHITE);
+
+  char tbuf[12];
+  snprintf(tbuf, sizeof(tbuf), "%d %s", (int)lroundf(temp), OUTSIDE_DEG_TEXT);
+  drawValues(y + 7, code, tbuf, WxIcon_Color(code), precip, wind, 11);
+}
+
+// --- Window rows ------------------------------------------------------------
+// A block of hours labelled by the clock - "12-15h" - rather than by how far
+// away it is. "In 3 hours" makes you do the arithmetic; "12-15h" is already
+// the answer, and it is how people talk about an afternoon.
+//
+// Each value is aggregated the way that value is actually used:
+//   temperature - the mean, which is what "it will be about this" means,
+//   rain        - the SUM, because what matters is how much falls in total,
+//   wind        - the MAXIMUM, because a gusty hour ruins the whole window,
+//   icon        - the highest WMO code, which is very nearly "the worst of
+//                 them": the scale runs clear, cloud, fog, drizzle, rain,
+//                 snow, showers, thunderstorm in ascending order.
+static void drawWindowRow(int i0, int y) {
+  const FcHour* hrs = Forecast_Hours();
+  const int n = Forecast_HourCount();
+  const int i1 = i0 + FORECAST_WIN_H - 1;
+  if (i1 >= n) return;
+
+  float sumT = 0, sumP = 0, maxW = 0;
+  int   code = 0;
+  for (int i = i0; i <= i1; i++) {
+    sumT += hrs[i].temp;
+    sumP += hrs[i].precip;
+    if (hrs[i].wind > maxW) maxW = hrs[i].wind;
+    if (hrs[i].code > code) code = hrs[i].code;
+  }
+  const float temp = sumT / (float)FORECAST_WIN_H;
+
+  // The label spans from the start of the first hour to the END of the last,
+  // so a three-hour window really does read as three hours: 12-15, not 12-14.
+  struct tm a, b;
+  localtime_r(&hrs[i0].t, &a);
+  time_t endT = hrs[i1].t + 3600;
+  localtime_r(&endT, &b);
+
+  // A window ending at midnight reads as 21-24, not 21-00: the end of the day
+  // is the 24th hour of it, and "21-00" looks like a typo.
+  int endHour = b.tm_hour;
+  if (endHour == 0) endHour = 24;
+
+  char lbl[12], tbuf[12];
+  snprintf(lbl, sizeof(lbl), "%02d-%02dh", a.tm_hour, endHour);
+  rowLabel(lbl, y + 7, C_GRAY);
+
+  snprintf(tbuf, sizeof(tbuf), "%d %s", (int)lroundf(temp), OUTSIDE_DEG_TEXT);
+  drawValues(y + 7, code, tbuf, WxIcon_Color(code), sumP, maxW, 11);
+}
+
+// --- Daily rows -------------------------------------------------------------
+// "dnes" keeps its name because it is the one day nobody counts to and it needs
+// no date - it is today. Every other row is the weekday and the date at the
+// same size: "St 16.9.". The weekday is what you read, the date is what you
+// check against a calendar, and a week out you want both.
+//
+// The longest this can ever be is "St 31.12." - nine characters, which is what
+// the label column was sized for.
+static void drawDayRow(const FcDay& d, int index, int y) {
+  char big[16], buf[24];
   struct tm lt; localtime_r(&d.t, &lt);
 
-  field(Lang_WeekdayShort(lt.tm_wday), COL_LABEL, y + 9, 2, C_WHITE);
-
-  if (Layout_Claim(COL_ICON - 14, y + 2, 28, 28))
-    WxIcon_Draw(COL_ICON, y + 16, 14, d.code, false);
-
-  // Maximum and minimum share the temperature column. No unit here: "-12/-19"
-  // plus a suffix would run into the precipitation column, and the hourly rows
-  // directly above already label this column.
-  snprintf(buf, sizeof(buf), "%d/%d", (int)lroundf(d.tmax), (int)lroundf(d.tmin));
-  field(buf, COL_TEMP, y + 9, 2, WxIcon_Color(d.code));
-
-  if (d.precip >= 0.05f) {
-    snprintf(buf, sizeof(buf), "%.1f", d.precip);
-    valueWithUnit(buf, "mm", COL_PRECIP, y + 9, C_CYAN);
+  if (index == 0) {
+    snprintf(big, sizeof(big), "%s", T(S_TODAY));
+  } else if (Lang_Get() == LANG_EN) {
+    // English weekdays are three letters, not two, so "Wed 31.12." would be
+    // ten characters and one too wide for the column. Day/month with a slash
+    // keeps the same order and gets it back to nine.
+    snprintf(big, sizeof(big), "%s %d/%d", Lang_WeekdayShort(lt.tm_wday),
+             lt.tm_mday, lt.tm_mon + 1);
+  } else {
+    snprintf(big, sizeof(big), "%s %d.%d.", Lang_WeekdayShort(lt.tm_wday),
+             lt.tm_mday, lt.tm_mon + 1);
   }
 
-  snprintf(buf, sizeof(buf), "%d", (int)lroundf(d.wind));
-  valueWithUnit(buf, "km/h", COL_WIND, y + 9, C_GRAY);
+  rowLabel(big, y + 9, index == 0 ? C_WHITE : C_GRAY);
+
+  // Maximum and minimum share the temperature column. No unit: "-12/-19" plus a
+  // suffix would run into the precipitation column, and the hourly rows above
+  // already label what this column is.
+  snprintf(buf, sizeof(buf), "%d/%d", (int)lroundf(d.tmax), (int)lroundf(d.tmin));
+  drawValues(y + 9, d.code, buf, WxIcon_Color(d.code), d.precip, d.wind, 13);
 }
 
+// --- Air quality ------------------------------------------------------------
 // European AQI bands, coloured the way the index itself is published.
 static uint16_t aqiColor(int aqi) {
   if (aqi < 0)  return C_GRAY;
@@ -184,35 +303,90 @@ static uint16_t pollenColor(float p) {
   return C_ORANGE;
 }
 
-// One line of the air-quality block: grey label, coloured value, centred as a
-// pair.
-static void aqRow(int y, const char* label, const char* value, uint16_t valCol) {
-  if (!label || !value) return;
-  const int lw = Layout_TextW(label, 2);
-  const int vw = Layout_TextW(value, 2);
-  const int gap = 12;
-  const int total = lw + gap + vw;
-  const int x0 = CX - total / 2;
+// Air quality, on ONE line now that the days have taken the vertical space it
+// used to have. Built as up to three label/value pairs, measured, and then
+// dropped from the right until what is left fits inside the circle - so a
+// narrow day loses the pollen count rather than pushing AQI off the rim.
+static void drawAirQuality() {
+  if (!AirQuality_Valid()) return;
 
-  if (!Layout_Claim(x0 - 4, y - 3, total + 8, LY_CHAR_H(2) + 6)) return;
+  struct Pair { char label[16]; char value[16]; uint16_t col; };
+  Pair p[3];
+  int n = 0;
 
-  gfx->setTextSize(2);
-  gfx->setTextColor(C_GRAY);
-  gfx->setCursor(x0, y);
-  gfx->print(label);
-  gfx->setTextColor(valCol);
-  gfx->setCursor(x0 + lw + gap, y);
-  gfx->print(value);
+  const int aqi = AirQuality_Aqi();
+  if (aqi >= 0) {
+    snprintf(p[n].label, sizeof(p[n].label), "AQI");
+    snprintf(p[n].value, sizeof(p[n].value), "%d", aqi);
+    p[n].col = aqiColor(aqi);
+    n++;
+  }
+  const float pm = AirQuality_Pm25();
+  if (pm > 0) {
+    snprintf(p[n].label, sizeof(p[n].label), "PM2.5");
+    snprintf(p[n].value, sizeof(p[n].value), "%.0f", pm);
+    p[n].col = pmColor(pm);
+    n++;
+  }
+  const float pollen = AirQuality_PollenMax();
+  if (pollen >= 0) {
+    // The species that is worst right now, so the number means something -
+    // "pollen 120" without knowing it is birch is not actionable.
+    const char* worst = AirQuality_PollenWorst();
+    if (worst && *worst) snprintf(p[n].label, sizeof(p[n].label), "%s", worst);
+    else                 snprintf(p[n].label, sizeof(p[n].label), "%s", T(S_POLLEN));
+    snprintf(p[n].value, sizeof(p[n].value), "%.0f", pollen);
+    p[n].col = pollenColor(pollen);
+    n++;
+  }
+  if (n == 0) return;
+
+  const int room = 2 * Layout_ChordHalf(AQ_Y + 16) - 12;
+  const int PAIRGAP = 6, COLGAP = 18;
+
+  int width = 0;
+  while (n > 0) {
+    width = 0;
+    for (int i = 0; i < n; i++) {
+      width += Layout_TextW(p[i].label, 2) + PAIRGAP + Layout_TextW(p[i].value, 2);
+      if (i) width += COLGAP;
+    }
+    if (width <= room) break;
+    n--;                         // drop the rightmost pair and measure again
+  }
+  if (n == 0) return;
+
+  // No Layout_Claim here. This line is CHROME: ScreenForecast_Draw reserved its
+  // band before anything else was drawn, precisely so the day rows could not
+  // creep into it. Claiming the same rectangle afterwards collided with that
+  // reservation, the claim failed, and the whole air-quality line silently
+  // stopped being drawn. Chrome is positioned by design and draws; only
+  // data-positioned elements ask permission.
+  int x = CX - width / 2;
+
+  for (int i = 0; i < n; i++) {
+    gfx->setTextSize(2);
+    gfx->setTextColor(C_GRAY);
+    gfx->setCursor(x, AQ_Y);
+    gfx->print(p[i].label);
+    x += Layout_TextW(p[i].label, 2) + PAIRGAP;
+    gfx->setTextColor(p[i].col);
+    gfx->setCursor(x, AQ_Y);
+    gfx->print(p[i].value);
+    x += Layout_TextW(p[i].value, 2) + COLGAP;
+  }
 }
 
+// -----------------------------------------------------------------------------
 void ScreenForecast_Draw() {
   gfx->fillScreen(C_BLACK);
   Layout_Begin();
 
-  // Chrome first: the screen dots and the status line own their bands, so a
-  // long row below can never creep into them.
+  // Chrome first: the screen dots, the status line and the air-quality band own
+  // their space, so a row below can never creep into them.
   Layout_ReserveBand(LY_DOTS - 6, 12);
   Layout_ReserveBand(LY_STATUS - 3, 22);
+  Layout_ReserveBand(AQ_Y - 3, 22);
   UI_DrawStatusLine(LY_STATUS);
 
   if (!Settings_HasLocation()) {
@@ -226,13 +400,12 @@ void ScreenForecast_Draw() {
     return;
   }
 
-  // --- Hours ---
-  const FcHour* hrs = Forecast_Hours();
-  int hn = Forecast_HourCount();
-  if (hn > FORECAST_HOURS) hn = FORECAST_HOURS;
-  for (int i = 0; i < hn; i++) drawHourRow(hrs[i], HOUR_Y0 + i * HOUR_H);
+  // --- now, then two windows of FORECAST_WIN_H hours each ---
+  drawNowRow(HOUR_Y0);
+  drawWindowRow(1,                   HOUR_Y0 + HOUR_H);
+  drawWindowRow(1 + FORECAST_WIN_H,  HOUR_Y0 + 2 * HOUR_H);
 
-  // --- Separator ---
+  // --- separator ---
   {
     int half = Layout_ChordHalf(SEP_Y) - 30;
     if (half > 20) {
@@ -241,49 +414,16 @@ void ScreenForecast_Draw() {
     }
   }
 
-  // --- Days ---
+  // --- today, tomorrow, the day after, then as many weekdays as fit ---
+  // The row count comes from the space between the separator and the
+  // air-quality band, not from a constant, so the layout stays honest if either
+  // of those moves.
   const FcDay* dys = Forecast_Days();
   int dn = Forecast_DayCount();
+  const int fits = (AQ_Y - 6 - DAY_Y0) / DAY_H;
+  if (dn > fits) dn = fits;
   if (dn > FORECAST_DAYS) dn = FORECAST_DAYS;
-  for (int i = 0; i < dn; i++) drawDayRow(dys[i], DAY_Y0 + i * DAY_H);
+  for (int i = 0; i < dn; i++) drawDayRow(dys[i], i, DAY_Y0 + i * DAY_H);
 
-  // --- Air quality ---
-  // Three stacked lines rather than one crowded row: each gets the full width
-  // of the circle, so the label can be spelled out and the value drawn large.
-  // Only the parts that are actually known appear - pollen is a European
-  // product that returns nothing elsewhere, and "no data" must never be shown
-  // as a reassuring zero.
-  if (AirQuality_Valid()) {
-    char val[24], lbl[24];
-    int line = 0;
-
-    int aqi = AirQuality_Aqi();
-    if (aqi >= 0) {
-      snprintf(val, sizeof(val), "%d", aqi);
-      aqRow(AQ_Y0 + line * AQ_H, "AQI", val, aqiColor(aqi));
-      line++;
-    }
-
-    float pm = AirQuality_Pm25();
-    if (pm > 0) {
-      // The unit goes with the value rather than in a header: this block has no
-      // columns, and a bare "8" next to "AQI 42" reads as a second index rather
-      // than a concentration. Spelled "ug/m3" - the built-in font is 7-bit
-      // ASCII, so the real symbols would come out as random glyphs.
-      snprintf(val, sizeof(val), "%.0f ug/m3", pm);
-      aqRow(AQ_Y0 + line * AQ_H, "PM2.5", val, pmColor(pm));
-      line++;
-    }
-
-    float pollen = AirQuality_PollenMax();
-    if (pollen >= 0) {
-      // The species that is worst right now, so the number means something -
-      // "pollen 120" without knowing it is birch is not actionable.
-      const char* worst = AirQuality_PollenWorst();
-      if (worst && *worst) snprintf(lbl, sizeof(lbl), "%s %s", T(S_POLLEN), worst);
-      else                 snprintf(lbl, sizeof(lbl), "%s", T(S_POLLEN));
-      snprintf(val, sizeof(val), "%.0f", pollen);
-      aqRow(AQ_Y0 + line * AQ_H, lbl, val, pollenColor(pollen));
-    }
-  }
+  drawAirQuality();
 }

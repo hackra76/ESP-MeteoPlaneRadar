@@ -49,8 +49,15 @@ void Forecast_Tick();
 void Forecast_Invalidate();
 
 bool Forecast_Valid();
+
+// Hours from NOW: index 0 is the hour we are in, index 3 is three hours out.
+// forecast_hours makes the API line the array up that way, so no searching.
 int  Forecast_HourCount();
 const FcHour* Forecast_Hours();
+
+// Days from TODAY: index 0 is today, 1 tomorrow, 2 the day after. (Up to
+// 0.6.6 index 0 was tomorrow - anything that counts days off this array had to
+// be checked when that changed.)
 int  Forecast_DayCount();
 const FcDay*  Forecast_Days();
 

@@ -8,6 +8,7 @@
 #include "WebPage.h"
 #include "ScreenPlanes.h"
 #include "ScreenWeather.h"
+#include "ScreenPrice.h"
 #include "Settings.h"
 #include "Status.h"
 #include "Version.h"
@@ -15,6 +16,7 @@
 #include "Lang.h"
 #include "Net.h"
 #include "Forecast.h"
+#include "Energy.h"
 #include "NightMode.h"
 #include "UI.h"
 #include "Display_ST7701.h"
@@ -30,6 +32,8 @@
 #include "Board.h"
 #include <esp_system.h>
 #include <math.h>
+#include <string.h>
+#include "TimeZone.h"
 
 static WebServer  s_srv(WEB_PORT);
 static DNSServer  s_dns;
@@ -63,6 +67,17 @@ static void sendJson(int code, JsonDocument& doc) {
 static bool readBody(JsonDocument& doc) {
   if (!s_srv.hasArg("plain")) return false;
   return deserializeJson(doc, s_srv.arg("plain")) == DeserializationError::Ok;
+}
+
+// The set of enabled data screens as one value, so "did this change?" is one
+// comparison. Built from the loop rather than written out screen by screen -
+// the hand-written version had to be edited in two places every time a screen
+// was added, and was quietly wrong for the two energy screens until it was not.
+static uint8_t screenMask() {
+  uint8_t m = 0;
+  for (uint8_t i = 0; i < SCREEN_SETTINGS_I && i < 8; i++)
+    if (Settings_ScreenEnabled(i)) m |= (uint8_t)(1u << i);
+  return m;
 }
 
 // Every destructive endpoint goes through here. When no password is set this
@@ -118,10 +133,7 @@ static void handlePostConfig() {
 
   const double oldLat = Settings_Lat(), oldLon = Settings_Lon();
   const uint8_t oldSrc = Settings_RadarSource();
-  const uint8_t oldMask = (Settings_ScreenEnabled(SCREEN_CLOCK_I) << 0) |
-                          (Settings_ScreenEnabled(SCREEN_PLANES_I) << 1) |
-                          (Settings_ScreenEnabled(SCREEN_METEO_I) << 2) |
-                          (Settings_ScreenEnabled(SCREEN_FORECAST_I) << 3);
+  const uint8_t oldMask = screenMask();
 
   Settings_FromJson(doc.as<JsonObjectConst>());
 
@@ -129,13 +141,40 @@ static void handlePostConfig() {
   // you are still looking at the slider.
   NightMode_Apply();
 
-  const uint8_t newMask = (Settings_ScreenEnabled(SCREEN_CLOCK_I) << 0) |
-                          (Settings_ScreenEnabled(SCREEN_PLANES_I) << 1) |
-                          (Settings_ScreenEnabled(SCREEN_METEO_I) << 2) |
-                          (Settings_ScreenEnabled(SCREEN_FORECAST_I) << 3);
+  const uint8_t newMask = screenMask();
   const bool moved = (fabs(oldLat - Settings_Lat()) > 1e-6) ||
                      (fabs(oldLon - Settings_Lon()) > 1e-6);
-  if (moved) Forecast_Invalidate();
+  if (moved) {
+    Forecast_Invalidate();
+    Energy_Invalidate();
+
+    // Moving the device out of the area a source covers switches that screen
+    // off, ONCE, at the moment the location changes. Not a permanent lock: the
+    // checkbox is still there and turning it back on sticks, which matters
+    // because the boxes in Config.h are rectangles and somebody just over the
+    // border may well want Czech prices on purpose.
+    //
+    // Doing it here rather than in the drawing code is deliberate. A screen
+    // that shows "not available here" every time the cycling reaches it is a
+    // screen that has to be switched off by hand anyway; the device may as well
+    // do the obvious thing and say so in the log.
+    if (!Energy_PriceInArea() && Settings_ScreenEnabled(SCREEN_PRICE_I)) {
+      Settings_SetScreenEnabled(SCREEN_PRICE_I, false);
+      Serial.println("Poloha mimo CR: vypinam obrazovku s cenou elektriny");
+    }
+    if (!Energy_MixInArea() && Settings_ScreenEnabled(SCREEN_MIX_I)) {
+      Settings_SetScreenEnabled(SCREEN_MIX_I, false);
+      Serial.println("Poloha mimo Evropu: vypinam obrazovku s vyrobou");
+    }
+    // Still on the Czech default after moving abroad? Europe as a whole is a
+    // better guess than a country the user does not live in. An explicit choice
+    // is left alone.
+    if (!Energy_PriceInArea() && Energy_MixInArea() &&
+        !strcmp(Settings_MixCountry(), MIX_COUNTRY_DEFAULT)) {
+      Settings_SetMixCountry("eu");
+      Serial.println("Poloha mimo CR: mix prepnut na celou Evropu");
+    }
+  }
 
   // These reach too far into cached state (decoded radar frames, allocated
   // buffers, which screen is even reachable) to be worth unpicking at runtime.
@@ -218,6 +257,18 @@ static void handleStatus() {
   }
   doc["resetReason"] = rr;
 
+  // The time zone, because "the clock is wrong" is otherwise impossible to
+  // diagnose remotely. Says where the offset came from: the compiled-in Czech
+  // rule, or the forecast for the user's own coordinates.
+  {
+    char tzb[48];
+    const int off = TimeZone_Offset();
+    snprintf(tzb, sizeof(tzb), "%s (UTC%+d:%02d, %s)", TimeZone_Text(),
+             off / 3600, (off < 0 ? -off : off) % 3600 / 60,
+             TimeZone_FromNetwork() ? "podle polohy" : "z Config.h");
+    doc["timezone"] = tzb;
+  }
+
   // What the device is showing right now, so the remote control can highlight
   // the active screen and print the range instead of guessing.
   const uint8_t scr = Settings_Screen();
@@ -225,6 +276,10 @@ static void handleStatus() {
   char rb[24] = "";
   if      (scr == SCREEN_PLANES_I) ScreenPlanes_RangeText(rb, sizeof(rb));
   else if (scr == SCREEN_METEO_I)  ScreenWeather_RangeText(rb, sizeof(rb));
+  // The price screen has no range in kilometres, but it does have two states
+  // the remote control can step through, so it answers here too and the -/+
+  // buttons stay live instead of greying out.
+  else if (scr == SCREEN_PRICE_I)  ScreenPrice_RangeText(rb, sizeof(rb));
   doc["range"] = rb;                       // empty on screens without one
 
   JsonArray en = doc["enabled"].to<JsonArray>();
@@ -234,6 +289,8 @@ static void handleStatus() {
   Status_Text(ST_ADSB, b, sizeof(b));     doc["adsb"] = b;
   Status_Text(ST_RADAR, b, sizeof(b));    doc["radar"] = b;
   Status_Text(ST_FORECAST, b, sizeof(b)); doc["forecast"] = b;
+  Status_Text(ST_PRICE, b, sizeof(b));    doc["price"] = b;
+  Status_Text(ST_MIX, b, sizeof(b));      doc["mix"] = b;
   sendJson(200, doc);
 }
 

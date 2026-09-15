@@ -86,6 +86,7 @@ td:first-child{color:var(--mut);width:50%}
   <button data-tab="tScr"    data-i18n="tabScr">Obrazovky</button>
   <button data-tab="tLook"   data-i18n="tabLook">Vzhled</button>
   <button data-tab="tPlanes" data-i18n="tabPlanes">Letadla</button>
+  <button data-tab="tEnergy" data-i18n="tabEnergy">Energie</button>
   <button data-tab="tSys"    data-i18n="tabSys">Systém</button>
 </nav>
 
@@ -149,6 +150,8 @@ td:first-child{color:var(--mut);width:50%}
       <label class="chk"><input type="checkbox" id="sPlanes"><span data-i18n="scrPlanes">Letadla</span></label>
       <label class="chk"><input type="checkbox" id="sMeteo"><span data-i18n="scrMeteo">Meteoradar</span></label>
       <label class="chk"><input type="checkbox" id="sForecast"><span data-i18n="scrForecast">Předpověď</span></label>
+      <label class="chk"><input type="checkbox" id="sPrice"><span data-i18n="scrPrice">Cena elektřiny</span></label>
+      <label class="chk"><input type="checkbox" id="sMix"><span data-i18n="scrMix">Výroba ČR</span></label>
     </div>
     <p class="hint" data-i18n="scrHint">Vypnuté obrazovky se přeskakují. Nastavení je dostupné vždy.</p>
     <p class="hint" data-i18n="restartHint">Změna obrazovek, zdroje radaru nebo polohy potřebuje restart, takže se ukládá až tlačítkem dole.</p>
@@ -217,6 +220,62 @@ td:first-child{color:var(--mut);width:50%}
   </div>
 </section>
 
+<!-- ================= ENERGIE ================= -->
+<section id="tEnergy" class="tab hide">
+  <div class="card">
+    <h2 data-i18n="energyPrice">Cena elektřiny</h2>
+    <p class="hint warn" data-i18n="priceCzOnly">Ceny platí jen pro Česko a jsou v korunách. Když nastavíte polohu mimo ČR, obrazovka se sama vypne a zařízení si o data přestane říkat.</p>
+    <p class="hint" data-i18n="priceIntro">Obrazovka ukazuje burzovní (spotovou) cenu z denního trhu OTE jako dvacetičtyřhodinový ciferník. Ceny na zítřek se zveřejňují kolem 14:00, do té doby se dá zobrazit jen dnešek.</p>
+    <div class="row"><label data-i18n="priceFee">Přirážka k burzovní ceně (Kč/MWh)</label>
+      <input type="number" id="priceFee" min="0" max="20000" step="10"></div>
+    <p class="hint" id="feeKwh"></p>
+    <div class="row"><label data-i18n="priceVat">DPH (%, 0 = nepřipočítávat)</label>
+      <input type="number" id="priceVat" min="0" max="100" step="1"></div>
+    <p class="hint" data-i18n="priceFeeHint">Ve výchozím stavu jsou obě pole nula a displej ukazuje čistou burzovní cenu — a napíše k ní „burza“, aby nemohla být zaměněna s tím, co platíte. Distribuci, regulované složky a obchodníkovu marži si opište z vyúčtování; ceník je obvykle uvádí v Kč/kWh, takže je vynásobte tisícem. Zařízení si nic nedomýšlí: připočte přesně to, co sem zadáte, a nic jiného.</p>
+  </div>
+
+  <div class="card">
+    <h2 data-i18n="energyMix">Výroba ČR</h2>
+    <div class="row"><label data-i18n="mixCountry">Země</label>
+      <select id="mixCountry">
+        <option value="eu">Celá Evropa</option>
+        <option value="cz">Česko</option>
+        <option value="sk">Slovensko</option>
+        <option value="at">Rakousko</option>
+        <option value="de">Německo</option>
+        <option value="pl">Polsko</option>
+        <option value="hu">Maďarsko</option>
+        <option value="si">Slovinsko</option>
+        <option value="hr">Chorvatsko</option>
+        <option value="be">Belgie</option>
+        <option value="bg">Bulharsko</option>
+        <option value="ch">Švýcarsko</option>
+        <option value="dk">Dánsko</option>
+        <option value="ee">Estonsko</option>
+        <option value="es">Španělsko</option>
+        <option value="fi">Finsko</option>
+        <option value="fr">Francie</option>
+        <option value="gr">Řecko</option>
+        <option value="ie">Irsko</option>
+        <option value="it">Itálie</option>
+        <option value="lt">Litva</option>
+        <option value="lu">Lucembursko</option>
+        <option value="lv">Lotyšsko</option>
+        <option value="nl">Nizozemsko</option>
+        <option value="no">Norsko</option>
+        <option value="pt">Portugalsko</option>
+        <option value="ro">Rumunsko</option>
+        <option value="rs">Srbsko</option>
+        <option value="se">Švédsko</option>
+        <option value="ua">Ukrajina</option>
+        <option value="uk">Velká Británie</option>
+      </select></div>
+    <p class="hint" data-i18n="mixCountryHint">Rozhraní energy-charts pokrývá Evropu. Mimo ni obrazovka data nemá a sama se vypne.</p>
+    <p class="hint" data-i18n="mixHint">Prstenec ukazuje, z čeho se právě vyrábí elektřina, uprostřed je podíl obnovitelných zdrojů a dole saldo přeshraničních toků. Data pocházejí z ENTSO-E přes rozhraní energy-charts a zveřejňují se se zpožděním jedné až dvou hodin — čas vzorku je proto napsaný nahoře na obrazovce.</p>
+    <p class="hint" data-i18n="energySrcHint">Oba zdroje jsou zdarma, bez klíče a bez registrace. Když jsou obě obrazovky vypnuté, zařízení si o data vůbec neřekne.</p>
+  </div>
+</section>
+
 <!-- ================= SYSTÉM ================= -->
 <section id="tSys" class="tab hide">
   <div class="card">
@@ -236,6 +295,26 @@ td:first-child{color:var(--mut);width:50%}
       <button class="sec" onclick="doReboot()" data-i18n="reboot">Restart</button>
       <button class="danger" onclick="doReset()" data-i18n="factory">Tovární reset</button>
     </div>
+
+    <!-- Data sources. This is not decoration: GeoNames, CHMI, RainViewer,
+         Open-Meteo and Energy-Charts all require their source to be credited,
+         and RainViewer asks for a link back. The 480x480 panel has no room for
+         a legible credit line, so this panel is where the project discharges
+         that obligation. Do not delete it in a fork - replace it. -->
+    <h2 style="margin-top:22px" data-i18n="srcTitle">Zdroje dat</h2>
+    <p class="hint" data-i18n="srcIntro">Data pocházejí z těchto služeb. Několik z nich vyžaduje uvedení zdroje, proto jsou uvedeny zde. Podrobnosti a podmínky jsou v souboru LICENSE.txt.</p>
+    <p class="hint">
+      <a href="https://adsb.fi" target="_blank" rel="noopener">adsb.fi</a> ·
+      <a href="https://adsb.lol" target="_blank" rel="noopener">adsb.lol</a> ·
+      <a href="https://opendata.chmi.cz" target="_blank" rel="noopener">ČHMÚ</a> ·
+      <a href="https://www.rainviewer.com" target="_blank" rel="noopener">RainViewer</a> ·
+      <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> ·
+      <a href="https://spotovaelektrina.cz" target="_blank" rel="noopener">spotovaelektrina.cz</a> (OTE) ·
+      <a href="https://energy-charts.info" target="_blank" rel="noopener">Energy-Charts.info</a> (Fraunhofer ISE, CC BY 4.0) ·
+      <a href="https://www.geonames.org" target="_blank" rel="noopener">GeoNames</a> (CC BY 4.0) ·
+      Natural Earth ·
+      <a href="http://ip-api.com" target="_blank" rel="noopener">ip-api.com</a>
+    </p>
   </div>
 </section>
 
@@ -245,7 +324,19 @@ td:first-child{color:var(--mut);width:50%}
 
 <script>
 const D={
- cs:{tabCtl:"Ovládání",tabLoc:"Poloha",tabScr:"Obrazovky",tabLook:"Vzhled",tabPlanes:"Letadla",tabSys:"Systém",
+ cs:{tabCtl:"Ovládání",tabLoc:"Poloha",tabScr:"Obrazovky",tabLook:"Vzhled",tabPlanes:"Letadla",tabEnergy:"Energie",tabSys:"Systém",
+  scrPrice:"Cena elektřiny",scrMix:"Výroba ČR",
+  energyPrice:"Cena elektřiny",energyMix:"Výroba ČR",
+  mixCountry:"Země",
+  mixCountryHint:"Rozhraní energy-charts pokrývá Evropu. Mimo ni obrazovka data nemá a sama se vypne.",
+  priceCzOnly:"Ceny platí jen pro Česko a jsou v korunách. Když nastavíte polohu mimo ČR, obrazovka se sama vypne a zařízení si o data přestane říkat.",
+  timezone:"Časové pásmo",
+  priceIntro:"Obrazovka ukazuje burzovní (spotovou) cenu z denního trhu OTE jako dvacetičtyřhodinový ciferník. Ceny na zítřek se zveřejňují kolem 14:00, do té doby se dá zobrazit jen dnešek.",
+  priceFee:"Přirážka k burzovní ceně (Kč/MWh)",priceVat:"DPH (%, 0 = nepřipočítávat)",
+  priceFeeHint:"Ve výchozím stavu jsou obě pole nula a displej ukazuje čistou burzovní cenu — a napíše k ní „burza“, aby nemohla být zaměněna s tím, co platíte. Distribuci, regulované složky a obchodníkovu marži si opište z vyúčtování; ceník je obvykle uvádí v Kč/kWh, takže je vynásobte tisícem. Zařízení si nic nedomýšlí: připočte přesně to, co sem zadáte, a nic jiného.",
+  feeKwh:"Odpovídá",
+  mixHint:"Prstenec ukazuje, z čeho se právě vyrábí elektřina, uprostřed je podíl obnovitelných zdrojů a dole saldo přeshraničních toků. Data pocházejí z ENTSO-E přes rozhraní energy-charts a zveřejňují se se zpožděním jedné až dvou hodin — čas vzorku je proto napsaný nahoře na obrazovce.",
+  energySrcHint:"Oba zdroje jsou zdarma, bez klíče a bez registrace. Když jsou obě obrazovky vypnuté, zařízení si o data vůbec neřekne.",
   wifi:"WiFi",network:"Síť",password:"Heslo",scan:"Vyhledat",connect:"Připojit",
   wifiHint:"Po uložení se zařízení připojí a přístupový bod zmizí.",
   wifiHintSta:"Změna sítě přeruší spojení s touto stránkou. Když se připojení nepovede, zařízení vytvoří vlastní síť MeteoPlaneRadar a zadáte ji znovu.",
@@ -277,13 +368,27 @@ const D={
   pwNone:"Zatím není nastavené žádné heslo — aktualizace, import a reset jsou otevřené.",
   pwSet:"Heslo je nastavené.",
   passNote:"Poznámka: výchozí stav je bez hesla — aktualizace, import i reset jsou pak přístupné komukoli v síti. Heslo se ukládá v čitelné podobě, protože aktualizační stránka používá HTTP Basic, kde otisk použít nelze; chrání tedy před domácností, ne před útočníkem. Zapomenuté heslo jde zrušit jedině podržením tlačítka BOOT při startu (~3 s), což smaže i WiFi a všechna ostatní nastavení.",
+  srcTitle:"Zdroje dat",
+  srcIntro:"Data pocházejí z těchto služeb. Několik z nich vyžaduje uvedení zdroje, proto jsou uvedeny zde. Podrobnosti a podmínky jsou v souboru LICENSE.txt.",
   system:"Systém",adminPass:"Současné heslo",newPass:"Nové heslo",
   passHint:"Současné heslo je potřeba pro aktualizaci, import, reset i pro změnu hesla. Prázdné nové heslo nic nemění; jedna mezera ochranu zruší.",
   fwUpdate:"Aktualizace firmwaru",export:"Export nastavení",import:"Import",reboot:"Restart",factory:"Tovární reset",save:"Uložit nastavení",
   settings:"Nastavení",
   saved:"Uloženo",failed:"Nepovedlo se",searching:"Hledám…",nothing:"Nic nenalezeno",
   disabled:"Obrazovka je vypnutá",confirmReset:"Opravdu smazat všechna nastavení včetně WiFi?"},
- en:{tabCtl:"Control",tabLoc:"Location",tabScr:"Screens",tabLook:"Appearance",tabPlanes:"Aircraft",tabSys:"System",
+ en:{tabCtl:"Control",tabLoc:"Location",tabScr:"Screens",tabLook:"Appearance",tabPlanes:"Aircraft",tabEnergy:"Energy",tabSys:"System",
+  scrPrice:"Electricity price",scrMix:"Czech generation",
+  energyPrice:"Electricity price",energyMix:"Czech generation",
+  mixCountry:"Country",
+  mixCountryHint:"The energy-charts API covers Europe. Outside it the screen has no data and switches itself off.",
+  priceCzOnly:"Prices are the Czech market, in CZK. Set a location outside Czechia and the screen switches itself off and the device stops asking for the data.",
+  timezone:"Time zone",
+  priceIntro:"The screen shows the day-ahead exchange (spot) price from the OTE market as a 24-hour dial. Tomorrow's prices are published around 14:00 local time; until then only today can be shown.",
+  priceFee:"Surcharge on the exchange price (CZK/MWh)",priceVat:"VAT (%, 0 = do not add)",
+  priceFeeHint:"Both fields default to zero, so the display shows the bare exchange price and labels it \"spot\" - it can never be mistaken for what you actually pay. Copy distribution, the regulated components and your supplier's margin off your bill; tariffs usually quote them per kWh, so multiply by a thousand. The device invents nothing: it adds exactly what you enter here and nothing else.",
+  feeKwh:"That is",
+  mixHint:"The ring shows what electricity is being generated from right now, the renewable share sits in the middle and the cross-border balance at the foot. The data is ENTSO-E's, served by the energy-charts API, and is published one to two hours behind - which is why the sample time is printed at the top of the screen.",
+  energySrcHint:"Both sources are free, without a key and without registration. With both screens switched off the device never asks for the data at all.",
   wifi:"WiFi",network:"Network",password:"Password",scan:"Scan",connect:"Connect",
   wifiHint:"After saving the device connects and the access point disappears.",
   wifiHintSta:"Changing the network drops this page. If the connection fails, the device brings up its own MeteoPlaneRadar network and you enter it again.",
@@ -315,6 +420,8 @@ const D={
   pwNone:"No password is set yet - update, import and reset are open.",
   pwSet:"A password is set.",
   passNote:"Note: the default is no password, which leaves update, import and reset open to anyone on the network. The password is stored in the clear because the update page uses HTTP Basic, where a digest cannot be used - so it protects against the household, not against an attacker. A forgotten password can only be cleared by holding BOOT at startup (~3 s), which also erases WiFi and every other setting.",
+  srcTitle:"Data sources",
+  srcIntro:"The data comes from the services below. Several of them require their source to be credited, which is why they are listed here. The full terms are in LICENSE.txt.",
   system:"System",adminPass:"Current password",newPass:"New password",
   passHint:"The current password is needed for updates, import, reset and to change the password itself. An empty new password changes nothing; a single space removes the protection.",
   fwUpdate:"Firmware update",export:"Export settings",import:"Import",reboot:"Reboot",factory:"Factory reset",save:"Save settings",
@@ -327,7 +434,7 @@ const $=id=>document.getElementById(id);
 function setLang(v){L=(v==1||v=="en")?"en":"cs";$("uiLang").value=(L=="en")?"1":"0";
  document.documentElement.lang=L;
  document.querySelectorAll("[data-i18n]").forEach(e=>{const t=D[L][e.dataset.i18n];if(t)e.textContent=t;});
- pwState();status();}
+ pwState();feeHint();status();}
 
 // Tabs. The Save bar is hidden on Control - nothing there is saved, it is sent
 // straight away - so the button cannot look like it applies to the buttons.
@@ -346,7 +453,8 @@ function rgb565ToHex(v){const r=(v>>11&31)*255/31|0,g=(v>>5&63)*255/63|0,b=(v&31
 function hexToRgb565(h){const r=parseInt(h.substr(1,2),16),g=parseInt(h.substr(3,2),16),b=parseInt(h.substr(5,2),16);
  return ((r>>3)<<11)|((g>>2)<<5)|(b>>3);}
 
-const SCR=[["scrClock",0],["scrPlanes",1],["scrMeteo",2],["scrForecast",3],["settings",4]];
+const SCR=[["scrClock",0],["scrPlanes",1],["scrMeteo",2],["scrForecast",3],
+           ["scrPrice",4],["scrMix",5],["settings",6]];
 function drawScrBtns(cur,enabled){
  $("scrBtns").innerHTML=SCR.map(([k,i])=>{
   const on=enabled?enabled[i]:true;
@@ -401,6 +509,11 @@ const AUTO = [
  ["meteoLegend","change","meteoLegend",e=>e.checked],
  ["watch","change","watch",e=>e.value],
  ["autoRotate","change","autoRotate",e=>+e.value],
+ // The tariff fields change nothing but a multiplication, so they take effect
+ // on the next redraw and do not need the Save button or a restart.
+ ["priceFee","change","priceFee",e=>+e.value],
+ ["priceVat","change","priceVat",e=>+e.value],
+ ["mixCountry","change","mixCountry",e=>e.value],
 ];
 function wireAutoSave(){
  AUTO.forEach(([id,ev,key,get])=>{
@@ -421,6 +534,10 @@ async function load(){
  $("lat").value=CFG.lat.toFixed(4);$("lon").value=CFG.lon.toFixed(4);
  $("sClock").checked=CFG.screens.clock;$("sPlanes").checked=CFG.screens.planes;
  $("sMeteo").checked=CFG.screens.meteo;$("sForecast").checked=CFG.screens.forecast;
+ $("sPrice").checked=!!CFG.screens.price;$("sMix").checked=!!CFG.screens.mix;
+ $("priceFee").value=CFG.priceFee||0;$("priceVat").value=CFG.priceVat||0;
+ $("mixCountry").value=CFG.mixCountry||"cz";
+ feeHint();
  $("autoRotate").value=CFG.autoRotate;$("radarSrc").value=CFG.radarSrc;
  $("meteoLegend").checked=CFG.meteoLegend;
  $("briDay").value=CFG.briDay;$("briNight").value=CFG.briNight;
@@ -443,6 +560,22 @@ function pwState(){
 function bri(){$("briDayV").textContent=$("briDay").value+"%";$("briNightV").textContent=$("briNight").value+"%";}
 $("briDay").addEventListener("input",bri);$("briNight").addEventListener("input",bri);
 
+// Suppliers quote the surcharge per kWh and the field takes it per MWh, which
+// is exactly the kind of thousandfold mistake nobody notices until the display
+// says 1800 Kc/kWh. Echoing the value back in the unit the user copied it from
+// makes a slipped decimal point obvious while they are still looking at it.
+function feeHint(){
+ const f=+$("priceFee").value||0, v=+$("priceVat").value||0;
+ if(!f&&!v){$("feeKwh").textContent="";return;}
+ const kwh=f*(1+v/100)/1000;
+ const num=kwh.toFixed(2).replace(".",L=="cs"?",":".");
+ const unit=(L=="cs")?" Kč/kWh":" CZK/kWh";
+ const vatNote=v?((L=="cs")?" včetně DPH":" incl. VAT"):"";
+ $("feeKwh").textContent=D[L].feeKwh+" "+num+unit+vatNote;
+}
+$("priceFee").addEventListener("input",feeHint);
+$("priceVat").addEventListener("input",feeHint);
+
 async function status(){
  try{const s=await(await fetch("/api/status")).json();
  drawScrBtns(s.screen,s.enabled);
@@ -454,6 +587,8 @@ async function status(){
  const rows=[["IP",s.ip],["WiFi",s.ssid+" ("+s.rssi+" dBm)"],["Uptime",s.uptime],
   ["Heap",s.heap+" B"],["PSRAM",s.psram+" B"],["Restart",s.resetReason],
   ["ADS-B",s.adsb],["Radar",s.radar],[D[L].scrForecast,s.forecast],
+  [D[L].scrPrice,s.price],[D[L].scrMix,s.mix],
+  [D[L].timezone,s.timezone],
   ["Firmware","v"+s.version],[D[L].board,s.board]];
  $("statusTab").innerHTML=rows.map(r=>"<tr><td>"+r[0]+"</td><td>"+r[1]+"</td></tr>").join("");}catch(e){}
 }
@@ -469,7 +604,10 @@ function body(){return{lat:parseFloat($("lat").value),lon:parseFloat($("lon").va
  altMin:+$("altMin").value,altMax:+$("altMax").value,onlyCallsign:$("onlyCallsign").checked,
  squawkAlert:$("squawkAlert").checked,watch:$("watch").value,
  password:$("adminPass").value,newPassword:$("newPass").value,
- screens:{clock:$("sClock").checked,planes:$("sPlanes").checked,meteo:$("sMeteo").checked,forecast:$("sForecast").checked}};}
+ priceFee:+$("priceFee").value,priceVat:+$("priceVat").value,
+ mixCountry:$("mixCountry").value,
+ screens:{clock:$("sClock").checked,planes:$("sPlanes").checked,meteo:$("sMeteo").checked,
+  forecast:$("sForecast").checked,price:$("sPrice").checked,mix:$("sMix").checked}};}
 
 async function save(){
  const r=await fetch("/api/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body())});
