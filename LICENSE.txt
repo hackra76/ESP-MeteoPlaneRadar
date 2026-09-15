@@ -123,6 +123,51 @@ require attribution. Please review them before any commercial deployment.
   precipitation radar composite for the Czech Republic.
   ATTRIBUTION REQUIRED: the source must be credited when the data is used.
 
+- Energy-Charts (https://api.energy-charts.info/), operated by Fraunhofer ISE -
+  electricity generation by source, consumption and cross-border flow, used by
+  the generation screen through the /public_power endpoint.
+  Free, no API key.
+  ATTRIBUTION REQUIRED. Their API documentation states: "Unless stated
+  otherwise, the data provided by the Energy-Charts API is licensed under the
+  CC BY 4.0 license. Proper attribution to Energy-Charts.info as the source is
+  required." https://creativecommons.org/licenses/by/4.0/
+
+  RATE LIMIT: 2 requests per minute per client IP and per endpoint, with a
+  burst of 4. This firmware asks once every 15 minutes, and once every 2
+  minutes while retrying after a failure, so it stays inside that limit. If you
+  fork this and shorten MIX_PERIOD_MS in Config.h, check the limit again.
+
+  NOT USED HERE, BUT WORTH KNOWING: the same API also serves a /price endpoint,
+  and that one is NOT uniformly CC BY 4.0. For most bidding zones the price
+  data is marked private and internal use only, with commercial use prohibited
+  unless licensed from the original providers (EPEX SPOT SE among them). This
+  project deliberately takes its electricity price from elsewhere and touches
+  only /public_power. If you add a price chart on top of Energy-Charts, that
+  restriction becomes yours.
+
+- spotovaelektrina.cz (https://spotovaelektrina.cz/api) - Czech spot
+  electricity price in quarter-hour blocks, for today and tomorrow.
+  Free, no API key, no registration. Terms:
+  https://eetplus.cz/smluvni-ujednani-pro-vyuzivani-sluzby-spotovaelektrina-cz/
+
+  The terms ask for no attribution and set no published rate limit, but they
+  also disclaim every warranty: no promise of reliability, availability or
+  fitness for any purpose, and no liability for lost profit or lost data. Treat
+  the number on the screen as information, not as a basis for trading.
+
+  The underlying prices are the day-ahead market results of OTE, a.s., the
+  Czech electricity and gas market operator (https://www.ote-cr.cz/). OTE
+  publishes them itself; spotovaelektrina.cz only redistributes them in a
+  convenient form. OTE's own conditions are contractual rather than an open
+  data license, so confirm your position with OTE before any commercial
+  deployment.
+
+  A NOTE ON THE ENDPOINT: since 1 October 2025 the Czech market trades in
+  quarter-hour blocks. The hourly endpoints still answer, but they return
+  averages of the four quarters and the operator marks them deprecated with
+  "for new projects, do not use". This firmware uses get-prices-json-qh and
+  96 slots per day for that reason.
+
 - RainViewer (https://www.rainviewer.com/) - international precipitation radar.
   Free, no API key, for personal, educational and small-scale community use.
   ATTRIBUTION REQUIRED: RainViewer requires visible credit with a link back to
@@ -138,7 +183,18 @@ require attribution. Please review them before any commercial deployment.
 - ip-api.com (https://ip-api.com/) - approximate location from the IP address.
   The free endpoint is for non-commercial use.
 
-Note on attribution: the settings screen and this file credit the sources
-above. If you build a derivative with a different user interface, make sure the
-required credits (GeoNames, CHMI, RainViewer, Open-Meteo) remain visible
-somewhere the user can find them.
+Note on attribution: the required credits (GeoNames, CHMI, RainViewer,
+Open-Meteo, Energy-Charts.info) are carried by this file and by the "Data
+sources" panel in the System tab of the web interface, which is the one place
+in this project where a clickable link back is actually possible. The panel is
+the credit RainViewer and Energy-Charts ask for - if you build a derivative
+with a different user interface, keep it, or put the same credits somewhere
+your users can reach.
+
+The device screens themselves are 480x480 pixels and deliberately do not carry
+per-source credit lines; there is no room for one that would still be legible
+at arm's length.
+
+Both energy screens are off by default, and while a screen is off the firmware
+never calls its API at all - a device showing neither of them places no load on
+either service.

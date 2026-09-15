@@ -1,8 +1,8 @@
 # MeteoPlaneRadar
 
-**Hodiny, radar letadel, srážkový meteoradar a předpověď počasí na kulatém
-dotykovém displeji.** Běží na deskách Waveshare ESP32-S3-Touch-LCD-2.1
-a ESP32-S3-Touch-LCD-2.8C a nastavuje se z prohlížeče.
+**Hodiny, radar letadel, srážkový meteoradar, předpověď počasí a ceny
+elektřiny na kulatém dotykovém displeji.** Běží na deskách Waveshare
+ESP32-S3-Touch-LCD-2.1 a ESP32-S3-Touch-LCD-2.8C a nastavuje se z prohlížeče.
 
 > Vyvíjí **[chiptron.cz](https://chiptron.cz)** a Claude AI.
 > English version: **[README_EN.md](README_EN.md)**
@@ -16,11 +16,18 @@ a ESP32-S3-Touch-LCD-2.8C a nastavuje se z prohlížeče.
 | **Hodiny** | čas, datum, počasí, vteřinový prstenec | Open-Meteo |
 | **Letadla** | letadla v okolí, detail letu včetně trasy | adsb.fi, adsb.lol |
 | **Meteoradar** | animovaná srážková situace | ČHMÚ nebo RainViewer |
-| **Předpověď** | 6 hodin a 3 dny, ovzduší a pyl | Open-Meteo |
+| **Předpověď** | nyní, +3 h, +6 h, dnes, zítra, pozítří a další dny, ovzduší a pyl | Open-Meteo |
+| **Cena elektřiny** | spotová cena na 24hodinovém ciferníku, dnes i zítra | OTE přes spotovaelektrina.cz |
+| **Výroba ČR** | z čeho se právě vyrábí, podíl OZE, spotřeba, vývoz | ENTSO-E přes energy-charts |
 | **Nastavení** | jas, orientace mapy, jednotky, jazyk | — |
 
-První čtyři jdou vypnout, Nastavení je dostupné vždy. Rozhraní je česky nebo
+Prvních šest jde vypnout, Nastavení je dostupné vždy. Rozhraní je česky nebo
 anglicky.
+
+Obě energetické obrazovky jsou po aktualizaci vypnuté (zapnou se ve webovém
+nastavení) a dokud jsou vypnuté, zařízení si o jejich data vůbec neřekne.
+Zobrazená cena je **burzovní**, ne to, co platíte — vlastní přirážku a DPH
+si lze doplnit na záložce Energie, viz [CHANGELOG](CHANGELOG.md).
 
 ## Hardware
 
@@ -139,6 +146,7 @@ Layout.*              pásy obrazovky a hlídání kolizí
 WebConfig.* WebPage.h webový server, API, portál, OTA
 Net.*                 sdílené HTTPS stahování
 Forecast.*            Open-Meteo: předpověď, slunce, ovzduší
+Energy.*              spotová cena elektřiny a mix výroby ČR
 RainViewer.*          dlaždicový radar
 Screen*.{h,cpp}       jednotlivé obrazovky
 ```
@@ -161,6 +169,8 @@ Jen pro osobní nekomerční použití — respektujte podmínky poskytovatelů.
 **srážky ČR:** [ČHMÚ](https://opendata.chmi.cz) ·
 **srážky svět:** [RainViewer](https://www.rainviewer.com) ·
 **počasí, ovzduší, geokódování:** [Open-Meteo](https://open-meteo.com) ·
+**ceny elektřiny:** OTE-ČR přes [spotovaelektrina.cz](https://spotovaelektrina.cz) ·
+**výroba elektřiny:** ENTSO-E přes [energy-charts](https://api.energy-charts.info) (Fraunhofer ISE) ·
 **poloha podle IP:** [ip-api.com](http://ip-api.com) ·
 **mapa:** hranice Natural Earth (public domain), města [GeoNames](https://www.geonames.org) (CC BY 4.0) ·
 **čas:** hlavička `Date` (bez NTP)

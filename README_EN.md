@@ -1,8 +1,9 @@
 # MeteoPlaneRadar
 
-**A clock, live aircraft radar, precipitation radar and weather forecast on a
-round touchscreen.** Runs on a single Waveshare ESP32-S3-Touch-LCD-2.1 or
-ESP32-S3-Touch-LCD-2.8C board and is configured from a browser.
+**A clock, live aircraft radar, precipitation radar, weather forecast and
+electricity prices on a round touchscreen.** Runs on a single Waveshare
+ESP32-S3-Touch-LCD-2.1 or ESP32-S3-Touch-LCD-2.8C board and is configured from
+a browser.
 
 > Built by **[chiptron.cz](https://chiptron.cz)** with Claude AI.
 > Czech version of this document: [README.md](README.md)
@@ -54,11 +55,16 @@ It is not a phone and does not try to be one.
 | **Clock** | time, date, current weather, seconds ring | Open-Meteo |
 | **Aircraft** | aircraft around you, tap for details and route | adsb.fi, adsb.lol |
 | **Weather radar** | animated precipitation | CHMI or RainViewer |
-| **Forecast** | next 6 hours and 3 days, air quality and pollen | Open-Meteo |
+| **Forecast** | now, two 3-hour windows, today and six more days, air quality and pollen | Open-Meteo |
+| **Electricity price** | spot price on a quarter-hour dial, today and tomorrow | OTE via spotovaelektrina.cz |
+| **Generation** | what the grid is running on, renewable share, load, export | Energy-Charts (Fraunhofer ISE) |
 | **Settings** | brightness, map orientation, units, language | — |
 
-Any of the first four can be switched off in the browser; Settings is always
+Any of the first six can be switched off in the browser; Settings is always
 reachable.
+
+Both energy screens are **off after an update** — turn them on in the browser.
+While a screen is off the device never asks for its data at all.
 
 ### Clock
 
@@ -71,6 +77,14 @@ forecast screen makes anyway.
 
 There is **no NTP client**. The time is taken from the `Date` header of the
 HTTP responses the device makes regardless.
+
+The **time zone** rides along with the forecast: Open-Meteo returns the offset
+for your own coordinates, so it costs no extra request and nothing to set. Until
+the first fetch the rule compiled into `TZ_INFO` in `Config.h` applies, which is
+Central European Time. If the offset from the network matches what is already in
+force, the compiled-in rule stays — so a Czech device keeps real daylight-saving
+dates rather than freezing at one offset. Otherwise the device switches to the
+fixed offset the server reported. The current value is on the web status page.
 
 ### Aircraft
 
@@ -124,9 +138,44 @@ on the other.
 
 ### Forecast
 
-The next **6 hours** on top, the next **3 days** below the line. Each row has a
-vector weather icon derived from the WMO code, temperature, precipitation and
-wind. Days show maximum and minimum. Every value carries its unit.
+**Now**, then two three-hour windows written as the hours they cover
+(`14-17h`), then **today** and six further days labelled by weekday and date
+(`We 16.9.`). Each row has a vector weather icon derived from the WMO code,
+temperature, precipitation and wind. Within a window the temperature is the
+mean, precipitation the sum, wind the peak and the icon the worst of the hours
+in it. Days show maximum and minimum. Every value carries its unit.
+
+### Electricity price
+
+The Czech spot price on a round dial. Since 1 October 2025 the market trades in
+**quarter-hour blocks**, so the dial has 96 sectors rather than 24, coloured
+from cheap to expensive across that day's own range. The middle shows the block
+you are in; tap a sector to read any other. Below it the cheapest and the
+dearest block of the day, each with its time.
+
+Tomorrow's prices appear once the exchange publishes them, usually early
+afternoon; until then that half of the screen says so instead of guessing.
+
+The figure is the **exchange price**, not your bill. Your own margin in CZK/MWh
+and VAT go in on the Energy tab, and the screen states which of the two numbers
+it is showing so nobody compares it with an invoice and concludes the device is
+broken.
+
+This screen is **Czech only** — the source serves no other market — and with a
+location outside the Czech Republic it switches itself off rather than showing
+figures that do not apply to you.
+
+### Generation
+
+A donut of what the grid is running on right now: nuclear, coal, gas, solar,
+wind, hydro, biomass and the rest, each labelled with its name and share. In the
+middle the renewable share, and below it load, together with import or export.
+
+Any European country can be chosen on the Energy tab, or `eu` for the whole
+union. Unknown generation types from the source are counted as "other" and
+logged rather than silently dropped, and the screen cross-checks the total
+against load plus export — if those disagree by more than a little, it says so
+instead of drawing a confident pie of wrong numbers.
 
 ### Air quality and pollen
 
@@ -166,13 +215,14 @@ IP address printed on the Settings screen.
 
 ## Configuration in a browser
 
-The web interface runs permanently and is split into six tabs so it works on a
+The web interface runs permanently and is split into seven tabs so it works on a
 phone: **Control** (switch screens and range remotely, device status),
 **Location** (manual or by searching for a town name), **Screens** (which to
 show, auto-cycling, radar source), **Appearance** (day and night brightness,
 sun-driven night mode, seconds ring, colours), **Aircraft** (filters, squawks,
-watched callsign, map orientation, units) and **System** (password, firmware
-update, settings backup, restart, factory reset).
+watched callsign, map orientation, units), **Energy** (price margin and VAT,
+country for the generation screen) and **System** (password, firmware update,
+settings backup, restart, factory reset, data sources).
 
 Most settings are **saved the moment you change them**. The Save button is only
 needed for the location, the set of screens and the radar source, because those
@@ -253,6 +303,8 @@ Layout.*              screen bands and collision checking
 WebConfig.* WebPage.h web server, API, captive portal, OTA
 Net.*                 shared HTTPS fetching
 Forecast.*            Open-Meteo: forecast, sun times, air quality
+Energy.*              spot electricity price and generation mix
+TimeZone.*            time zone from the location
 RainViewer.*          tile radar
 Screen*.{h,cpp}       individual screens
 ```
@@ -278,19 +330,42 @@ these require credit** — see [LICENSE.txt](LICENSE.txt) for the details.
 | Route | [adsb.lol](https://adsb.lol) | Free, no key; route data by [vradarserver/standing-data](https://github.com/vradarserver/standing-data) |
 | Precipitation (CZ) | [CHMI](https://opendata.chmi.cz) | Attribution required |
 | Precipitation (world) | [RainViewer](https://www.rainviewer.com) | Attribution required |
-| Weather, forecast, sun, air quality, geocoding | [Open-Meteo](https://open-meteo.com) | CC BY 4.0, attribution required, free tier non-commercial |
+| Weather, forecast, sun, air quality, geocoding, time zone | [Open-Meteo](https://open-meteo.com) | CC BY 4.0, attribution required, free tier non-commercial |
+| Electricity price | OTE via [spotovaelektrina.cz](https://spotovaelektrina.cz) | Free, no key; no attribution asked, and no warranty of any kind given |
+| Electricity generation | [Energy-Charts.info](https://energy-charts.info), Fraunhofer ISE | CC BY 4.0, **attribution required**; 2 requests/min per IP per endpoint |
 | Location by IP | [ip-api.com](http://ip-api.com) | Free tier non-commercial |
 | Map | Natural Earth (public domain), [GeoNames](https://www.geonames.org) (CC BY 4.0) | Attribution required |
+
+The same list, with working links, is in the device itself under the **System**
+tab. That panel is not decoration: GeoNames, CHMI, RainViewer, Open-Meteo and
+Energy-Charts all **require** their source to be credited, and RainViewer asks
+for a link back. A 480×480 panel has no room for a legible credit line, so the
+web page is where this project discharges that obligation. In a fork, replace
+it rather than delete it.
+
+Two further notes:
+
+- Only the Energy-Charts `/public_power` endpoint is used. Their `/price`
+  endpoint is **not** uniformly CC BY 4.0 — for most bidding zones it is marked
+  private and internal use only, with commercial use prohibited unless licensed
+  from the original providers. This project deliberately gets its price
+  elsewhere.
+- spotovaelektrina.cz marks its hourly endpoints deprecated ("for new projects,
+  do not use") because they return averages of four quarter-hour blocks. The
+  firmware uses `get-prices-json-qh`.
 
 ## Licence
 
 **MIT** — see [LICENSE.txt](LICENSE.txt). It covers the source code and the
 binaries built from it. Since 0.6.2 the project has no copyleft dependency.
 
-**MIT does not cover the data.** **GeoNames**, **CHMI**, **RainViewer** and
-**Open-Meteo** all require visible attribution, and the free Open-Meteo and
-adsb.fi APIs are for non-commercial use only. LICENSE.txt has the details —
-**read it in full before any commercial deployment.**
+**MIT does not cover the data.** **GeoNames**, **CHMI**, **RainViewer**,
+**Open-Meteo** and **Energy-Charts.info** all require visible attribution, and
+the free Open-Meteo and adsb.fi APIs are for non-commercial use only. The OTE
+prices arrive through spotovaelektrina.cz, whose terms promise nothing about
+reliability, availability or correctness — read the number as information, not
+as a basis for trading. LICENSE.txt has the details — **read it in full before
+any commercial deployment.**
 
 Beyond what the licence requires: if you build on this, I would be glad if you
 kept the **chiptron.cz** credit on the settings screen. A request, not a

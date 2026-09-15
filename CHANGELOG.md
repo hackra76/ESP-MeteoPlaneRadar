@@ -11,6 +11,81 @@ pohromadě v `MeteoPlaneRadar/Config.h`.
 
 ---
 
+## [0.7.0]
+
+### Přidáno
+
+- **Cena elektřiny.** Nová obrazovka se spotovou cenou z denního trhu OTE.
+  Den je prstenec, půlnoc nahoře, ručička ukazuje na aktuální blok. Zelená
+  strana je ta, kdy pustit pračku, červená ta, kdy ne.
+
+  Ceny jsou čtvrthodinové, tedy v blocích, ve kterých se doopravdy obchoduje.
+  Uprostřed svítí cena právě probíhající čtvrthodiny, pod ní nejlevnější a
+  nejdražší blok dne i s časem.
+
+  Klepnutí na prstenec vypíše cenu vybraného bloku, klepnutí doprostřed přepne
+  mezi dneškem a zítřkem. Přejetí prstem dělá totéž. Ceny na zítřek vycházejí
+  kolem 14:00, do té doby je k dispozici jen dnešek.
+
+  Zdrojem je **spotovaelektrina.cz**, zdarma a bez registrace.
+
+  Ceny platí jen pro Česko a jsou v korunách. Když nastavíte polohu mimo ČR,
+  obrazovka se sama vypne a zařízení si o data přestane říkat. Zapnout jde
+  zpátky ručně, blízko hranic to může dávat smysl.
+
+  Číslo na displeji je burzovní cena, ne to, co platíte. Distribuci, regulované
+  složky a marži obchodníka si doplníte na nové záložce Energie. Dokud tam
+  necháte nuly, displej ukazuje čistou burzu a napíše to pod číslo.
+
+- **Výroba ČR.** Druhá nová obrazovka. Prstenec ukazuje, z čeho se právě
+  vyrábí elektřina, uprostřed je podíl obnovitelných zdrojů, spotřeba a saldo
+  přeshraničních toků.
+
+  Zemi si vyberete ve webovém nastavení. Rozhraní pokrývá Evropu, takže
+  obrazovka funguje i na Slovensku nebo v Rakousku, a je tam i volba pro celou
+  Evropu. Mimo Evropu se vypne stejně jako cena.
+
+  Data jsou z ENTSO-E přes rozhraní **energy-charts**, zdarma a bez klíče.
+  Zveřejňují se se zpožděním jedné až dvou hodin, proto je pod čísly napsaný
+  čas vzorku. S hodinami nahoře na displeji se neshoduje a neshodovat se má.
+
+- **Záložka Energie ve webovém nastavení.** Přirážka k burzovní ceně v Kč/MWh
+  a DPH. Ukládá se okamžitě, bez restartu. Stránka pod polem rovnou přepočítá,
+  kolik zadaná hodnota dělá v Kč/kWh, protože ceníky ji uvádějí právě tak.
+
+### Změněno
+
+- **Předpověď ukazuje víc a čte se jinak.** Bylo to šest po sobě jdoucích
+  hodin a tři dny. Teď jsou nahoře tři řádky: nyní a dvě tříhodinová okna
+  popsaná časem, třeba `12-15h` a `15-18h`. Okno sečte srážky, vezme nejsilnější
+  vítr a nejvýraznější ikonu, takže řekne něco, co jednotlivá hodina neumí.
+
+  Pod nimi je dnešek a dny v týdnu i s datem, tolik, kolik se jich do kruhu
+  vejde. Na této desce jich vyjde sedm.
+
+  Ovzduší se vešlo na jeden řádek. Vítr se kreslí až od 12 km/h, stejným
+  pravidlem, jakým se odjakživa řídí srážky.
+
+- **Čas se řídí polohou.** Časové pásmo bylo napevno v `Config.h`, takže deska
+  odvezená do Ameriky ukazovala pražský čas a popisovala předpověď pražskými
+  hodinami. Posun teď chodí spolu s předpovědí z Open-Meteo pro zadané
+  souřadnice, žádný dotaz navíc to nestojí.
+
+  V Česku zůstává zkompilované pravidlo s letním časem. Přepne se jen tehdy,
+  když se s ním zjištěný posun neshoduje.
+
+  Při té příležitosti se opravilo i to, že denní minima a maxima v předpovědi se
+  počítala přes UTC dny, tedy v létě od dvou ráno do dvou ráno.
+
+- **Na displeji je `°C` místo `degC`.** Vestavěný font ten znak má, jen se na
+  něj dosud sahalo špatným kódem.
+
+- **Sedm obrazovek místo pěti.** Obě energetické jsou po aktualizaci vypnuté,
+  zapnete je ve webovém nastavení. Dokud jsou vypnuté, zařízení si o jejich
+  data vůbec neřekne.
+
+---
+
 ## [0.6.6]
 
 ### Přidáno
