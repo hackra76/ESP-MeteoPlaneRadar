@@ -93,6 +93,8 @@
 #include "FinanceData.h"
 #include "ScreenIss.h"
 #include "IssData.h"
+#include "ScreenYouTube.h"
+#include "YouTubeData.h"
 #include "FlightStats.h"
 #include "PrecipTracker.h"
 #include "ScreenSettings.h"
@@ -332,6 +334,7 @@ static void drawActive() {
     case SCREEN_FORECAST_I: ScreenForecast_Draw(); break;
     case SCREEN_FINANCE_I:  ScreenFinance_Draw();  break;
     case SCREEN_ISS_I:      ScreenIss_Draw();      break;
+    case SCREEN_YOUTUBE_I:  ScreenYouTube_Draw();  break;
     case SCREEN_INFO_I:     ScreenInfo_Draw();     break;
     case SCREEN_SETTINGS_I: ScreenSettings_Draw(); break;
   }
@@ -353,6 +356,7 @@ static void enterActive() {
     case SCREEN_FORECAST_I: ScreenForecast_Enter(); break;
     case SCREEN_FINANCE_I:  ScreenFinance_Enter();  break;
     case SCREEN_ISS_I:      ScreenIss_Enter();      break;
+    case SCREEN_YOUTUBE_I:  ScreenYouTube_Enter();  break;
     case SCREEN_INFO_I:     ScreenInfo_Enter();     break;
     case SCREEN_SETTINGS_I: ScreenSettings_Enter(); break;
   }
@@ -399,6 +403,7 @@ static bool activeTick() {
     case SCREEN_FORECAST_I: return ScreenForecast_Tick();
     case SCREEN_FINANCE_I:  return ScreenFinance_Tick();
     case SCREEN_ISS_I:      return ScreenIss_Tick();
+    case SCREEN_YOUTUBE_I:  return ScreenYouTube_Tick();
     case SCREEN_INFO_I:     return ScreenInfo_Tick();
     case SCREEN_SETTINGS_I: return ScreenSettings_Tick();
   }
@@ -429,6 +434,7 @@ static bool activeTap(int x, int y) {
     case SCREEN_TACTICAL_I: return ScreenTactical_HandleTap(x, y);
     case SCREEN_FINANCE_I:  return ScreenFinance_HandleTap(x, y);
     case SCREEN_ISS_I:      return ScreenIss_HandleTap(x, y);
+    case SCREEN_YOUTUBE_I:  return ScreenYouTube_HandleTap(x, y);
     case SCREEN_INFO_I:     return ScreenInfo_HandleTap(x, y);
     case SCREEN_SETTINGS_I: return ScreenSettings_HandleTap(x, y);
     default: return false;
@@ -691,6 +697,7 @@ void setup() {
 
   Finance_Init();
   Iss_Init();
+  YouTube_Init();
   Async_Begin();
   Async_SetActiveScreen((uint8_t)s_screen);
 

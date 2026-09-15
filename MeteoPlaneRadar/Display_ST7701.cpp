@@ -316,10 +316,10 @@ void Set_Backlight(uint8_t light) {
   ledcWrite(LCD_BL_PIN, duty);
 }
 
-// Reset RGB timing / line state and sync with VSYNC (used for OTA recovery)
+// Reset RGB timing / line state and sync with VSYNC
+// Note: esp_lcd_rgb_panel_restart is intentionally disabled in bounce-buffer mode
+// due to ESP-IDF issue IDFGH-18263 (bb_eof_count parity inversion causes permanent wrap-around).
 void LCD_Restart() {
-  if (panel_handle) {
-    esp_lcd_rgb_panel_restart(panel_handle);
-  }
+  // No-op to protect bounce buffer parity
 }
 

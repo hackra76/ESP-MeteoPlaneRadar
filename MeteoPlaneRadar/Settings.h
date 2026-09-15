@@ -102,6 +102,12 @@ void        Settings_SetFinanceGraphType(uint8_t type);
 bool        Settings_IssAlert();
 void        Settings_SetIssAlert(bool on);
 
+// --- YouTube Analytics ------------------------------------------------------
+const char* Settings_YouTubeApiKey();
+void        Settings_SetYouTubeApiKey(const char* key);
+const char* Settings_YouTubeChannel();
+void        Settings_SetYouTubeChannel(const char* ch);
+
 // --- Weather radar ----------------------------------------------------------
 uint8_t Settings_RadarSource();            // RADAR_SRC_CHMU / RADAR_SRC_RAINVIEWER / RADAR_SRC_SHMU
 void    Settings_SetRadarSource(uint8_t s);

@@ -73,10 +73,9 @@ bool ScreenClock_Tick() {
     s_lastMin = lt.tm_min;
     return true;
   }
-  // In analog, orbital, hud, regulator modes or when seconds ring is active, update every second
+  // In analog, orbital, regulator modes or when seconds ring is active, update every second
   bool secTick = (Settings_ClockStyle() == CLOCK_STYLE_ANALOG ||
                   Settings_ClockStyle() == CLOCK_STYLE_ORBITAL ||
-                  Settings_ClockStyle() == CLOCK_STYLE_HUD ||
                   Settings_ClockStyle() == CLOCK_STYLE_REGULATOR ||
                   Settings_SecondsStyle() != SEC_STYLE_OFF);
   if (secTick) {
@@ -413,109 +412,6 @@ static void drawOrbitalClock(const struct tm* lt, time_t now) {
     snprintf(mbuf, sizeof(mbuf), "%.0f%%", moon.illumination);
     Astro_DrawMoonIcon(CX - 18, CY + 72, 10, moon.phase);
     UI_Text(mbuf, CX + 4, CY + 66, C_GRAY, 1);
-  }
-}
-
-// 2. Fighter HUD (Cockpit Head-Up Display)
-static void drawHudClock(const struct tm* lt, time_t now) {
-  uint16_t hudCol = Settings_ClockColor();
-  uint16_t dimHud = dim(hudCol, 1, 3);
-
-  // Top Compass Heading Tape
-  float liveHdg = QMI8658_GetHeading();
-  int hdgInt = ((int)roundf(liveHdg) % 360 + 360) % 360;
-  char hdgTxt[16];
-  snprintf(hdgTxt, sizeof(hdgTxt), "HDG %03d", hdgInt);
-  UI_TextCentered(hdgTxt, 42, hudCol, 1);
-
-  gfx->drawFastHLine(CX - 140, 68, 280, dimHud);
-  int offsetDeg = hdgInt % 10;
-  for (int h = -40; h <= 40; h += 10) {
-    int x = CX + (h - offsetDeg) * 3;
-    if (x >= CX - 140 && x <= CX + 140) {
-      gfx->drawFastVLine(x, 64, 8, hudCol);
-    }
-  }
-  gfx->fillTriangle(CX - 5, 58, CX + 5, 58, CX, 66, hudCol);
-
-  // Pitch Ladder
-  gfx->drawFastHLine(CX - 130, CY, 60, hudCol);
-  gfx->drawFastHLine(CX + 70, CY, 60, hudCol);
-  gfx->drawFastVLine(CX - 130, CY, 10, hudCol);
-  gfx->drawFastVLine(CX + 130, CY, 10, hudCol);
-
-  gfx->drawFastHLine(CX - 80, CY - 55, 40, dimHud);
-  gfx->drawFastVLine(CX - 80, CY - 55, 6, dimHud);
-  gfx->drawFastHLine(CX + 40, CY - 55, 40, dimHud);
-  gfx->drawFastVLine(CX + 80, CY - 55, 6, dimHud);
-  UI_Text("10", CX - 100, CY - 60, dimHud, 1);
-  UI_Text("10", CX + 88, CY - 60, dimHud, 1);
-
-  for (int dx = 0; dx < 40; dx += 8) {
-    gfx->drawFastHLine(CX - 80 + dx, CY + 55, 4, dimHud);
-    gfx->drawFastHLine(CX + 40 + dx, CY + 55, 4, dimHud);
-  }
-  gfx->drawFastVLine(CX - 80, CY + 49, 6, dimHud);
-  gfx->drawFastVLine(CX + 80, CY + 49, 6, dimHud);
-  UI_Text("-10", CX - 104, CY + 50, dimHud, 1);
-  UI_Text("-10", CX + 88, CY + 50, dimHud, 1);
-
-  // Center Aircraft Reticle
-  gfx->drawCircle(CX, CY, 8, hudCol);
-  gfx->drawPixel(CX, CY, hudCol);
-  gfx->drawFastHLine(CX - 18, CY, 7, hudCol);
-  gfx->drawFastHLine(CX + 12, CY, 7, hudCol);
-
-  // Target Lock Box (Locked on time)
-  char hhmmss[16];
-  snprintf(hhmmss, sizeof(hhmmss), "%02d:%02d:%02d", lt->tm_hour, lt->tm_min, lt->tm_sec);
-  int tw = Layout_TextW(hhmmss, 3);
-  int bx = CX - tw / 2 - 12, by = CY - 18, bw = tw + 24, bh = 36;
-  int cLen = 8;
-  gfx->drawFastHLine(bx, by, cLen, hudCol);
-  gfx->drawFastVLine(bx, by, cLen, hudCol);
-  gfx->drawFastHLine(bx + bw - cLen, by, cLen, hudCol);
-  gfx->drawFastVLine(bx + bw, by, cLen, hudCol);
-  gfx->drawFastHLine(bx, by + bh, cLen, hudCol);
-  gfx->drawFastVLine(bx, by + bh - cLen, cLen, hudCol);
-  gfx->drawFastHLine(bx + bw - cLen, by + bh, cLen, hudCol);
-  gfx->drawFastVLine(bx + bw, by + bh - cLen, cLen, hudCol);
-  UI_TextCentered(hhmmss, CY - 11, hudCol, 3);
-  UI_Text("SYS·TGT·LOCK", CX - 36, by - 12, dimHud, 1);
-
-  // Left Tape (Weather / Temp)
-  gfx->drawFastVLine(55, 120, 240, dimHud);
-  for (int y = 120; y <= 360; y += 24) {
-    gfx->drawFastHLine(50, y, 6, dimHud);
-  }
-  if (Settings_ClockShowWeather() && Forecast_CurrentValid()) {
-    char tbuf[16];
-    snprintf(tbuf, sizeof(tbuf), "%d°", (int)lroundf(Forecast_CurrentTemp()));
-    gfx->drawRect(16, CY - 14, 52, 28, hudCol);
-    Font_DrawCentered(tbuf, 42, CY - 7, hudCol, 2);
-    WxIcon_Draw(42, CY - 36, 12, Forecast_CurrentCode(), Settings_IsNight());
-  }
-
-  // Right Tape (Wind speed)
-  gfx->drawFastVLine(425, 120, 240, dimHud);
-  for (int y = 120; y <= 360; y += 24) {
-    gfx->drawFastHLine(425, y, 6, dimHud);
-  }
-  if (Settings_ClockShowWind() && Forecast_CurrentValid()) {
-    char wbuf[16];
-    snprintf(wbuf, sizeof(wbuf), "%d", (int)lroundf(Forecast_CurrentWind()));
-    gfx->drawRect(412, CY - 14, 52, 28, hudCol);
-    Font_DrawCentered(wbuf, 438, CY - 7, hudCol, 2);
-    UI_Text("WND", 423, CY - 26, dimHud, 1);
-    UI_Text("KMH", 423, CY + 18, dimHud, 1);
-  }
-
-  // Tactical Bottom Info Line
-  if (Settings_ClockShowDate()) {
-    char dLine[48];
-    snprintf(dLine, sizeof(dLine), "UTC %02d:%02d · %s %02d",
-             lt->tm_hour, lt->tm_min, Lang_MonthName(lt->tm_mon), lt->tm_mday);
-    UI_TextCentered(dLine, 410, dimHud, 1);
   }
 }
 
@@ -1002,9 +898,6 @@ void ScreenClock_Draw() {
       break;
     case CLOCK_STYLE_ORBITAL:
       drawOrbitalClock(&lt, now);
-      break;
-    case CLOCK_STYLE_HUD:
-      drawHudClock(&lt, now);
       break;
     case CLOCK_STYLE_REGULATOR:
       drawRegulatorClock(&lt, now);

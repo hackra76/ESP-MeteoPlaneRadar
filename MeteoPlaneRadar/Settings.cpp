@@ -37,14 +37,16 @@ static bool    s_metric = false;
 static uint8_t s_lang   = LANG_EN;
 static char    s_tz[64] = TZ_INFO;
 
-// Bit per data screen (bit 0 = clock ... bit 7 = info).
+// Bit per data screen (bit 0 = clock ... bit 9 = settings).
 static uint16_t s_scrMask = (1 << SCREEN_CLOCK_I) | (1 << SCREEN_PLANES_I) |
                             (1 << SCREEN_METEO_I) | (1 << SCREEN_TACTICAL_I) |
                             (1 << SCREEN_FORECAST_I) | (1 << SCREEN_FINANCE_I) |
-                            (1 << SCREEN_ISS_I) | (1 << SCREEN_INFO_I);
+                            (1 << SCREEN_ISS_I) | (1 << SCREEN_YOUTUBE_I) | (1 << SCREEN_INFO_I);
 static char     s_finTickers[128] = DEFAULT_FINANCE_TICKERS;
 static uint8_t  s_finGraphType = FIN_GRAPH_LINE;
 static bool     s_issAlert = true;
+static char     s_ytApiKey[64] = "";
+static char     s_ytChannel[64] = "";
 static uint16_t s_autoRot = 0;
 static uint8_t s_radarSrc = RADAR_SRC_CHMU;
 static bool    s_smoothRadar = true;
@@ -171,6 +173,7 @@ void Settings_Begin() {
   bool migrateInfoScr = false;
   bool migrateFinScr = false;
   bool migrateIssScr = false;
+  bool migrateYtScr = false;
   if (prefs.begin(NS, true)) {
     s_lat    = prefs.getDouble("lat", DEFAULT_LAT);
     s_lon    = prefs.getDouble("lon", DEFAULT_LON);
@@ -200,7 +203,17 @@ void Settings_Begin() {
       s_scrMask |= (1 << SCREEN_ISS_I);
       migrateIssScr = true;
     }
+    if (!prefs.isKey("ytScrInit")) {
+      s_scrMask |= (1 << SCREEN_YOUTUBE_I);
+      migrateYtScr = true;
+    }
     s_issAlert = prefs.getBool("issAlert", true);
+    if (prefs.isKey("ytKey")) {
+      prefs.getString("ytKey", s_ytApiKey, sizeof(s_ytApiKey));
+    }
+    if (prefs.isKey("ytChan")) {
+      prefs.getString("ytChan", s_ytChannel, sizeof(s_ytChannel));
+    }
     if (prefs.isKey("finTk")) {
       prefs.getString("finTk", s_finTickers, sizeof(s_finTickers));
     }
@@ -219,6 +232,7 @@ void Settings_Begin() {
     s_smoothRadar = prefs.getBool("smoothRad", true);
     s_secStyle = prefs.getUChar("secSt", SEC_STYLE_DOTS);
     s_clockStyle = prefs.getUChar("clkSt", CLOCK_STYLE_DIGITAL);
+    if (s_clockStyle > CLOCK_STYLE_MAX) s_clockStyle = CLOCK_STYLE_DIGITAL;
     s_clockCol = prefs.getUShort("clkC", 0xFFFF);
     s_secCol   = prefs.getUShort("secC", 0x05FF);
     s_clkShowDate = prefs.getBool("cDate", true);
@@ -321,6 +335,12 @@ void Settings_Begin() {
   }
   if (migrateIssScr && prefs.begin(NS, false)) {
     prefs.putBool("issScrInit", true);
+    prefs.putUChar("scrM", (uint8_t)s_scrMask);
+    prefs.putUShort("scrM16", s_scrMask);
+    prefs.end();
+  }
+  if (migrateYtScr && prefs.begin(NS, false)) {
+    prefs.putBool("ytScrInit", true);
     prefs.putUChar("scrM", (uint8_t)s_scrMask);
     prefs.putUShort("scrM16", s_scrMask);
     prefs.end();
@@ -615,6 +635,24 @@ void Settings_SetIssAlert(bool on) {
   putBool("issAlert", on);
 }
 
+const char* Settings_YouTubeApiKey() { return s_ytApiKey; }
+void Settings_SetYouTubeApiKey(const char* key) {
+  if (!key) key = "";
+  if (strcmp(s_ytApiKey, key) == 0) return;
+  strncpy(s_ytApiKey, key, sizeof(s_ytApiKey) - 1);
+  s_ytApiKey[sizeof(s_ytApiKey) - 1] = '\0';
+  putStr("ytKey", s_ytApiKey);
+}
+
+const char* Settings_YouTubeChannel() { return s_ytChannel; }
+void Settings_SetYouTubeChannel(const char* ch) {
+  if (!ch) ch = "";
+  if (strcmp(s_ytChannel, ch) == 0) return;
+  strncpy(s_ytChannel, ch, sizeof(s_ytChannel) - 1);
+  s_ytChannel[sizeof(s_ytChannel) - 1] = '\0';
+  putStr("ytChan", s_ytChannel);
+}
+
 // --- Weather radar ----------------------------------------------------------
 uint8_t Settings_RadarSource() { return s_radarSrc; }
 void    Settings_SetRadarSource(uint8_t s) {
@@ -884,9 +922,12 @@ void Settings_ToJson(JsonObject o) {
   scr["info"]     = Settings_ScreenEnabled(SCREEN_INFO_I);
   scr["finance"]  = Settings_ScreenEnabled(SCREEN_FINANCE_I);
   scr["iss"]      = Settings_ScreenEnabled(SCREEN_ISS_I);
+  scr["youtube"]  = Settings_ScreenEnabled(SCREEN_YOUTUBE_I);
   o["financeTickers"] = s_finTickers;
   o["financeGraph"]   = s_finGraphType;
   o["issAlert"]   = s_issAlert;
+  o["youtubeKey"] = s_ytApiKey;
+  o["youtubeChannel"] = s_ytChannel;
 }
 
 bool Settings_FromJson(JsonObjectConst in) {
@@ -960,6 +1001,8 @@ bool Settings_FromJson(JsonObjectConst in) {
   setIf("financeTickers",  [](JsonVariantConst v){ Settings_SetFinanceTickers(v.as<const char*>()); });
   setIf("financeGraph",    [](JsonVariantConst v){ Settings_SetFinanceGraphType(v.as<uint8_t>()); });
   setIf("issAlert",        [](JsonVariantConst v){ Settings_SetIssAlert(v.as<bool>()); });
+  setIf("youtubeKey",      [](JsonVariantConst v){ Settings_SetYouTubeApiKey(v.as<const char*>()); });
+  setIf("youtubeChannel",  [](JsonVariantConst v){ Settings_SetYouTubeChannel(v.as<const char*>()); });
 
   if (!in["altMin"].isNull() || !in["altMax"].isNull()) {
     uint16_t lo = in["altMin"].isNull() ? s_altMin : in["altMin"].as<uint16_t>();
@@ -978,6 +1021,7 @@ bool Settings_FromJson(JsonObjectConst in) {
       { "forecast", SCREEN_FORECAST_I },
       { "finance",  SCREEN_FINANCE_I },
       { "iss",      SCREEN_ISS_I },
+      { "youtube",  SCREEN_YOUTUBE_I },
       { "info",     SCREEN_INFO_I },
     };
     for (auto& m : M) {

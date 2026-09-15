@@ -93,41 +93,47 @@ The round 480×480 display features **7 completely distinct geometry styles** wi
 - **Telemetry HUD**: Live altitude, velocity, slant distance, next pass countdown, and peak elevation prediction.
 - **Acoustic Proximity Ping**: Sonar ping (`BEEP_SONAR_PING`) when the ISS enters visible range.
 
-### 📊 11. Daily Air Traffic Statistics & Info Screen (`ScreenInfo`)
+### ▶️ 11. YouTube Channel Analytics (`ScreenYouTube`)
+- **Live Channel Metrics**: Real-time subscribers count, total channel view count, and latest video upload stats powered by official YouTube Data API v3.
+- **High-Impact Typography**: Prominent subscriber number rendered with custom bold vector font (`FONT_HERO`, 32 px).
+- **Dual Telemetry Cards**: Symmetrically balanced split cards displaying Total Views (cyan) with video count badge, and Latest Video (gold) with NEW indicator and word-wrapped video title.
+- **On-Demand & Background Polling**: Instant refresh on screen tap with acoustic feedback; background polling respects quota limits.
+
+### 📊 12. Daily Air Traffic Statistics & Info Screen (`ScreenInfo`)
 - Tracks 24-hour airspace activity: unique aircraft count, speed record with callsign, maximum detection distance with callsign, altitude flight level span (FL min/max), and total ADS-B reports received.
 - **Configurable Filter**: Count all received ADS-B aircraft or only planes within the active zoom radius. Auto-resets at midnight.
 
-### 🔊 12. Active Buzzer Acoustic Alert System
+### 🔊 13. Active Buzzer Acoustic Alert System
 - Onboard active buzzer integration for emergency squawks (7700/7600/7500), watched aircraft entry, overhead passes, approaching storm alerts, sonar pings, hourly chimes, touch clicks, and automatic night-time muting.
 
-### 🌙 13. Ultra Night Mode & Ambient Display Control
+### 🌙 14. Ultra Night Mode & Ambient Display Control
 - **Deep-Red Night Mode**: Monochromatic deep-red sleep mode running at ultra-low backlight brightness (0.5%) to preserve dark-adapted vision.
 - **Night Clock Only Mode (`nightClockOnly`)**: Automatically stops screen cycling during sleep hours and locks the display dimmed onto the Clock face.
 
-### 📱 14. Quick Control Center & Smart Gestures
+### 📱 15. Quick Control Center & Smart Gestures
 - Pull-down drawer from top edge for instant control of brightness, night mode, buzzer mute, legend toggle, and screen cycling.
 - Smartphone-like touch gestures: horizontal swipes for screen transitions, vertical swipe for watchface style and radar zoom.
 
-### 🕒 15. Hardware RTC (PCF85063) & Power Independence
+### 🕒 16. Hardware RTC (PCF85063) & Power Independence
 - Automatic boot and network NTP synchronization with the onboard PCF85063 real-time clock.
 - Supports soldering a **3.3V 1.0F–1.5F supercapacitor** to the `BAT` and `GND` pads for battery-free timekeeping during power outages.
 
-### 🖥️ 16. Rock-Solid ST7701 Display Driver
+### 🖥️ 17. Rock-Solid ST7701 Display Driver
 - Calibrated 8 MHz RGB pixel clock with widened timing porches (`HBP 50`, `VPW 8`, `VBP 20`), 4 MHz SPI init, and deferred display enablement permanently eliminating hardware vertical image wrap and row counter desynchronization.
 - Configurable manual screen orientation (0°, 90°, 180°, 270°).
 
-### ⚡ 17. Robust Dual-Core FreeRTOS Architecture
+### ⚡ 18. Robust Dual-Core FreeRTOS Architecture
 - **Core 1:** Dedicated to ST7701 RGB rendering (double-framebuffer, zero flicker), CST820 capacitive touch, and UI animations.
 - **Core 0 (`AsyncNetWorker`):** Non-blocking background worker handling mbedTLS handshakes, radar tile caching, ADS-B JSON parsing, and HTTP web serving with cooperative dual-core network arbitration.
 
-### 🌐 18. Comprehensive Web Dashboard & Zero-Fail OTA
+### 🌐 19. Comprehensive Web Dashboard & Zero-Fail OTA
 - Complete device configuration, screen switching, and remote controls.
 - Live telemetry tables for ADS-B flights and ISS status.
 - Real-time web serial monitor (64 KB PSRAM ring buffer) over Wi-Fi without USB cables.
 - Remote uncompressed 24-bit BMP screenshot capture tool.
 - **Zero-Fail OTA**: Proactive PSRAM cache reclamation (>6 MB freed) and automatic direct-to-flash streaming fallback.
 
-### 🔌 19. Smart Home REST API
+### 🔌 20. Smart Home REST API
 - Direct JSON REST endpoints for Home Assistant, Node-RED, or scripts (`/api/status`, `/api/hardware`, `/api/screen`, `/api/toggle-legends`, `/api/rtc/sync_ntp`).
 
 ---
@@ -136,7 +142,7 @@ The round 480×480 display features **7 completely distinct geometry styles** wi
 
 | Screen | Preview | Description | Data Source |
 | :--- | :---: | :--- | :--- |
-| **1. Clock** | <img src="docs/media/clock_stacked_bold.png" width="70" /> | 7 selectable watchfaces (Stacked Bold, Aviator, HUD, etc.), forecast pills, weather, moon phase, solar arc | Open-Meteo & Astro Engine |
+| **1. Clock** | <img src="docs/media/clock_stacked_bold.png" width="70" /> | 6 selectable watchfaces (Stacked Bold, Aviator, Orbital, Régulateur, Nordic Minimal, Classic Digital), forecast pills, weather, moon phase, solar arc | Open-Meteo & Astro Engine |
 | **2. Planes** | <img src="docs/media/plane_radar_live.png" width="70" /> | 360° airspace tracking, emergency squawks (7700/7600), airline routes, airport beacons, range rings | adsb.fi / adsb.lol |
 | **2b. Aircraft Detail** | <img src="docs/media/plane_detail_photo.png" width="70" /> | Tap any aircraft to reveal full telemetry, route origin/destination, and high-res aircraft photography | Planespotters.net API |
 | **3. Weather Radar** | <img src="docs/media/weather_radar_chmu.gif" width="70" /> | Animated precipitation radar loop with smooth cross-dissolve, reflectivity scale, and city markers | SHMÚ (SK), ČHMÚ (CZ), RainViewer |
@@ -144,8 +150,9 @@ The round 480×480 display features **7 completely distinct geometry styles** wi
 | **5. Forecast** | <img src="docs/media/forecast_screen.png" width="70" /> | Hourly temperature, wind, and rain curves, 3-day forecast, Air Quality (AQI), PM2.5, and pollen count | Open-Meteo Weather & Air Quality |
 | **6. Markets & Crypto** | <img src="docs/media/finance_screen.png" width="70" /> | Real-time tracking of 4 customizable market tickers (ETFs, Stocks, Commodities, Crypto, Forex) with interactive sparkline charts | Yahoo Finance v8 |
 | **7. ISS Orbit Tracker** | <img src="docs/media/screen_iss_live.png" width="70" /> | Global equirectangular world map with real-time day/night solar terminator, past/future orbits, footprint ring, next pass countdown | WhereTheISS API |
-| **8. Air Traffic Stats** | <img src="docs/media/flight_stats_screen.png" width="70" /> | Daily 24h airspace activity: unique aircraft count, speed record, altitude span, max range, ADS-B reports | FreeRTOS PSRAM Tracker |
-| **9. Settings** | <img src="docs/media/settings_screen.png" width="70" /> | Device telemetry, IP address, brightness slider, map orientation, radar smoothing, language selector | System |
+| **8. YouTube Analytics** | <img src="docs/media/youtube_screen.png" width="70" /> | Live channel analytics: subscriber count (large bold typography), total channel views, and latest video upload stats | YouTube Data API v3 |
+| **9. Air Traffic Stats** | <img src="docs/media/flight_stats_screen.png" width="70" /> | Daily 24h airspace activity: unique aircraft count, speed record, altitude span, max range, ADS-B reports | FreeRTOS PSRAM Tracker |
+| **10. Settings** | <img src="docs/media/settings_screen.png" width="70" /> | Device telemetry, IP address, brightness slider, map orientation, radar smoothing, language selector | System |
 
 ---
 

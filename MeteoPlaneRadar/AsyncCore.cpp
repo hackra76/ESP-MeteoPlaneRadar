@@ -25,6 +25,7 @@
 #include "GithubOTA.h"
 #include "FinanceData.h"
 #include "IssData.h"
+#include "YouTubeData.h"
 #include "ScreenWeather.h"
 #include <WiFi.h>
 
@@ -47,6 +48,7 @@ static volatile bool s_radarUpdated = false;
 static volatile bool s_forecastUpdated = false;
 static volatile bool s_financeUpdated = false;
 static volatile bool s_issUpdated = false;
+static volatile bool s_youtubeUpdated = false;
 static volatile bool s_routeUpdated = false;
 
 // Active state for Core 0
@@ -59,6 +61,7 @@ static volatile bool s_reqRadar = false;
 static volatile bool s_reqForecast = false;
 static volatile bool s_reqFinance = false;
 static volatile bool s_reqIss = false;
+static volatile bool s_reqYouTube = false;
 
 // Mutex Helpers
 void Async_LockSettings()  { if (s_mtxSettings) xSemaphoreTake(s_mtxSettings, pdMS_TO_TICKS(200)); }
@@ -110,6 +113,7 @@ void Async_RequestRoute(const char* callsign, float lat, float lon) {
 
 void Async_RequestFinance() { s_reqFinance = true; }
 void Async_RequestIss()     { s_reqIss = true; }
+void Async_RequestYouTube() { s_reqYouTube = true; }
 
 bool Async_TakeAdsbUpdated() {
   if (s_adsbUpdated) { s_adsbUpdated = false; return true; }
@@ -136,6 +140,11 @@ bool Async_TakeIssUpdated() {
   return false;
 }
 
+bool Async_TakeYouTubeUpdated() {
+  if (s_youtubeUpdated) { s_youtubeUpdated = false; return true; }
+  return false;
+}
+
 bool Async_TakeRouteUpdated() {
   if (s_routeUpdated) { s_routeUpdated = false; return true; }
   return false;
@@ -153,6 +162,7 @@ static void asyncWorkerTask(void* param) {
   unsigned long lastRadarFetch = 0;
   unsigned long lastFinanceFetch = 0;
   unsigned long lastIssFetch = 0;
+  unsigned long lastYouTubeFetch = 0;
 
   Serial.println("AsyncCore: Worker task running on Core 0");
 
@@ -302,7 +312,7 @@ static void asyncWorkerTask(void* param) {
             }
           }
           // 7. ISS Orbit Tracker
-          else if (curScr == SCREEN_ISS_I || s_reqIss ||
+          else if (s_reqIss ||
                    (now - lastIssFetch >= (Settings_ScreenEnabled(SCREEN_ISS_I) ? ((curScr == SCREEN_ISS_I) ? ISS_PERIOD_ACTIVE_MS : ISS_PERIOD_BG_MS) : 60000UL))) {
             if (Iss_Step()) {
               s_issUpdated = true;
@@ -310,6 +320,16 @@ static void asyncWorkerTask(void* param) {
             }
             s_reqIss = false;
             lastIssFetch = now;
+          }
+          // 8. YouTube Analytics
+          else if (s_reqYouTube ||
+                   (now - lastYouTubeFetch >= (Settings_ScreenEnabled(SCREEN_YOUTUBE_I) ? ((curScr == SCREEN_YOUTUBE_I) ? YOUTUBE_PERIOD_ACTIVE_MS : YOUTUBE_PERIOD_BG_MS) : 3600000UL))) {
+            if (YouTube_Step()) {
+              s_youtubeUpdated = true;
+              lastTlsTime = millis();
+            }
+            s_reqYouTube = false;
+            lastYouTubeFetch = now;
           }
         }
         s_core0NetBusy = false;

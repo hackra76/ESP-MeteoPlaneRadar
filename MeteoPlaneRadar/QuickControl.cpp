@@ -477,10 +477,9 @@ void QuickControl_Draw(int currentScreen) {
       case 0: cStyle = "Ciferník: Digitálny"; break;
       case 1: cStyle = "Ciferník: Analógový"; break;
       case 2: cStyle = "Ciferník: Orbitálny"; break;
-      case 3: cStyle = "Ciferník: HUD";       break;
-      case 4: cStyle = "Ciferník: Regulátor"; break;
-      case 5: cStyle = "Ciferník: Vrstvený";  break;
-      case 6: cStyle = "Ciferník: Minimálny"; break;
+      case 3: cStyle = "Ciferník: Regulátor"; break;
+      case 4: cStyle = "Ciferník: Vrstvený";  break;
+      case 5: cStyle = "Ciferník: Minimálny"; break;
     }
     drawButton(CW_X + 16,  y3, CW_W - 32, 34, cStyle, false);
     drawButton(CW_X + 16,  y4, CW_W - 32, 34, Settings_ClockShowAstro() ? "Solárny oblúk: ZAP" : "Solárny oblúk: VYP", Settings_ClockShowAstro());

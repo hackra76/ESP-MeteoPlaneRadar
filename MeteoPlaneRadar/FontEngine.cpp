@@ -37,12 +37,15 @@ static const uint8_t* getFontForSize(uint8_t size) {
     case FONT_LARGE:  return u8g2_font_helvR14_te;
     case FONT_TITLE:  return u8g2_font_helvR18_te;
     case FONT_HUGE:   return u8g2_font_helvB24_te;
+    case FONT_HERO:   return u8g2_font_logisoso32_tr;
     case FONT_CLOCK:  return u8g2_font_logisoso58_tn;
     default:
       if (size >= 8) return u8g2_font_logisoso58_tn;
+      if (size == 6) return u8g2_font_logisoso32_tr;
       if (size <= 1) return u8g2_font_helvB10_te;
       if (size == 2) return u8g2_font_helvB12_te;
       if (size == 3) return u8g2_font_helvR14_te;
+      if (size == 5) return u8g2_font_helvB24_te;
       return u8g2_font_helvR18_te;
   }
 }
@@ -136,10 +139,13 @@ int16_t Font_TextHeight(uint8_t size) {
     case FONT_LARGE:  return 14;
     case FONT_TITLE:  return 18;
     case FONT_HUGE:   return 24;
+    case FONT_HERO:   return 32;
     default:
+      if (size == 6) return 32;
       if (size <= 1) return 10;
       if (size == 2) return 12;
       if (size == 3) return 14;
+      if (size == 5) return 24;
       return 18;
   }
 }

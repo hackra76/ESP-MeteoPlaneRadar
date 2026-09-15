@@ -470,7 +470,6 @@ static void downloadAndFlashTask(void* param) {
             lastDrawnMs = millis();
             UI_DrawOtaProgress("GitHub OTA", s_otaProgress, downloaded, (size_t)totalLen, nullptr);
           }
-          LCD_Restart();
         }
       } else {
         if (downloaded + avail > ramCap) {
@@ -563,8 +562,7 @@ static void downloadAndFlashTask(void* param) {
           break;
         }
         written += toWrite;
-        vTaskDelay(pdMS_TO_TICKS(25)); // Give ST7701 RGB DMA full access to PSRAM between flash writes
-        LCD_Restart();                // Resync timing
+        vTaskDelay(pdMS_TO_TICKS(20)); // Give ST7701 RGB DMA uninterrupted access to PSRAM between flash writes
         Watchdog_Feed();
       }
       if (s_otaError.length() == 0 && Update.end(true)) {

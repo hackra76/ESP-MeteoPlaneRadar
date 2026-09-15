@@ -9,6 +9,29 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [1.9.7] - 2026-09-15
+
+### Pridané / Added
+- **Nová obrazovka: Analytika YouTube kanála (YouTube Channel Analytics Screen):**
+  - Nová samostatná obrazovka (`SCREEN_YOUTUBE_I`) zobrazujúca aktuálne metriky YouTube kanála v reálnom čase pomocou oficiálneho YouTube Data API v3.
+  - Výrazná Hero karta s počtom odberateľov (Subscribers) v novom veľkom bold štýle písma `FONT_HERO` (32 px) a presným celkovým počtom odberateľov.
+  - Spodné rozdelené karty s celkovým počtom pozretí kanála (Total Views) s čipom počtu videí a štatistikou najnovšieho nahraného videa (Latest Video) s označením NEW, počtom zhliadnutí a dvojriadkovým zalamovaným názvom videa.
+  - Interaktívne obnovenie údajov ťuknutím na displej s akustickou odozvou a automatická periodická aktualizácia na pozadí (3 min aktívna obrazovka, 15 min na pozadí).
+- **Nastavenie YouTube v ovládacom paneli Web Portal:**
+  - Samostatná záložka YouTube vo webovom rozhraní s poliami pre vloženie bezplatného Google Cloud YouTube API kľúča a identifikátora kanála (handle napr. `@CuriousCat` alebo Channel ID `UC...`) s priamym ukladaním do pamäte NVS.
+- **Nový typografický stupeň `FONT_HERO` (FontEngine):**
+  - Pridané 32-pixelové vyhladené vektorové písmo (`u8g2_font_logisoso32_tr`) do grafického enginu pre zobrazenie veľkých a dobre čitateľných čísiel a metrík.
+- **Symbol slnka s lúčmi na 24h solárnom oblúku (Solar Arc):**
+  - Pôvodný jednoduchý žltý bod na ciferníkoch hodín nahradený grafickým symbolom žiariaceho slnka s centrálnym diskom a 8 radiálnymi lúčmi na kontrastnom podklade.
+
+### Zmenené / Changed
+- **Odstránený ciferník stíhačky (Fighter HUD watchface):**
+  - Ciferník HUD bol kompletne odstránený z enginu hodín, výberu štýlov aj webového rozhrania. Celkový počet ciferníkov upravený na 6 (Digitálny, Analógový, Orbitálny, Regulátor, Vrstvený, Minimálny).
+- **Optimalizácia sieťových slučiek na jadre 0 (AsyncCore):**
+  - Opravené podmienky periodického sťahovania YouTube a ISS údajov tak, aby striktne rešpektovali nastavené časové periódy a nezaťažovali sieťovú zbernicu.
+- **Odstránené rizikové reštarty RGB DMA (`LCD_Restart`):**
+  - Zamedzené volaniu `esp_lcd_rgb_panel_restart` počas OTA zápisov do flash pamäte, čím sa natrvalo eliminovala možná desynchronizácia parity bounce bufferov.
+
 ## [1.9.6] - 2026-09-14
 
 ### Vylepšené / Improved

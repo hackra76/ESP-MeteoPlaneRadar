@@ -268,9 +268,17 @@
 #define SCREEN_FORECAST_I 4
 #define SCREEN_FINANCE_I  5
 #define SCREEN_ISS_I      6
-#define SCREEN_INFO_I     7
-#define SCREEN_SETTINGS_I 8
-#define SCREEN_N          9
+#define SCREEN_YOUTUBE_I  7
+#define SCREEN_INFO_I     8
+#define SCREEN_SETTINGS_I 9
+#define SCREEN_N          10
+
+// ---------------------------------------------------------------------------
+//  YouTube Channel Analytics
+// ---------------------------------------------------------------------------
+#define YOUTUBE_PERIOD_ACTIVE_MS  (3UL * 60UL * 1000UL)   // 3 min when on YouTube screen
+#define YOUTUBE_PERIOD_BG_MS      (15UL * 60UL * 1000UL)  // 15 min in background
+
 
 // ---------------------------------------------------------------------------
 //  Financial Markets & Crypto
@@ -382,11 +390,10 @@
 #define CLOCK_STYLE_DIGITAL   0
 #define CLOCK_STYLE_ANALOG    1
 #define CLOCK_STYLE_ORBITAL   2
-#define CLOCK_STYLE_HUD       3
-#define CLOCK_STYLE_REGULATOR 4
-#define CLOCK_STYLE_STACKED   5
-#define CLOCK_STYLE_MINIMAL   6
-#define CLOCK_STYLE_MAX       6
+#define CLOCK_STYLE_REGULATOR 3
+#define CLOCK_STYLE_STACKED   4
+#define CLOCK_STYLE_MINIMAL   5
+#define CLOCK_STYLE_MAX       5
 
 // ---------------------------------------------------------------------------
 //  Night mode

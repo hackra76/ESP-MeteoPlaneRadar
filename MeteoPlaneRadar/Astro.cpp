@@ -233,11 +233,30 @@ void Astro_DrawSolarArc(int cx, int cy, int r, int thickness, double lat, double
     }
   }
 
-  // Draw current Sun position dot on the 24h dial
+  // Draw current Sun symbol with rays on the 24h dial
   float curDeg = ((float)curMin / 1440.0f) * 360.0f + 180.0f;
   float curRad = curDeg * DEG2RAD;
   int sunX = cx + (int)(r * sinf(curRad));
   int sunY = cy - (int)(r * cosf(curRad));
-  gfx->fillCircle(sunX, sunY, thickness + 1, C_YELLOW);
-  gfx->drawCircle(sunX, sunY, thickness + 2, C_WHITE);
+
+  // Contrast backing halo
+  gfx->fillCircle(sunX, sunY, 10, C_BLACK);
+
+  // 8 Solar rays
+  const int rIn = 5;
+  const int rOutCard = 9;
+  const int rOutDiag = 8;
+  for (int i = 0; i < 8; i++) {
+    float a = (float)i * ((float)M_PI / 4.0f);
+    int rOut = (i % 2 == 0) ? rOutCard : rOutDiag;
+    int x1 = sunX + (int)roundf(rIn * cosf(a));
+    int y1 = sunY + (int)roundf(rIn * sinf(a));
+    int x2 = sunX + (int)roundf(rOut * cosf(a));
+    int y2 = sunY + (int)roundf(rOut * sinf(a));
+    gfx->drawLine(x1, y1, x2, y2, C_YELLOW);
+  }
+
+  // Central glowing Sun disc
+  gfx->fillCircle(sunX, sunY, 3, C_YELLOW);
+  gfx->fillCircle(sunX, sunY, 1, C_WHITE);
 }

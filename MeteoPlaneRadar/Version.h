@@ -14,5 +14,5 @@
 // Bump this on every release (shown on the Settings screen, the web UI and in
 // the serial banner). Describe the change in CHANGELOG.md (repo root) - that
 // file is the single source of truth for the version history.
-#define FW_VERSION "1.9.6"
+#define FW_VERSION "1.9.7"
 

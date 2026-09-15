@@ -1047,7 +1047,6 @@ static void handleUpdateUpload() {
             s_lastWebDraw = millis();
             UI_DrawOtaProgress("Web OTA", prog, s_directWritten, s_updExpectedSize, nullptr);
           }
-          LCD_Restart();
         }
         Watchdog_Feed();
         break;
@@ -1135,8 +1134,7 @@ static void handleUpdateUpload() {
             break;
           }
           written += toWrite;
-          delay(25);      // Give ST7701 RGB DMA full access to PSRAM between flash writes
-          LCD_Restart();  // Resync timing
+          delay(20);      // Give ST7701 RGB DMA uninterrupted access to PSRAM between flash writes
           Watchdog_Feed();
         }
       }

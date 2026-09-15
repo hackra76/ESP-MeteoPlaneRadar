@@ -18,6 +18,7 @@ enum FontSize : uint8_t {
   FONT_LARGE  = 3,  // helvR14_te  (~14 px height)  - maps to legacy size 3
   FONT_TITLE  = 4,  // helvR18_te  (~18 px height)
   FONT_HUGE   = 5,  // helvB24_te  (~24 px height)
+  FONT_HERO   = 6,  // logisoso32_tr (~32 px height, prominent stat numbers)
   FONT_CLOCK  = 8   // logisoso58_tn (~58 px height, large clock digits)
 };
 
