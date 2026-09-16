@@ -50,7 +50,9 @@ static uint8_t readReg(uint8_t reg, bool* ok = nullptr) {
 void TCA9554_Init() {
   // 0 = output for every pin
   writeReg(TCA9554_CONFIG_REG, 0x00);
-  s_output = 0xFF;
+  // Keep EXIO_LCD_RST (pin 1, bit 0) held LOW initially so display stays in
+  // clean hardware reset until ST7701_Init() explicitly starts it up.
+  s_output = 0xFE;
   writeReg(TCA9554_OUTPUT_REG, s_output);
 }
 

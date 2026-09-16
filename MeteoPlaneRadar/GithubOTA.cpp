@@ -530,7 +530,7 @@ static void downloadAndFlashTask(void* param) {
       Serial.printf("GithubOTA: Direct flash write complete (%u B), restarting...\n", (unsigned)downloaded);
       UI_DrawOtaWritingStaticScreen("GitHub OTA", (Lang_Get() == LANG_EN) ? "Success! Restarting..." : "Hotovo! Reštartujem...");
       vTaskDelay(pdMS_TO_TICKS(1500));
-      ESP.restart();
+      Safe_Restart();
     } else {
       if (s_otaError.length() == 0) s_otaError = Update.errorString();
       s_otaState = GH_OTA_ERROR;
@@ -571,7 +571,7 @@ static void downloadAndFlashTask(void* param) {
         Serial.printf("GithubOTA: Update successful (%u bytes). Restarting...\n", (unsigned)downloaded);
         UI_DrawOtaWritingStaticScreen("GitHub OTA", (Lang_Get() == LANG_EN) ? "Success! Restarting..." : "Hotovo! Reštartujem...");
         vTaskDelay(pdMS_TO_TICKS(1500));
-        ESP.restart();
+        Safe_Restart();
       }
     }
   }

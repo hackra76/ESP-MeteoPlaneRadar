@@ -623,7 +623,7 @@ static void handleSerialSend() {
     } else if (strcmp(text, "restart") == 0 || strcmp(text, "reboot") == 0) {
       Serial.println("[Console] Rebooting...");
       delay(200);
-      ESP.restart();
+      Safe_Restart();
     } else {
       Serial.printf("[Console] %s\n", text);
     }
@@ -762,7 +762,7 @@ static void handleImport() {
 static void handleReboot() {
   s_srv.send(200, "application/json", "{\"ok\":true}");
   delay(200);
-  ESP.restart();
+  Safe_Restart();
 }
 
 static void handleReset() {
@@ -772,7 +772,7 @@ static void handleReset() {
   s_srv.send(200, "application/json", "{\"ok\":true}");
   delay(200);
   Settings_ClearAll();
-  ESP.restart();
+  Safe_Restart();
 }
 
 // Captive portal: whatever the phone asks for, hand it the setup page. Without
@@ -1170,7 +1170,7 @@ static void handleUpdateDone() {
   if (s_updOk) {
     s_srv.send(200, "text/plain", "OK");
     delay(400);
-    ESP.restart();
+    Safe_Restart();
     return;
   }
   s_srv.send(500, "text/plain", s_updErr.length() ? s_updErr : String("update failed"));
@@ -1215,6 +1215,10 @@ void WebConfig_Begin(bool apMode) {
   s_srv.on("/api/buzzer/test", HTTP_POST, handleBuzzerTest);
   s_srv.on("/api/input", HTTP_POST, handleInput);
   s_srv.on("/api/screen", HTTP_POST, handleScreen);
+  s_srv.on("/api/display/resync", HTTP_POST, [](){
+    LCD_Restart();
+    s_srv.send(200, "application/json", "{\"ok\":true}");
+  });
   s_srv.on("/api/range", HTTP_POST, handleRange);
   s_srv.on("/api/scan", HTTP_GET, handleScan);
   s_srv.on("/api/wifi", HTTP_POST, handleWifi);

@@ -9,6 +9,20 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [1.9.8] - 2026-09-16
+
+### Opravené / Fixed
+- **Hardvérový posun a plávanie obrazu ST7701 (ST7701 RGB Hardware Display Drift Fix):**
+  - Trvalo odstránené periodické zápisy do SPI Flash pamäte pri automatickom striedaní obrazoviek (carousel), ktoré spôsobovali pozastavenie vyrovnávacej pamäte PSRAM (15–30 ms) a následné podtečenie GDMA FIFO vyvolávajúce zvislý posun obrazu.
+  - Obnovené továrenské parametre časovania a verandy ST7701 (VBP = 8, HBP = 10, HFP = 50, VPW = 8) a register `0xC1` (PORCTRL `0x0B, 0x02`), čím sa obraz vycentroval s nulovou medzerou na okrajoch.
+  - Implementovaná bezpečná hardvérová resynchronizácia v `LCD_Restart` cez SPI príkazy Display OFF (`0x28`), vyčkanie na VSYNC hranicu a Display ON (`0x29`).
+  - Pridaný nový REST koncový bod `/api/display/resync` pre okamžité manuálne zarovnanie obrazu bez nutnosti reštartu zariadenia.
+- **Serializácia prepínača YouTube obrazovky vo Web Konfigurácii:**
+  - Opravená chýbajúca serializácia poľa `youtube` v objekte `screens` vo `WebPage.h`, vďaka čomu sa vypnutie/zapnutie obrazovky YouTube cez web spoľahlivo ukladá do pamäte NVS (`ytScrInit`).
+  - Webový server a navigačné jadro okamžite odmietajú skok na vypnutú obrazovku s HTTP 409 Conflict.
+- **Optimalizácia pamäte pre HTTPS / TLS handshake (`mbedTLS`):**
+  - Vybalansovaná veľkosť DMA bounce bufferov na 30 riadkov ($30 \times 480\text{ px}$), čím sa uvoľnilo 97+ KB nepretržitého interného SRAM heapu potrebného pre TLS buffery `mbedTLS` pri šifrovaných HTTPS volaniach (ADSB, predpoveď počasia, NTP).
+
 ## [1.9.7] - 2026-09-15
 
 ### Pridané / Added

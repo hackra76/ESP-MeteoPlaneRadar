@@ -1924,7 +1924,7 @@ function body(){return{
  hostname:$("hostname")?$("hostname").value.trim():undefined,
  cOver:$("cOver")?$("cOver").checked:true,
  ovRad:$("ovRad")?parseFloat($("ovRad").value)||10:10,
- screens:{clock:$("sClock").checked,planes:$("sPlanes").checked,meteo:$("sMeteo").checked,tactical:$("sTactical").checked,forecast:$("sForecast").checked,finance:$("sFinance")?$("sFinance").checked:true,iss:$("sIss")?$("sIss").checked:true,info:$("sInfo")?$("sInfo").checked:true},
+ screens:{clock:$("sClock").checked,planes:$("sPlanes").checked,meteo:$("sMeteo").checked,tactical:$("sTactical").checked,forecast:$("sForecast").checked,finance:$("sFinance")?$("sFinance").checked:true,iss:$("sIss")?$("sIss").checked:true,youtube:$("sYt")?$("sYt").checked:true,info:$("sInfo")?$("sInfo").checked:true},
  issAlert:$("issAlert")?$("issAlert").checked:false,
  financeTickers:$("financeTickers")?$("financeTickers").value.trim():undefined,
  financeGraph:$("finGraphType")?parseInt($("finGraphType").value,10)||0:0
@@ -1939,6 +1939,7 @@ function getScreensObj(){
   forecast: $("sForecast") ? $("sForecast").checked : true,
   finance: $("sFinance") ? $("sFinance").checked : true,
   iss: $("sIss") ? $("sIss").checked : true,
+  youtube: $("sYt") ? $("sYt").checked : true,
   info: $("sInfo") ? $("sInfo").checked : true
  };
 }

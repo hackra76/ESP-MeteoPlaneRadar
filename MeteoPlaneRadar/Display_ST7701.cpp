@@ -60,9 +60,9 @@ static void ST7701_CS_Dis() { TCA9554_SetPin(EXIO_LCD_CS, true);  vTaskDelay(pdM
 
 static void ST7701_Reset() {
   TCA9554_SetPin(EXIO_LCD_RST, false);
-  vTaskDelay(pdMS_TO_TICKS(20));
+  vTaskDelay(pdMS_TO_TICKS(50));
   TCA9554_SetPin(EXIO_LCD_RST, true);
-  vTaskDelay(pdMS_TO_TICKS(120));
+  vTaskDelay(pdMS_TO_TICKS(150));
 }
 
 // Register init sequence - exactly as in the proven Waveshare demo for this board.
@@ -208,7 +208,7 @@ bool ST7701_Init() {
   rgb.data_width = 16;
   rgb.bits_per_pixel = 16;
   rgb.num_fbs = 2;                               // double buffering (no tearing)
-  rgb.bounce_buffer_size_px = 30 * LCD_WIDTH;    // 30 lines DMA feed (resilient to bus contention)
+  rgb.bounce_buffer_size_px = 30 * LCD_WIDTH;    // 30 lines DMA feed (balances bus cushion with internal SRAM for SSL)
   rgb.psram_trans_align = 64;
   rgb.hsync_gpio_num = RGB_HSYNC;
   rgb.vsync_gpio_num = RGB_VSYNC;
@@ -238,6 +238,14 @@ bool ST7701_Init() {
     Serial.printf("FATAL: esp_lcd_new_rgb_panel failed (0x%x) - is PSRAM set to OPI PSRAM?\n", err);
     return false;
   }
+
+  // Pre-clear framebuffers to black so uninitialized PSRAM noise is never scanned out
+  void* fb0 = nullptr; void* fb1 = nullptr;
+  if (esp_lcd_rgb_panel_get_frame_buffer(panel_handle, 2, &fb0, &fb1) == ESP_OK) {
+    if (fb0) memset(fb0, 0, LCD_WIDTH * LCD_HEIGHT * sizeof(uint16_t));
+    if (fb1) memset(fb1, 0, LCD_WIDTH * LCD_HEIGHT * sizeof(uint16_t));
+  }
+
   esp_lcd_panel_reset(panel_handle);
   esp_lcd_panel_init(panel_handle);
 
@@ -307,7 +315,7 @@ void LCD_Flush(const uint16_t* fb) {
 // --- Backlight ---
 void Backlight_Init() {
   ledcAttach(LCD_BL_PIN, BL_PWM_FREQ, BL_PWM_RES);
-  Set_Backlight(80);
+  Set_Backlight(0);  // Start dark; NightMode_Apply() sets operational brightness after first frame
 }
 
 void Set_Backlight(uint8_t light) {
@@ -316,10 +324,55 @@ void Set_Backlight(uint8_t light) {
   ledcWrite(LCD_BL_PIN, duty);
 }
 
-// Reset RGB timing / line state and sync with VSYNC
-// Note: esp_lcd_rgb_panel_restart is intentionally disabled in bounce-buffer mode
-// due to ESP-IDF issue IDFGH-18263 (bb_eof_count parity inversion causes permanent wrap-around).
+// Reset ST7701 internal line/gate state in sync with VSYNC to clear line shift
 void LCD_Restart() {
-  // No-op to protect bounce buffer parity
+  if (!s_spi || !panel_handle) return;
+  ST7701_CS_En();
+  ST7701_Cmd(0x28); // Display OFF - reset ST7701 line pointer
+  vTaskDelay(pdMS_TO_TICKS(20));
+  ST7701_CS_Dis();
+
+  if (s_vsyncSem) {
+    xSemaphoreTake(s_vsyncSem, 0);
+    xSemaphoreTake(s_vsyncSem, pdMS_TO_TICKS(50));
+  }
+
+  ST7701_CS_En();
+  ST7701_Cmd(0x29); // Display ON - re-latch from Line 0 at next VSYNC
+  vTaskDelay(pdMS_TO_TICKS(10));
+  ST7701_CS_Dis();
+}
+
+// Clean hardware/software display shutdown prior to soft reboot
+void Display_PrepareRestart() {
+  // 1. Immediately turn off backlight to avoid visual glitches or white flash
+  Set_Backlight(0);
+
+  // 2. Safely put the ST7701 display into Display OFF (0x28) and Sleep IN (0x10)
+  if (s_spi) {
+    ST7701_CS_En();
+    ST7701_Cmd(0x28); // Display OFF
+    vTaskDelay(pdMS_TO_TICKS(20));
+    ST7701_Cmd(0x10); // Sleep IN
+    vTaskDelay(pdMS_TO_TICKS(60));
+    ST7701_CS_Dis();
+  }
+
+  // 3. Delete RGB panel peripheral to stop GDMA and RGB clocking cleanly
+  if (panel_handle) {
+    esp_lcd_panel_del(panel_handle);
+    panel_handle = nullptr;
+  }
+
+  // 4. Force ST7701 hardware reset LOW and leave it LOW so ST7701 stays in hardware reset across ESP.restart()
+  TCA9554_SetPin(EXIO_LCD_RST, false);
+  vTaskDelay(pdMS_TO_TICKS(50));
+}
+
+void Safe_Restart() {
+  Serial.println("System: Executing clean display shutdown and safe restart...");
+  Serial.flush();
+  Display_PrepareRestart();
+  ESP.restart();
 }
 

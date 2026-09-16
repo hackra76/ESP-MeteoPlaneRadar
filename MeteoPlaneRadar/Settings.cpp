@@ -591,13 +591,16 @@ void Settings_SetScreenEnabled(uint8_t idx, bool on) {
   // Never allow the last data screen to be turned off. With all of them gone
   // the device would boot into Settings and show nothing else - technically
   // recoverable, but it looks broken.
-  if (next == 0) return;
+  if (next == 0 || next == s_scrMask) return;
   s_scrMask = next;
+  Settings_BatchBegin();
   putU8("scrM", (uint8_t)s_scrMask);
   putU16("scrM16", s_scrMask);
   putBool("infoScrInit", true);
   putBool("finScrInit", true);
   putBool("issScrInit", true);
+  putBool("ytScrInit", true);
+  Settings_BatchEnd();
 }
 
 uint8_t Settings_EnabledCount() {
@@ -787,7 +790,7 @@ void     Settings_SetTopBearing(uint16_t deg) {
   if (deg != s_top) { s_top = deg; markDirty(); }
 }
 uint8_t Settings_Screen() { return s_scr; }
-void    Settings_SetScreen(uint8_t idx) { if (idx != s_scr) { s_scr = idx; markDirty(); } }
+void    Settings_SetScreen(uint8_t idx) { s_scr = idx; }
 bool    Settings_ShowLegends() { return s_showLegends; }
 void    Settings_SetShowLegends(bool show) {
   if (show != s_showLegends) {
@@ -1041,7 +1044,6 @@ void Settings_Tick() {
     prefs.putUChar("rngP", s_rngP);
     prefs.putUChar("rngM", s_rngM);
     prefs.putUChar("rngT", s_rngT);
-    prefs.putUChar("scr",  s_scr);
     prefs.putUShort("topb", s_top);
     prefs.putUChar("bl",   s_briDay);
     prefs.putUChar("blN",  s_briNight);

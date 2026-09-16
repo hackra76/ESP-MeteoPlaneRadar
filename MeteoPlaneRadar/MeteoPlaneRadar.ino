@@ -279,7 +279,7 @@ static void checkBootReset() {
       gfx->flush();
       Settings_ClearAll();
       delay(800);
-      ESP.restart();
+      Safe_Restart();
     }
     delay(20);
   }
@@ -623,7 +623,7 @@ void setup() {
   if (!ST7701_Init()) {
     Serial.println("Display initialization failed, restarting in 5 s");
     delay(5000);
-    ESP.restart();
+    Safe_Restart();
   }
 
   Canvas16* canvas = new Canvas16(LCD_WIDTH, LCD_HEIGHT);
@@ -749,7 +749,7 @@ static void displayWatchdog() {
   } else if (stalled >= DISPLAY_WD_REBOOT_MS) {
     Serial.printf("DISPLAY: panel not recovered after %lu ms, restarting\n", stalled);
     Serial.flush();
-    ESP.restart();
+    Safe_Restart();
   }
 #endif
 }
@@ -786,7 +786,7 @@ void loop() {
       Serial.println("Settings changed, restarting...");
       Serial.flush();
       delay(400);
-      ESP.restart();
+      Safe_Restart();
     }
     displayWatchdog();
     NightMode_Tick();
@@ -877,7 +877,7 @@ void loop() {
     Serial.println("Settings changed, restarting...");
     Serial.flush();
     delay(400);
-    ESP.restart();
+    Safe_Restart();
   }
 
   // Redrawing is decoupled from reading the touch and capped at ~20 FPS.

@@ -29,11 +29,11 @@
 // preventing GDMA FIFO underflow and vertical frame shift.
 #define RGB_FREQ_HZ  (8 * 1000 * 1000)
 #define RGB_HPW  8
-#define RGB_HBP  50
-#define RGB_HFP  10
+#define RGB_HBP  10
+#define RGB_HFP  50
 #define RGB_VPW  8
-#define RGB_VBP  20
-#define RGB_VFP  10
+#define RGB_VBP  8
+#define RGB_VFP  8
 
 // --- RGB data pins (B0..B4, G0..G5, R0..R4) ---
 #define RGB_HSYNC 38
@@ -96,5 +96,11 @@ void Set_Backlight(uint8_t light);
 
 // VSYNC sync control for OTA stability
 void LCD_Restart();
+
+// Prepare display for a clean software restart (blank screen, stop DMA, sleep display, hold reset)
+void Display_PrepareRestart();
+
+// Safe system restart with full hardware/software display shutdown
+void Safe_Restart();
 
 
