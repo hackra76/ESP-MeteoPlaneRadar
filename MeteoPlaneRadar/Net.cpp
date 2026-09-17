@@ -113,6 +113,67 @@ bool Net_GetString(const char* url, String& out, const char* tag) {
   return true;
 }
 
+bool Net_PostJson(const char* url, const char* jsonPayload, String& out, const char* tag, int* outStatusCode) {
+  if (outStatusCode) *outStatusCode = 0;
+  out = "";
+  if (WiFi.status() != WL_CONNECTED) return false;
+  if (!jsonPayload) return false;
+
+  const bool tls = (strncmp(url, "http://", 7) != 0);
+  if (tls && !Net_HeapOk(tag)) return false;
+
+  WiFiClient       plain;
+  WiFiClientSecure secure;
+  if (tls) {
+    secure.setInsecure();
+    secure.setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
+  }
+  WiFiClient& client = tls ? static_cast<WiFiClient&>(secure)
+                           : static_cast<WiFiClient&>(plain);
+
+  HTTPClient http;
+  http.setConnectTimeout(8000);
+  http.setTimeout(12000);
+  http.setReuse(false);
+  http.setUserAgent("MeteoPlaneRadar-AI/1.0");
+  if (!http.begin(client, url)) { Serial.printf("%s: begin() failed\n", tag); return false; }
+  http.addHeader("Content-Type", "application/json");
+
+  poll();
+  int code = http.POST((uint8_t*)jsonPayload, strlen(jsonPayload));
+  poll();
+  if (outStatusCode) *outStatusCode = code;
+  if (code != HTTP_CODE_OK && code != 201) {
+    if (code == 429) {
+      Serial.printf("%s: HTTP POST 429 (Rate limit / Quota exceeded)\n", tag);
+    } else {
+      String errBody = http.getString();
+      Serial.printf("%s: HTTP POST error %d: %s\n", tag, code, errBody.c_str());
+    }
+    http.end();
+    return false;
+  }
+
+  int declared = http.getSize();
+  if (declared > (int)NET_MAX_TEXT) {
+    Serial.printf("%s: response %d B exceeds limit\n", tag, declared);
+    http.end();
+    return false;
+  }
+  if (!txtReserve((declared > 0) ? (size_t)declared + 1 : NET_MAX_TEXT)) {
+    http.end();
+    return false;
+  }
+
+  long len = Net_ReadBody(http, (uint8_t*)s_txt, s_txtCap, tag, s_poll);
+  http.end();
+  poll();
+
+  if (len <= 0) { Serial.printf("%s: empty response\n", tag); return false; }
+  out = s_txt;
+  return true;
+}
+
 bool Net_GetBinary(const char* url, uint8_t* buf, size_t cap, size_t* outLen,
                    const char* tag) {
   if (outLen) *outLen = 0;

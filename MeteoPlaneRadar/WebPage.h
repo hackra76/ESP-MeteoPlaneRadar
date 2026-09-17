@@ -802,7 +802,32 @@ td:first-child{color:var(--mut);width:45%}
           </div>
         </div>
 
-        <!-- 4. Automatické striedanie obrazoviek -->
+        <!-- 4. AI Pet Companion & Gemini -->
+        <div class="card">
+          <h2>🐾 AI Radar Companion (Zvieratko & Gemini)</h2>
+          <div class="row">
+            <label class="chk" style="font-weight:600;font-size:14px;">
+              <input type="checkbox" id="petEnabled">
+              <span>Aktivovať AI zvieratko (potiahnutie od spodného okraja)</span>
+            </label>
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <label class="lbl" for="petCharacter">Postavička / Zvieratko:</label>
+            <select id="petCharacter" style="flex:1 1 200px;">
+              <option value="0">🤖 Cyber Eyes (Robotické oči)</option>
+              <option value="1">🐱 Aero Cat (Letecká mačka)</option>
+              <option value="2">🐶 Radar Shiba (Radarový psík)</option>
+              <option value="3">🐱 DigiCat (Virtuálna mačka)</option>
+            </select>
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <label class="lbl" for="geminiKey">Google Gemini API kľúč:</label>
+            <input type="password" id="geminiKey" placeholder="AIzaSy..." style="flex:1 1 280px;">
+          </div>
+          <p class="hint">Bezplatný API kľúč z Google AI Studio pre generovanie myšlienok. Ak je pole prázdne, zvieratko funguje plne offline.</p>
+        </div>
+
+        <!-- 5. Automatické striedanie obrazoviek -->
         <div class="card">
           <h2 data-i18n="rotateHdr">🔄 Automatické striedanie obrazoviek</h2>
           <div class="row"><label data-i18n="autoRotate">Čas zobrazenia obrazovky (sekundy, 0 = vypnuté)</label>
@@ -1581,6 +1606,9 @@ const AUTO = [
  ["sYt","change","screens",()=>getScreensObj()],
  ["ytKey","change","youtubeKey",e=>e.value.trim()],
  ["ytChan","change","youtubeChannel",e=>e.value.trim()],
+ ["petEnabled","change","petEnabled",e=>e.checked],
+ ["petCharacter","change","petCharacter",e=>parseInt(e.value,10)||0],
+ ["geminiKey","change","geminiKey",e=>e.value.trim()],
  ["bzNightMute","change","buzzerNightMute",e=>e.checked],
  ["hostname","change","hostname",e=>{ if($("netHost")) $("netHost").textContent=e.value+".local"; return e.value.trim(); }],
 ];
@@ -1749,6 +1777,9 @@ async function load(){
  if($("sYt")) $("sYt").checked=CFG.screens.youtube!==false;
  if($("ytKey")) $("ytKey").value=CFG.youtubeKey||"";
  if($("ytChan")) $("ytChan").value=CFG.youtubeChannel||"";
+ if($("petEnabled")) $("petEnabled").checked=CFG.petEnabled!==false;
+ if($("petCharacter") && CFG.petCharacter!==undefined) $("petCharacter").value=CFG.petCharacter;
+ if($("geminiKey")) $("geminiKey").value=CFG.geminiKey||"";
  if($("issAlert")) $("issAlert").checked=!!CFG.issAlert;
  if(CFG.financeTickers !== undefined) loadFinanceTickers(CFG.financeTickers);
  if($("finGraphType") && CFG.financeGraph !== undefined) $("finGraphType").value = CFG.financeGraph;

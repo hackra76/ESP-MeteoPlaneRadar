@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20SK%20%7C%20CZ-green.svg)
-![Release](https://img.shields.io/badge/Release-v1.9.8-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v1.9.9-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, ISS orbit tracking, YouTube channel analytics, financial market tickers, and designer clock faces on a round 2.1" IPS touchscreen.**  
@@ -139,6 +139,16 @@ The round 480×480 display features **6 completely distinct geometry styles** wi
 ### 🔌 20. Smart Home REST API
 - Direct JSON REST endpoints for Home Assistant, Node-RED, or scripts (`/api/status`, `/api/hardware`, `/api/screen`, `/api/display/resync`, `/api/toggle-legends`, `/api/rtc/sync_ntp`).
 
+### 🐾 21. Interactive Pet Companion Drawer & DigiCat
+- Full-screen interactive companion drawer accessible from any screen via **Swipe Up** from the bottom edge or the Quick Control Center paw icon.
+- **4 Selectable Characters**:
+  - 🤖 **Cyber Eyes**: Sci-fi radar AI scanner with glowing heart pupils and affection telemetry.
+  - 🐱 **Aero Cat**: Classic aviator tabby cat with leather goggles, animated swaying tail, and tabby forehead "M".
+  - 🐶 **Radar Shiba**: Loyal radar guard dog with floppy ears and antenna cap.
+  - 🐱 **DigiCat**: Authentic replica of the open-source virtual cat from [aquascape123/digicat](https://github.com/aquascape123/digicat) (MIT License) with vibrant orange tabby coat (`0xFD20`), dark stripes (`0x9260`), white bib, emerald eyes (`0x07E0`), front paws with pink pads, and cozy curled-up sleeping ball pose with floating *"Z z z"* in night mode.
+- **Virtual Pet Mechanics**: Live Happiness and Hunger stats on HUD, zero-latency affectionate petting responses, treat feeding (golden fish cracker snacks via double-tap), and XP flight tracking progression (*Kitten Cadet / Flight Cadet* → *Radar Navigator* → *Airspace Ace*).
+- **Gemini Live AI**: Optional Google Gemini Flash integration with dynamic auto-model discovery for live contextual thoughts on surrounding air traffic and weather.
+
 ---
 
 ## 📱 Screen Overview
@@ -197,6 +207,8 @@ You can use either:
 | :--- | :--- |
 | **Swipe Left / Right** | Transitions smoothly to the next / previous screen with slide animation. |
 | **Pull Down from Top Edge** | Opens the **Quick Control Center** (brightness, night mode, screen toggles, asset picker). |
+| **Swipe Up from Bottom Edge** | Pulls up the **Interactive Pet Companion Drawer** (DigiCat, Aero Cat, Radar Shiba, Cyber Eyes). |
+| **Within Pet Drawer** | **Tap Pet:** Pet / show affection (instant purr/bark dialogue, blush, bounce).<br>**Double-Tap:** Feed treat snack (golden fish cracker, restores hunger & happiness).<br>**Swipe Down / Tap Header:** Closes the drawer. |
 | **Swipe Up / Down in Center** | **On Clock:** Cycles to previous / next watchface style.<br>**On Radars:** Zoom In (swipe up) / Zoom Out (swipe down).<br>**On Control Center:** Closes the overlay. |
 | **Tap Bottom Range Bar** | Left half zooms Out, right half zooms In. |
 | **Tap on Aircraft** | Opens full color-coded aircraft telemetry detail card with live photo. |
@@ -228,12 +240,12 @@ Built specifically for the **[Waveshare ESP32-S3-Touch-LCD-2.1](https://www.wave
 
 ### Method A: Web Flasher / Pre-Built Binaries (Easiest)
 Download the latest pre-compiled binary from the [Releases](https://github.com/hackra76/ESP-MeteoPlaneRadar/releases) page:
-- `MeteoPlaneRadar-v1.9.8-factory.bin` (Complete single-binary image including bootloader, partitions, and firmware).
+- `MeteoPlaneRadar-v1.9.9-factory.bin` (Complete single-binary image including bootloader, partitions, and firmware).
 - Flash directly in your browser using the [ESP Web Flasher](https://espressif.github.io/esptool-js/) at baud rate 921600 starting at address `0x00000000`.
 
 Or flash via command line using `esptool.py`:
 ```bash
-esptool.py -p COM_PORT -b 921600 --before default_reset --after hard_reset write_flash 0x0 MeteoPlaneRadar-v1.9.8-factory.bin
+esptool.py -p COM_PORT -b 921600 --before default_reset --after hard_reset write_flash 0x0 MeteoPlaneRadar-v1.9.9-factory.bin
 ```
 
 ### Method B: Build and Flash via PlatformIO
@@ -292,4 +304,5 @@ Integrate easily with **Home Assistant**, **Node-RED**, or terminal scripts via 
 
 Distributed under the **MIT License**.
 - Original base project: **[petus/MeteoPlaneRadar](https://github.com/petus/MeteoPlaneRadar)**.
-- Enhancements, Slovak localization, SHMÚ radar integration, bilinear anti-aliasing, Planespotters aircraft photos, tactical combined radar, expanded watchfaces, RTC driver, IMU gestures, touch navigation, Quick Control Center, YouTube Analytics screen, ISS orbit tracker, flight watchlist, and multi-core stabilization: **Rado & Antigravity AI**.
+- Virtual pet vector mechanics, sleeping cat poses, and pet stat dynamics: **[aquascape123/digicat](https://github.com/aquascape123/digicat)** by aquascape123 (MIT License).
+- Enhancements, Slovak localization, SHMÚ radar integration, bilinear anti-aliasing, Planespotters aircraft photos, tactical combined radar, expanded watchfaces, RTC driver, IMU gestures, touch navigation, Quick Control Center, YouTube Analytics screen, ISS orbit tracker, flight watchlist, AI Pet Companion, and multi-core stabilization: **Rado & Antigravity AI**.

@@ -805,7 +805,11 @@ void ScreenTactical_Draw() {
     uint16_t subCol = watchedSeen ? C_GREEN : C_CYAN;
     bool isSpecial = false;
 
-    if (!ADSB_IsFresh()) {
+    if (WiFi.status() != WL_CONNECTED) {
+      strncpy(sub, T(S_WIFI_WAIT), sizeof(sub) - 1);
+      sub[sizeof(sub) - 1] = '\0';
+      subCol = C_YELLOW;
+    } else if (!ADSB_IsFresh()) {
       strncpy(sub, T(S_LOADING), sizeof(sub) - 1);
       sub[sizeof(sub) - 1] = '\0';
       subCol = C_YELLOW;
@@ -815,6 +819,8 @@ void ScreenTactical_Draw() {
       snprintf(sub, sizeof(sub), "! %s: %s (%.0f km) !", specialLabel, cname, specialDistKm);
       subCol = specialCol;
       isSpecial = true;
+    } else if (drawnCount == 0) {
+      snprintf(sub, sizeof(sub), "%s", T(S_NO_AIRCRAFT));
     } else if (closestIdx >= 0 && minDistKm <= crng) {
       const char* cname = list[closestIdx].callsign[0] ? list[closestIdx].callsign : list[closestIdx].hex;
       snprintf(sub, sizeof(sub), "%s: %d  [%s: %.1f km]", T(S_AIRCRAFT), drawnCount, cname, minDistKm);
@@ -911,6 +917,10 @@ void ScreenTactical_Enter() {
   Async_SetActiveScreen(SCREEN_TACTICAL_I);
   Async_SetAdsbTarget(clat, clon, crng);
   Async_RequestAdsb();
+  if (ADSB_IsFresh()) {
+    s_dataOk = true;
+    s_status = "OK";
+  }
   s_lastRadarFetch = millis();
   if (rvMode()) {
     if (isWholeCountry()) {
@@ -1061,8 +1071,8 @@ bool ScreenTactical_Tick() {
   }
 
   if (adsbChanged) {
-    s_dataOk = (ADSB_Count() > 0);
-    s_status = s_dataOk ? "OK" : "ERR";
+    s_dataOk = true;
+    s_status = "OK";
 
     if (ScreenTactical_DetailOpen()) {
       if (ADSB_FindByHex(s_selectedHex) >= 0) {

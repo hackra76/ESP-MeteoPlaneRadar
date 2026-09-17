@@ -33,6 +33,7 @@ void Async_RequestForecast();
 void Async_RequestFinance();
 void Async_RequestIss();
 void Async_RequestYouTube();
+void Async_RequestPetThought();
 void Async_RequestRoute(const char* callsign, float lat, float lon);
 
 // Check and consume data-updated flags (called by UI screens on Core 1)

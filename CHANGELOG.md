@@ -9,6 +9,31 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [1.9.9] - 2026-09-17
+
+### Pridané / Added
+- **Interaktívna zásuvka Pet Drawer s replikou DigiCat (Interactive Virtual Pet & DigiCat):**
+  - Nová celoobrazovková interaktívna zásuvka Pet Drawer dostupná z akejkoľvek obrazovky potiahnutím zospodu nahor (Swipe Up) alebo cez dotykové tlačidlo labky v Quick Control ponuke.
+  - Plná integrácia a autentická grafická replika **DigiCat** (inšpirovaná projektom [aquascape123/digicat](https://github.com/aquascape123/digicat) pod licenciou MIT):
+    - Žiarivo oranžový tabby kožuch (`0xFD20`) s tmavými pruhmi (`0x9260`), ikonické znaky „M“ na čele a lícach, biela náprsenka, ružový noštek (`0xFBEF`) a labky s vankúšikmi.
+    - Smaragdovo zelené oči (`0x07E0`) s vertikálnymi zreničkami otáčajúcimi sa v reálnom čase v smere azimutu najbližšieho lietadla na radare.
+    - Hladká animácia kývajúceho sa chvostíka pomocou sínusoidy a animácia žmurkania.
+    - Útulná spiaca poloha (Sleeping Ball) so stočeným telíčkom a stúpajúcimi animovanými písmenkami *„Z z z“* počas nočného režimu alebo neskoro v noci.
+  - **Mechaniky virtuálneho zvieratka a letecké hodnosti (Virtual Pet Mechanics):**
+    - Sledovanie štatistík **Šťastie (Happiness 0–100%)** a **Hlad (Hunger 0–100%)** s priamym zobrazením na HUD displeji zásuvky.
+    - Hladkanie a ťuknutie: Okamžitá interaktívna reakcia zvieratka (0 ms latencia) s poskočením, červenajúcimi sa lícami, srdiečkami a radostným zavrnením/štekotom.
+    - Kŕmenie maškrtami: Dvojité ťuknutie alebo kŕmne tlačidlo hádže zlaté rybičky/maškrty s animáciou jedenia, znižuje hlad a zvyšuje šťastie.
+    - Letecký rast a XP: Sledovanie preletov lietadiel zvyšuje skúsenosti zvieratka a odomyká letecké hodnosti (*Kitten Cadet / Flight Cadet* → *Radar Navigator* → *Airspace Ace*).
+- **Dynamické zisťovanie modelov Gemini LLM (Dynamic Gemini Flash Discovery):**
+  - Automatická dynamická detekcia a fallback pre najnovšie modely Google Gemini Flash API (`gemini-2.5-flash`, `gemini-3-flash-preview` a pod.) pri vyradení starších modelov bez nutnosti manuálneho zásahu.
+  - Zvieratko reaguje na reálne lietadlá v okolí, počasie a náladu cez kontextové AI myšlienky.
+- **Právna a licenčná atribúcia (MIT License Attribution):**
+  - Do všetkých dokumentov (`README.md`, `README_SK.md`, `PetBrain.h`, `PetDrawer.cpp`) pridané transparentné poďakovanie autorovi `aquascape123/digicat` za vizuálne inšpirácie a herné mechaniky virtuálneho zvieratka pod licenciou MIT.
+
+### Zmenené / Changed
+- **Úplné nahradenie Nimbus Duck:**
+  - Charakter číslo 3 (pôvodne Nimbus Duck) bol kompletne odstránený zo všetkých dialógov, nastavení, webového rozhrania a grafických modulov a nahradený zvieratkom **DigiCat**.
+
 ## [1.9.8] - 2026-09-16
 
 ### Opravené / Fixed

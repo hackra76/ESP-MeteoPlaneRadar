@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-SK%20%7C%20CZ%20%7C%20EN-green.svg)
-![Release](https://img.shields.io/badge/Release-v1.9.8-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v1.9.9-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunkčná meteorologická stanica, živý letecký ADS-B radar, animovaný radar zrážok (SHMÚ, ČHMÚ, RainViewer), kombinovaný taktický radar, sledovanie stanice ISS, analytika YouTube kanála, finančné trhy a dizajnové ciferníky hodín na okrúhlom 2.1" IPS dotykovom displeji.**  
@@ -139,6 +139,16 @@ Až **7 štýlov sekundového prstenca**:
 ### 🔌 20. Smart Home REST API
 - Integrované REST rozhranie pre Home Assistant, Node-RED alebo skripty (`/api/status`, `/api/hardware`, `/api/screen`, `/api/display/resync`, `/api/toggle-legends`, `/api/rtc/sync_ntp`).
 
+### 🐾 21. Interaktívna zásuvka Pet Drawer & DigiCat
+- Celoobrazovková interaktívna zásuvka s virtuálnym spoločníkom dostupná z akejkoľvek obrazovky potiahnutím zospodu nahor (**Swipe Up**) alebo cez ikonu labky v Ovládacom centre.
+- **4 voliteľné postavičky**:
+  - 🤖 **Cyber Eyes**: Kybernetický radarový skener so svietiacimi srdiečkovými zreničkami a telemetriou.
+  - 🐱 **Aero Cat**: Letecká pruhovaná mačka s koženými okuliarmi, animovaným kývajúcim sa chvostíkom a znakom „M“ na čele.
+  - 🐶 **Radar Shiba**: Verný radarový psík s radarovou anténkou a klopiacimi uškami.
+  - 🐱 **DigiCat**: Autentická replika obľúbenej virtuálnej mačky z projektu [aquascape123/digicat](https://github.com/aquascape123/digicat) (licencia MIT) so žiarivo oranžovým kožúškom (`0xFD20`), tmavými pruhmi (`0x9260`), bielou náprsenkou, smaragdovými očami (`0x07E0`), labkami s ružovými vankúšikmi a útulnou spiacou polohou (Sleeping Ball) s animovaným *„Z z z“* v nočnom režime.
+- **Mechaniky virtuálneho zvieratka**: Živé zobrazenie šťastia a hladu na HUD, okamžitá odozva na pohladkanie (vrnenie/štekot, poskočenie, červenanie líc), kŕmenie maškrtami (dvojitým poklepaním hodí rybičku a nasýti zvieratko) a získavanie leteckých skúseností XP (*Kitten Cadet / Flight Cadet* → *Radar Navigator* → *Airspace Ace*).
+- **Živá umelá inteligencia Gemini Live**: Voliteľné prepojenie s Google Gemini Flash API s dynamickým autodetekčným fallbackom pre kontextové komentovanie preletov a počasia.
+
 ---
 
 ## 📱 Prehľad obrazoviek
@@ -197,6 +207,8 @@ Môžete použiť buď:
 | :--- | :--- |
 | **Potiahnutie doľava / doprava** | Plynulý posun na nasledujúcu / predchádzajúcu obrazovku. |
 | **Stiahnutie z horného okraja** | Otvorí **Rýchle ovládacie centrum** (jas, nočný režim, prepínače obrazoviek, výber trhov). |
+| **Potiahnutie zospodu nahor** | Otvorí **Interaktívnu zásuvku Pet Drawer** (DigiCat, Aero Cat, Radar Shiba, Cyber Eyes). |
+| **V zásuvke Pet Drawer** | **Ťuknutie na zvieratko:** Pohladkanie / prejav lásky (okamžité dialógy, červenanie líc, poskočenie).<br>**Dvojité ťuknutie:** Hodenie maškrty (zlatá rybička, nasýti zvieratko a zvýši šťastie).<br>**Potiahnutie nadol / ťuknutie na lištu:** Zavrie zásuvku. |
 | **Potiahnutie hore / dole v strede** | **Na hodinách:** Prepína predchádzajúci / nasledujúci ciferník.<br>**Na radaroch:** Priblíženie (Zoom In - hore) / Oddialenie (Zoom Out - dole).<br>**V ovládacom centre:** Zavrie menu. |
 | **Ťuknutie na spodnú lištu rozsahu** | Ľavá polovica oddiali (Zoom Out), pravá polovica priblíži (Zoom In). |
 | **Ťuknutie na lietadlo** | Otvorí detailnú telemetrickú kartu lietadla s fotografiou. |
@@ -228,12 +240,12 @@ Vyvinuté presne pre **[Waveshare ESP32-S3-Touch-LCD-2.1](https://www.waveshare.
 
 ### Možnosť A: Web Flasher / Predkompilované binárky (Najjednoduchšie)
 Stiahnite si najnovšiu hotovú binárku zo stránky [Vydania (Releases)](https://github.com/hackra76/ESP-MeteoPlaneRadar/releases):
-- `MeteoPlaneRadar-v1.9.8-factory.bin` (Kompletný samostatný obraz vrátane bootloadera, partícií a aplikácie).
+- `MeteoPlaneRadar-v1.9.9-factory.bin` (Kompletný samostatný obraz vrátane bootloadera, partícií a aplikácie).
 - Nahrajte firmvér priamo v prehliadači Chrome cez [ESP Web Flasher](https://espressif.github.io/esptool-js/) pri rýchlosti 921600 baud od adresy `0x00000000`.
 
 Alebo cez príkazový riadok pomocou `esptool.py`:
 ```bash
-esptool.py -p COM_PORT -b 921600 --before default_reset --after hard_reset write_flash 0x0 MeteoPlaneRadar-v1.9.8-factory.bin
+esptool.py -p COM_PORT -b 921600 --before default_reset --after hard_reset write_flash 0x0 MeteoPlaneRadar-v1.9.9-factory.bin
 ```
 
 ### Možnosť B: Kompilácia cez PlatformIO
@@ -281,4 +293,5 @@ Jednoduchá integrácia s **Home Assistant**, **Node-RED** alebo vlastnými skri
 
 Šírené pod licenciou **MIT License**.
 - Pôvodný základný projekt: **[petus/MeteoPlaneRadar](https://github.com/petus/MeteoPlaneRadar)**.
-- Vylepšenia, slovenská lokalizácia, SHMÚ radar, bilineárny anti-aliasing, Planespotters fotografie lietadiel, kombinovaný taktický radar, rozšírené ciferníky hodín, ovládač RTC, IMU gestá, dotykové ovládanie, Ovládacie centrum, analytika YouTube kanála, sledovanie dráhy ISS a stabilizácia: **Rado & Antigravity AI**.
+- Vektorová grafika virtuálneho zvieratka, spiaca mačka a herné štatistiky: **[aquascape123/digicat](https://github.com/aquascape123/digicat)** od aquascape123 (MIT License).
+- Vylepšenia, slovenská lokalizácia, SHMÚ radar, bilineárny anti-aliasing, Planespotters fotografie lietadiel, kombinovaný taktický radar, rozšírené ciferníky hodín, ovládač RTC, IMU gestá, dotykové ovládanie, Ovládacie centrum, analytika YouTube kanála, sledovanie dráhy ISS, AI zvieratko a stabilizácia: **Rado & Antigravity AI**.

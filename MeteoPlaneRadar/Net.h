@@ -19,6 +19,10 @@
 // the reason is printed once, so a caller can just retry later.
 bool Net_GetString(const char* url, String& out, const char* tag);
 
+// POST a JSON payload to the URL and put the whole response body in `out`.
+// Returns false on failure, error HTTP status, or empty body.
+bool Net_PostJson(const char* url, const char* jsonPayload, String& out, const char* tag, int* outStatusCode = nullptr);
+
 // GET the URL into a caller-supplied buffer - for binary payloads (PNG tiles)
 // where a String would double the memory needed.
 // On success *outLen holds the number of bytes written.

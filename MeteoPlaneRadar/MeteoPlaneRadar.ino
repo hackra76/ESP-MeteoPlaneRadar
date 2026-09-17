@@ -99,6 +99,8 @@
 #include "PrecipTracker.h"
 #include "ScreenSettings.h"
 #include "QuickControl.h"
+#include "PetBrain.h"
+#include "PetDrawer.h"
 #include "Forecast.h"
 #include "NightMode.h"
 #include "Watchdog.h"
@@ -135,6 +137,7 @@ enum PendKind : uint8_t {
   PEND_SWIPE_SCREEN,
   PEND_SWIPE_ZOOM,
   PEND_PULL_DOWN,
+  PEND_PULL_UP,
   PEND_TAP
 };
 static PendKind s_pendKind = PEND_NONE;
@@ -203,6 +206,11 @@ static void touchPump() {
           s_pendKind = PEND_PULL_DOWN;
           s_gestureConsumed = true;
         }
+        // 1b. Pull up from bottom edge (Pet Companion Drawer)
+        else if (s_startY >= 360 && dy <= -50 && abs(dx) < 80) {
+          s_pendKind = PEND_PULL_UP;
+          s_gestureConsumed = true;
+        }
         // 2. Horizontal swipe: change screen (left = next, right = prev)
         else if (abs(dx) >= 60 && abs(dx) > (int)(abs(dy) * 1.3f)) {
           s_pendKind = PEND_SWIPE_SCREEN;
@@ -243,6 +251,10 @@ static void touchPump() {
     // 1. Pull down fallback
     if (s_startY <= 120 && dy >= 50 && abs(dx) < 80) {
       s_pendKind = PEND_PULL_DOWN;
+    }
+    // 1b. Pull up fallback
+    else if (s_startY >= 360 && dy <= -45 && abs(dx) < 80) {
+      s_pendKind = PEND_PULL_UP;
     }
     // 2. Horizontal swipe fallback
     else if (abs(dx) >= 50 && abs(dx) > abs(dy)) {
@@ -338,11 +350,14 @@ static void drawActive() {
     case SCREEN_INFO_I:     ScreenInfo_Draw();     break;
     case SCREEN_SETTINGS_I: ScreenSettings_Draw(); break;
   }
-  if (!WebConfig_UpdateBusy() && !ScreenSettings_IsModalOpen()) {
+  if (!WebConfig_UpdateBusy() && !ScreenSettings_IsModalOpen() && !PetDrawer_IsOpen()) {
     drawScreenDots();
   }
   if (QuickControl_IsOpen()) {
     QuickControl_Draw(s_screen);
+  }
+  if (PetDrawer_IsOpen()) {
+    PetDrawer_Draw();
   }
   gfx->flush();    // hand the framebuffer over; Canvas16 switches to the other
 }
@@ -421,13 +436,6 @@ static void activeChangeRange(int dir) {
 }
 
 static bool activeTap(int x, int y) {
-  // Tap on bottom range indicator area (Y >= 390 && Y <= 460) on radar/weather screens
-  if (y >= 390 && y <= 460) {
-    if (s_screen == SCREEN_PLANES_I || s_screen == SCREEN_METEO_I || s_screen == SCREEN_TACTICAL_I) {
-      activeChangeRange(x < LCD_WIDTH / 2 ? -1 : +1);
-      return true;
-    }
-  }
   switch (s_screen) {
     case SCREEN_CLOCK_I:    return ScreenClock_HandleTap(x, y);
     case SCREEN_PLANES_I:   return ScreenPlanes_HandleTap(x, y);
@@ -443,6 +451,7 @@ static bool activeTap(int x, int y) {
 
 // Is a modal (aircraft detail, QuickControl, or OTA modal) open?
 static bool activeModalOpen() {
+  if (PetDrawer_IsOpen())            return true;
   if (QuickControl_IsOpen())         return true;
   if (s_screen == SCREEN_PLANES_I)   return ScreenPlanes_DetailOpen();
   if (s_screen == SCREEN_TACTICAL_I) return ScreenTactical_DetailOpen();
@@ -451,6 +460,10 @@ static bool activeModalOpen() {
 }
 
 static void closeModal() {
+  if (PetDrawer_IsOpen()) {
+    PetDrawer_Close();
+    return;
+  }
   if (QuickControl_IsOpen()) {
     QuickControl_Close();
     return;
@@ -483,15 +496,31 @@ static void dispatchTouch() {
 
   switch (kind) {
     case PEND_PULL_DOWN:
-      if (!QuickControl_IsOpen()) {
+      if (PetDrawer_IsOpen()) {
+        PetDrawer_Close();
+        drawActive();
+      } else if (!QuickControl_IsOpen()) {
         if (activeModalOpen()) closeModal();
         QuickControl_Open();
         drawActive();
       }
       s_touchPauseUntil = millis() + autoRotatePauseMs();
       break;
+    case PEND_PULL_UP:
+      if (!PetDrawer_IsOpen()) {
+        if (activeModalOpen()) closeModal();
+        if (Settings_PetEnabled()) {
+          PetDrawer_Open();
+          drawActive();
+        }
+      }
+      s_touchPauseUntil = millis() + autoRotatePauseMs();
+      break;
     case PEND_SWIPE_SCREEN:
-      if (QuickControl_IsOpen()) {
+      if (PetDrawer_IsOpen()) {
+        PetDrawer_Close();
+        drawActive();
+      } else if (QuickControl_IsOpen()) {
         QuickControl_Close();
         drawActive();
       } else if (activeModalOpen()) {
@@ -503,7 +532,9 @@ static void dispatchTouch() {
       s_touchPauseUntil = millis() + autoRotatePauseMs();
       break;
     case PEND_SWIPE_ZOOM:
-      if (QuickControl_IsOpen()) {
+      if (PetDrawer_IsOpen()) {
+        if (a > 0) { PetDrawer_Close(); drawActive(); } // swipe down closes pet drawer
+      } else if (QuickControl_IsOpen()) {
         if (a < 0) { QuickControl_Close(); drawActive(); } // swipe up closes control center
       } else if (activeModalOpen()) {
         closeModal();
@@ -515,7 +546,10 @@ static void dispatchTouch() {
       s_touchPauseUntil = millis() + autoRotatePauseMs();
       break;
     case PEND_TAP:
-      if (QuickControl_IsOpen()) {
+      if (PetDrawer_IsOpen()) {
+        PetDrawer_HandleTap(a, b);
+        drawActive();
+      } else if (QuickControl_IsOpen()) {
         QuickControl_HandleTap(a, b, s_screen);
         drawActive();
       } else {
@@ -698,6 +732,7 @@ void setup() {
   Finance_Init();
   Iss_Init();
   YouTube_Init();
+  PetBrain_Init();
   Async_Begin();
   Async_SetActiveScreen((uint8_t)s_screen);
 
@@ -883,7 +918,8 @@ void loop() {
   // Redrawing is decoupled from reading the touch and capped at ~20 FPS.
   static unsigned long lastDraw = 0;
   bool wantDraw = activeTick();
-  if (wantDraw && millis() - lastDraw >= 50) {
+  if (PetDrawer_IsOpen() && PetDrawer_Tick()) wantDraw = true;
+  if (wantDraw && millis() - lastDraw >= 33) {
     drawActive();
     lastDraw = millis();
   }

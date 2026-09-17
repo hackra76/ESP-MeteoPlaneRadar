@@ -47,6 +47,9 @@ static uint8_t  s_finGraphType = FIN_GRAPH_LINE;
 static bool     s_issAlert = true;
 static char     s_ytApiKey[64] = "";
 static char     s_ytChannel[64] = "";
+static bool     s_petEnabled = true;
+static uint8_t  s_petChar = 0;
+static char     s_geminiApiKey[128] = "";
 static uint16_t s_autoRot = 0;
 static uint8_t s_radarSrc = RADAR_SRC_CHMU;
 static bool    s_smoothRadar = true;
@@ -216,6 +219,12 @@ void Settings_Begin() {
     }
     if (prefs.isKey("finTk")) {
       prefs.getString("finTk", s_finTickers, sizeof(s_finTickers));
+    }
+    s_petEnabled = prefs.getBool("petEn", true);
+    s_petChar = prefs.getUChar("petCh", 0);
+    if (s_petChar > 3) s_petChar = 0;
+    if (prefs.isKey("gemKey")) {
+      prefs.getString("gemKey", s_geminiApiKey, sizeof(s_geminiApiKey));
     }
     s_finGraphType = prefs.getUChar("finGr", FIN_GRAPH_LINE);
     if (s_finGraphType > FIN_GRAPH_CANDLESTICK) s_finGraphType = FIN_GRAPH_LINE;
@@ -656,6 +665,31 @@ void Settings_SetYouTubeChannel(const char* ch) {
   putStr("ytChan", s_ytChannel);
 }
 
+// --- AI Pet Companion -------------------------------------------------------
+bool Settings_PetEnabled() { return s_petEnabled; }
+void Settings_SetPetEnabled(bool on) {
+  if (s_petEnabled == on) return;
+  s_petEnabled = on;
+  putBool("petEn", on);
+}
+
+uint8_t Settings_PetCharacter() { return s_petChar; }
+void Settings_SetPetCharacter(uint8_t ch) {
+  if (ch > 3) ch = 0;
+  if (s_petChar == ch) return;
+  s_petChar = ch;
+  putU8("petCh", ch);
+}
+
+const char* Settings_GeminiApiKey() { return s_geminiApiKey; }
+void Settings_SetGeminiApiKey(const char* key) {
+  if (!key) key = "";
+  if (strcmp(s_geminiApiKey, key) == 0) return;
+  strncpy(s_geminiApiKey, key, sizeof(s_geminiApiKey) - 1);
+  s_geminiApiKey[sizeof(s_geminiApiKey) - 1] = '\0';
+  putStr("gemKey", s_geminiApiKey);
+}
+
 // --- Weather radar ----------------------------------------------------------
 uint8_t Settings_RadarSource() { return s_radarSrc; }
 void    Settings_SetRadarSource(uint8_t s) {
@@ -931,6 +965,9 @@ void Settings_ToJson(JsonObject o) {
   o["issAlert"]   = s_issAlert;
   o["youtubeKey"] = s_ytApiKey;
   o["youtubeChannel"] = s_ytChannel;
+  o["petEnabled"]     = s_petEnabled;
+  o["petCharacter"]   = s_petChar;
+  o["geminiKey"]      = s_geminiApiKey;
 }
 
 bool Settings_FromJson(JsonObjectConst in) {
@@ -1006,6 +1043,9 @@ bool Settings_FromJson(JsonObjectConst in) {
   setIf("issAlert",        [](JsonVariantConst v){ Settings_SetIssAlert(v.as<bool>()); });
   setIf("youtubeKey",      [](JsonVariantConst v){ Settings_SetYouTubeApiKey(v.as<const char*>()); });
   setIf("youtubeChannel",  [](JsonVariantConst v){ Settings_SetYouTubeChannel(v.as<const char*>()); });
+  setIf("petEnabled",      [](JsonVariantConst v){ Settings_SetPetEnabled(v.as<bool>()); });
+  setIf("petCharacter",    [](JsonVariantConst v){ Settings_SetPetCharacter(v.as<uint8_t>()); });
+  setIf("geminiKey",       [](JsonVariantConst v){ Settings_SetGeminiApiKey(v.as<const char*>()); });
 
   if (!in["altMin"].isNull() || !in["altMax"].isNull()) {
     uint16_t lo = in["altMin"].isNull() ? s_altMin : in["altMin"].as<uint16_t>();

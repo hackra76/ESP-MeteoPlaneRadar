@@ -46,6 +46,7 @@
   X(S_FW_UPDATE,     "Aktualizace FW",     "Aktualizace FW",     "Aktualizacia FW",    "Aktualizácia FW",    "Firmware update") \
   X(S_WEB_HINT,      "Nastaveni v prohlizeci:", "Nastavení v prohlížeči:", "Nastavenia v prehliadaci:", "Nastavenia v prehliadači:", "Settings in a browser:") \
   X(S_AIRCRAFT,      "Letadel",            "Letadel",            "Lietadiel",          "Lietadiel",          "Aircraft") \
+  X(S_NO_AIRCRAFT,   "Zadna letadla",      "Žádná letadla",      "Ziadne lietadla",    "Žiadne lietadlá",    "No aircraft") \
   X(S_ALTITUDE,      "Vyska",              "Výška",              "Vyska",              "Výška",              "Altitude") \
   X(S_SPEED,         "Rychlost",           "Rychlost",           "Rychlost",           "Rýchlosť",           "Speed") \
   X(S_TRACK,         "Kurz",               "Kurz",               "Kurz",               "Kurz",               "Track") \

@@ -213,6 +213,10 @@ void ScreenPlanes_Enter() {
   Async_SetAdsbTarget(Settings_Lat(), Settings_Lon(), currentRange());
   Async_RequestAdsb();
   s_nextFetch = 0;
+  if (ADSB_IsFresh()) {
+    s_dataOk = true;
+    s_status = T(S_OK);
+  }
 }
 
 bool ScreenPlanes_Tick() {
@@ -242,8 +246,8 @@ bool ScreenPlanes_Tick() {
   bool adsbChanged  = Async_TakeAdsbUpdated();
 
   if (adsbChanged) {
-    s_dataOk = (ADSB_Count() > 0);
-    s_status = s_dataOk ? T(S_OK) : T(S_ERROR);
+    s_dataOk = true;
+    s_status = T(S_OK);
 
     if (ScreenPlanes_DetailOpen()) {
       if (ADSB_FindByHex(s_selectedHex) >= 0) {
@@ -675,15 +679,18 @@ void ScreenPlanes_Draw() {
     int tw = Layout_TextW(sub, 2);
     gfx->fillRoundRect(LCD_WIDTH / 2 - tw / 2 - 6, LY_SUB - 4, tw + 12, 20, 5, C_RED);
     UI_TextCentered(sub, LY_SUB - 1, C_WHITE, 2);
-  } else if (WiFi.status() != WL_CONNECTED || !s_dataOk) {
-    UI_TextCentered(s_status.c_str(), LY_SUB, C_YELLOW, 1);
-  } else if (!ADSB_IsFresh()) {
+  } else if (WiFi.status() != WL_CONNECTED) {
+    UI_TextCentered(T(S_WIFI_WAIT), LY_SUB, C_YELLOW, 1);
+  } else if (!s_dataOk || !ADSB_IsFresh()) {
     UI_TextCentered(T(S_LOADING), LY_SUB, C_YELLOW, 1);
   } else if (specialIdx >= 0 && emergIdx < 0) {
     const Aircraft& spAc = list[specialIdx];
     const char* cname = spAc.callsign[0] ? spAc.callsign : spAc.hex;
     snprintf(sub, sizeof(sub), "! %s: %s (%.0f km) !", specialLabel, cname, specialDistKm);
     UI_TextCentered(sub, LY_SUB, specialCol, 1);
+  } else if (shown == 0) {
+    snprintf(sub, sizeof(sub), "%s", T(S_NO_AIRCRAFT));
+    UI_TextCentered(sub, LY_SUB, C_CYAN, 1);
   } else {
     if (closestIdx >= 0 && minDistKm <= range) {
       const char* cname = list[closestIdx].callsign[0] ? list[closestIdx].callsign : list[closestIdx].hex;

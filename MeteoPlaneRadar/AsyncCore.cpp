@@ -26,6 +26,7 @@
 #include "FinanceData.h"
 #include "IssData.h"
 #include "YouTubeData.h"
+#include "PetBrain.h"
 #include "ScreenWeather.h"
 #include <WiFi.h>
 
@@ -62,6 +63,7 @@ static volatile bool s_reqForecast = false;
 static volatile bool s_reqFinance = false;
 static volatile bool s_reqIss = false;
 static volatile bool s_reqYouTube = false;
+static volatile bool s_reqPetThought = false;
 
 // Mutex Helpers
 void Async_LockSettings()  { if (s_mtxSettings) xSemaphoreTake(s_mtxSettings, pdMS_TO_TICKS(200)); }
@@ -114,6 +116,7 @@ void Async_RequestRoute(const char* callsign, float lat, float lon) {
 void Async_RequestFinance() { s_reqFinance = true; }
 void Async_RequestIss()     { s_reqIss = true; }
 void Async_RequestYouTube() { s_reqYouTube = true; }
+void Async_RequestPetThought() { s_reqPetThought = true; }
 
 bool Async_TakeAdsbUpdated() {
   if (s_adsbUpdated) { s_adsbUpdated = false; return true; }
@@ -330,6 +333,13 @@ static void asyncWorkerTask(void* param) {
             }
             s_reqYouTube = false;
             lastYouTubeFetch = now;
+          }
+          // 9. AI Pet Companion (Gemini LLM thoughts)
+          else if (s_reqPetThought) {
+            s_reqPetThought = false;
+            if (PetBrain_Step()) {
+              lastTlsTime = millis();
+            }
           }
         }
         s_core0NetBusy = false;
