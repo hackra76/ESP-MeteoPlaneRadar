@@ -19,7 +19,6 @@
 #define EXIO_TOUCH_RST 2
 #define EXIO_LCD_CS    3
 #define EXIO_BUZZER    8   // Onboard active buzzer (Q5 driver)
-#define EXIO_LCD_PWR   8   // Legacy alias
 
 void     TCA9554_Init();                       // all EXIO pins as outputs
 bool     TCA9554_SetPin(uint8_t pin, bool high);   // false = the I2C write failed

@@ -100,10 +100,19 @@ static const ToneStep PATTERN_PET_SNEEZE[] = {
   { 65, true }, { 0,  false }
 };
 
-static BuzzerTone      s_activeTone = BEEP_NONE;
-static const ToneStep* s_currPattern = nullptr;
-static uint8_t         s_stepIdx = 0;
-static unsigned long   s_stepStart = 0;
+static const ToneStep PATTERN_TEST[] = {
+  { 60, true },
+  { 60, false },
+  { 60, true },
+  { 60, false },
+  { 100, true },
+  { 0,  false }
+};
+
+static volatile BuzzerTone      s_activeTone = BEEP_NONE;
+static const ToneStep* volatile s_currPattern = nullptr;
+static volatile uint8_t         s_stepIdx = 0;
+static volatile unsigned long   s_stepStart = 0;
 
 void Buzzer_Init() {
   s_activeTone = BEEP_NONE;
@@ -124,62 +133,64 @@ bool Buzzer_IsPlaying() {
   return s_activeTone != BEEP_NONE;
 }
 
-void Buzzer_Play(BuzzerTone tone) {
+void Buzzer_Play(BuzzerTone tone, bool force) {
   if (tone == BEEP_NONE) {
     Buzzer_Stop();
     return;
   }
 
-  // Master switch
-  if (!Settings_BuzzerEnabled()) return;
+  // Force flag or test tone bypasses master switch, night mute, and category filters
+  if (!force && tone != BEEP_TEST) {
+    // Master switch
+    if (!Settings_BuzzerEnabled()) return;
 
-  // Night mode mute (mute everything except emergency squawk, or all if configured)
-  if (Settings_BuzzerNightMute() && Settings_IsNight()) {
-    if (tone != BEEP_EMERGENCY && tone != BEEP_MORSE_SOS) return;
+    // Night mode mute (mute everything except emergency squawk, or all if configured)
+    if (Settings_BuzzerNightMute() && Settings_IsNight()) {
+      if (tone != BEEP_EMERGENCY && tone != BEEP_MORSE_SOS) return;
+    }
+
+    // Individual category filters
+    switch (tone) {
+      case BEEP_CLICK:
+        if (!Settings_BuzzerTouch()) return;
+        break;
+      case BEEP_HOURLY:
+        if (!Settings_BuzzerHourly()) return;
+        break;
+      case BEEP_OVERHEAD:
+        if (!Settings_BuzzerOverhead()) return;
+        break;
+      case BEEP_PRECIP:
+        if (!Settings_BuzzerPrecip()) return;
+        break;
+      case BEEP_WATCHED:
+      case BEEP_SONAR_PING:
+        if (!Settings_BuzzerWatch()) return;
+        break;
+      case BEEP_EMERGENCY:
+      case BEEP_MORSE_SOS:
+        if (!Settings_BuzzerEmergency()) return;
+        break;
+      case BEEP_PET_PURR:
+      case BEEP_PET_CHIRP:
+      case BEEP_PET_SNEEZE:
+        if (!Settings_BuzzerPet()) return;
+        break;
+      default:
+        break;
+    }
   }
 
-  // Individual category filters
-  switch (tone) {
-    case BEEP_CLICK:
-      if (!Settings_BuzzerTouch()) return;
-      break;
-    case BEEP_HOURLY:
-      if (!Settings_BuzzerHourly()) return;
-      break;
-    case BEEP_OVERHEAD:
-      if (!Settings_BuzzerOverhead()) return;
-      break;
-    case BEEP_PRECIP:
-      if (!Settings_BuzzerPrecip()) return;
-      break;
-    case BEEP_WATCHED:
-    case BEEP_SONAR_PING:
-      if (!Settings_BuzzerWatch()) return;
-      break;
-    case BEEP_EMERGENCY:
-    case BEEP_MORSE_SOS:
-      if (!Settings_BuzzerEmergency()) return;
-      break;
-    case BEEP_PET_PURR:
-    case BEEP_PET_CHIRP:
-    case BEEP_PET_SNEEZE:
-      if (!Settings_BuzzerPet()) return;
-      break;
-    default:
-      break;
-  }
-
-  // Priority check: lower priority tones do not override higher ones
-  // BEEP_CLICK (1) < BEEP_HOURLY (2) < BEEP_PRECIP (3) < BEEP_OVERHEAD (4) < BEEP_WATCHED / BEEP_SONAR_PING (5) < BEEP_EMERGENCY / BEEP_MORSE_SOS (6)
-  if (s_activeTone > tone && s_activeTone != BEEP_NONE) {
+  // Priority check: lower priority tones do not override higher ones (unless forced)
+  if (!force && tone != BEEP_TEST && s_activeTone > tone && s_activeTone != BEEP_NONE) {
     return;
   }
 
-  // BEEP_CLICK is a tactile micro-tick (2.5 ms). Generating it synchronously ensures
+  // BEEP_CLICK is a tactile click (12 ms). Generating it synchronously ensures
   // it is crisp and never gets extended by screen transitions or frame rendering.
   if (tone == BEEP_CLICK) {
     TCA9554_SetPin(EXIO_BUZZER, true);
-    delayMicroseconds(2500);
+    delay(12);
     TCA9554_SetPin(EXIO_BUZZER, false);
     return;
   }
@@ -196,8 +207,11 @@ void Buzzer_Play(BuzzerTone tone) {
     case BEEP_PET_PURR:   pat = PATTERN_PET_PURR;   break;
     case BEEP_PET_CHIRP:  pat = PATTERN_PET_CHIRP;  break;
     case BEEP_PET_SNEEZE: pat = PATTERN_PET_SNEEZE; break;
+    case BEEP_TEST:       pat = PATTERN_TEST;       break;
     default: return;
   }
+
+  Serial.printf("[Buzzer] Playing tone %u (forced=%d)\n", (unsigned)tone, (int)(force || tone == BEEP_TEST));
 
   s_activeTone = tone;
   s_currPattern = pat;
@@ -207,12 +221,16 @@ void Buzzer_Play(BuzzerTone tone) {
   TCA9554_SetPin(EXIO_BUZZER, s_currPattern[0].state);
 }
 
+void Buzzer_PlayTest() {
+  Buzzer_Play(BEEP_TEST, true);
+}
+
 void Buzzer_Tick() {
   if (s_activeTone == BEEP_NONE || !s_currPattern) return;
 
   unsigned long now = millis();
   if (now - s_stepStart >= s_currPattern[s_stepIdx].ms) {
-    s_stepIdx++;
+    s_stepIdx = s_stepIdx + 1;
     if (s_currPattern[s_stepIdx].ms == 0) {
       // Finished
       TCA9554_SetPin(EXIO_BUZZER, false);

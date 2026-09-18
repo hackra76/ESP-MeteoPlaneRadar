@@ -798,7 +798,6 @@ static void displayWatchdog() {
     repaired = true;
     Serial.printf("DISPLAY: no frame for %lu ms, attempting recovery\n", stalled);
     TCA9554_Verify();
-    TCA9554_SetPin(EXIO_LCD_PWR, false);
     TCA9554_SetPin(EXIO_LCD_RST, true);
     Set_Backlight(Settings_Backlight());
   } else if (stalled >= DISPLAY_WD_REBOOT_MS) {

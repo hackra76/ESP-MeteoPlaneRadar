@@ -21,14 +21,18 @@ enum BuzzerTone : uint8_t {
   BEEP_MORSE_SOS,    // Authentic Morse code SOS (... --- ...) for squawk 7700 emergency
   BEEP_PET_PURR,     // Soft rhythmic purr pulses for petting
   BEEP_PET_CHIRP,    // Cheerful micro-chirp when happy / tickled
-  BEEP_PET_SNEEZE    // Playful sneeze pop (achoo!)
+  BEEP_PET_SNEEZE,   // Playful sneeze pop (achoo!)
+  BEEP_TEST          // Hardware test chirp sequence (bypasses all mutes/filters)
 };
 
 // Initialize buzzer (ensures pin is LOW)
 void Buzzer_Init();
 
-// Play a buzzer tone pattern (non-blocking)
-void Buzzer_Play(BuzzerTone tone);
+// Play a buzzer tone pattern (non-blocking). If force is true, bypasses master switch and night mute.
+void Buzzer_Play(BuzzerTone tone, bool force = false);
+
+// Explicit hardware test beep sequence (bypasses all filters and night mute)
+void Buzzer_PlayTest();
 
 // Stop any currently playing tone immediately
 void Buzzer_Stop();

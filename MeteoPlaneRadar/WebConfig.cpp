@@ -585,7 +585,7 @@ static void handleInput() {
 }
 
 static void handleBuzzerTest() {
-  Buzzer_Play(BEEP_WATCHED);
+  Buzzer_PlayTest();
   s_srv.send(200, "application/json", "{\"ok\":true}");
 }
 
