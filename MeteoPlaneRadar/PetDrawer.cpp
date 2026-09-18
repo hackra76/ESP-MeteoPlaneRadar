@@ -620,12 +620,243 @@ static void drawHeart(int cx, int cy, int size, uint16_t color) {
   gfx->fillTriangle(cx - size / 2, cy - r / 4, cx + size / 2, cy - r / 4, cx, cy + size / 2 + 1, color);
 }
 
-static void drawRainStreaks() {
+// -----------------------------------------------------------------------------
+// Weather, Runway Deck & Accessory System
+// -----------------------------------------------------------------------------
+enum PetWeather : uint8_t {
+  WEATHER_CLEAR = 0,
+  WEATHER_RAIN,
+  WEATHER_THUNDERSTORM,
+  WEATHER_SNOW
+};
+
+static PetWeather getPetWeather() {
+  // 1. Live radar nowcasting alert check
+  const PrecipAlert* alert = PrecipTracker_GetAlert();
+  if (alert && (alert->status == PRECIP_STAT_CURRENTLY_ACTIVE || alert->status == PRECIP_STAT_APPROACHING)) {
+    if (alert->type == PRECIP_HAIL_STORM) return WEATHER_THUNDERSTORM;
+    if (alert->type == PRECIP_SNOW) return WEATHER_SNOW;
+    if (alert->type == PRECIP_SLEET) {
+      if (Forecast_CurrentValid() && Forecast_CurrentTemp() <= 1.5f) return WEATHER_SNOW;
+      return WEATHER_RAIN;
+    }
+    if (alert->type == PRECIP_RAIN) return WEATHER_RAIN;
+  }
+
+  // 2. Open-Meteo forecast current weather code
+  if (Forecast_CurrentValid()) {
+    int code = Forecast_CurrentCode();
+    float temp = Forecast_CurrentTemp();
+    if (code == 95 || code == 96 || code == 99) return WEATHER_THUNDERSTORM;
+    if ((code >= 71 && code <= 77) || code == 85 || code == 86) return WEATHER_SNOW;
+    if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || Forecast_CurrentPrecip() > 0.05f) {
+      if (temp <= 0.5f) return WEATHER_SNOW;
+      return WEATHER_RAIN;
+    }
+    if (temp <= -1.0f && (code == 45 || code == 48 || code == 3)) {
+      return WEATHER_SNOW;
+    }
+  }
+
+  return WEATHER_CLEAR;
+}
+
+static void drawWeatherBackdrop(PetWeather weather) {
   const unsigned long now = millis();
-  for (int i = 0; i < 9; i++) {
-    int rx = 42 + i * 44;
-    int ry = ((int)(now / 2) + i * 61) % 460;
-    gfx->drawLine(rx, ry, rx + 1, ry + 10, 0x2318);
+
+  // Clear night sky: twinkling stars
+  if (Settings_IsNight() && weather == WEATHER_CLEAR) {
+    static const struct { int16_t x, y; uint8_t period; } STARS[18] = {
+      { 65, 80, 7 }, { 110, 70, 5 }, { 160, 48, 9 }, { 320, 48, 6 }, { 380, 74, 8 }, { 425, 90, 5 },
+      { 48, 140, 6 }, { 75, 175, 8 }, { 405, 160, 7 }, { 430, 195, 9 }, { 55, 230, 5 }, { 415, 240, 8 },
+      { 70, 275, 7 }, { 95, 305, 6 }, { 385, 290, 5 }, { 410, 315, 9 }, { 135, 325, 7 }, { 345, 325, 6 }
+    };
+    for (int i = 0; i < 18; i++) {
+      uint8_t phase = (uint8_t)((now / (STARS[i].period * 60)) % 4);
+      uint16_t starCol = (phase == 0) ? 0xFFFF : ((phase == 1) ? 0xCE79 : ((phase == 2) ? 0x8410 : 0x4208));
+      gfx->drawPixel(STARS[i].x, STARS[i].y, starCol);
+    }
+    return;
+  }
+
+  // Thunderstorm with lightning flashes
+  if (weather == WEATHER_THUNDERSTORM) {
+    static unsigned long s_nextLightningMs = 0;
+    static unsigned long s_lightningEndMs = 0;
+    if (now >= s_nextLightningMs) {
+      s_nextLightningMs = now + 8000 + (rand() % 9000);
+      s_lightningEndMs = now + 70;
+      if (Settings_BuzzerEnabled() && Settings_BuzzerPet()) {
+        Buzzer_Play(BEEP_PET_CHIRP);
+      }
+    }
+    if (now < s_lightningEndMs) {
+      gfx->fillRect(35, 40, 410, 302, 0x1946);
+      gfx->drawLine(290, 42, 275, 110, 0xFFFF);
+      gfx->drawLine(275, 110, 288, 165, 0xDEFB);
+      gfx->drawLine(288, 165, 265, 225, 0xFFFF);
+      gfx->drawLine(265, 225, 274, 295, 0x85FF);
+    }
+  }
+
+  // Rain or Thunderstorm streaks
+  if (weather == WEATHER_RAIN || weather == WEATHER_THUNDERSTORM) {
+    int slant = (int)(s_imuTiltX * 0.3f);
+    for (int i = 0; i < 22; i++) {
+      int rx = (38 + i * 19 + (int)(now / 3) + slant) % 404 + 38;
+      int ry = ((int)(now * 2) + i * 47) % 342;
+      gfx->drawLine(rx, ry, rx + 1 + slant, ry + 8, (weather == WEATHER_THUNDERSTORM) ? 0x9E7F : 0x6DBF);
+      if (ry > 333) {
+        gfx->drawFastHLine(rx - 1, 342, 3, 0x9E7F); // splash ring on runway deck
+      }
+    }
+    return;
+  }
+
+  // Drifting Snowflakes
+  if (weather == WEATHER_SNOW) {
+    for (int i = 0; i < 22; i++) {
+      int sy = ((int)(now / 16) + i * 29) % 342;
+      int drift = (int)(sinf((now * 0.0025f) + i) * 10.0f) + (int)(s_imuTiltX * 1.5f);
+      int sx = 38 + ((i * 37 + drift) % 404);
+      if (sx < 38) sx += 404;
+      if (i % 3 == 0) {
+        gfx->drawFastHLine(sx - 1, sy, 3, 0xFFFF);
+        gfx->drawFastVLine(sx, sy - 1, 3, 0xFFFF);
+      } else {
+        gfx->drawPixel(sx, sy, (i % 2 == 0) ? 0xFFFF : 0xCE79);
+      }
+    }
+  }
+}
+
+static void drawRunwayDeck(PetWeather weather) {
+  // Runway Asphalt Surface (Y = 342 to 382)
+  uint16_t tarmacCol = (weather == WEATHER_RAIN || weather == WEATHER_THUNDERSTORM) ? 0x10A2
+                     : ((weather == WEATHER_SNOW) ? 0x2124 : 0x18C3);
+  gfx->fillRect(35, 342, 410, 40, tarmacCol);
+
+  // Runway Curb / Threshold line (Y = 342)
+  uint16_t curbCol = (weather == WEATHER_SNOW) ? 0xFFFF
+                   : ((weather == WEATHER_RAIN || weather == WEATHER_THUNDERSTORM) ? 0x4228 : 0x39E7);
+  gfx->drawFastHLine(35, 342, 410, curbCol);
+
+  // Snow accumulation layer on top of the curb
+  if (weather == WEATHER_SNOW) {
+    for (int x = 40; x < 440; x += 6) {
+      gfx->drawPixel(x, 341, 0xCE79);
+      gfx->drawPixel(x + 2, 341, 0xFFFF);
+    }
+  }
+
+  // Centerline dashed markings (Y = 358)
+  uint16_t dashCol = (weather == WEATHER_SNOW) ? 0x8410 : 0x632C;
+  for (int x = 55; x < 420; x += 38) {
+    gfx->fillRect(x, 358, 20, 3, dashCol);
+  }
+
+  // Runway Edge Lights
+  // Left amber beacon at (54, 342)
+  gfx->fillCircle(54, 342, 3, 0xFD20);
+  gfx->drawCircle(54, 342, 5, 0x8400);
+
+  // Right cyan/blue beacon at (426, 342)
+  gfx->fillCircle(426, 342, 3, C_CYAN);
+  gfx->drawCircle(426, 342, 5, 0x0210);
+}
+
+static void drawCatCastShadow(int cx, CatAnimState state, uint8_t frame) {
+  if (state == CAT_STATE_SLEEPING) {
+    gfx->fillRoundRect(cx - 30, 340, 60, 5, 2, 0x0821);
+    gfx->fillRoundRect(cx - 20, 341, 40, 3, 1, 0x0000);
+    return;
+  }
+
+  int rx = 26;
+  int ry = 4;
+  uint16_t col = 0x0821;
+
+  if (state == CAT_STATE_JUMP) {
+    static const int8_t s_jumpY[8] = { 4, 6, -14, -26, -32, -20, -2, 4 };
+    int8_t jy = s_jumpY[frame % 8];
+    if (jy < -10) {
+      rx = 14;
+      ry = 2;
+      col = 0x10A2; // higher jump -> smaller, fainter shadow on deck
+    } else if (jy < 0) {
+      rx = 20;
+      ry = 3;
+    }
+  }
+
+  gfx->fillRoundRect(cx - rx, 340, rx * 2, ry, ry / 2, col);
+  if (rx > 16) {
+    gfx->fillRoundRect(cx - (rx - 8), 341, (rx - 8) * 2, 2, 1, 0x0000);
+  }
+}
+
+static void drawCatWeatherAccessories(int catDrawX, int catDrawY, bool flipX, CatAnimState state, PetWeather weather) {
+  // 1. Rain & Thunderstorm: Umbrella!
+  if (weather == WEATHER_RAIN || weather == WEATHER_THUNDERSTORM) {
+    if (state == CAT_STATE_SLEEPING) {
+      // Pitched beach umbrella stand beside sleeping loaf
+      int cx = (int)s_catX + 16;
+      int cy = 282;
+      gfx->fillCircle(cx, cy, 24, 0xFDC0); // Yellow canopy
+      gfx->fillRect(cx - 24, cy + 1, 49, 24, C_BLACK); // trim bottom half
+      gfx->drawFastHLine(cx - 24, cy, 49, 0xE700);
+      gfx->drawFastVLine(cx, cy, 58, 0x9482); // umbrella shaft
+      gfx->drawCircle(cx + 3, cy + 58, 3, 0x9482); // handle hook
+      gfx->drawFastVLine(cx, cy - 26, 3, 0xFDC0); // top spike
+      gfx->drawLine(cx - 12, cy, cx - 6, cy - 20, 0xF800); // red decorative wedges
+      gfx->drawLine(cx + 12, cy, cx + 6, cy - 20, 0xF800);
+      // Droplets bouncing off canopy
+      gfx->drawPixel(cx - 10, cy - 22, 0xFFFF);
+      gfx->drawPixel(cx + 8, cy - 23, 0xFFFF);
+    } else {
+      // Held umbrella over walking / sitting DigiCat
+      int cx = (int)s_catX + (flipX ? -14 : 14);
+      int cy = catDrawY + 10;
+      gfx->fillCircle(cx, cy, 22, 0xFDC0);
+      gfx->fillRect(cx - 22, cy + 1, 45, 22, C_BLACK);
+      gfx->drawFastHLine(cx - 22, cy, 45, 0xE700);
+      int pawX = flipX ? (catDrawX + 44) : (catDrawX + 76);
+      int pawY = catDrawY + 52;
+      gfx->drawLine(cx, cy, pawX, pawY, 0x9482); // shaft down to paw
+      gfx->drawFastVLine(cx, cy - 24, 3, 0xFDC0); // top spike
+      gfx->drawLine(cx - 10, cy, cx - 5, cy - 18, 0xF800);
+      gfx->drawLine(cx + 10, cy, cx + 5, cy - 18, 0xF800);
+      gfx->drawPixel(cx - 8, cy - 20, 0xFFFF);
+    }
+    return;
+  }
+
+  // 2. Snow / Freezing Weather: Cozy Knit Winter Scarf!
+  bool isCold = (weather == WEATHER_SNOW) || (Forecast_CurrentValid() && Forecast_CurrentTemp() <= 2.0f);
+  if (isCold) {
+    int neckX = flipX ? (catDrawX + 68) : (catDrawX + 48);
+    int neckY = catDrawY + 54;
+    gfx->fillRoundRect(neckX - 7, neckY, 15, 6, 2, 0xF800); // bright red scarf wrap
+    gfx->drawFastVLine(neckX - 3, neckY, 6, 0xFFFF); // white knit pattern
+    gfx->drawFastVLine(neckX + 2, neckY, 6, 0xFFFF);
+    int tailX = flipX ? (neckX + 5) : (neckX - 5);
+    gfx->fillRect(tailX, neckY + 4, 4, 10, 0xF800); // fluttering scarf tail
+    gfx->drawFastHLine(tailX, neckY + 12, 4, 0xFFFF);
+    gfx->drawFastHLine(tailX, neckY + 14, 4, 0xDEFB); // fringe
+    return;
+  }
+
+  // 3. Clear Sky / Sunny: Aviator Goggles on forehead!
+  if (weather == WEATHER_CLEAR && state != CAT_STATE_SLEEPING) {
+    int gogX = flipX ? (catDrawX + 64) : (catDrawX + 54);
+    int gogY = catDrawY + 28;
+    gfx->drawFastHLine(gogX - 10, gogY + 1, 20, 0x59A0); // leather strap
+    gfx->drawRoundRect(gogX - 9, gogY - 3, 8, 7, 2, 0xDEFB); // left rim
+    gfx->fillRect(gogX - 8, gogY - 2, 6, 5, 0x07FF); // left blue lens
+    gfx->drawRoundRect(gogX + 1, gogY - 3, 8, 7, 2, 0xDEFB); // right rim
+    gfx->fillRect(gogX + 2, gogY - 2, 6, 5, 0x07FF); // right blue lens
+    gfx->drawPixel(gogX - 7, gogY - 1, 0xFFFF); // lens reflections
+    gfx->drawPixel(gogX + 3, gogY - 1, 0xFFFF);
   }
 }
 
@@ -679,13 +910,10 @@ void PetDrawer_Draw() {
   // 4. Speech Bubble
   drawSpeechBubble(60, 98, 360, 68, getThoughtText());
 
-  // 5. Environmental Rain Streaks
-  bool hasRain = (Forecast_CurrentValid() && ((Forecast_CurrentCode() >= 50 && Forecast_CurrentCode() <= 69) ||
-                                            (Forecast_CurrentCode() >= 80 && Forecast_CurrentCode() <= 82))) ||
-                 PrecipTracker_IsApproaching() || PrecipTracker_IsCurrentlyActive();
-  if (hasRain) {
-    drawRainStreaks();
-  }
+  // 5. Environmental Weather & Runway Deck
+  PetWeather curWeather = getPetWeather();
+  drawWeatherBackdrop(curWeather);
+  drawRunwayDeck(curWeather);
 
   // 6. Draw DigiCat Pixel Art Sprite (or Away Radar Beacon & Call Button)
   const unsigned long now = millis();
@@ -756,7 +984,14 @@ void PetDrawer_Draw() {
       catDrawY += s_walkBob[s_animFrame % 8];
     }
 
+    // Ground cast shadow directly under DigiCat's paws
+    drawCatCastShadow((int)s_catX, s_catState, s_animFrame);
+
+    // Render DigiCat 2x scaled sprite
     drawCatSprite2x(frameToDraw, catDrawX, catDrawY, s_catFlipX);
+
+    // Weather-adaptive accessories (Umbrella in rain, Scarf in snow/cold, Aviator goggles in clear sky)
+    drawCatWeatherAccessories(catDrawX, catDrawY, s_catFlipX, s_catState, curWeather);
   }
 
   // 7. Floating Hearts when Happy or Petted
