@@ -1049,7 +1049,7 @@ td:first-child{color:var(--mut);width:45%}
           <button class="sec" onclick="stepScreen(1)" data-i18n="btnNext" style="flex:1;">Nasled. &#8594;</button>
         </div>
         <div class="row" style="justify-content:center;gap:6px;margin:6px 0;">
-          <button class="sec" id="btnPetRemote" onclick="togglePetRemote()" style="background:#1c2a38;color:#f39c12;border-color:#f39c12;flex:1;font-weight:600;padding:7px 12px;" data-i18n="btnPetShow" title="Zobraziť / Skryť DigiCat (Pet)">🐾 Zobraziť DigiCat (Pet)</button>
+          <button class="sec" id="btnPetRemote" onclick="togglePetRemote()" style="background:#1c2a38;color:#f39c12;border-color:#f39c12;flex:1;font-weight:600;padding:7px 12px;" data-i18n="btnPetShow" data-i18n-title="btnPetTitle" title="Zobraziť / Skryť DigiCat (Pet)">🐾 Zobraziť DigiCat (Pet)</button>
         </div>
         <div class="range-ctrl-row" id="rangeControlRow">
           <span data-i18n="rangeLbl" class="range-lbl">Mierka:</span>
@@ -1169,7 +1169,7 @@ const D={
   rotateHdr:"🔄 Automatické střídání obrazovek",
   remote:"🎮 Dálkové ovládání",rangeLbl:"Měřítko:",
   btnPrev:"← Předchozí",btnDblTap:"🔄 Legenda",btnNext:"Následující →",btnDec:"Přiblížit (− km)",btnInc:"Oddálit (+ km)",
-  btnPetShow:"🐾 Zobrazit DigiCat (Pet)",btnPetHide:"🐾 Skrýt DigiCat (Pet)",
+  btnPetShow:"🐾 Zobrazit DigiCat (Pet)",btnPetHide:"🐾 Skrýt DigiCat (Pet)",btnPetTitle:"Zobrazit / Skrýt DigiCat (Pet)",
   remoteHint:"Rozsah se mění na obrazovkách Letadla, Meteoradar a Taktický radar. Zásah pozastaví automatické střídání.",
   location:"📍 Domovská poloha",findCity:"Vyhledat město",search:"Hledat",found:"Nalezené výsledky",lat:"Zeměpisná šířka (°N)",lon:"Zeměpisná délka (°E)",
   locHint:"Změna polohy vyžaduje restart pro přepočet map a předpovědi.",
@@ -1268,7 +1268,7 @@ const D={
   rotateHdr:"🔄 Automatické striedanie obrazoviek",
   remote:"🎮 Diaľkový ovládač",rangeLbl:"Mierka:",
   btnPrev:"← Predchádzajúca",btnDblTap:"🔄 Legenda",btnNext:"Nasledujúca →",btnDec:"Priblížiť (− km)",btnInc:"Oddialiť (+ km)",
-  btnPetShow:"🐾 Zobraziť DigiCat (Pet)",btnPetHide:"🐾 Skryť DigiCat (Pet)",
+  btnPetShow:"🐾 Zobraziť DigiCat (Pet)",btnPetHide:"🐾 Skryť DigiCat (Pet)",btnPetTitle:"Zobraziť / Skryť DigiCat (Pet)",
   remoteHint:"Rozsah sa mení na obrazovkách Lietadlá, Meteoradar a Taktický radar. Zásah pozastaví automatické striedanie.",
   location:"📍 Domovská poloha",findCity:"Vyhľadať mesto",search:"Hľadať",found:"Nájdené výsledky",lat:"Zemepisná šírka (°N)",lon:"Zemepisná dĺžka (°E)",
   locHint:"Zmena polohy vyžaduje reštart pre prepočet máp a predpovede.",
@@ -1367,7 +1367,7 @@ const D={
   rotateHdr:"🔄 Auto Screen Cycling",
   remote:"🎮 Remote Control",rangeLbl:"Radar Scale:",
   btnPrev:"← Previous",btnDblTap:"🔄 Legend",btnNext:"Next →",btnDec:"Zoom In (− km)",btnInc:"Zoom Out (+ km)",
-  btnPetShow:"🐾 Show DigiCat (Pet)",btnPetHide:"🐾 Hide DigiCat (Pet)",
+  btnPetShow:"🐾 Show DigiCat (Pet)",btnPetHide:"🐾 Hide DigiCat (Pet)",btnPetTitle:"Show / Hide DigiCat (Pet)",
   remoteHint:"Range applies to Aircraft, Weather and Tactical screens. Manual action pauses auto cycling.",
   location:"📍 Home Location",findCity:"Search town",search:"Search",found:"Found results",lat:"Latitude (°N)",lon:"Longitude (°E)",
   locHint:"Changing location requires a reboot to recalculate maps and forecast.",
