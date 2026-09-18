@@ -95,18 +95,18 @@ static void drawCatSprite2x(const uint8_t* frame, int topLeftX, int topLeftY, bo
     const uint8_t* row = frame + py * CAT_SPRITE_W;
     int px = 0;
     while (px < CAT_SPRITE_W) {
-      uint8_t c = pgm_read_byte(row + px);
-      if (c == 0) {
+      uint8_t c = row[px];
+      if (c == 0 || c >= 16) {
         px++;
         continue; // Transparent pixel
       }
 
       int startPx = px;
-      while (px < CAT_SPRITE_W && pgm_read_byte(row + px) == c) {
+      while (px < CAT_SPRITE_W && row[px] == c) {
         px++;
       }
       int runLen = px - startPx;
-      uint16_t color = pgm_read_word(&CAT_PALETTE[c]);
+      uint16_t color = CAT_PALETTE[c];
       int startX = flipX ? (topLeftX + (CAT_SPRITE_W - px) * 2) : (topLeftX + startPx * 2);
       int w = runLen * 2;
 
@@ -140,17 +140,11 @@ void PetDrawer_Open() {
   s_nextBrainDecisionMs = now + 12000;
   s_hasCustomThought = false;
 
-  // Cat enters from any side (randomized left or right!)
-  bool fromRight = (rand() % 2 == 1);
-  if (fromRight) {
-    s_catX = LCD_WIDTH + 64.0f;
-    s_catFlipX = true;
-  } else {
-    s_catX = -64.0f;
-    s_catFlipX = false;
-  }
-  s_catTargetX = 240.0f + (float)((rand() % 80) - 40);
-  s_catState = CAT_STATE_ENTERING;
+  // Cat is centered on the deck immediately
+  s_catX = 240.0f;
+  s_catTargetX = 240.0f;
+  s_catFlipX = false;
+  s_catState = Settings_IsNight() ? CAT_STATE_SLEEPING : CAT_STATE_IDLE;
   s_animFrame = 0;
   s_nextFrameMs = now + 90;
 
@@ -160,6 +154,8 @@ void PetDrawer_Open() {
 
 void PetDrawer_Close() {
   s_isOpen = false;
+  s_catX = 240.0f;
+  s_catTargetX = 240.0f;
   s_catState = CAT_STATE_IDLE;
 }
 
@@ -169,31 +165,24 @@ void PetDrawer_Toggle() {
 }
 
 static void callCatBack() {
-  if (s_catState != CAT_STATE_AWAY && s_catState != CAT_STATE_LEAVING) return;
   const unsigned long now = millis();
 
   if (Settings_BuzzerEnabled()) {
     Buzzer_Play(BEEP_PET_CHIRP);
   }
 
-  // Choose entrance side: nearest or opposite edge
-  if (s_catX <= 0) {
-    s_catX = -64.0f;
-    s_catFlipX = false;
-  } else {
-    s_catX = LCD_WIDTH + 64.0f;
-    s_catFlipX = true;
-  }
-  s_catTargetX = 240.0f + (float)((rand() % 80) - 40);
-  s_catState = CAT_STATE_ENTERING;
+  s_catX = 240.0f;
+  s_catTargetX = 240.0f;
+  s_catFlipX = false;
+  s_catState = Settings_IsNight() ? CAT_STATE_SLEEPING : CAT_STATE_IDLE;
   s_animFrame = 0;
-  s_nextFrameMs = now + 85; // fast trot
+  s_nextFrameMs = now + 90;
   s_nextBrainDecisionMs = now + 14000;
 
   setThought(
-    "Mrow! You called? DigiCat zoomies back! <3",
-    "Mňau! Volal si ma? DigiCat letí späť! <3",
-    "Mňau! Volal jsi mě? DigiCat letí zpět! <3"
+    "Mrow! You called? DigiCat is right here! <3",
+    "Mňau! Volal si ma? DigiCat je hneď tu! <3",
+    "Mňau! Volal jsi mě? DigiCat je hned tady! <3"
   );
 }
 
@@ -201,11 +190,6 @@ void PetDrawer_HandleTouchMove(int x, int y) {
   if (!s_isOpen) return;
   const unsigned long now = millis();
   s_lastUserInteractMs = now;
-
-  if (s_catState == CAT_STATE_AWAY || s_catState == CAT_STATE_LEAVING) {
-    callCatBack();
-    return;
-  }
 
   s_isStroking = true;
   s_petStrokeUntilMs = now + 700;
@@ -269,28 +253,7 @@ bool PetDrawer_Tick() {
     s_catTargetX = s_catX;
   } else if (isNight) {
     s_catState = CAT_STATE_SLEEPING;
-  } else if (s_catState == CAT_STATE_AWAY) {
-    // Away off-screen exploring airfield
-    if (now >= s_autoReturnMs) {
-      callCatBack();
-    }
-    return true;
-  } else if (s_catState == CAT_STATE_LEAVING) {
-    // Walking off-screen
-    float dx = s_catTargetX - s_catX;
-    float step = 3.6f;
-    if (fabsf(dx) <= step || (s_catTargetX < 0 && s_catX <= -64.0f) || (s_catTargetX > LCD_WIDTH && s_catX >= LCD_WIDTH + 64.0f)) {
-      s_catState = CAT_STATE_AWAY;
-      s_autoReturnMs = now + 14000 + (rand() % 12000);
-    } else {
-      s_catX += (dx > 0) ? step : -step;
-      s_catFlipX = (dx < 0);
-    }
-    if (now >= s_nextFrameMs) {
-      s_nextFrameMs = now + 90;
-      s_animFrame = (s_animFrame + 1) % 8;
-    }
-    return true;
+    s_catTargetX = s_catX;
   } else if (s_catState == CAT_STATE_JUMP) {
     // Jump animation step (8 frames)
     if (now >= s_nextFrameMs) {
@@ -366,15 +329,15 @@ bool PetDrawer_Tick() {
         s_watchPlaneUntilMs = now + 3500;
         s_animFrame = 0;
         s_nextFrameMs = now + 350;
-      } else if (roll < 40) {
-        // 1. Patrol to a new spot on the runway deck
-        float targetX = 140.0f + (float)(rand() % 200); // 140..340
+      } else if (roll < 45) {
+        // 1. Patrol to a new spot on the runway deck (180..300)
+        float targetX = 180.0f + (float)(rand() % 120);
         s_catTargetX = targetX;
         s_catFlipX = (targetX < s_catX);
         s_catState = CAT_STATE_PATROL;
         s_animFrame = 0;
         s_nextFrameMs = now + 90;
-      } else if (roll < 60) {
+      } else if (roll < 65) {
         // 2. Playful Jump / Pounce
         s_catState = CAT_STATE_JUMP;
         s_animFrame = 0;
@@ -382,45 +345,16 @@ bool PetDrawer_Tick() {
         if (Settings_BuzzerEnabled()) {
           Buzzer_Play(BEEP_PET_CHIRP);
         }
-      } else if (roll < 75) {
+      } else if (roll < 80) {
         // 3. Groom / Face Wash
         s_catState = CAT_STATE_GROOM;
         s_animFrame = 0;
         s_nextFrameMs = now + 220;
-      } else if (roll < 88) {
+      } else {
         // 4. Big Cat Stretch
         s_catState = CAT_STATE_STRETCH;
         s_animFrame = 0;
         s_nextFrameMs = now + 450;
-      } else {
-        // 5. Leave screen to explore airfield!
-        bool leaveRight = (s_catX > 240.0f);
-        s_catTargetX = leaveRight ? (LCD_WIDTH + 80.0f) : -80.0f;
-        s_catFlipX = (s_catTargetX < s_catX);
-        s_catState = CAT_STATE_LEAVING;
-        s_animFrame = 0;
-        s_nextFrameMs = now + 90;
-
-        int dep = rand() % 3;
-        if (dep == 0) {
-          setThought(
-            "🐾 DigiCat went exploring the airfield hangar... Tap to call!",
-            "🐾 DigiCat išiel preskúmať hangár... Ťuknite pre privolanie!",
-            "🐾 DigiCat šel prozkoumat hangár... Klepněte pro přivolání!"
-          );
-        } else if (dep == 1) {
-          setThought(
-            "🐾 Chasing a moth near runway 22... Tap to call me back!",
-            "🐾 Naháňam moľa pri vzletovej dráhe... Ťukni a pribehnem!",
-            "🐾 Honička za můrou u vzletové dráhy... Klepni a přiběhnu!"
-          );
-        } else {
-          setThought(
-            "🐾 Gone to inspect the radar tower... Tap anywhere to call!",
-            "🐾 Idem skontrolovať radarovú vežu... Ťukni pre zavolanie!",
-            "🐾 Jdu zkontrolovat radarovou věž... Klepni pro zavolání!"
-          );
-        }
       }
     }
   }
@@ -616,55 +550,48 @@ void PetDrawer_Draw() {
     drawRainStreaks();
   }
 
-  // 6. Draw DigiCat Pixel Art Sprite (or Away Beacon)
+  // 6. Draw DigiCat Pixel Art Sprite
   const unsigned long now = millis();
-  if (s_catState == CAT_STATE_AWAY) {
-    // Cat is off exploring the airfield!
-    const char* awayHint = (curLang == LANG_SK) ? "( 🐾 DigiCat skúma hangár... Ťuknite pre privolanie! )"
-                          : ((curLang == LANG_CZ) ? "( 🐾 DigiCat zkoumá hangár... Klepněte pro přivolání! )"
-                                                  : "( 🐾 DigiCat is exploring airfield... Tap to call! )");
-    UI_TextCentered(awayHint, 280, 0x632C, 1);
+  s_catX = constrain(s_catX, 160.0f, 320.0f);
 
-    // Pulsing radar blip where he usually sits
-    int pulseR = 10 + (int)((now / 50) % 24);
-    gfx->drawCircle(240, 310, pulseR, 0x18A2);
-    gfx->fillCircle(240, 310, 3, C_CYAN);
+  const uint8_t* frameToDraw = nullptr;
+  if (s_catState == CAT_STATE_ENTERING || s_catState == CAT_STATE_PATROL || s_catState == CAT_STATE_LEAVING) {
+    frameToDraw = CAT_WALK_FRAMES[s_animFrame % 8];
+  } else if (s_catState == CAT_STATE_JUMP) {
+    frameToDraw = CAT_JUMP_FRAMES[s_animFrame % 8];
+  } else if (s_catState == CAT_STATE_GROOM) {
+    frameToDraw = CAT_GROOM_FRAMES[s_animFrame % 8];
+  } else if (s_catState == CAT_STATE_STRETCH) {
+    frameToDraw = CAT_STRETCH_FRAMES[s_animFrame % 6];
+  } else if (s_catState == CAT_STATE_EATING) {
+    frameToDraw = CAT_EAT_FRAMES[s_animFrame % 8];
+  } else if (s_catState == CAT_STATE_HAPPY) {
+    frameToDraw = CAT_HAPPY_FRAMES[s_animFrame % 8];
+  } else if (s_catState == CAT_STATE_SLEEPING) {
+    frameToDraw = CAT_SLEEP_FRAMES[s_animFrame % 8];
+  } else if (s_catState == CAT_STATE_WATCH_PLANE) {
+    frameToDraw = CAT_WATCH_FRAMES[s_animFrame % 4];
   } else {
-    const uint8_t* frameToDraw = nullptr;
-    if (s_catState == CAT_STATE_ENTERING || s_catState == CAT_STATE_PATROL || s_catState == CAT_STATE_LEAVING) {
-      frameToDraw = CAT_WALK_FRAMES[s_animFrame % 8];
-    } else if (s_catState == CAT_STATE_JUMP) {
-      frameToDraw = CAT_JUMP_FRAMES[s_animFrame % 8];
-    } else if (s_catState == CAT_STATE_GROOM) {
-      frameToDraw = CAT_GROOM_FRAMES[s_animFrame % 8];
-    } else if (s_catState == CAT_STATE_STRETCH) {
-      frameToDraw = CAT_STRETCH_FRAMES[s_animFrame % 6];
-    } else if (s_catState == CAT_STATE_EATING) {
-      frameToDraw = CAT_EAT_FRAMES[s_animFrame % 8];
-    } else if (s_catState == CAT_STATE_HAPPY) {
-      frameToDraw = CAT_HAPPY_FRAMES[s_animFrame % 8];
-    } else if (s_catState == CAT_STATE_SLEEPING) {
-      frameToDraw = CAT_SLEEP_FRAMES[s_animFrame % 8];
-    } else if (s_catState == CAT_STATE_WATCH_PLANE) {
-      frameToDraw = CAT_WATCH_FRAMES[s_animFrame % 4];
-    } else {
-      frameToDraw = CAT_IDLE_FRAMES[s_animFrame % 8];
-    }
-
-    int catDrawX = (int)(s_catX + s_imuTiltX * 0.5f + s_petLeanX) - 64;
-    int catDrawY = (int)(s_catY + s_imuTiltY * 0.5f) - 64;
-
-    // Jump vertical curve & walk bob
-    if (s_catState == CAT_STATE_JUMP) {
-      static const int8_t s_jumpY[8] = { 4, 6, -14, -26, -32, -20, -2, 4 };
-      catDrawY += s_jumpY[s_animFrame % 8];
-    } else if (s_catState == CAT_STATE_ENTERING || s_catState == CAT_STATE_PATROL || s_catState == CAT_STATE_LEAVING) {
-      static const int8_t s_walkBob[8] = { 0, -2, -1, 0, 0, -2, -1, 0 };
-      catDrawY += s_walkBob[s_animFrame % 8];
-    }
-
-    drawCatSprite2x(frameToDraw, catDrawX, catDrawY, s_catFlipX);
+    frameToDraw = CAT_IDLE_FRAMES[s_animFrame % 8];
   }
+
+  if (!frameToDraw) {
+    frameToDraw = CAT_IDLE_FRAMES[0];
+  }
+
+  int catDrawX = (int)(s_catX + s_imuTiltX * 0.5f + s_petLeanX) - 64;
+  int catDrawY = (int)(s_catY + s_imuTiltY * 0.5f) - 64;
+
+  // Jump vertical curve & walk bob
+  if (s_catState == CAT_STATE_JUMP) {
+    static const int8_t s_jumpY[8] = { 4, 6, -14, -26, -32, -20, -2, 4 };
+    catDrawY += s_jumpY[s_animFrame % 8];
+  } else if (s_catState == CAT_STATE_ENTERING || s_catState == CAT_STATE_PATROL || s_catState == CAT_STATE_LEAVING) {
+    static const int8_t s_walkBob[8] = { 0, -2, -1, 0, 0, -2, -1, 0 };
+    catDrawY += s_walkBob[s_animFrame % 8];
+  }
+
+  drawCatSprite2x(frameToDraw, catDrawX, catDrawY, s_catFlipX);
 
   // 7. Floating Hearts when Happy or Petted
   if (s_catState == CAT_STATE_HAPPY || s_isStroking || now < s_petStrokeUntilMs || now < s_petBounceUntilMs) {
@@ -717,12 +644,6 @@ bool PetDrawer_HandleTap(int x, int y) {
   if (y <= 48) {
     if (Settings_BuzzerTouch()) Buzzer_Play(BEEP_CLICK);
     PetDrawer_Close();
-    return true;
-  }
-
-  // If the cat was away or leaving, ANY interaction summons him back immediately!
-  if (s_catState == CAT_STATE_AWAY || s_catState == CAT_STATE_LEAVING) {
-    callCatBack();
     return true;
   }
 
