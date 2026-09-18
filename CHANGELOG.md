@@ -9,6 +9,20 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [2.0.2] - 2026-09-18
+
+### Pridané / Added
+- **Rozšírený nočný režim a postupné zaspávanie (Extended Night Wake & Gradual Sleep):**
+  - Predĺžený interaktívny čas bdenia v noci na 2 minúty po akejkoľvek interakcii (kŕmenie, hladkanie, privolanie alebo ťuknutie).
+  - Počas bdenia má DigiCat plnú autonómiu denného správania (prechádzky, výskoky, strečing, hygiena, sledovanie lietadiel).
+  - Plynulý a prirodzený prechod do spánku: 20 sekúnd pred vypršaním času DigiCat zívne, pretiahne sa a spomalí žmurkanie, než sa stočí do spiaceho bochníčka s tichým pradivým prianím dobrej noci.
+  - Prebudenie spiaceho zvieratka sprevádza rozkošný ranný strečing a pradivý pozdrav.
+  - Obnovená animácia príchodu zo strán obrazovky pri aktivácii panela v bdelom stave.
+- **Dráhový asfalt, 3D tieň a dynamické počasie pre DigiCat (Runway Deck & Weather Effects):**
+  - **Asfaltová dráha a 3D vrhaný tieň:** Vytvorená fyzická runway platforma s centrálnymi prerušovanými pruhmi a obvodovými návestidlami (jantárové a azúrové). Mäkký vrhaný tieň pod labkami dynamicky reaguje na skoky (zmenšuje sa a bledne s výškou skoku).
+  - **Efekty počasia v reálnom čase:** Nočná obloha posiata trblietajúcimi sa hviezdami, šikmé dažďové kvapky s nárazovými kruhmi na dráhe, búrka s bleskami a plávajúce snehové vločky reagujúce na náklon senzora QMI8658.
+  - **Doplnky prispôsobené počasiu:** Žlto-červený dáždnik chrániaci DigiCat v daždi a búrke, hrejivý červeno-biely pletený šál v chlade a snehu ($\le 2^\circ\text{C}$), a retro letecké okuliare s azúrovými sklami za jasného počasia.
+
 ## [2.0.1] - 2026-09-18
 
 ### Pridané / Added
