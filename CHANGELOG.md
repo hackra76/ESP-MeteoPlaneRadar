@@ -9,6 +9,14 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [2.0.1] - 2026-09-18
+
+### Pridané / Added
+- **Diaľkové ovládanie DigiCat cez Web UI:**
+  - Pridané tlačidlo v sekcii Diaľkový ovládač (`#cardRemote`) pre zobrazenie / skrytie panela DigiCat priamo z prehliadača.
+  - Plná podpora stavu v reálnom čase (`petOpen`), dynamická indikácia na štítku obrazovky a lokalizácia do všetkých 3 jazykov (SK, CZ, EN).
+  - Nový REST koncový bod `POST /api/pet/toggle` s bezpečným spracovaním v hlavnej slučke pre plynulé prekreslenie.
+
 ## [2.0.0] - 2026-09-18
 
 ### Pridané / Added
