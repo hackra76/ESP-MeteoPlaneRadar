@@ -134,7 +134,7 @@ void ScreenInfo_Draw() {
 
   char unqLbl[32];
   if (scope > 0) {
-    snprintf(unqLbl, sizeof(unqLbl), isEn ? "In range (<=%.0fkm):" : (isSk ? "V dosahu (<=%.0fkm):" : "V dosahu (<=%.0fkm):"), scopeKm);
+    snprintf(unqLbl, sizeof(unqLbl), isEn ? "Unique (<=%.0fkm):" : (isSk ? "Unikatne (<=%.0fkm):" : "Unikatni (<=%.0fkm):"), scopeKm);
   } else {
     snprintf(unqLbl, sizeof(unqLbl), isEn ? "Unique aircraft:" : (isSk ? "Unikatne stroje:" : "Unikatni letadla:"));
   }

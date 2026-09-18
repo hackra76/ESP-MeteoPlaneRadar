@@ -81,6 +81,14 @@ def main():
         else:
             sys.exit(1)
 
+    # Fetch existing assets to delete duplicates before upload
+    assets_req = urllib.request.Request(
+        f"https://api.github.com/repos/{owner}/{repo}/releases/{release_id}/assets",
+        headers=headers
+    )
+    with urllib.request.urlopen(assets_req) as resp:
+        existing_assets = json.loads(resp.read().decode("utf-8"))
+
     # Base upload URL: remove '{?name,label}'
     base_upload_url = upload_url_template.split("{")[0]
 
@@ -95,6 +103,22 @@ def main():
             continue
         
         filename = os.path.basename(asset_path)
+        
+        # Delete existing asset if found
+        for ea in existing_assets:
+            if ea["name"] == filename:
+                print(f"Deleting existing asset {filename} (ID: {ea['id']})...")
+                del_req = urllib.request.Request(
+                    f"https://api.github.com/repos/{owner}/{repo}/releases/assets/{ea['id']}",
+                    headers=headers,
+                    method="DELETE"
+                )
+                try:
+                    with urllib.request.urlopen(del_req) as dresp:
+                        print(f"Deleted {filename} ({dresp.status}).")
+                except Exception as e:
+                    print(f"Failed to delete {filename}: {e}")
+
         upload_url = f"{base_upload_url}?name={filename}"
         print(f"Uploading {filename} ({os.path.getsize(asset_path)} bytes)...")
         
