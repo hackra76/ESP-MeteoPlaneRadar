@@ -9,6 +9,35 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [2.0.0] - 2026-09-18
+
+### Pridané / Added
+- **Plne animovaný Pixel Art DigiCat (Handcrafted 32-Frame Pixel Art Companion):**
+  - Kompletné prepracovanie vizuálov zvieratka z procedurálnej geometrie na prémiový 16-farebný pixel art s 32 ručne navrhnutými snímkami (64×64 px škálovanými 2× na 128×128 px) bežiacimi cez hardvérovo akcelerovaný run-length span blitter (< 0.5 ms na snímku).
+  - Plynulé animované cykly:
+    - **Chôdza / Walk Cycle** (4 snímky): Pohyb labiek, kývanie tela a dynamický chvostík s obojsmerným horizontálnym zrkadlením (`flipX`).
+    - **Sedenie & Život / Sitting Idle** (4 snímky): Plynulé dýchanie, prirodzené žmurkanie, šklbnutie uškom.
+    - **Hladkanie & Láska / Happy Purr** (4 snímky): Blažený úsmev, červenajúce sa líčka, lietajúce srdiečka a akustické pradenie bzučiaka.
+    - **Letecký radar / Sledovanie oblohy** (2 snímky): Otáčanie v smere letu a pohľad vysoko nahor.
+    - **Kŕmenie / Eating Snack** (4 snímky): Chrumkavá rybička, hryzenie s omrvinkami a oblizovanie fúzikov.
+    - **Spánok / Sleeping Loaf** (4 snímky): Stočený bochníček s hlbokým dýchaním a stúpajúcim *Zzz*.
+    - **Výskok & Pounce / Jumping** (4 snímky): Prikrčenie pred skokom, dynamický parabolický výskok (-32 px), let vo vzduchu a mäkké odpružené dosadnutie.
+    - **Umývanie & Hygiena / Grooming** (4 snímky): Zdvihnutie labky, olizovanie vankúšika, umývanie líčka a čistenie uška.
+    - **Veľký mačací strečing / Yoga Stretch** (2 snímky): Prehnutie predných labiek s vystrčeným chrbtom a vysoký dúhový mačací chrbát.
+- **Autonómny mačací mozog s vlastnou vôľou (Autonomous AI Brain & Free Will):**
+  - **Príchod z ktorejkoľvek strany:** Pri otvorení zásuvky DigiCat prichádza náhodne zľava alebo sprava energickým klusom.
+  - **Voľný pohyb a prieskum:** DigiCat sa nenechá zamknúť na jednom mieste; autonómne sa prechádza po radarovej palube, vyskakuje za neviditeľnými moľami, umýva sa a naťahuje.
+  - **Odchod na prieskum hangáru (Airfield Excursion):** DigiCat sa občas rozhodne odísť z obrazovky na prieskum hangáru alebo za motýľom. Na ploche zanechá radarový pulz a vtipnú myšlienku.
+  - **Privolanie ťuknutím (Return on Call):** Ťuknutie kdekoľvek na displej, tlačidlá kŕmenia/hladkania alebo zatrasenie zariadením okamžite privolá DigiCat späť rýchlym behom, veselým mňauknutím a radostnou reakciou.
+- **Vyhradená karta Zvieratko vo Web Konfigurácii (Dedicated Pet Web UI Tab):**
+  - Samostatná karta pre DigiCat vo webovom rozhraní s podrobným návodom na získanie bezplatného Google Gemini API kľúča a sprievodcom dotykovými gestami.
+- **Plná trojjazyčná lokalizácia (SK / CZ / EN):**
+  - Kompletné slovenské, české a anglické dialógy, myšlienky, hodnosti a webové popisky pre DigiCat.
+
+### Opravené / Fixed
+- **Odblokovanie autonómneho správania pri leteckej prevádzke:**
+  - Odstránená trvalá blokáda v rozhodovacej slučke pri zachytení lietadla do 45 km. Sledovanie lietadla je teraz dynamickou 3.5s akciou, vďaka čomu sa DigiCat nezastaví uprostred obrazovky a naďalej voľne žije, skáče a behá.
+
 ## [1.9.9] - 2026-09-17
 
 ### Pridané / Added

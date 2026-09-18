@@ -4,10 +4,10 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20SK%20%7C%20CZ-green.svg)
-![Release](https://img.shields.io/badge/Release-v1.9.9-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v2.0.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
-**Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, ISS orbit tracking, YouTube channel analytics, financial market tickers, and designer clock faces on a round 2.1" IPS touchscreen.**  
+**Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, ISS orbit tracking, YouTube channel analytics, financial market tickers, and animated pixel-art virtual pet companion on a round 2.1" IPS touchscreen.**  
 Designed specifically for the **Waveshare ESP32-S3-Touch-LCD-2.1** development board with modern smartphone-like touch gestures, a pull-down Control Center, live aircraft photos, bilinear radar smoothing, and a responsive web dashboard for remote control and complete configuration.
 
 > 🇸🇰 Slovenská dokumentácia: **[README_SK.md](README_SK.md)**  
@@ -28,6 +28,22 @@ Designed specifically for the **Waveshare ESP32-S3-Touch-LCD-2.1** development b
 
 <p align="center">
   <em>From left to right: <b>Tactical Radar</b>, <b>ISS Orbit Tracker</b> (day/night terminator, past/future orbits, footprint ring), <b>Markets & Crypto</b> (custom tickers & sparkline), <b>Aircraft Detail</b>, <b>Weather Radar</b>, <b>Stacked Bold Watch Face</b>.</em>
+</p>
+
+### 🐱 DigiCat Animated Pixel Art Companion
+
+<p align="center">
+  <img src="docs/media/digicat_walk.gif" width="12%" alt="DigiCat Walk" />
+  <img src="docs/media/digicat_jump.gif" width="12%" alt="DigiCat Jump" />
+  <img src="docs/media/digicat_groom.gif" width="12%" alt="DigiCat Groom" />
+  <img src="docs/media/digicat_stretch.gif" width="12%" alt="DigiCat Stretch" />
+  <img src="docs/media/digicat_happy.gif" width="12%" alt="DigiCat Purr" />
+  <img src="docs/media/digicat_eat.gif" width="12%" alt="DigiCat Eat Snack" />
+  <img src="docs/media/digicat_sleep.gif" width="12%" alt="DigiCat Sleeping Loaf" />
+</p>
+
+<p align="center">
+  <em>DigiCat handcrafted 32-frame pixel art: <b>Walk Cycle</b>, <b>Pounce Leap</b>, <b>Face Grooming</b>, <b>Yoga Stretch</b>, <b>Purr & Blush</b>, <b>Fish Snack</b>, <b>Sleeping Loaf</b>.</em>
 </p>
 
 ---
@@ -139,15 +155,23 @@ The round 480×480 display features **6 completely distinct geometry styles** wi
 ### 🔌 20. Smart Home REST API
 - Direct JSON REST endpoints for Home Assistant, Node-RED, or scripts (`/api/status`, `/api/hardware`, `/api/screen`, `/api/display/resync`, `/api/toggle-legends`, `/api/rtc/sync_ntp`).
 
-### 🐾 21. Interactive Pet Companion Drawer & DigiCat
+### 🐾 21. Interactive Pixel Art Companion & Autonomous DigiCat
 - Full-screen interactive companion drawer accessible from any screen via **Swipe Up** from the bottom edge or the Quick Control Center paw icon.
-- **4 Selectable Characters**:
-  - 🤖 **Cyber Eyes**: Sci-fi radar AI scanner with glowing heart pupils and affection telemetry.
-  - 🐱 **Aero Cat**: Classic aviator tabby cat with leather goggles, animated swaying tail, and tabby forehead "M".
-  - 🐶 **Radar Shiba**: Loyal radar guard dog with floppy ears and antenna cap.
-  - 🐱 **DigiCat**: Authentic replica of the open-source virtual cat from [aquascape123/digicat](https://github.com/aquascape123/digicat) (MIT License) with vibrant orange tabby coat (`0xFD20`), dark stripes (`0x9260`), white bib, emerald eyes (`0x07E0`), front paws with pink pads, and cozy curled-up sleeping ball pose with floating *"Z z z"* in night mode.
-- **Virtual Pet Mechanics**: Live Happiness and Hunger stats on HUD, zero-latency affectionate petting responses, treat feeding (golden fish cracker snacks via double-tap), and XP flight tracking progression (*Kitten Cadet / Flight Cadet* → *Radar Navigator* → *Airspace Ace*).
-- **Gemini Live AI**: Optional Google Gemini Flash integration with dynamic auto-model discovery for live contextual thoughts on surrounding air traffic and weather.
+- **Handcrafted 32-Frame Pixel Art Animation Engine**:
+  - Crisp 16-color retro palette (RGB565) scaled 2× (128×128 px) via run-length span blitter (< 0.5 ms render time).
+  - Authentic ginger tabby with "M" forehead pattern, white bib, pink pads, emerald eyes, and swishing tail.
+  - **9 Animation Sequences**: Walk Cycle (4 frames with bidirectional horizontal flipping), Sitting Idle with breathing & blinking (4 frames), Affectionate Purr & blushing (4 frames), Aircraft Tracking (2 frames), Snack Munching (4 frames), Night Sleeping Loaf with Zzz (4 frames), Pounce Leap (4 frames with vertical jump arc), Paw Face Wash Grooming (4 frames), and Yoga Stretch (2 frames).
+- **Autonomous AI Cat Brain & Free Will**:
+  - **Randomized Multi-Side Entrance**: Trots in from either the left or right edge upon opening the drawer.
+  - **Active Idle Exploration**: Autonomously cycles between deck strolls, playful pounces, face washing, and stretching every 6–12 seconds.
+  - **Airfield Excursions**: DigiCat can decide to leave the screen on hangar patrol or moth chasing, leaving behind a radar blip and status note.
+  - **Return When Called**: Tapping anywhere on screen, clicking Feed/Pet, or tapping the chassis instantly summons DigiCat back with energetic trot, cheerful meow chirp, and joyful greeting.
+- **Virtual Pet Mechanics & Aviation Progression**:
+  - Live Happiness (0–100%) and Hunger (0–100%) gauges on the HUD.
+  - Real-time aircraft tracking XP unlocks aviation ranks: *Kitten Cadet* → *Radar Navigator* → *Airspace Ace*.
+- **Google Gemini Live AI**:
+  - Optional Google Gemini Flash integration with dynamic auto-model discovery for live contextual thoughts on surrounding air traffic and weather, with 100% offline fallback in Slovak, Czech, and English.
+- **Attribution**: Transparently inspired by and credited to [aquascape123/digicat](https://github.com/aquascape123/digicat) under the MIT License.
 
 ---
 
@@ -207,7 +231,7 @@ You can use either:
 | :--- | :--- |
 | **Swipe Left / Right** | Transitions smoothly to the next / previous screen with slide animation. |
 | **Pull Down from Top Edge** | Opens the **Quick Control Center** (brightness, night mode, screen toggles, asset picker). |
-| **Swipe Up from Bottom Edge** | Pulls up the **Interactive Pet Companion Drawer** (DigiCat, Aero Cat, Radar Shiba, Cyber Eyes). |
+| **Swipe Up from Bottom Edge** | Pulls up the **DigiCat Virtual Pet Companion Drawer**. |
 | **Within Pet Drawer** | **Tap Pet:** Pet / show affection (instant purr/bark dialogue, blush, bounce).<br>**Double-Tap:** Feed treat snack (golden fish cracker, restores hunger & happiness).<br>**Swipe Down / Tap Header:** Closes the drawer. |
 | **Swipe Up / Down in Center** | **On Clock:** Cycles to previous / next watchface style.<br>**On Radars:** Zoom In (swipe up) / Zoom Out (swipe down).<br>**On Control Center:** Closes the overlay. |
 | **Tap Bottom Range Bar** | Left half zooms Out, right half zooms In. |
@@ -304,4 +328,5 @@ Integrate easily with **Home Assistant**, **Node-RED**, or terminal scripts via 
 
 Distributed under the **MIT License**.
 - Original base project: **[petus/MeteoPlaneRadar](https://github.com/petus/MeteoPlaneRadar)**.
-- Enhancements, Slovak localization, SHMÚ radar integration, bilinear anti-aliasing, Planespotters aircraft photos, tactical combined radar, expanded watchfaces, RTC driver, IMU gestures, touch navigation, Quick Control Center, YouTube Analytics screen, ISS orbit tracker, flight watchlist, and multi-core stabilization: **Rado & Antigravity AI**.
+- Virtual pet vector mechanics, sleeping cat poses, and pet stat dynamics: **[aquascape123/digicat](https://github.com/aquascape123/digicat)** by aquascape123 (MIT License).
+- Enhancements, Slovak localization, SHMÚ radar integration, bilinear anti-aliasing, Planespotters aircraft photos, tactical combined radar, expanded watchfaces, RTC driver, IMU gestures, touch navigation, Quick Control Center, YouTube Analytics screen, ISS orbit tracker, flight watchlist, AI Pet Companion, and multi-core stabilization: **Rado & Antigravity AI**.

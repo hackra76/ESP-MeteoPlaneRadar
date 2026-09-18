@@ -675,7 +675,7 @@ void Settings_SetPetEnabled(bool on) {
 
 uint8_t Settings_PetCharacter() { return s_petChar; }
 void Settings_SetPetCharacter(uint8_t ch) {
-  if (ch > 3) ch = 0;
+  if (ch > 1) ch = 0;
   if (s_petChar == ch) return;
   s_petChar = ch;
   putU8("petCh", ch);

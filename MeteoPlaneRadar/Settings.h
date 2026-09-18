@@ -111,7 +111,7 @@ void        Settings_SetYouTubeChannel(const char* ch);
 // --- AI Pet Companion -------------------------------------------------------
 bool        Settings_PetEnabled();
 void        Settings_SetPetEnabled(bool on);
-uint8_t     Settings_PetCharacter();           // 0=Cyber Eyes, 1=Aero Cat, 2=Radar Dog, 3=DigiCat
+uint8_t     Settings_PetCharacter();           // 0=Cyber Eyes, 1=DigiCat
 void        Settings_SetPetCharacter(uint8_t ch);
 const char* Settings_GeminiApiKey();
 void        Settings_SetGeminiApiKey(const char* key);

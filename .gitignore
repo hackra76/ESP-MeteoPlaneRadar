@@ -10,4 +10,5 @@ __pycache__/
 *.ino.cpp
 .wiki_clone/
 scratch/
+tools/preview_sprites/
 

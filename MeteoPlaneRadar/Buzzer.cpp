@@ -83,6 +83,23 @@ static const ToneStep PATTERN_MORSE_SOS[] = {
   { 70,  true  }, { 0,   false }
 };
 
+static const ToneStep PATTERN_PET_PURR[] = {
+  { 12, true }, { 35, false },
+  { 14, true }, { 35, false },
+  { 12, true }, { 35, false },
+  { 14, true }, { 0,  false }
+};
+
+static const ToneStep PATTERN_PET_CHIRP[] = {
+  { 18, true }, { 35, false },
+  { 32, true }, { 0,  false }
+};
+
+static const ToneStep PATTERN_PET_SNEEZE[] = {
+  { 14, true }, { 30, false },
+  { 65, true }, { 0,  false }
+};
+
 static BuzzerTone      s_activeTone = BEEP_NONE;
 static const ToneStep* s_currPattern = nullptr;
 static uint8_t         s_stepIdx = 0;
@@ -171,6 +188,9 @@ void Buzzer_Play(BuzzerTone tone) {
     case BEEP_SONAR_PING: pat = PATTERN_SONAR_PING; break;
     case BEEP_EMERGENCY:  pat = PATTERN_EMERGENCY;  break;
     case BEEP_MORSE_SOS:  pat = PATTERN_MORSE_SOS;  break;
+    case BEEP_PET_PURR:   pat = PATTERN_PET_PURR;   break;
+    case BEEP_PET_CHIRP:  pat = PATTERN_PET_CHIRP;  break;
+    case BEEP_PET_SNEEZE: pat = PATTERN_PET_SNEEZE; break;
     default: return;
   }
 

@@ -18,7 +18,10 @@ enum BuzzerTone : uint8_t {
   BEEP_WATCHED,      // 2 pulses (50ms on, 70ms off, 50ms on) for watched flight
   BEEP_SONAR_PING,   // Acoustic double sonar ping (35ms on, 110ms off, 55ms on) for watched/rescue flight
   BEEP_EMERGENCY,    // 3 urgent pulses (90ms on, 70ms off, 90ms on, 70ms off, 120ms on)
-  BEEP_MORSE_SOS     // Authentic Morse code SOS (... --- ...) for squawk 7700 emergency
+  BEEP_MORSE_SOS,    // Authentic Morse code SOS (... --- ...) for squawk 7700 emergency
+  BEEP_PET_PURR,     // Soft rhythmic purr pulses for petting
+  BEEP_PET_CHIRP,    // Cheerful micro-chirp when happy / tickled
+  BEEP_PET_SNEEZE    // Playful sneeze pop (achoo!)
 };
 
 // Initialize buzzer (ensures pin is LOW)

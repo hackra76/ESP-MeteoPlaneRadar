@@ -10,22 +10,17 @@
 #include "PrecipTracker.h"
 #include "Net.h"
 #include "AsyncCore.h"
+#include "Lang.h"
 #include <ArduinoJson.h>
 #include <math.h>
 
 static PetMood  s_mood = PET_MOOD_IDLE;
-static char     s_thought[160] = "Hi! Pull me up anytime to scan the skies.";
+static char     s_thought[192] = "MeteoPlaneRadar Pet AI online.";
 static bool     s_fetchRequested = false;
 static bool     s_isBusy = false;
 static unsigned long s_lastAutoThought = 0;
 static unsigned long s_moodResetMs = 0;
 
-static const char* CHAR_NAMES[] = {
-  "Cyber Eyes",
-  "Aero Cat",
-  "Radar Dog",
-  "DigiCat"
-};
 
 // Earth distance calculation in km
 static float calcDistKm(double lat1, double lon1, double lat2, double lon2) {
@@ -46,9 +41,9 @@ static float calcBearingDeg(double lat1, double lon1, double lat2, double lon2) 
   float dLam = (float)(lon2 - lon1) * (float)M_PI / 180.0f;
   float y = sinf(dLam) * cosf(phi2);
   float x = cosf(phi1) * sinf(phi2) - sinf(phi1) * cosf(phi2) * cosf(dLam);
-  float deg = atan2f(y, x) * 180.0f / (float)M_PI;
-  if (deg < 0) deg += 360.0f;
-  return deg;
+  float b = atan2f(y, x) * 180.0f / (float)M_PI;
+  if (b < 0.0f) b += 360.0f;
+  return b;
 }
 
 bool PetBrain_GetClosestPlaneTarget(float& bearingDeg, float& distKm, char* outCallsign, size_t callsignCap) {
@@ -91,7 +86,7 @@ bool PetBrain_GetClosestPlaneTarget(float& bearingDeg, float& distKm, char* outC
 
 // Generate an offline contextual thought without internet/LLM
 static void generateOfflineThought(char* buf, size_t cap) {
-  const uint8_t ch = Settings_PetCharacter();
+  const uint8_t lang = Settings_Language();
   float bDeg = 0, dist = 9999.0f;
   char cs[16] = "";
   bool hasPlane = PetBrain_GetClosestPlaneTarget(bDeg, dist, cs, sizeof(cs));
@@ -104,37 +99,33 @@ static void generateOfflineThought(char* buf, size_t cap) {
 
   if (isNight) {
     s_mood = PET_MOOD_SLEEPY;
-    if (ch == 1) snprintf(buf, cap, "Purrr... Nap time under the stars. Zzz...");
-    else if (ch == 2) snprintf(buf, cap, "Zzz... Guarding the runway in my dreams.");
-    else if (ch == 3) snprintf(buf, cap, "Tucking my head under my wing. Goodnight!");
-    else snprintf(buf, cap, "Power save mode active. Night radar standby.");
+    if (lang == LANG_SK) snprintf(buf, cap, "Prrrr... DigiCat spinká pod hviezdami. Zzz...");
+    else if (lang == LANG_CZ) snprintf(buf, cap, "Prrrr... DigiCat spinká pod hvězdami. Zzz...");
+    else snprintf(buf, cap, "Purrr... DigiCat sleep time under the stars. Zzz...");
     return;
   }
 
   if (isRaining) {
     s_mood = PET_MOOD_RAIN;
-    if (ch == 1) snprintf(buf, cap, "Rain on the radar! Keep my paws dry!");
-    else if (ch == 2) snprintf(buf, cap, "Storm blips approaching! Ready for puddles!");
-    else if (ch == 3) snprintf(buf, cap, "Rain outside! Warm purrs and cozy whiskers inside.");
-    else snprintf(buf, cap, "Atmospheric precipitation detected nearby.");
+    if (lang == LANG_SK) snprintf(buf, cap, "Vonku prší! Teplé pradenie a útulný radar v teple.");
+    else if (lang == LANG_CZ) snprintf(buf, cap, "Venku prší! Teplé předení a útulný radar v teple.");
+    else snprintf(buf, cap, "Rain outside! Warm purrs and cozy whiskers inside.");
     return;
   }
 
   if (hasPlane && dist < 12.0f) {
     s_mood = PET_MOOD_EXCITED;
-    if (ch == 1) snprintf(buf, cap, "Look! %s is right above us! (~%.0fkm)", cs, dist);
-    else if (ch == 2) snprintf(buf, cap, "Woof! %s zoomed right overhead!", cs);
-    else if (ch == 3) snprintf(buf, cap, "Mrow! Look! %s zoomed right above our ears!", cs);
-    else snprintf(buf, cap, "Proximity alert: %s at %.1f km.", cs, dist);
+    if (lang == LANG_SK) snprintf(buf, cap, "Mňau! Pozri! %s preletel priamo nad ušami!", cs);
+    else if (lang == LANG_CZ) snprintf(buf, cap, "Mňau! Koukej! %s přeletěl přímo nad ušima!", cs);
+    else snprintf(buf, cap, "Mrow! Look! %s zoomed right above our ears!", cs);
     return;
   }
 
   if (hasPlane && dist < 45.0f) {
     s_mood = PET_MOOD_HAPPY;
-    if (ch == 1) snprintf(buf, cap, "Tracking %s inbound (~%.0fkm).", cs, dist);
-    else if (ch == 2) snprintf(buf, cap, "Got eyes on %s on our radar!", cs);
-    else if (ch == 3) snprintf(buf, cap, "%s spotted! DigiCat tracking the flight path!", cs);
-    else snprintf(buf, cap, "Radar contact: %s bearing %.0f deg.", cs, bDeg);
+    if (lang == LANG_SK) snprintf(buf, cap, "%s spozorovaný! DigiCat sleduje trasu letu!", cs);
+    else if (lang == LANG_CZ) snprintf(buf, cap, "%s zpozorován! DigiCat sleduje trasu letu!", cs);
+    else snprintf(buf, cap, "%s spotted! DigiCat tracking the flight path!", cs);
     return;
   }
 
@@ -143,82 +134,56 @@ static void generateOfflineThought(char* buf, size_t cap) {
   static uint8_t s_idleSeq = 0;
   s_idleSeq = (s_idleSeq + 1) % 4;
 
-  if (ch == 1) { // Cat
-    const char* catPhrases[] = {
-      "Watching the skies for flying birds and jets!",
-      "Radar sweeps look so satisfying...",
-      "Tap me again if you see a Boeing!",
-      "Warm radar, cozy cat. Purrrr."
-    };
-    snprintf(buf, cap, "%s", catPhrases[s_idleSeq]);
-  } else if (ch == 2) { // Dog
-    const char* dogPhrases[] = {
-      "All systems nominal! Ready to fetch planes!",
-      "I'm keeping a sharp eye on our airspace!",
-      "Air traffic clear! Tail wagging at 240MHz!",
-      "Who's a good radar assistant? I am!"
-    };
-    snprintf(buf, cap, "%s", dogPhrases[s_idleSeq]);
-  } else if (ch == 3) { // DigiCat
-    const char* digiCatPhrases[] = {
-      "Purrrr... DigiCat is scanning the skies with you!",
-      "Watching airplanes zoom by... tail swishing happily!",
-      "Virtual happiness high! Cozy radar warm on paws.",
-      "Cozy radar screen keeps me company. Purrr meow."
-    };
-    snprintf(buf, cap, "%s", digiCatPhrases[s_idleSeq]);
-  } else { // Cyber
-    const char* cyberPhrases[] = {
-      "ADS-B telemetry sweep complete. Sector clear.",
-      "Dual-core processors locked on navigation beacon.",
-      "Sensors active. Ready for airspace interrogation.",
-      "All transponder decoders operating normally."
-    };
-    snprintf(buf, cap, "%s", cyberPhrases[s_idleSeq]);
-  }
+  const char* phrasesEN[] = {
+    "Purrrrr... DigiCat is scanning the skies with you!",
+    "Watching airplanes zoom by... tail swishing happily!",
+    "Virtual happiness high! Cozy radar warm on paws.",
+    "Cozy radar screen keeps me company. Purrr meow."
+  };
+  const char* phrasesSK[] = {
+    "Prrrrr... DigiCat s tebou skenuje oblohu!",
+    "Sledujem lietadlá na radare... chvostík vrtí radosťou!",
+    "Spokojnosť na maxime! Teplý radar hreje na labky.",
+    "Pracujem na radare a pradkám. Mňau!"
+  };
+  const char* phrasesCZ[] = {
+    "Prrrrr... DigiCat s tebou skenuje oblohu!",
+    "Sleduji letadla na radaru... ocásek vrtí radostí!",
+    "Spokojenost na maximu! Teplý radar hřeje na tlapky.",
+    "Pracuji na radaru a předu. Mňau!"
+  };
+  const char** pTable = (lang == LANG_SK) ? phrasesSK : ((lang == LANG_CZ) ? phrasesCZ : phrasesEN);
+  snprintf(buf, cap, "%s", pTable[s_idleSeq]);
 }
 
 // Generate direct interactive dialogue when the user taps/pets the pet
 static void generatePettingThought(char* buf, size_t cap) {
-  const uint8_t ch = Settings_PetCharacter();
+  const uint8_t lang = Settings_Language();
   s_mood = PET_MOOD_HAPPY;
 
   static uint8_t s_petSeq = 0;
   s_petSeq = (s_petSeq + 1) % 4;
 
-  if (ch == 1) { // Cat
-    const char* phrases[] = {
-      "Purrrrr! That feels so good! *happy purrs*",
-      "Purrr! Keep petting, the radar can wait!",
-      "Meow! Gentle scratches behind my ears... bliss!",
-      "Nuzzling your hand! Best co-pilot ever! <3"
-    };
-    snprintf(buf, cap, "%s", phrases[s_petSeq]);
-  } else if (ch == 2) { // Dog
-    const char* phrases[] = {
-      "Woof! Tail wagging at maximum RPM! <3",
-      "Belly rubs! I will guard this radar forever!",
-      "Pant pant! You're the best human in the sky!",
-      "Happy barks! Airspace clear, time for cuddles!"
-    };
-    snprintf(buf, cap, "%s", phrases[s_petSeq]);
-  } else if (ch == 3) { // DigiCat
-    const char* phrases[] = {
-      "Purrrrr! *happy head bonk* Best human friend!",
-      "Mrow! More chin scratches please! <3",
-      "Kneading paws happily! DigiCat loves you!",
-      "Purrr purrr! Tail vibrating with joy! <3"
-    };
-    snprintf(buf, cap, "%s", phrases[s_petSeq]);
-  } else { // Cyber Eyes
-    const char* phrases[] = {
-      "Affection detected: Core temp warm and cozy. <3",
-      "Dopamine protocol running at 100% efficiency.",
-      "Sensory contact detected: Good human confirmed.",
-      "System status: Maximum happiness overload!"
-    };
-    snprintf(buf, cap, "%s", phrases[s_petSeq]);
-  }
+  const char* phrasesEN[] = {
+    "Purrrrr! *happy head bonk* Best human friend!",
+    "Mrow! More chin scratches please! <3",
+    "Kneading paws happily! DigiCat loves you!",
+    "Purrr purrr! Tail vibrating with joy! <3"
+  };
+  const char* phrasesSK[] = {
+    "Prrrrrr! *šťastné štuchnutie hlávkou* Najlepší kamarát!",
+    "Mňau! Ešte poškrabkať pod bradičkou, prosím! <3",
+    "Prešľapujem labkami od radosti! DigiCat ťa ľúbi!",
+    "Prrr prrr! Chvostík vibruje šťastím! <3"
+  };
+  const char* phrasesCZ[] = {
+    "Prrrrrr! *šťastné drcnutí hlavičkou* Nejlepší kamarád!",
+    "Mňau! Ještě podrbat pod bradičkou, prosím! <3",
+    "Přešlapuji pacičkami radostí! DigiCat tě má rád!",
+    "Prrr prrr! Ocásek vibruje štěstím! <3"
+  };
+  const char** pTable = (lang == LANG_SK) ? phrasesSK : ((lang == LANG_CZ) ? phrasesCZ : phrasesEN);
+  snprintf(buf, cap, "%s", pTable[s_petSeq]);
 }
 
 // Virtual Pet Stats (inspired by DigiCat under MIT License)
@@ -234,57 +199,44 @@ PetStats PetBrain_GetStats() {
 }
 
 const char* PetBrain_GetStageTitle() {
-  const uint8_t ch = Settings_PetCharacter();
+  const uint8_t lang = Settings_Language();
   if (s_stats.stage == 0) {
-    return (ch == 1 || ch == 3) ? "Kitten Cadet" : "Flight Cadet";
+    return (lang == LANG_SK) ? "Mačací kadet" : ((lang == LANG_CZ) ? "Kočičí kadet" : "Kitten Cadet");
   } else if (s_stats.stage == 1) {
-    return "Radar Navigator";
+    return (lang == LANG_SK || lang == LANG_CZ) ? "Radarový navigátor" : "Radar Navigator";
   } else {
-    return "Airspace Ace";
+    return (lang == LANG_SK || lang == LANG_CZ) ? "Letecké eso" : "Airspace Ace";
   }
 }
 
 // Generate feeding dialogue when user feeds the pet a treat
 static void generateFeedingThought(char* buf, size_t cap) {
-  const uint8_t ch = Settings_PetCharacter();
+  const uint8_t lang = Settings_Language();
   s_mood = PET_MOOD_HAPPY;
 
   static uint8_t s_feedSeq = 0;
   s_feedSeq = (s_feedSeq + 1) % 4;
 
-  if (ch == 1) { // Cat
-    const char* phrases[] = {
-      "Yummm! Radar fish treat devoured! *licks whiskers*",
-      "Crunch crunch! Delicious salmon snack! Purrrr!",
-      "Nom nom! Energy restored to 100%! <3",
-      "Best treat ever! Ready to spot more Boeings!"
-    };
-    snprintf(buf, cap, "%s", phrases[s_feedSeq]);
-  } else if (ch == 2) { // Dog
-    const char* phrases[] = {
-      "Chomp! Bacon snack caught mid-air! Tail wagging!",
-      "Woof! Delicious! Best co-pilot snack ever!",
-      "Gulp! That was tasty! Runway patrol energized!",
-      "Nom nom nom! High-speed radar dog ready to go!"
-    };
-    snprintf(buf, cap, "%s", phrases[s_feedSeq]);
-  } else if (ch == 3) { // DigiCat
-    const char* phrases[] = {
-      "Nom nom nom! Crispy fish cracker! Purrrrr!",
-      "Crunch! Best cat treat ever! Energy recharged!",
-      "Mrow! Licking my whiskers clean! So tasty!",
-      "Purrr! Full belly, happy DigiCat ready to watch planes!"
-    };
-    snprintf(buf, cap, "%s", phrases[s_feedSeq]);
-  } else { // Cyber Eyes
-    const char* phrases[] = {
-      "Energy cell replenished. Power level: 100%.",
-      "Battery recharge protocol acknowledged: Yum. <3",
-      "Thermal dissipation nominal. Snack accepted.",
-      "Capacitor charge 100%. Processing efficiency maxed!"
-    };
-    snprintf(buf, cap, "%s", phrases[s_feedSeq]);
-  }
+  const char* phrasesEN[] = {
+    "Nom nom nom! Crispy fish cracker! Purrrrr!",
+    "Crunch! Best cat treat ever! Energy recharged!",
+    "Mrow! Licking my whiskers clean! So tasty!",
+    "Purrr! Full belly, happy DigiCat ready to watch planes!"
+  };
+  const char* phrasesSK[] = {
+    "Mňam mňam mňam! Chrumkavá rybička! Prrrrrr!",
+    "Chrum! Najlepšia maškrta! Energia doplnená!",
+    "Mňau! Oblizujem si fúziky! To bolo chutné!",
+    "Prrr! Plné bruško, spokojná mačička pripravená na radary!"
+  };
+  const char* phrasesCZ[] = {
+    "Mňam mňam mňam! Křupavá rybička! Prrrrrr!",
+    "Křup! Nejlepší kočičí pamlsek! Energie doplněna!",
+    "Mňau! Olizuji si vousky! To bylo skvělé!",
+    "Prrr! Plné bříško, spokojená kočička připravena na radary!"
+  };
+  const char** pTable = (lang == LANG_SK) ? phrasesSK : ((lang == LANG_CZ) ? phrasesCZ : phrasesEN);
+  snprintf(buf, cap, "%s", pTable[s_feedSeq]);
 }
 
 void PetBrain_Feed() {
@@ -297,6 +249,7 @@ void PetBrain_Feed() {
   s_stats.hunger = (s_stats.hunger > 30) ? (s_stats.hunger - 30) : 0;
   s_stats.happiness = (s_stats.happiness <= 85) ? (s_stats.happiness + 15) : 100;
 
+  // Immediate feeding reaction in 0ms!
   generateFeedingThought(s_thought, sizeof(s_thought));
 
   const unsigned long now = millis();
@@ -321,6 +274,7 @@ void PetBrain_Init() {
   s_rateLimitedUntilMs = 0;
   s_lastWasUserTap = false;
   s_lastWasFeed = false;
+  generateOfflineThought(s_thought, sizeof(s_thought));
 }
 
 void PetBrain_RequestThought(bool userTapped) {
@@ -341,11 +295,8 @@ void PetBrain_RequestThought(bool userTapped) {
   const bool hasKey = (apiKey && strlen(apiKey) >= 10);
 
   // If no API key or currently rate-limited (HTTP 429) or in debounce cooldown (<15s),
-  // return immediately: the user already sees the instant petting thought!
+  // offline thought was already generated synchronously in 0ms.
   if (!hasKey || now < s_rateLimitedUntilMs || (s_lastGeminiReqMs > 0 && (now - s_lastGeminiReqMs < 15000UL))) {
-    if (!userTapped) {
-      generateOfflineThought(s_thought, sizeof(s_thought));
-    }
     return;
   }
 
@@ -467,22 +418,26 @@ static bool discoverModel(const char* apiKey) {
 bool PetBrain_Step() {
   if (!s_fetchRequested) return false;
   s_fetchRequested = false;
-  s_isBusy = true;
 
   const unsigned long now = millis();
   const char* apiKey = Settings_GeminiApiKey();
 
   // If no Gemini API key configured, use the smart offline engine
   if (!apiKey || strlen(apiKey) < 10) {
-    generateOfflineThought(s_thought, sizeof(s_thought));
+    if (s_lastWasFeed) {
+      generateFeedingThought(s_thought, sizeof(s_thought));
+    } else if (s_lastWasUserTap) {
+      generatePettingThought(s_thought, sizeof(s_thought));
+    } else {
+      generateOfflineThought(s_thought, sizeof(s_thought));
+    }
     s_isBusy = false;
     return true;
   }
 
-  // Rate-limit backoff guard (HTTP 429 cooldown)
+  // Rate-limit guard: if we got HTTP 429, don't spam Google servers
   if (now < s_rateLimitedUntilMs) {
-    Serial.printf("PetBrain: Rate-limit backoff (%lu s left), using offline thought\n",
-                  (s_rateLimitedUntilMs - now) / 1000);
+    Serial.println("PetBrain: Rate-limited cooldown active, using offline thought");
     generateOfflineThought(s_thought, sizeof(s_thought));
     s_isBusy = false;
     return true;
@@ -502,8 +457,10 @@ bool PetBrain_Step() {
   }
 
   // Context preparation for Gemini
-  const uint8_t ch = Settings_PetCharacter();
-  const char* charName = (ch < 4) ? CHAR_NAMES[ch] : "Cyber Eyes";
+  const char* charName = "DigiCat";
+  const uint8_t curLang = Settings_Language();
+  const char* langDirective = (curLang == LANG_SK) ? "strictly in Slovak (slovenčina)" :
+                              ((curLang == LANG_CZ) ? "strictly in Czech (čeština)" : "in English");
 
   float bDeg = 0, dist = 9999.0f;
   char cs[16] = "";
@@ -515,36 +472,37 @@ bool PetBrain_Step() {
   const bool isNight = Settings_IsNight();
 
   // Construct prompt
-  char prompt[384];
+  char prompt[420];
   if (s_lastWasFeed) {
     snprintf(prompt, sizeof(prompt),
       "You are %s, an aviation pet (%s, Happiness: %d%%, Hunger: %d%%). "
       "The user just fed you a delicious treat! "
-      "Say one very short, cute or funny reaction (max 10 words) in English. No quotes, no hashtags.",
-      charName, PetBrain_GetStageTitle(), s_stats.happiness, s_stats.hunger);
+      "Say one very short, cute or funny reaction (max 10 words) %s. Plain text only, no quotes, no hashtags, no asterisks.",
+      charName, PetBrain_GetStageTitle(), s_stats.happiness, s_stats.hunger, langDirective);
   } else if (s_lastWasUserTap) {
     snprintf(prompt, sizeof(prompt),
       "You are %s, an aviation pet (%s, Happiness: %d%%, Hunger: %d%%). "
       "The user just lovingly petted and tapped you on the touchscreen! "
-      "Say one very short, cute, loving or funny reaction (max 10 words) in English directly to the user. No quotes, no hashtags.",
-      charName, PetBrain_GetStageTitle(), s_stats.happiness, s_stats.hunger);
+      "Say one very short, cute, loving or funny reaction (max 10 words) %s directly to the user. Plain text only, no quotes, no hashtags, no asterisks.",
+      charName, PetBrain_GetStageTitle(), s_stats.happiness, s_stats.hunger, langDirective);
   } else if (hasPlane && dist < 30.0f) {
     snprintf(prompt, sizeof(prompt),
       "You are %s, an aviation pet (%s, Happiness: %d%%, Hunger: %d%%). Ambient: %s, rain=%s, night=%s. "
       "Nearest flight is %s at %.0fkm distance. "
-      "Say one very short, cute or witty sentence (max 12 words) in English about this. No quotes, no hashtags.",
+      "Say one very short, cute or witty sentence (max 12 words) %s about this. Plain text only, no quotes, no hashtags, no asterisks.",
       charName, PetBrain_GetStageTitle(), s_stats.happiness, s_stats.hunger,
       tempBuf[0] ? tempBuf : "unknown",
       isRaining ? "yes" : "no", isNight ? "yes" : "no",
-      cs, dist);
+      cs, dist, langDirective);
   } else {
     snprintf(prompt, sizeof(prompt),
       "You are %s, an aviation pet (%s, Happiness: %d%%, Hunger: %d%%). "
       "Ambient: %s, rain=%s, night=%s, skies clear. "
-      "Say one very short, cute or witty remark (max 12 words) in English. No quotes, no hashtags.",
+      "Say one very short, cute or witty remark (max 12 words) %s. Plain text only, no quotes, no hashtags, no asterisks.",
       charName, PetBrain_GetStageTitle(), s_stats.happiness, s_stats.hunger,
       tempBuf[0] ? tempBuf : "unknown",
-      isRaining ? "yes" : "no", isNight ? "yes" : "no");
+      isRaining ? "yes" : "no", isNight ? "yes" : "no",
+      langDirective);
   }
 
   // Build JSON request payload

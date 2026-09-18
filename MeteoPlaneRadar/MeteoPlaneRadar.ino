@@ -200,7 +200,17 @@ static void touchPump() {
       const int dy = s_lastY - s_startY;
       const unsigned long dur = now - s_startMs;
 
-      if (dur <= 750) {
+      // When Pet Companion is open, detect tactile petting / stroking over the avatar zone
+      if (PetDrawer_IsOpen()) {
+        if (s_lastY >= 160 && s_lastY <= 385 && s_startY >= 140 && s_startY <= 400) {
+          PetDrawer_HandleTouchMove(s_lastX, s_lastY);
+          if (abs(dx) > 15 || abs(dy) > 15) {
+            s_gestureConsumed = true; // Consumed as active petting stroke
+          }
+        }
+      }
+
+      if (dur <= 750 && !s_gestureConsumed) {
         // 1. Pull down from top edge (Control Center)
         if (s_startY <= 120 && dy >= 60 && abs(dx) < 80) {
           s_pendKind = PEND_PULL_DOWN;
@@ -233,6 +243,10 @@ static void touchPump() {
   s_touching = false;
   const bool wasConsumed = s_gestureConsumed;
   s_gestureConsumed = false;
+
+  if (PetDrawer_IsOpen()) {
+    PetDrawer_HandleTouchRelease();
+  }
 
   // If already triggered during drag, don't re-dispatch or interpret as tap on release
   if (wasConsumed) return;
@@ -690,6 +704,12 @@ void setup() {
       if (NightMode_IsUltraNightActive()) {
         if (Settings_BuzzerTouch()) Buzzer_Play(BEEP_CLICK);
         NightMode_WakeTemporary(10000);
+        drawActive();
+        return;
+      }
+      if (PetDrawer_IsOpen()) {
+        if (Settings_BuzzerTouch()) Buzzer_Play(BEEP_OVERHEAD);
+        PetBrain_Feed();
         drawActive();
         return;
       }

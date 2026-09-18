@@ -4,10 +4,10 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-SK%20%7C%20CZ%20%7C%20EN-green.svg)
-![Release](https://img.shields.io/badge/Release-v1.9.9-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v2.0.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
-**Multifunkčná meteorologická stanica, živý letecký ADS-B radar, animovaný radar zrážok (SHMÚ, ČHMÚ, RainViewer), kombinovaný taktický radar, sledovanie stanice ISS, analytika YouTube kanála, finančné trhy a dizajnové ciferníky hodín na okrúhlom 2.1" IPS dotykovom displeji.**  
+**Multifunkčná meteorologická stanica, živý letecký ADS-B radar, animovaný radar zrážok (SHMÚ, ČHMÚ, RainViewer), kombinovaný taktický radar, sledovanie stanice ISS, analytika YouTube kanála, finančné trhy, dizajnové ciferníky a animovaný pixel art virtuálny spoločník na okrúhlom 2.1" IPS dotykovom displeji.**  
 Vyvinuté špeciálne pre vývojovú dosku **Waveshare ESP32-S3-Touch-LCD-2.1** s modernými dotykovými gestami v štýle smartfónu, sťahovacím Ovládacím centrom (Control Center), reálnymi fotografiami lietadiel, bilineárnym vyhladzovaním radaru a responzívnym webovým rozhraním pre diaľkové ovládanie a kompletnú konfiguráciu.
 
 > 🇬🇧 English documentation: **[README.md](README.md)**  
@@ -28,6 +28,22 @@ Vyvinuté špeciálne pre vývojovú dosku **Waveshare ESP32-S3-Touch-LCD-2.1** 
 
 <p align="center">
   <em>Zľava doprava: <b>Taktický radar</b>, <b>Sledovanie ISS</b> (solárny terminátor deň/noc, minulá a budúca trajektória, kruh viditeľnosti), <b>Trhy & Krypto</b> (živé grafy a tickery), <b>Detail lietadla</b>, <b>Meteorologický radar</b>, <b>Ciferník Stacked Bold</b>.</em>
+</p>
+
+### 🐱 Animovaný Pixel Art spoločník DigiCat
+
+<p align="center">
+  <img src="docs/media/digicat_walk.gif" width="12%" alt="DigiCat Chôdza" />
+  <img src="docs/media/digicat_jump.gif" width="12%" alt="DigiCat Skok" />
+  <img src="docs/media/digicat_groom.gif" width="12%" alt="DigiCat Hygiena" />
+  <img src="docs/media/digicat_stretch.gif" width="12%" alt="DigiCat Strečing" />
+  <img src="docs/media/digicat_happy.gif" width="12%" alt="DigiCat Pradenie" />
+  <img src="docs/media/digicat_eat.gif" width="12%" alt="DigiCat Kŕmenie" />
+  <img src="docs/media/digicat_sleep.gif" width="12%" alt="DigiCat Spánok" />
+</p>
+
+<p align="center">
+  <em>Ručne tvorený 32-snímkový pixel art DigiCat: <b>Chôdza</b>, <b>Výskok s oblúkom</b>, <b>Umývanie uška a líčka</b>, <b>Joga strečing</b>, <b>Pradenie a červenanie</b>, <b>Chrumkanie rybičky</b>, <b>Spiaci bochníček</b>.</em>
 </p>
 
 ---
@@ -139,15 +155,23 @@ Až **7 štýlov sekundového prstenca**:
 ### 🔌 20. Smart Home REST API
 - Integrované REST rozhranie pre Home Assistant, Node-RED alebo skripty (`/api/status`, `/api/hardware`, `/api/screen`, `/api/display/resync`, `/api/toggle-legends`, `/api/rtc/sync_ntp`).
 
-### 🐾 21. Interaktívna zásuvka Pet Drawer & DigiCat
+### 🐾 21. Interaktívny Pixel Art spoločník & Autonómny DigiCat
 - Celoobrazovková interaktívna zásuvka s virtuálnym spoločníkom dostupná z akejkoľvek obrazovky potiahnutím zospodu nahor (**Swipe Up**) alebo cez ikonu labky v Ovládacom centre.
-- **4 voliteľné postavičky**:
-  - 🤖 **Cyber Eyes**: Kybernetický radarový skener so svietiacimi srdiečkovými zreničkami a telemetriou.
-  - 🐱 **Aero Cat**: Letecká pruhovaná mačka s koženými okuliarmi, animovaným kývajúcim sa chvostíkom a znakom „M“ na čele.
-  - 🐶 **Radar Shiba**: Verný radarový psík s radarovou anténkou a klopiacimi uškami.
-  - 🐱 **DigiCat**: Autentická replika obľúbenej virtuálnej mačky z projektu [aquascape123/digicat](https://github.com/aquascape123/digicat) (licencia MIT) so žiarivo oranžovým kožúškom (`0xFD20`), tmavými pruhmi (`0x9260`), bielou náprsenkou, smaragdovými očami (`0x07E0`), labkami s ružovými vankúšikmi a útulnou spiacou polohou (Sleeping Ball) s animovaným *„Z z z“* v nočnom režime.
-- **Mechaniky virtuálneho zvieratka**: Živé zobrazenie šťastia a hladu na HUD, okamžitá odozva na pohladkanie (vrnenie/štekot, poskočenie, červenanie líc), kŕmenie maškrtami (dvojitým poklepaním hodí rybičku a nasýti zvieratko) a získavanie leteckých skúseností XP (*Kitten Cadet / Flight Cadet* → *Radar Navigator* → *Airspace Ace*).
-- **Živá umelá inteligencia Gemini Live**: Voliteľné prepojenie s Google Gemini Flash API s dynamickým autodetekčným fallbackom pre kontextové komentovanie preletov a počasia.
+- **Ručne tvorený 32-snímkový Pixel Art animačný engine**:
+  - Žiarivá 16-farebná retro paleta (RGB565) škálovaná 2× (128×128 px) cez hardvérovo optimalizovaný span blitter (< 0.5 ms na snímku).
+  - Autentický ryšavý tabby kocúrik s ikonickým „M“ na čele, bielou náprsenkou, ružovými vankúšikmi, smaragdovými očkami a animovaným chvostíkom.
+  - **9 kompletných animovaných cyklov**: Chôdza (4 snímky s obojsmerným zrkadlením), Sedenie so žmurkaním a dýchaním (4 snímky), Blažené pradenie a červenanie (4 snímky), Sledovanie lietadiel na oblohe (2 snímky), Chrumkanie rybičky (4 snímky), Spiaci bochníček s písmenkami Zzz (4 snímky), Výskok s parabolickým letom (4 snímky), Umývanie tváre a uška labkou (4 snímky) a Veľký mačací joga strečing (2 snímky).
+- **Autonómny mačací mozog s vlastnou vôľou**:
+  - **Príchod z ktorejkoľvek strany:** Pri otvorení zásuvky DigiCat pribehne náhodne zľava alebo sprava svižným klusom.
+  - **Aktívny život na obrazovke:** Každých 6–12 sekúnd DigiCat sám podniká aktivity – prechádza sa po radarovej ploche, vyskakuje do výšky, umýva sa alebo sa naťahuje.
+  - **Výlety po letisku (Airfield Excursion):** DigiCat sa môže autonómne rozhodnúť odísť z obrazovky na prieskum hangáru alebo loviť motýle. Na ploche zanechá radarový signál a vtipnú myšlienku.
+  - **Privolanie na zavolanie:** Ťuknutie kdekoľvek na displej, kŕmenie, hladkanie alebo poklepanie po tele zariadenia okamžite privolá kocúrika späť rýchlym behom, veselým mňauknutím a radostnou reakciou.
+- **Mechaniky virtuálneho zvieratka a letecký rast**:
+  - Živé sledovanie hladu (0–100%) a šťastia (0–100%) na HUD displeji.
+  - Sledovaním reálnych lietadiel na radare získava DigiCat skúsenosti (XP) a postupuje v leteckých hodnostiach: *Mačací kadet* → *Radarový navigátor* → *Letecké eso*.
+- **Umelá inteligencia Google Gemini Live**:
+  - Voliteľné priame prepojenie s Google Gemini Flash API pre živé kontextové komentovanie počasia a preletov, s plnohodnotným 100% offline režimom v slovenčine, češtine a angličtine.
+- **Atribúcia a licencia**: Projekt transparentne vychádza z inšpirácie a herných mechaník [aquascape123/digicat](https://github.com/aquascape123/digicat) pod licenciou MIT.
 
 ---
 
@@ -207,7 +231,7 @@ Môžete použiť buď:
 | :--- | :--- |
 | **Potiahnutie doľava / doprava** | Plynulý posun na nasledujúcu / predchádzajúcu obrazovku. |
 | **Stiahnutie z horného okraja** | Otvorí **Rýchle ovládacie centrum** (jas, nočný režim, prepínače obrazoviek, výber trhov). |
-| **Potiahnutie zospodu nahor** | Otvorí **Interaktívnu zásuvku Pet Drawer** (DigiCat, Aero Cat, Radar Shiba, Cyber Eyes). |
+| **Potiahnutie zospodu nahor** | Otvorí **Zásuvku virtuálneho zvieratka DigiCat**. |
 | **V zásuvke Pet Drawer** | **Ťuknutie na zvieratko:** Pohladkanie / prejav lásky (okamžité dialógy, červenanie líc, poskočenie).<br>**Dvojité ťuknutie:** Hodenie maškrty (zlatá rybička, nasýti zvieratko a zvýši šťastie).<br>**Potiahnutie nadol / ťuknutie na lištu:** Zavrie zásuvku. |
 | **Potiahnutie hore / dole v strede** | **Na hodinách:** Prepína predchádzajúci / nasledujúci ciferník.<br>**Na radaroch:** Priblíženie (Zoom In - hore) / Oddialenie (Zoom Out - dole).<br>**V ovládacom centre:** Zavrie menu. |
 | **Ťuknutie na spodnú lištu rozsahu** | Ľavá polovica oddiali (Zoom Out), pravá polovica priblíži (Zoom In). |

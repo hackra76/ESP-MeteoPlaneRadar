@@ -156,6 +156,7 @@ td:first-child{color:var(--mut);width:45%}
   <button data-tab="tScrFinance"  data-i18n="tabScrFinance">📈 Trhy & Krypto</button>
   <button data-tab="tScrIss"      data-i18n="tabScrIss">🛰️ ISS Tracker</button>
   <button data-tab="tScrYouTube"  data-i18n="tabScrYouTube">▶️ YouTube</button>
+  <button data-tab="tScrPet"      data-i18n="tabScrPet">🐾 Zvieratko</button>
   <button data-tab="tScrInfo"     data-i18n="tabScrInfo">ℹ️ Info & Štatistiky</button>
   <button data-tab="tSerial"      data-i18n="tabSerial" class="tab-serial">📟 Sériový monitor</button>
   <button data-tab="tCommon"      data-i18n="tabCommon" class="tab-common">⚙️ Spoločné nastavenia</button>
@@ -640,7 +641,86 @@ td:first-child{color:var(--mut);width:45%}
         </div>
       </section>
 
-      <!-- 8. OBRAZOVKA: INFO & ŠTATISTIKY -->
+      <!-- 8. OBRAZOVKA: AI PET COMPANION -->
+      <section id="tScrPet" class="tab hide">
+        <div class="screen-hero">
+          <div class="hero-title">
+            <h2>🐾 <span data-i18n="scrPetHdr">AI Radar Companion (Virtuálne zvieratko)</span></h2>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 data-i18n="petSettingsHdr">⚙️ Nastavenia zvieratka</h2>
+          <div class="row" style="margin-top:0;">
+            <label class="chk" style="font-weight:600;font-size:14px;">
+              <input type="checkbox" id="petEnabled">
+              <span data-i18n="petEnabledLbl">Aktivovať AI zvieratko (potiahnutie od spodného okraja)</span>
+            </label>
+          </div>
+          <div class="row" style="margin-top:10px;align-items:center;">
+            <label class="lbl" data-i18n="petCharLbl">Postavička:</label>
+            <div style="flex:1 1 200px;font-weight:600;color:var(--accent);">🐱 DigiCat (Pixel Art Companion)</div>
+            <input type="hidden" id="petCharacter" value="1">
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <label class="lbl" for="geminiKey" data-i18n="geminiKeyLbl">Google Gemini API kľúč:</label>
+            <div style="display:flex;flex:1 1 280px;gap:6px;">
+              <input type="password" id="geminiKey" placeholder="AIzaSy..." style="flex:1;">
+              <button type="button" class="sec" onclick="const f=$('geminiKey');f.type=(f.type==='password'?'text':'password');this.textContent=(f.type==='password'?'👁️':'🔒');" style="padding:6px 10px;font-size:13px;" title="Zobraziť / Skryť kľúč">👁️</button>
+            </div>
+          </div>
+          <p class="hint" data-i18n="geminiKeyHint">Bezplatný API kľúč z Google AI Studio pre generovanie myšlienok. Ak je pole prázdne, zvieratko funguje plne offline so vstavanými reakciami.</p>
+        </div>
+
+        <!-- Návod na bezplatný kľúč -->
+        <div class="card">
+          <h2 data-i18n="geminiGuideHdr">🔑 Ako získať bezplatný Google Gemini API kľúč (Návod)</h2>
+          <div style="font-size:13.5px;line-height:1.6;color:var(--fg);">
+            <p style="margin:0 0 10px;" data-i18n="geminiGuideP1">
+              Google AI Studio poskytuje bezplatný prístup (Free Tier) k moderným AI modelom série Gemini. Kľúč získate do 1 minúty bez nutnosti zadávať platobnú kartu:
+            </p>
+            <ol style="margin:0 0 14px 20px;padding:0;display:flex;flex-direction:column;gap:8px;">
+              <li><span data-i18n="geminiStep1">Otvorte stránku </span><a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style="color:var(--acc);font-weight:600;">Google AI Studio - Get API Key ↗</a><span data-i18n="geminiStep1b"> a prihláste sa svojím Google účtom (Gmail).</span></li>
+              <li><span data-i18n="geminiStep2">Kliknite na modré tlačidlo <b>"Create API key"</b> (Vytvoriť API kľúč).</span></li>
+              <li><span data-i18n="geminiStep3">Zvoľte <i>"Create API key in new project"</i> (alebo vyberte existujúci projekt) a potvrďte.</span></li>
+              <li><span data-i18n="geminiStep4">Skopírujte vygenerovaný kľúč (reťazec začínajúci na <code>AIzaSy...</code>) a vložte ho do poľa vyššie.</span></li>
+            </ol>
+            <div style="padding:10px 12px;background:rgba(0,180,216,0.08);border:1px solid rgba(0,180,216,0.25);border-radius:8px;font-size:12.5px;">
+              <strong style="color:var(--acc);" data-i18n="geminiNoteTitle">💡 Dôležité informácie:</strong>
+              <ul style="margin:4px 0 0 16px;padding:0;display:flex;flex-direction:column;gap:4px;">
+                <li data-i18n="geminiNote1"><b>100% zadarmo:</b> V bezplatnom režime Google poskytuje až 15 požiadaviek za minútu (RPM) a 1 milión tokenov denne.</li>
+                <li data-i18n="geminiNote2"><b>Jazyk odpovedí:</b> Zvieratko automaticky komunikuje vo vašom zvolenom jazyku systému (Slovenčina, Čeština alebo Angličtina).</li>
+                <li data-i18n="geminiNote3"><b>Offline režim:</b> Ak kľúč nezadáte, zvieratko plnohodnotne reaguje na počasie, lietadlá, hladkanie a kŕmenie z internej pamäte.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tipy & Gestá pre zvieratko -->
+        <div class="card">
+          <h2 data-i18n="petGesturesHdr">✨ Interakcia & Gestá na displeji</h2>
+          <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;font-size:13px;">
+            <div style="padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--line);border-radius:8px;">
+              <div style="font-weight:600;color:var(--acc);margin-bottom:4px;" data-i18n="petTip1Hdr">👆 Potiahnutie nahor:</div>
+              <div data-i18n="petTip1Txt">Potiahnutím prsta od spodného okraja obrazovky nahor kedykoľvek vyvoláte zvieratko.</div>
+            </div>
+            <div style="padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--line);border-radius:8px;">
+              <div style="font-weight:600;color:var(--acc);margin-bottom:4px;" data-i18n="petTip2Hdr">❤️ Pohladkanie:</div>
+              <div data-i18n="petTip2Txt">Ťuknutie na zvieratko ho pohladká, zvýši šťastie a spustí radostnú animáciu.</div>
+            </div>
+            <div style="padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--line);border-radius:8px;">
+              <div style="font-weight:600;color:var(--acc);margin-bottom:4px;" data-i18n="petTip3Hdr">🐟 Kŕmenie & Dvojklik:</div>
+              <div data-i18n="petTip3Txt">Dvojklik na zvieratko mu dá maškrtu, zníži hlad a doplní energiu.</div>
+            </div>
+            <div style="padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--line);border-radius:8px;">
+              <div style="font-weight:600;color:var(--acc);margin-bottom:4px;" data-i18n="petTip4Hdr">🧭 6-osí IMU senzor:</div>
+              <div data-i18n="petTip4Txt">Zvieratko reaguje na fyzické nakláňanie radarového zariadenia v priestore.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 9. OBRAZOVKA: INFO & ŠTATISTIKY -->
       <section id="tScrInfo" class="tab hide">
         <div class="screen-hero">
           <div class="hero-title">
@@ -802,32 +882,7 @@ td:first-child{color:var(--mut);width:45%}
           </div>
         </div>
 
-        <!-- 4. AI Pet Companion & Gemini -->
-        <div class="card">
-          <h2>🐾 AI Radar Companion (Zvieratko & Gemini)</h2>
-          <div class="row">
-            <label class="chk" style="font-weight:600;font-size:14px;">
-              <input type="checkbox" id="petEnabled">
-              <span>Aktivovať AI zvieratko (potiahnutie od spodného okraja)</span>
-            </label>
-          </div>
-          <div class="row" style="margin-top:10px;">
-            <label class="lbl" for="petCharacter">Postavička / Zvieratko:</label>
-            <select id="petCharacter" style="flex:1 1 200px;">
-              <option value="0">🤖 Cyber Eyes (Robotické oči)</option>
-              <option value="1">🐱 Aero Cat (Letecká mačka)</option>
-              <option value="2">🐶 Radar Shiba (Radarový psík)</option>
-              <option value="3">🐱 DigiCat (Virtuálna mačka)</option>
-            </select>
-          </div>
-          <div class="row" style="margin-top:10px;">
-            <label class="lbl" for="geminiKey">Google Gemini API kľúč:</label>
-            <input type="password" id="geminiKey" placeholder="AIzaSy..." style="flex:1 1 280px;">
-          </div>
-          <p class="hint">Bezplatný API kľúč z Google AI Studio pre generovanie myšlienok. Ak je pole prázdne, zvieratko funguje plne offline.</p>
-        </div>
-
-        <!-- 5. Automatické striedanie obrazoviek -->
+        <!-- 4. Automatické striedanie obrazoviek -->
         <div class="card">
           <h2 data-i18n="rotateHdr">🔄 Automatické striedanie obrazoviek</h2>
           <div class="row"><label data-i18n="autoRotate">Čas zobrazenia obrazovky (sekundy, 0 = vypnuté)</label>
@@ -1164,7 +1219,7 @@ const D={
   otaUpToDate:"Máte nejnovější verzi",otaNewAvail:"K dispozici je nová verze!",otaChecking:"Kontroluji GitHub...",
   otaDownloading:"Stahování a zápis firmwaru...",otaSuccess:"Aktualizace úspěšná! Restartuji...",otaErr:"Chyba aktualizace",
   otaNoAsset:"Vydání neobsahuje soubor OTA (-ota.bin)",otaConfirm:"Opravdu spustit aktualizaci firmwaru na verzi",
-  scrClock:"Hodiny & Astro",scrPlanes:"Letadla radar",scrMeteo:"Meteoradar",scrTactical:"Taktický radar",scrForecast:"Předpověď počasí",scrInfo:"Info & Statistiky",scrFinance:"Trhy & Krypto",scrSettings:"Nastavení",
+  scrClock:"Hodiny & Astro",scrPlanes:"Letadla radar",scrMeteo:"Meteoradar",scrTactical:"Taktický radar",scrForecast:"Předpověď počasí",scrInfo:"Info & Statistiky",scrFinance:"Trhy & Krypto",scrYouTube:"YouTube",scrSettings:"Nastavení",
   finSlotsHdr:"📈 Sledované trhy & aktiva (4 pozice)",finGraphTypeLbl:"Typ hlavního grafu:",finGraphLine:"📈 Čárový graf (Line)",finGraphCandle:"🕯️ Svíčkový graf (Candlestick)",finGraphHint:"Svíčkový graf zobrazuje barevné svíčky (zelená růstová, červená klesající) s knoty (High/Low) a tělem (Open/Close).",finSlot1:"1. Hlavní trh (Hero graf)",finSlot1Sub:"Velký reálný graf + kurz",finSlot2:"2. Sledovaný trh",finSlot3:"3. Sledovaný trh",finSlot4:"4. Sledovaný trh",finSlotWatchlist:"Karta v dolním přehledu",finPresets:"⚡ Rychlé přidání populárních aktiv:",finClear:"Vymazat",financeHint:"1. pozice má velký graf (Hero), pozice 2–4 se zobrazují v dolním přehledu. Podporuje evropské ETF fondy (Amundi CW8.PA, 500.PA, Vanguard VWCE.DE), krypto, indexy, komodity i světové akcie z Yahoo Finance.",
   ultraNight:"🌙 Ultra Night režim (hluboká červená / spánkový monochróm, min. jas)",
   tabScrInfo:"ℹ️ Info & Statistiky",scrInfoHdr:"Info & Denní statistika letů",scrInfoActive:"Zahrnout obrazovku do automatického střídání",
@@ -1173,7 +1228,26 @@ const D={
    cPrecip:"🌧️ Výstraha blížících se srážek",bzPrecip:"🔊 Pípnutí při blížících se srážkách",precipTrackerHdr:"🌧️ Detekce blížících se srážek (Nowcasting)",precipHint:"Vektorová analýza pohybu frontu (TREC). Upozorní na déšť, kroupy nebo sníh, pouze pokud srážky směřují přímo k vaší poloze.",precipLiveHdr:"Aktuální stav nowcastingu:",
   scrShotHdr:"📸 Snímek displeje",scrShotNone:"Klikněte pro zachycení",btnTakeScrShot:"📸 Zachytit obrazovku",btnDlScrShot:"💾 Stáhnout BMP",scrShotOk:"Snímek úspěšně načten",scrShotErr:"Chyba načtení snímku",
   tabScrIss:"🛰️ ISS Tracker",scrIssHdr:"ISS Tracker (Mezinárodní vesmírná stanice)",scrIssActive:"Zahrnout obrazovku do automatického střídání",scrIss:"ISS Tracker",issAlertLbl:"🔊 Zvuková výstraha při přeletu stanice nad obzorem (v dosahu / nad hlavou)",issTelemetryHdr:"🛰️ Živá telemetrie stanice ISS",issStateLbl:"Aktuální stav:",issLatLonLbl:"Poloha (Lat / Lon):",issAltLbl:"Výška letu:",issVelLbl:"Rychlost:",issDistLbl:"Vzdálenost:",issElLbl:"Elevace / Azimut:",issSunLbl:"Osvětlení:",issSunlit:"☀️ Na denním světle",issEclipsed:"🌑 Ve stínu Země",issInRange:"🛰️ V dosahu přímé viditelnosti",issOverhead:"⭐ PŘÍMO NAD HLAVOU (> 45°)",issOutRange:"Mimo dosah horizontu",btnIssRefresh:"🔄 Aktualizovat telemetrii",issHint:"Sledování přeletu Mezinárodní vesmírné stanice ISS v reálném čase (API WhereTheISS). Zobrazuje mapu světa se dnem/nocí, orbitální dráhu, horizont přímé viditelnosti (~2200 km) a odpočet dalšího přeletu.",
-   tabSerial:"📟 Sériový monitor",serialHdr:"Sériový monitor (Live Web Console)",btnSerialStart:"Spustit monitor",btnSerialPause:"Pozastavit monitor",serialActive:"Aktivní (Live)",serialPaused:"Pozastaveno",serialAutoScroll:"Automatický posun",btnSerialCopy:"📋 Kopírovat",btnSerialDl:"💾 Stáhnout",btnSerialClear:"🧹 Vymazat",btnSerialSend:"Odeslat ↵",serialCopied:"Výpis zkopírován do schránky",serialCleared:"Konzole vymazána",serialHint:"Streamování výstupů sériového portu přes WiFi bez nutnosti USB kabelu. Při odchodu ze záložky se přenos automaticky pozastaví."
+   tabSerial:"📟 Sériový monitor",serialHdr:"Sériový monitor (Live Web Console)",btnSerialStart:"Spustit monitor",btnSerialPause:"Pozastavit monitor",serialActive:"Aktivní (Live)",serialPaused:"Pozastaveno",serialAutoScroll:"Automatický posun",btnSerialCopy:"📋 Kopírovat",btnSerialDl:"💾 Stáhnout",btnSerialClear:"🧹 Vymazat",btnSerialSend:"Odeslat ↵",serialCopied:"Výpis zkopírován do schránky",serialCleared:"Konzole vymazána",serialHint:"Streamování výstupů sériového portu přes WiFi bez nutnosti USB kabelu. Při odchodu ze záložky se přenos automaticky pozastaví.",
+  tabScrPet:"🐾 Mazlíček",scrPetHdr:"AI Radar Companion (Virtuální mazlíček)",
+  petSettingsHdr:"⚙️ Nastavení mazlíčka",petEnabledLbl:"Aktivovat AI mazlíčka (potažení od spodního okraje)",
+  petCharLbl:"Postavička / Zvířátko:",petChar0:"🤖 Cyber Eyes (Robotické oči)",petChar1:"🐱 DigiCat (Virtuální kočka)",
+  geminiKeyLbl:"Google Gemini API klíč:",geminiKeyHint:"Bezplatný API klíč z Google AI Studio pro generování myšlenek. Pokud je pole prázdné, mazlíček funguje plně offline.",
+  geminiGuideHdr:"🔑 Jak získat bezplatný Google Gemini API klíč (Návod)",
+  geminiGuideP1:"Google AI Studio poskytuje bezplatný přístup (Free Tier) k moderním AI modelům série Gemini. Klíč získáte do 1 minuty bez nutnosti zadávat platební kartu:",
+  geminiStep1:"Otevřete stránku ",geminiStep1b:" a přihlaste se svým Google účtem (Gmail).",
+  geminiStep2:"Klikněte na modré tlačítko \"Create API key\" (Vytvořit API klíč).",
+  geminiStep3:"Zvolte \"Create API key in new project\" (nebo vyberte stávající projekt) a potvrďte.",
+  geminiStep4:"Zkopírujte vygenerovaný klíč (řetězec začínající na AIzaSy...) a vložte jej do pole výše.",
+  geminiNoteTitle:"💡 Důležité informace:",
+  geminiNote1:"100% zdarma: V bezplatném režimu Google poskytuje až 15 požadavků za minutu (RPM) a 1 milion tokenů denně.",
+  geminiNote2:"Jazyk odpovědí: Mazlíček automaticky komunikuje ve zvoleném jazyce systému (Čeština, Slovenština nebo Angličtina).",
+  geminiNote3:"Offline režim: Pokud klíč nezadáte, mazlíček plnohodnotně reaguje na počasí, letadla, hlazení a krmení z interní paměti.",
+  petGesturesHdr:"✨ Interakce & Gesta na displeji",
+  petTip1Hdr:"👆 Potažení nahoru:",petTip1Txt:"Potažením prstu od spodního okraje obrazovky nahoru kdykoliv vyvoláte mazlíčka.",
+  petTip2Hdr:"❤️ Pohlazení:",petTip2Txt:"Klepnutí na mazlíčka ho pohladí, zvýší štěstí a spustí radostnou animaci.",
+  petTip3Hdr:"🐟 Krmení & Dvojklik:",petTip3Txt:"Dvojklik na mazlíčka mu dá pamlsek, sníží hlad a doplní energii.",
+  petTip4Hdr:"🧭 6-osý IMU senzor:",petTip4Txt:"Mazlíček reaguje na fyzické naklánění radarového zařízení v prostoru."
  },
  sk:{
   tabScrClock:"🕒 Hodiny",tabScrPlanes:"✈️ Lietadlá",tabScrMeteo:"🌧️ Meteoradar",tabScrTactical:"🎯 Taktický radar",tabScrForecast:"⛅ Predpoveď",tabScrInfo:"ℹ️ Info & Štatistiky",tabScrFinance:"📈 Trhy & Krypto",tabCommon:"⚙️ Spoločné nastavenia",
@@ -1243,7 +1317,7 @@ const D={
   otaUpToDate:"Máte najnovšiu verziu",otaNewAvail:"K dispozícii je nová verzia!",otaChecking:"Kontrolujem GitHub...",
   otaDownloading:"Sťahovanie a zápis firmvéru...",otaSuccess:"Aktualizácia úspešná! Reštartujem...",otaErr:"Chyba aktualizácie",
   otaNoAsset:"Vydanie neobsahuje súbor OTA (-ota.bin)",otaConfirm:"Naozaj spustiť aktualizáciu firmvéru na verziu",
-  scrClock:"Hodiny & Astro",scrPlanes:"Lietadlá radar",scrMeteo:"Meteoradar",scrTactical:"Taktický radar",scrForecast:"Predpoveď počasia",scrInfo:"Info & Štatistiky",scrFinance:"Trhy & Krypto",scrSettings:"Nastavenia",
+  scrClock:"Hodiny & Astro",scrPlanes:"Lietadlá radar",scrMeteo:"Meteoradar",scrTactical:"Taktický radar",scrForecast:"Predpoveď počasia",scrInfo:"Info & Štatistiky",scrFinance:"Trhy & Krypto",scrYouTube:"YouTube",scrSettings:"Nastavenia",
   finSlotsHdr:"📈 Sledované trhy & aktíva (4 pozície)",finGraphTypeLbl:"Typ hlavného grafu:",finGraphLine:"📈 Čiarový graf (Line)",finGraphCandle:"🕯️ Sviečkový graf (Candlestick)",finGraphHint:"Sviečkový graf zobrazuje farebné sviečky (zelená rastová, červená klesajúca) s knôtmi (High/Low) a telom (Open/Close).",finSlot1:"1. Hlavný trh (Hero graf)",finSlot1Sub:"Veľký reálny graf + kurz",finSlot2:"2. Sledovaný trh",finSlot3:"3. Sledovaný trh",finSlot4:"4. Sledovaný trh",finSlotWatchlist:"Karta v spodnom zozname",finPresets:"⚡ Rýchle pridanie populárnych aktív:",finClear:"Vymazať",financeHint:"1. pozícia má veľký graf (Hero), pozície 2–4 sa zobrazujú v dolnom prehľade. Podporuje európske ETF fondy (Amundi CW8.PA, 500.PA, Vanguard VWCE.DE), krypto, indexy, komodity aj svetové akcie z Yahoo Finance.",
   ultraNight:"🌙 Ultra Night režim (hlboká červená / spánkový monochróm, min. jas)",
   tabScrInfo:"ℹ️ Info & Štatistiky",scrInfoHdr:"Info & Denná štatistika letov",scrInfoActive:"Zahrnúť obrazovku do automatického striedania",
@@ -1252,7 +1326,26 @@ const D={
    cPrecip:"🌧️ Výstraha blížiacich sa zrážok",bzPrecip:"🔊 Pípnutie pri blížiacich sa zrážkach",precipTrackerHdr:"🌧️ Detekcia blížiacich sa zrážok (Nowcasting)",precipHint:"Vektorová analýza pohybu frontu (TREC). Upozorní na dážď, krúpy alebo sneh, iba ak zrážky smerujú priamo k vašej polohe.",precipLiveHdr:"Aktuálny stav nowcastingu:",
   scrShotHdr:"📸 Snímka displeja",scrShotNone:"Kliknite pre zachytenie",btnTakeScrShot:"📸 Zachytiť obrazovku",btnDlScrShot:"💾 Stiahnuť BMP",scrShotOk:"Snímka úspešne načítaná",scrShotErr:"Chyba načítania snímky",
   tabScrIss:"🛰️ ISS Tracker",scrIssHdr:"ISS Tracker (Medzinárodná vesmírna stanica)",scrIssActive:"Zahrnúť obrazovku do automatického striedania",scrIss:"ISS Tracker",issAlertLbl:"🔊 Zvuková výstraha pri prelete stanice nad obzorom (v dosahu / nad hlavou)",issTelemetryHdr:"🛰️ Živá telemetria stanice ISS",issStateLbl:"Aktuálny stav:",issLatLonLbl:"Poloha (Lat / Lon):",issAltLbl:"Výška letu:",issVelLbl:"Rýchlosť:",issDistLbl:"Vzdialenosť:",issElLbl:"Elevácia / Azimut:",issSunLbl:"Osvetlenie:",issSunlit:"☀️ Na dennom svetle",issEclipsed:"🌑 V tieni Zeme",issInRange:"🛰️ V dosahu priamej viditeľnosti",issOverhead:"⭐ PRIAMO NAD HLAVOU (> 45°)",issOutRange:"Mimo dosahu horizontu",btnIssRefresh:"🔄 Aktualizovať telemetriu",issHint:"Sledovanie preletu Medzinárodnej vesmírnej stanice ISS v reálnom čase (API WhereTheISS). Zobrazuje mapu sveta s dňom/nocou, orbitálnu dráhu, horizont priamej viditeľnosti (~2200 km) a časovač ďalšieho preletu.",
-   tabSerial:"📟 Sériový monitor",serialHdr:"Sériový monitor (Live Web Console)",btnSerialStart:"Spustiť monitor",btnSerialPause:"Pozastaviť monitor",serialActive:"Aktívny (Live)",serialPaused:"Pozastavené",serialAutoScroll:"Automatický posun",btnSerialCopy:"📋 Kopírovať",btnSerialDl:"💾 Stiahnuť",btnSerialClear:"🧹 Vymazať",btnSerialSend:"Odoslať ↵",serialCopied:"Výpis skopírovaný do schránky",serialCleared:"Konzola vymazaná",serialHint:"Streamovanie výstupov sériového portu cez WiFi bez nutnosti USB kábla. Pri odchode zo záložky sa prenos automaticky pozastaví."
+   tabSerial:"📟 Sériový monitor",serialHdr:"Sériový monitor (Live Web Console)",btnSerialStart:"Spustiť monitor",btnSerialPause:"Pozastaviť monitor",serialActive:"Aktívny (Live)",serialPaused:"Pozastavené",serialAutoScroll:"Automatický posun",btnSerialCopy:"📋 Kopírovať",btnSerialDl:"💾 Stiahnuť",btnSerialClear:"🧹 Vymazať",btnSerialSend:"Odoslať ↵",serialCopied:"Výpis skopírovaný do schránky",serialCleared:"Konzola vymazaná",serialHint:"Streamovanie výstupov sériového portu cez WiFi bez nutnosti USB kábla. Pri odchode zo záložky sa prenos automaticky pozastaví.",
+  tabScrPet:"🐾 Zvieratko",scrPetHdr:"AI Radar Companion (Virtuálne zvieratko)",
+  petSettingsHdr:"⚙️ Nastavenia zvieratka",petEnabledLbl:"Aktivovať AI zvieratko (potiahnutie od spodného okraja)",
+  petCharLbl:"Postavička / Zvieratko:",petChar0:"🤖 Cyber Eyes (Robotické oči)",petChar1:"🐱 DigiCat (Virtuálna mačka)",
+  geminiKeyLbl:"Google Gemini API kľúč:",geminiKeyHint:"Bezplatný API kľúč z Google AI Studio pre generovanie myšlienok. Ak je pole prázdne, zvieratko funguje plne offline.",
+  geminiGuideHdr:"🔑 Ako získať bezplatný Google Gemini API kľúč (Návod)",
+  geminiGuideP1:"Google AI Studio poskytuje bezplatný prístup (Free Tier) k moderným AI modelom série Gemini. Kľúč získate do 1 minúty bez nutnosti zadávať platobnú kartu:",
+  geminiStep1:"Otvorte stránku ",geminiStep1b:" a prihláste sa svojím Google účtom (Gmail).",
+  geminiStep2:"Kliknite na modré tlačidlo \"Create API key\" (Vytvoriť API kľúč).",
+  geminiStep3:"Zvoľte \"Create API key in new project\" (alebo vyberte existujúci projekt) a potvrďte.",
+  geminiStep4:"Skopírujte vygenerovaný kľúč (reťazec začínajúci na AIzaSy...) a vložte ho do poľa vyššie.",
+  geminiNoteTitle:"💡 Dôležité informácie:",
+  geminiNote1:"100% zadarmo: V bezplatnom režime Google poskytuje až 15 požiadaviek za minútu (RPM) a 1 milión tokenov denne.",
+  geminiNote2:"Jazyk odpovedí: Zvieratko automaticky komunikuje vo vašom zvolenom jazyku systému (Slovenčina, Čeština alebo Angličtina).",
+  geminiNote3:"Offline režim: Ak kľúč nezadáte, zvieratko plnohodnotne reaguje na počasie, lietadlá, hladkanie a kŕmenie z internej pamäte.",
+  petGesturesHdr:"✨ Interakcia & Gestá na displeji",
+  petTip1Hdr:"👆 Potiahnutie nahor:",petTip1Txt:"Potiahnutím prsta od spodného okraja obrazovky nahor kedykoľvek vyvoláte zvieratko.",
+  petTip2Hdr:"❤️ Pohladkanie:",petTip2Txt:"Ťuknutie na zvieratko ho pohladká, zvýši šťastie a spustí radostnú animáciu.",
+  petTip3Hdr:"🐟 Kŕmenie & Dvojklik:",petTip3Txt:"Dvojklik na zvieratko mu dá maškrtu, zníži hlad a doplní energiu.",
+  petTip4Hdr:"🧭 6-osí IMU senzor:",petTip4Txt:"Zvieratko reaguje na fyzické nakláňanie radarového zariadenia v priestore."
  },
  en:{
   tabScrClock:"🕒 Clock",tabScrPlanes:"✈️ Aircraft",tabScrMeteo:"🌧️ Weather Radar",tabScrTactical:"🎯 Tactical Radar",tabScrForecast:"⛅ Forecast",tabScrInfo:"ℹ️ Info & Stats",tabScrFinance:"📈 Markets & Crypto",tabCommon:"⚙️ Shared Settings",
@@ -1322,7 +1415,7 @@ const D={
   otaUpToDate:"Up to date",otaNewAvail:"New version available!",otaChecking:"Checking GitHub...",
   otaDownloading:"Downloading & flashing firmware...",otaSuccess:"Update successful! Restarting...",otaErr:"Update failed",
   otaNoAsset:"Release missing OTA binary (-ota.bin)",otaConfirm:"Really install firmware update to version",
-  scrClock:"Clock & Astro",scrPlanes:"Aircraft radar",scrMeteo:"Weather radar",scrTactical:"Tactical radar",scrForecast:"Weather forecast",scrInfo:"Info & Stats",scrFinance:"Markets & Crypto",scrSettings:"Settings",
+  scrClock:"Clock & Astro",scrPlanes:"Aircraft radar",scrMeteo:"Weather radar",scrTactical:"Tactical radar",scrForecast:"Weather forecast",scrInfo:"Info & Stats",scrFinance:"Markets & Crypto",scrYouTube:"YouTube",scrSettings:"Settings",
   finSlotsHdr:"📈 Watched Markets & Assets (4 slots)",finGraphTypeLbl:"Primary Chart Style:",finGraphLine:"📈 Line Chart",finGraphCandle:"🕯️ Candlestick Chart",finGraphHint:"Candlestick chart renders colored candles (green bullish, red bearish) with wicks (High/Low) and bodies (Open/Close).",finSlot1:"1. Primary Market (Hero Chart)",finSlot1Sub:"Full sparkline chart + quote",finSlot2:"2. Watchlist Market",finSlot3:"3. Watchlist Market",finSlot4:"4. Watchlist Market",finSlotWatchlist:"Bottom watchlist card",finPresets:"⚡ Quick-add popular assets:",finClear:"Clear",financeHint:"Slot 1 features the large Hero sparkline chart; slots 2–4 appear in the bottom watchlist cards. Supports European ETFs (Amundi CW8.PA, 500.PA, Vanguard VWCE.DE), crypto, indices, commodities and global equities via Yahoo Finance.",
   ultraNight:"🌙 Ultra Night mode (deep red sleep monochrome, min. brightness)",
   tabScrInfo:"ℹ️ Info & Stats",scrInfoHdr:"Info & Daily Flight Statistics",scrInfoActive:"Include screen in automatic cycling",
@@ -1331,7 +1424,26 @@ const D={
    cPrecip:"🌧️ Approaching precipitation alert",bzPrecip:"🔊 Approaching precipitation alert chime",precipTrackerHdr:"🌧️ Approaching Precipitation Detection (Nowcasting)",precipHint:"Vector motion analysis (TREC). Alerts on incoming rain, hail, or snow only when heading towards your location.",precipLiveHdr:"Current nowcasting status:",
   scrShotHdr:"📸 Screen Capture",scrShotNone:"Click to capture",btnTakeScrShot:"📸 Capture Screen",btnDlScrShot:"💾 Download BMP",scrShotOk:"Screenshot captured successfully",scrShotErr:"Failed to capture screenshot",
   tabScrIss:"🛰️ ISS Tracker",scrIssHdr:"ISS Tracker (International Space Station)",scrIssActive:"Include screen in automatic cycling",scrIss:"ISS Tracker",issAlertLbl:"🔊 Acoustic alert when ISS is in range / overhead",issTelemetryHdr:"🛰️ Live ISS Telemetry",issStateLbl:"Current status:",issLatLonLbl:"Coordinates (Lat / Lon):",issAltLbl:"Altitude:",issVelLbl:"Velocity:",issDistLbl:"Slant range:",issElLbl:"Elevation / Azimuth:",issSunLbl:"Illumination:",issSunlit:"☀️ Daylight (Sunlit)",issEclipsed:"🌑 Earth Shadow (Eclipsed)",issInRange:"🛰️ In line of sight",issOverhead:"⭐ OVERHEAD PASS (> 45°)",issOutRange:"Out of line of sight",btnIssRefresh:"🔄 Refresh Telemetry",issHint:"Real-time orbital tracking of the International Space Station (WhereTheISS API). Displays world day/night terminator, ground track orbit, line-of-sight visibility footprint (~2,200 km) and countdown to the next overhead pass.",
-   tabSerial:"📟 Serial Monitor",serialHdr:"Serial Monitor (Live Web Console)",btnSerialStart:"Start Monitor",btnSerialPause:"Pause Monitor",serialActive:"Active (Live)",serialPaused:"Paused",serialAutoScroll:"Auto-scroll",btnSerialCopy:"📋 Copy",btnSerialDl:"💾 Download",btnSerialClear:"🧹 Clear",btnSerialSend:"Send ↵",serialCopied:"Log copied to clipboard",serialCleared:"Console cleared",serialHint:"Real-time serial output streaming over WiFi without needing a USB cable. Polling automatically pauses when switching tabs."
+   tabSerial:"📟 Serial Monitor",serialHdr:"Serial Monitor (Live Web Console)",btnSerialStart:"Start Monitor",btnSerialPause:"Pause Monitor",serialActive:"Active (Live)",serialPaused:"Paused",serialAutoScroll:"Auto-scroll",btnSerialCopy:"📋 Copy",btnSerialDl:"💾 Download",btnSerialClear:"🧹 Clear",btnSerialSend:"Send ↵",serialCopied:"Log copied to clipboard",serialCleared:"Console cleared",serialHint:"Real-time serial output streaming over WiFi without needing a USB cable. Polling automatically pauses when switching tabs.",
+  tabScrPet:"🐾 Pet Companion",scrPetHdr:"AI Radar Companion (Virtual Pet)",
+  petSettingsHdr:"⚙️ Pet Settings",petEnabledLbl:"Enable AI Pet Companion (swipe up from bottom edge)",
+  petCharLbl:"Character / Pet:",petChar0:"🤖 Cyber Eyes (Robotic Radar Eyes)",petChar1:"🐱 DigiCat (Virtual Cat)",
+  geminiKeyLbl:"Google Gemini API Key:",geminiKeyHint:"Free API key from Google AI Studio for generating pet thoughts. If left empty, pet operates fully offline.",
+  geminiGuideHdr:"🔑 How to get a free Google Gemini API Key (Step-by-Step)",
+  geminiGuideP1:"Google AI Studio offers a 100% free tier for Gemini models. You can get an API key in 1 minute without providing any credit card:",
+  geminiStep1:"Open ",geminiStep1b:" and sign in with your regular Google (Gmail) account.",
+  geminiStep2:"Click the blue \"Create API key\" button.",
+  geminiStep3:"Select \"Create API key in new project\" (or pick an existing project) and confirm.",
+  geminiStep4:"Copy the generated key (starts with AIzaSy...) and paste it into the field above.",
+  geminiNoteTitle:"💡 Key Details:",
+  geminiNote1:"100% Free: The free tier allows up to 15 requests per minute (RPM) and 1 million tokens per day.",
+  geminiNote2:"Target Language: The pet automatically responds in your selected system language (English, Slovak, or Czech).",
+  geminiNote3:"Offline Support: Without an API key, the pet operates fully offline with built-in situational reactions.",
+  petGesturesHdr:"✨ Display Interactions & Gestures",
+  petTip1Hdr:"👆 Swipe Up:",petTip1Txt:"Swipe upwards from the bottom edge on any screen to summon your pet companion.",
+  petTip2Hdr:"❤️ Petting:",petTip2Txt:"Tapping the pet gives loving pats, increases happiness, and triggers happy animations.",
+  petTip3Hdr:"🐟 Feeding & Double-tap:",petTip3Txt:"Double-tapping feeds your pet a treat, satisfying hunger and restoring energy.",
+  petTip4Hdr:"🧭 6-Axis IMU Sensor:",petTip4Txt:"The pet organically leans and responds to physical device tilting and orientation."
  }
 };
 
