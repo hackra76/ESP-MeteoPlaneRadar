@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20SK%20%7C%20CZ-green.svg)
-![Release](https://img.shields.io/badge/Release-v2.0.0-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v2.0.2-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, ISS orbit tracking, YouTube channel analytics, financial market tickers, and animated pixel-art virtual pet companion on a round 2.1" IPS touchscreen.**  
@@ -161,11 +161,25 @@ The round 480×480 display features **6 completely distinct geometry styles** wi
   - Crisp 16-color retro palette (RGB565) scaled 2× (128×128 px) via run-length span blitter (< 0.5 ms render time).
   - Authentic ginger tabby with "M" forehead pattern, white bib, pink pads, emerald eyes, and swishing tail.
   - **9 Animation Sequences**: Walk Cycle (4 frames with bidirectional horizontal flipping), Sitting Idle with breathing & blinking (4 frames), Affectionate Purr & blushing (4 frames), Aircraft Tracking (2 frames), Snack Munching (4 frames), Night Sleeping Loaf with Zzz (4 frames), Pounce Leap (4 frames with vertical jump arc), Paw Face Wash Grooming (4 frames), and Yoga Stretch (2 frames).
+- **Airfield Runway Deck & 3D Cast Shadow**:
+  - **Tarmac Surface:** Physical runway platform with dashed yellow centerline markings and perimeter beacon lights (amber left, cyan right).
+  - **Dynamic Cast Shadow:** Soft feathered oval drop shadow under DigiCat's paws that stays grounded on the deck and dynamically shrinks/fades during jumps for authentic 3D depth.
+  - **Weather-Adaptive Deck:** Dark slate asphalt, wet reflective surface during rain, and snow dusting during snowfall.
+- **Live Environmental Weather & Adaptive Accessories**:
+  - **Live Weather Integration:** Real-time sync with radar nowcasting (`PrecipTracker`) and Open-Meteo current condition codes.
+  - **Animated Weather Layers:** Clear night skies with 18 twinkling stars, slanted rain streaks with runway curb impact splash rings, thunderstorm lightning flashes (70ms atmospheric illumination and branching bolt), and soft drifting snowflakes with IMU tilt responsiveness.
+  - **Weather Accessories on DigiCat:** Bright yellow/red umbrella in rain/thunderstorms (pitched stand beside sleeping loaf; held in paw when awake), cozy red & cream knit winter scarf with fluttering tail in snow/cold ($\le 2^\circ\text{C}$), and retro aviator goggles with cyan lenses on forehead in clear skies.
+- **Extended Night Wake & Natural Gradual Sleep**:
+  - **2-Minute Night Wake Window:** Interacting with DigiCat at night keeps him active and playful for 2 full minutes with full daytime behavioral autonomy.
+  - **Gradual Wind-Down Phase:** 20 seconds before bedtime without user interaction, DigiCat yawns, stretches, and slows down idle blinking before curling into a sleeping loaf with a quiet goodnight purr.
+  - **Wake-up Stretch:** Tapping a sleeping cat wakes him up with a big morning stretch, purring chirp, and friendly greeting.
 - **Autonomous AI Cat Brain & Free Will**:
-  - **Randomized Multi-Side Entrance**: Trots in from either the left or right edge upon opening the drawer.
+  - **Randomized Multi-Side Entrance**: Trots in from either the left or right edge upon opening the drawer while awake.
   - **Active Idle Exploration**: Autonomously cycles between deck strolls, playful pounces, face washing, and stretching every 6–12 seconds.
   - **Airfield Excursions**: DigiCat can decide to leave the screen on hangar patrol or moth chasing, leaving behind a radar blip and status note.
   - **Return When Called**: Tapping anywhere on screen, clicking Feed/Pet, or tapping the chassis instantly summons DigiCat back with energetic trot, cheerful meow chirp, and joyful greeting.
+- **Web Dashboard Remote Control**:
+  - Dedicated Remote Control card toggle button in the browser to show/hide the DigiCat companion drawer on the device display over Wi-Fi.
 - **Virtual Pet Mechanics & Aviation Progression**:
   - Live Happiness (0–100%) and Hunger (0–100%) gauges on the HUD.
   - Real-time aircraft tracking XP unlocks aviation ranks: *Kitten Cadet* → *Radar Navigator* → *Airspace Ace*.

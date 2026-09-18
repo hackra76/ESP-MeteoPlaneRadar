@@ -4,6 +4,7 @@
 - **Language**: Always communicate in English with the user.
 - **Auto-Accept Changes**: Automatically implement, edit, and apply code changes directly without pausing to ask for approval.
 - **Verification**: Proactively run `pio run` to verify and ensure zero compile regressions.
+- **Release Documentation Protocol**: Whenever asked to make a new release, always update the README files (`README.md`, `README_EN.md`, `README_SK.md`) and wiki pages first to keep them completely accurate before publishing the release.
 
 # TOKEN EFFICIENCY & EXECUTION PROTOCOL
 

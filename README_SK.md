@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-SK%20%7C%20CZ%20%7C%20EN-green.svg)
-![Release](https://img.shields.io/badge/Release-v2.0.0-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v2.0.2-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunkčná meteorologická stanica, živý letecký ADS-B radar, animovaný radar zrážok (SHMÚ, ČHMÚ, RainViewer), kombinovaný taktický radar, sledovanie stanice ISS, analytika YouTube kanála, finančné trhy, dizajnové ciferníky a animovaný pixel art virtuálny spoločník na okrúhlom 2.1" IPS dotykovom displeji.**  
@@ -161,11 +161,25 @@ Až **7 štýlov sekundového prstenca**:
   - Žiarivá 16-farebná retro paleta (RGB565) škálovaná 2× (128×128 px) cez hardvérovo optimalizovaný span blitter (< 0.5 ms na snímku).
   - Autentický ryšavý tabby kocúrik s ikonickým „M“ na čele, bielou náprsenkou, ružovými vankúšikmi, smaragdovými očkami a animovaným chvostíkom.
   - **9 kompletných animovaných cyklov**: Chôdza (4 snímky s obojsmerným zrkadlením), Sedenie so žmurkaním a dýchaním (4 snímky), Blažené pradenie a červenanie (4 snímky), Sledovanie lietadiel na oblohe (2 snímky), Chrumkanie rybičky (4 snímky), Spiaci bochníček s písmenkami Zzz (4 snímky), Výskok s parabolickým letom (4 snímky), Umývanie tváre a uška labkou (4 snímky) a Veľký mačací joga strečing (2 snímky).
+- **Asfaltová dráha & 3D vrhaný tieň**:
+  - **Runway platforma:** Fyzický dráhový povrch s centrálnymi žltými prerušovanými pruhmi a obvodovými návestidlami (jantárové vľavo, azúrové vpravo).
+  - **Dynamický vrhaný tieň:** Mäkký oválny tieň pod labkami, ktorý pri skokoch zostáva na dráhe a plynulo sa zmenšuje a bledne s výškou skoku pre realistickú 3D priestorovú hĺbku.
+  - **Povrch reagujúci na počasie:** Tmavý bridlicový asfalt, mokrý lesklý povrch počas dažďa a snehový poprašok počas sneženia.
+- **Živé efekty počasia a adaptívne doplnky**:
+  - **Integrácia živého počasia:** Prepojenie v reálnom čase s radarovým nowcastingom (`PrecipTracker`) a aktuálnymi kódmi počasia Open-Meteo.
+  - **Animované vrstvy počasia:** Nočná obloha posiata 18 trblietajúcimi sa hviezdami, šikmé dažďové kvapky s nárazovými kruhmi na obrubníku dráhy, búrka s bleskami (70ms osvetlenie oblohy a rozvetvený výboj) a jemné snehové vločky reagujúce na náklon IMU senzora.
+  - **Doplnky podľa počasia pre DigiCat:** Žlto-červený dáždnik v daždi a búrke (postavený vedľa spiaceho bochníčka s odskakujúcimi kvapkami; držaný v labke pri bdení), hrejivý pletený červeno-biely šál s vejúcim strapcom v zime a snehu ($\le 2^\circ\text{C}$) a retro letecké okuliare s azúrovými sklami na čele za jasného dňa.
+- **Predĺžený nočný režim a postupné zaspávanie**:
+  - **2-minútový nočný čas bdenia:** Interakcia s DigiCat v noci ho udrží bdelého a hravého celé 2 minúty s plnou autonómiou denného správania.
+  - **Plynulé upokojenie pred spánkom:** 20 sekúnd pred zaspávaním DigiCat zívne, pretiahne sa a spomalí žmurkanie, než sa stočí do spiaceho bochníčka s tichým pradivým prianím dobrej noci.
+  - **Ranné prebudenie so strečingom:** Ťuknutie na spiaceho kocúrika ho prebudí s rozkošným mačacím strečingom, pradivým pípnutím a pozdravom.
 - **Autonómny mačací mozog s vlastnou vôľou**:
-  - **Príchod z ktorejkoľvek strany:** Pri otvorení zásuvky DigiCat pribehne náhodne zľava alebo sprava svižným klusom.
+  - **Príchod z ktorejkoľvek strany:** Pri otvorení zásuvky v bdelom stave DigiCat pribehne náhodne zľava alebo sprava svižným klusom.
   - **Aktívny život na obrazovke:** Každých 6–12 sekúnd DigiCat sám podniká aktivity – prechádza sa po radarovej ploche, vyskakuje do výšky, umýva sa alebo sa naťahuje.
   - **Výlety po letisku (Airfield Excursion):** DigiCat sa môže autonómne rozhodnúť odísť z obrazovky na prieskum hangáru alebo loviť motýle. Na ploche zanechá radarový signál a vtipnú myšlienku.
   - **Privolanie na zavolanie:** Ťuknutie kdekoľvek na displej, kŕmenie, hladkanie alebo poklepanie po tele zariadenia okamžite privolá kocúrika späť rýchlym behom, veselým mňauknutím a radostnou reakciou.
+- **Diaľkové ovládanie cez Web Rozhranie**:
+  - Vyhradené tlačidlo v sekcii Diaľkový ovládač vo webovom prehliadači pre okamžité zobrazenie / zatvorenie zásuvky DigiCat cez Wi-Fi.
 - **Mechaniky virtuálneho zvieratka a letecký rast**:
   - Živé sledovanie hladu (0–100%) a šťastia (0–100%) na HUD displeji.
   - Sledovaním reálnych lietadiel na radare získava DigiCat skúsenosti (XP) a postupuje v leteckých hodnostiach: *Mačací kadet* → *Radarový navigátor* → *Letecké eso*.
