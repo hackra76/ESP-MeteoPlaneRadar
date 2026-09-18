@@ -1048,6 +1048,9 @@ td:first-child{color:var(--mut);width:45%}
           <button class="sec" onclick="toggleLegendsRemote()" style="background:#1d293d;color:var(--acc);border-color:var(--acc);flex:1;" data-i18n="btnDblTap" title="Dvojklik / Legenda">🔄 Legenda</button>
           <button class="sec" onclick="stepScreen(1)" data-i18n="btnNext" style="flex:1;">Nasled. &#8594;</button>
         </div>
+        <div class="row" style="justify-content:center;gap:6px;margin:6px 0;">
+          <button class="sec" id="btnPetRemote" onclick="togglePetRemote()" style="background:#1c2a38;color:#f39c12;border-color:#f39c12;flex:1;font-weight:600;padding:7px 12px;" data-i18n="btnPetShow" title="Zobraziť / Skryť DigiCat (Pet)">🐾 Zobraziť DigiCat (Pet)</button>
+        </div>
         <div class="range-ctrl-row" id="rangeControlRow">
           <span data-i18n="rangeLbl" class="range-lbl">Mierka:</span>
           <div class="range-stepper">
@@ -1166,6 +1169,7 @@ const D={
   rotateHdr:"🔄 Automatické střídání obrazovek",
   remote:"🎮 Dálkové ovládání",rangeLbl:"Měřítko:",
   btnPrev:"← Předchozí",btnDblTap:"🔄 Legenda",btnNext:"Následující →",btnDec:"Přiblížit (− km)",btnInc:"Oddálit (+ km)",
+  btnPetShow:"🐾 Zobrazit DigiCat (Pet)",btnPetHide:"🐾 Skrýt DigiCat (Pet)",
   remoteHint:"Rozsah se mění na obrazovkách Letadla, Meteoradar a Taktický radar. Zásah pozastaví automatické střídání.",
   location:"📍 Domovská poloha",findCity:"Vyhledat město",search:"Hledat",found:"Nalezené výsledky",lat:"Zeměpisná šířka (°N)",lon:"Zeměpisná délka (°E)",
   locHint:"Změna polohy vyžaduje restart pro přepočet map a předpovědi.",
@@ -1264,6 +1268,7 @@ const D={
   rotateHdr:"🔄 Automatické striedanie obrazoviek",
   remote:"🎮 Diaľkový ovládač",rangeLbl:"Mierka:",
   btnPrev:"← Predchádzajúca",btnDblTap:"🔄 Legenda",btnNext:"Nasledujúca →",btnDec:"Priblížiť (− km)",btnInc:"Oddialiť (+ km)",
+  btnPetShow:"🐾 Zobraziť DigiCat (Pet)",btnPetHide:"🐾 Skryť DigiCat (Pet)",
   remoteHint:"Rozsah sa mení na obrazovkách Lietadlá, Meteoradar a Taktický radar. Zásah pozastaví automatické striedanie.",
   location:"📍 Domovská poloha",findCity:"Vyhľadať mesto",search:"Hľadať",found:"Nájdené výsledky",lat:"Zemepisná šírka (°N)",lon:"Zemepisná dĺžka (°E)",
   locHint:"Zmena polohy vyžaduje reštart pre prepočet máp a predpovede.",
@@ -1362,6 +1367,7 @@ const D={
   rotateHdr:"🔄 Auto Screen Cycling",
   remote:"🎮 Remote Control",rangeLbl:"Radar Scale:",
   btnPrev:"← Previous",btnDblTap:"🔄 Legend",btnNext:"Next →",btnDec:"Zoom In (− km)",btnInc:"Zoom Out (+ km)",
+  btnPetShow:"🐾 Show DigiCat (Pet)",btnPetHide:"🐾 Hide DigiCat (Pet)",
   remoteHint:"Range applies to Aircraft, Weather and Tactical screens. Manual action pauses auto cycling.",
   location:"📍 Home Location",findCity:"Search town",search:"Search",found:"Found results",lat:"Latitude (°N)",lon:"Longitude (°E)",
   locHint:"Changing location requires a reboot to recalculate maps and forecast.",
@@ -1526,6 +1532,17 @@ async function toggleLegendsRemote(){
    await status();
   }
  }catch(e){}
+}
+
+async function togglePetRemote(){
+ try{
+  const r = await fetch("/api/pet/toggle",{method:"POST"});
+  if(r.ok){
+   const res = await r.json();
+   msg(res.petOpen ? (D[L].btnPetHide||"🐾 DigiCat zobrazený") : (D[L].btnPetShow||"🐾 DigiCat skrytý"),"ok");
+   await status();
+  }
+ }catch(e){msg(D[L].failed||"Chyba","err");}
 }
 
 // --- Realtime Hardware Diagnostics ---
@@ -1992,9 +2009,18 @@ async function status(){
   
   const scrKeys=["scrClock","scrPlanes","scrMeteo","scrTactical","scrForecast","scrFinance","scrIss","scrInfo","scrSettings"];
   const curKey = scrKeys[s.screen] || "scrClock";
-  const curName = (D[L] && D[L][curKey]) ? D[L][curKey] : ("Screen " + s.screen);
+  let curName = (D[L] && D[L][curKey]) ? D[L][curKey] : ("Screen " + s.screen);
+  if(s.petOpen) curName += " + 🐾 DigiCat";
   if($("liveDispName")) $("liveDispName").textContent = curName;
   if($("hwCurScreenName")) $("hwCurScreenName").textContent = curName;
+  if($("btnPetRemote")){
+    const isOpen = !!s.petOpen;
+    $("btnPetRemote").classList.toggle("on", isOpen);
+    $("btnPetRemote").style.background = isOpen ? "#38240a" : "#1c2a38";
+    $("btnPetRemote").style.borderColor = isOpen ? "#f39c12" : "var(--line)";
+    $("btnPetRemote").style.color = isOpen ? "#f39c12" : "var(--fg)";
+    $("btnPetRemote").textContent = isOpen ? (D[L].btnPetHide||"🐾 Skryť DigiCat (Pet)") : (D[L].btnPetShow||"🐾 Zobraziť DigiCat (Pet)");
+  }
     if(s.iss !== undefined){
     if($("issStatePill")){
       if(s.issOverhead){

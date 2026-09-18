@@ -917,6 +917,11 @@ void loop() {
       drawActive();
       s_touchPauseUntil = millis() + autoRotatePauseMs();
     }
+    if (WebConfig_TakePetToggle()) {
+      PetDrawer_Toggle();
+      drawActive();
+      s_touchPauseUntil = millis() + autoRotatePauseMs();
+    }
   }
 
   // The user asked to forget the network from the settings screen.

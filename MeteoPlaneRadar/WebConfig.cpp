@@ -35,6 +35,7 @@
 #include "IssData.h"
 #include "PlanePhoto.h"
 #include "Route.h"
+#include "PetDrawer.h"
 #include <Wire.h>
 
 #include <WiFi.h>
@@ -63,6 +64,7 @@ static int s_reqScreenStep = 0;
 static int s_reqRangeStep  = 0;
 static bool s_reqRedraw    = false;
 static bool s_reqSelectPlane = false;
+static bool s_reqPetToggle = false;
 
 bool WebConfig_UpdateBusy()        { return s_updating || GithubOTA_IsBusy(); }
 bool WebConfig_WantsWifiConnect()  { return s_wantConnect; }
@@ -75,6 +77,8 @@ int  WebConfig_TakeRangeStep()  { int v = s_reqRangeStep;  s_reqRangeStep = 0;  
 bool WebConfig_TakeRedraw()     { bool r = s_reqRedraw;    s_reqRedraw = false; return r; }
 void WebConfig_RequestRedraw()  { s_reqRedraw = true; }
 bool WebConfig_TakeSelectPlane() { bool r = s_reqSelectPlane; s_reqSelectPlane = false; return r; }
+bool WebConfig_TakePetToggle()   { bool r = s_reqPetToggle;   s_reqPetToggle = false; return r; }
+void WebConfig_RequestPetToggle() { s_reqPetToggle = true; }
 
 // --- Helpers ----------------------------------------------------------------
 static void sendJson(int code, JsonDocument& doc) {
@@ -266,6 +270,7 @@ static void handleStatus() {
   // the active screen and print the range instead of guessing.
   const uint8_t scr = Settings_Screen();
   doc["screen"] = scr;
+  doc["petOpen"] = PetDrawer_IsOpen();
   char rb[24] = "";
   if      (scr == SCREEN_PLANES_I)   ScreenPlanes_RangeText(rb, sizeof(rb));
   else if (scr == SCREEN_METEO_I)    ScreenWeather_RangeText(rb, sizeof(rb));
@@ -587,6 +592,14 @@ static void handleInput() {
 static void handleBuzzerTest() {
   Buzzer_PlayTest();
   s_srv.send(200, "application/json", "{\"ok\":true}");
+}
+
+static void handlePetToggle() {
+  WebConfig_RequestPetToggle();
+  JsonDocument res;
+  res["ok"] = true;
+  res["petOpen"] = !PetDrawer_IsOpen();
+  sendJson(200, res);
 }
 
 static void handleSerialRead() {
@@ -1213,6 +1226,7 @@ void WebConfig_Begin(bool apMode) {
   s_srv.on("/api/rtc/sync_browser", HTTP_POST, handleRtcSyncBrowser);
   s_srv.on("/api/toggle-legends", HTTP_POST, handleToggleLegends);
   s_srv.on("/api/buzzer/test", HTTP_POST, handleBuzzerTest);
+  s_srv.on("/api/pet/toggle", HTTP_POST, handlePetToggle);
   s_srv.on("/api/input", HTTP_POST, handleInput);
   s_srv.on("/api/screen", HTTP_POST, handleScreen);
   s_srv.on("/api/display/resync", HTTP_POST, [](){
