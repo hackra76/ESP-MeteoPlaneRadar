@@ -46,8 +46,6 @@ static unsigned long s_nextFrameMs = 0;
 static unsigned long s_nextBrainDecisionMs = 12000;
 static unsigned long s_autoReturnMs = 0;
 static unsigned long s_watchPlaneUntilMs = 0;
-static unsigned long s_idleSubframeEndMs = 0;
-static uint8_t       s_idleSubframe = 0;
 
 // Dynamic Contextual Dialogue
 static char          s_customThought[128] = "";
@@ -289,16 +287,16 @@ bool PetDrawer_Tick() {
       s_catFlipX = (dx < 0);
     }
     if (now >= s_nextFrameMs) {
-      s_nextFrameMs = now + 120;
-      s_animFrame = (s_animFrame + 1) % 4;
+      s_nextFrameMs = now + 90;
+      s_animFrame = (s_animFrame + 1) % 8;
     }
     return true;
   } else if (s_catState == CAT_STATE_JUMP) {
-    // Jump animation step
+    // Jump animation step (8 frames)
     if (now >= s_nextFrameMs) {
-      s_nextFrameMs = now + 160;
+      s_nextFrameMs = now + 80;
       s_animFrame++;
-      if (s_animFrame >= 4) {
+      if (s_animFrame >= 8) {
         s_catState = CAT_STATE_IDLE;
         s_animFrame = 0;
         s_nextBrainDecisionMs = now + 7000 + (rand() % 7000);
@@ -306,11 +304,11 @@ bool PetDrawer_Tick() {
     }
     return true;
   } else if (s_catState == CAT_STATE_GROOM) {
-    // Groom animation step
+    // Groom animation step (8 frames)
     if (now >= s_nextFrameMs) {
-      s_nextFrameMs = now + 420;
+      s_nextFrameMs = now + 220;
       s_animFrame++;
-      if (s_animFrame >= 4) {
+      if (s_animFrame >= 8) {
         s_catState = CAT_STATE_IDLE;
         s_animFrame = 0;
         s_nextBrainDecisionMs = now + 8000 + (rand() % 7000);
@@ -318,11 +316,11 @@ bool PetDrawer_Tick() {
     }
     return true;
   } else if (s_catState == CAT_STATE_STRETCH) {
-    // Stretch animation step
+    // Stretch animation step (6 frames)
     if (now >= s_nextFrameMs) {
-      s_nextFrameMs = now + 850;
+      s_nextFrameMs = now + 450;
       s_animFrame++;
-      if (s_animFrame >= 2) {
+      if (s_animFrame >= 6) {
         s_catState = CAT_STATE_IDLE;
         s_animFrame = 0;
         s_nextBrainDecisionMs = now + 8000 + (rand() % 7000);
@@ -336,8 +334,8 @@ bool PetDrawer_Tick() {
       s_nextBrainDecisionMs = now + 6000 + (rand() % 6000);
     } else {
       if (now >= s_nextFrameMs) {
-        s_nextFrameMs = now + 400;
-        s_animFrame = (s_animFrame + 1) % 2;
+        s_nextFrameMs = now + 350;
+        s_animFrame = (s_animFrame + 1) % 4;
       }
     }
     return true;
@@ -352,7 +350,7 @@ bool PetDrawer_Tick() {
       s_catFlipX = (bDeg > 180.0f);
       s_watchPlaneUntilMs = now + 3800;
       s_animFrame = 0;
-      s_nextFrameMs = now + 400;
+      s_nextFrameMs = now + 350;
       return true;
     }
 
@@ -367,7 +365,7 @@ bool PetDrawer_Tick() {
         s_catFlipX = (bDeg > 180.0f);
         s_watchPlaneUntilMs = now + 3500;
         s_animFrame = 0;
-        s_nextFrameMs = now + 400;
+        s_nextFrameMs = now + 350;
       } else if (roll < 40) {
         // 1. Patrol to a new spot on the runway deck
         float targetX = 140.0f + (float)(rand() % 200); // 140..340
@@ -375,12 +373,12 @@ bool PetDrawer_Tick() {
         s_catFlipX = (targetX < s_catX);
         s_catState = CAT_STATE_PATROL;
         s_animFrame = 0;
-        s_nextFrameMs = now + 120;
+        s_nextFrameMs = now + 90;
       } else if (roll < 60) {
         // 2. Playful Jump / Pounce
         s_catState = CAT_STATE_JUMP;
         s_animFrame = 0;
-        s_nextFrameMs = now + 200;
+        s_nextFrameMs = now + 80;
         if (Settings_BuzzerEnabled()) {
           Buzzer_Play(BEEP_PET_CHIRP);
         }
@@ -388,12 +386,12 @@ bool PetDrawer_Tick() {
         // 3. Groom / Face Wash
         s_catState = CAT_STATE_GROOM;
         s_animFrame = 0;
-        s_nextFrameMs = now + 380;
+        s_nextFrameMs = now + 220;
       } else if (roll < 88) {
         // 4. Big Cat Stretch
         s_catState = CAT_STATE_STRETCH;
         s_animFrame = 0;
-        s_nextFrameMs = now + 800;
+        s_nextFrameMs = now + 450;
       } else {
         // 5. Leave screen to explore airfield!
         bool leaveRight = (s_catX > 240.0f);
@@ -401,7 +399,7 @@ bool PetDrawer_Tick() {
         s_catFlipX = (s_catTargetX < s_catX);
         s_catState = CAT_STATE_LEAVING;
         s_animFrame = 0;
-        s_nextFrameMs = now + 120;
+        s_nextFrameMs = now + 90;
 
         int dep = rand() % 3;
         if (dep == 0) {
@@ -444,39 +442,50 @@ bool PetDrawer_Tick() {
       s_catFlipX = (dx < 0);
     }
     if (now >= s_nextFrameMs) {
-      s_nextFrameMs = now + (s_catState == CAT_STATE_ENTERING ? 90 : 120);
-      s_animFrame = (s_animFrame + 1) % 4;
+      s_nextFrameMs = now + (s_catState == CAT_STATE_ENTERING ? 75 : 90);
+      s_animFrame = (s_animFrame + 1) % 8;
     }
   } else if (s_catState == CAT_STATE_EATING) {
     if (now >= s_nextFrameMs) {
-      s_nextFrameMs = now + 180;
-      s_animFrame = (s_animFrame + 1) % 4;
+      s_nextFrameMs = now + 140;
+      s_animFrame = (s_animFrame + 1) % 8;
     }
   } else if (s_catState == CAT_STATE_HAPPY) {
     if (now >= s_nextFrameMs) {
-      s_nextFrameMs = now + 140;
-      s_animFrame = (s_animFrame + 1) % 4;
+      s_nextFrameMs = now + 110;
+      s_animFrame = (s_animFrame + 1) % 8;
     }
   } else if (s_catState == CAT_STATE_SLEEPING) {
     if (now >= s_nextFrameMs) {
-      s_nextFrameMs = now + 650;
-      s_animFrame = (s_animFrame + 1) % 4;
+      s_nextFrameMs = now + 400;
+      s_animFrame = (s_animFrame + 1) % 8;
     }
   } else { // CAT_STATE_IDLE
-    if (now >= s_idleSubframeEndMs) {
-      int roll = rand() % 100;
-      if (roll < 55) {
-        s_idleSubframe = (s_idleSubframe == 1) ? 0 : 1; // breath cycle
-        s_idleSubframeEndMs = now + 650 + (rand() % 350);
-      } else if (roll < 80) {
-        s_idleSubframe = 2; // blink
-        s_idleSubframeEndMs = now + 170;
+    if (now >= s_nextFrameMs) {
+      if (s_animFrame >= 4 && s_animFrame <= 6) {
+        s_animFrame = (s_animFrame == 6) ? 0 : s_animFrame + 1;
+        s_nextFrameMs = now + 140;
+      } else if (s_animFrame == 7) {
+        s_animFrame = 0;
+        s_nextFrameMs = now + 350;
       } else {
-        s_idleSubframe = 3; // ear twitch
-        s_idleSubframeEndMs = now + 300;
+        s_animFrame = (s_animFrame + 1) % 4;
+        if (s_animFrame == 0) {
+          int roll = rand() % 100;
+          if (roll < 25) {
+            s_animFrame = 4; // slow blink
+            s_nextFrameMs = now + 140;
+          } else if (roll < 40) {
+            s_animFrame = 7; // ear flick
+            s_nextFrameMs = now + 260;
+          } else {
+            s_nextFrameMs = now + 350;
+          }
+        } else {
+          s_nextFrameMs = now + 350;
+        }
       }
     }
-    s_animFrame = s_idleSubframe;
   }
 
   return true;
@@ -613,23 +622,23 @@ void PetDrawer_Draw() {
   } else {
     const uint8_t* frameToDraw = nullptr;
     if (s_catState == CAT_STATE_ENTERING || s_catState == CAT_STATE_PATROL || s_catState == CAT_STATE_LEAVING) {
-      frameToDraw = CAT_WALK_FRAMES[s_animFrame % 4];
+      frameToDraw = CAT_WALK_FRAMES[s_animFrame % 8];
     } else if (s_catState == CAT_STATE_JUMP) {
-      frameToDraw = CAT_JUMP_FRAMES[s_animFrame % 4];
+      frameToDraw = CAT_JUMP_FRAMES[s_animFrame % 8];
     } else if (s_catState == CAT_STATE_GROOM) {
-      frameToDraw = CAT_GROOM_FRAMES[s_animFrame % 4];
+      frameToDraw = CAT_GROOM_FRAMES[s_animFrame % 8];
     } else if (s_catState == CAT_STATE_STRETCH) {
-      frameToDraw = CAT_STRETCH_FRAMES[s_animFrame % 2];
+      frameToDraw = CAT_STRETCH_FRAMES[s_animFrame % 6];
     } else if (s_catState == CAT_STATE_EATING) {
-      frameToDraw = CAT_EAT_FRAMES[s_animFrame % 4];
+      frameToDraw = CAT_EAT_FRAMES[s_animFrame % 8];
     } else if (s_catState == CAT_STATE_HAPPY) {
-      frameToDraw = CAT_HAPPY_FRAMES[s_animFrame % 4];
+      frameToDraw = CAT_HAPPY_FRAMES[s_animFrame % 8];
     } else if (s_catState == CAT_STATE_SLEEPING) {
-      frameToDraw = CAT_SLEEP_FRAMES[s_animFrame % 4];
+      frameToDraw = CAT_SLEEP_FRAMES[s_animFrame % 8];
     } else if (s_catState == CAT_STATE_WATCH_PLANE) {
-      frameToDraw = CAT_WATCH_FRAMES[s_animFrame % 2];
+      frameToDraw = CAT_WATCH_FRAMES[s_animFrame % 4];
     } else {
-      frameToDraw = CAT_IDLE_FRAMES[s_animFrame % 4];
+      frameToDraw = CAT_IDLE_FRAMES[s_animFrame % 8];
     }
 
     int catDrawX = (int)(s_catX + s_imuTiltX * 0.5f + s_petLeanX) - 64;
@@ -637,12 +646,11 @@ void PetDrawer_Draw() {
 
     // Jump vertical curve & walk bob
     if (s_catState == CAT_STATE_JUMP) {
-      if (s_animFrame == 0) catDrawY += 4;       // crouch
-      else if (s_animFrame == 1) catDrawY -= 22; // launch leap
-      else if (s_animFrame == 2) catDrawY -= 32; // apex
-      else if (s_animFrame == 3) catDrawY += 2;  // cushion land
+      static const int8_t s_jumpY[8] = { 4, 6, -14, -26, -32, -20, -2, 4 };
+      catDrawY += s_jumpY[s_animFrame % 8];
     } else if (s_catState == CAT_STATE_ENTERING || s_catState == CAT_STATE_PATROL || s_catState == CAT_STATE_LEAVING) {
-      if (s_animFrame % 2 == 1) catDrawY -= 2;
+      static const int8_t s_walkBob[8] = { 0, -2, -1, 0, 0, -2, -1, 0 };
+      catDrawY += s_walkBob[s_animFrame % 8];
     }
 
     drawCatSprite2x(frameToDraw, catDrawX, catDrawY, s_catFlipX);

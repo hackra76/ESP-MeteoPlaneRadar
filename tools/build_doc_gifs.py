@@ -28,32 +28,32 @@ def main():
     os.makedirs(target_dir, exist_ok=True)
 
     # 1. Walk GIF
-    walk_frames = [bcs.build_walking_cat(i) for i in range(4)]
-    save_gif(walk_frames, os.path.join(target_dir, "digicat_walk.gif"), duration_ms=120)
+    walk_frames = [bcs.build_walking_cat(i) for i in range(8)]
+    save_gif(walk_frames, os.path.join(target_dir, "digicat_walk.gif"), duration_ms=90)
 
     # 2. Jump GIF
-    jump_frames = [bcs.build_jumping_cat(i) for i in range(4)]
-    save_gif(jump_frames, os.path.join(target_dir, "digicat_jump.gif"), duration_ms=200)
+    jump_frames = [bcs.build_jumping_cat(i) for i in range(8)]
+    save_gif(jump_frames, os.path.join(target_dir, "digicat_jump.gif"), duration_ms=80)
 
     # 3. Groom / Face Wash GIF
-    groom_frames = [bcs.build_grooming_cat(i) for i in range(4)]
-    save_gif(groom_frames, os.path.join(target_dir, "digicat_groom.gif"), duration_ms=350)
+    groom_frames = [bcs.build_grooming_cat(i) for i in range(8)]
+    save_gif(groom_frames, os.path.join(target_dir, "digicat_groom.gif"), duration_ms=220)
 
     # 4. Stretch GIF
-    stretch_frames = [bcs.build_stretching_cat(i) for i in range(2)]
-    save_gif(stretch_frames, os.path.join(target_dir, "digicat_stretch.gif"), duration_ms=700)
+    stretch_frames = [bcs.build_stretching_cat(i) for i in range(6)]
+    save_gif(stretch_frames, os.path.join(target_dir, "digicat_stretch.gif"), duration_ms=450)
 
     # 5. Happy / Purr GIF
-    happy_frames = [bcs.build_sitting_cat(i, "happy") for i in range(4)]
-    save_gif(happy_frames, os.path.join(target_dir, "digicat_happy.gif"), duration_ms=150)
+    happy_frames = [bcs.build_sitting_cat(i, "happy") for i in range(8)]
+    save_gif(happy_frames, os.path.join(target_dir, "digicat_happy.gif"), duration_ms=110)
 
     # 6. Eat Snack GIF
-    eat_frames = [bcs.build_eating_cat(i) for i in range(4)]
-    save_gif(eat_frames, os.path.join(target_dir, "digicat_eat.gif"), duration_ms=220)
+    eat_frames = [bcs.build_eating_cat(i) for i in range(8)]
+    save_gif(eat_frames, os.path.join(target_dir, "digicat_eat.gif"), duration_ms=140)
 
     # 7. Sleep Loaf GIF
-    sleep_frames = [bcs.build_sleeping_cat(i) for i in range(4)]
-    save_gif(sleep_frames, os.path.join(target_dir, "digicat_sleep.gif"), duration_ms=500)
+    sleep_frames = [bcs.build_sleeping_cat(i) for i in range(8)]
+    save_gif(sleep_frames, os.path.join(target_dir, "digicat_sleep.gif"), duration_ms=400)
 
     # 8. Composite Showcase Strip PNG
     actions = [

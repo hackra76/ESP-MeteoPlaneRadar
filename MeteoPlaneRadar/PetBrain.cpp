@@ -380,8 +380,8 @@ static bool discoverModel(const char* apiKey) {
 
   JsonArray models = doc["models"].as<JsonArray>();
   // Look for models supporting generateContent in preferred priority:
-  // 1. 2.5-flash, 2. 2.0-flash, 3. 1.5-flash, 4. any flash
-  const char* preferredPatterns[] = { "2.5-flash", "2.0-flash", "1.5-flash", "flash" };
+  // 1. 3.5-flash-lite, 2. 3.1-flash-lite, 3. any flash-lite, 4. 3.6-flash, 5. 3.5-flash
+  const char* preferredPatterns[] = { "3.5-flash-lite", "3.1-flash-lite", "flash-lite", "3.6-flash", "3.5-flash", "flash" };
   for (const char* pat : preferredPatterns) {
     for (JsonObject m : models) {
       const char* name = m["name"] | "";
@@ -512,13 +512,14 @@ bool PetBrain_Step() {
   String jsonBody;
   serializeJson(reqDoc, jsonBody);
 
-  // Candidate models list: prefer discovered model or official Google Gemini flash models
-  const char* candidates[4];
+  // Candidate models list: prefer discovered model or official tested Google Gemini flash-lite models
+  const char* candidates[5];
   int candCount = 0;
   if (s_geminiModel[0] != '\0') candidates[candCount++] = s_geminiModel;
-  candidates[candCount++] = "gemini-2.5-flash";
-  candidates[candCount++] = "gemini-2.0-flash";
-  candidates[candCount++] = "gemini-1.5-flash";
+  candidates[candCount++] = "gemini-3.5-flash-lite";
+  candidates[candCount++] = "gemini-3.1-flash-lite";
+  candidates[candCount++] = "gemini-3.6-flash";
+  candidates[candCount++] = "gemini-3.5-flash";
 
   bool success = false;
   String respBody;
