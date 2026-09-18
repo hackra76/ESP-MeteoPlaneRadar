@@ -256,7 +256,7 @@ void PetBrain_Feed() {
   const char* apiKey = Settings_GeminiApiKey();
   const bool hasKey = (apiKey && strlen(apiKey) >= 10);
 
-  if (!hasKey || now < s_rateLimitedUntilMs || (s_lastGeminiReqMs > 0 && (now - s_lastGeminiReqMs < 15000UL))) {
+  if (!hasKey || now < s_rateLimitedUntilMs || (s_lastGeminiReqMs > 0 && (now - s_lastGeminiReqMs < 20000UL))) {
     return;
   }
 
@@ -294,9 +294,9 @@ void PetBrain_RequestThought(bool userTapped) {
   const char* apiKey = Settings_GeminiApiKey();
   const bool hasKey = (apiKey && strlen(apiKey) >= 10);
 
-  // If no API key or currently rate-limited (HTTP 429) or in debounce cooldown (<15s),
+  // If no API key or currently rate-limited (HTTP 429) or in debounce cooldown (<20s),
   // offline thought was already generated synchronously in 0ms.
-  if (!hasKey || now < s_rateLimitedUntilMs || (s_lastGeminiReqMs > 0 && (now - s_lastGeminiReqMs < 15000UL))) {
+  if (!hasKey || now < s_rateLimitedUntilMs || (s_lastGeminiReqMs > 0 && (now - s_lastGeminiReqMs < 20000UL))) {
     return;
   }
 
@@ -357,7 +357,7 @@ void PetBrain_Tick() {
   }
 }
 
-static char s_geminiModel[48] = "gemini-3.8-flash";
+static char s_geminiModel[48] = "";
 
 static bool discoverModel(const char* apiKey) {
   if (s_geminiModel[0] != '\0') return true;
@@ -379,35 +379,29 @@ static bool discoverModel(const char* apiKey) {
   }
 
   JsonArray models = doc["models"].as<JsonArray>();
-  // 1. Look for gemini-3.8-flash first
-  for (JsonObject m : models) {
-    const char* name = m["name"] | "";
-    if (strstr(name, "3.8-flash") != nullptr) {
-      const char* cleanName = (strncmp(name, "models/", 7) == 0) ? name + 7 : name;
-      strncpy(s_geminiModel, cleanName, sizeof(s_geminiModel) - 1);
-      s_geminiModel[sizeof(s_geminiModel) - 1] = '\0';
-      Serial.printf("PetBrain: Discovered active 3.8 flash model: %s\n", s_geminiModel);
-      return true;
-    }
-  }
+  // Look for models supporting generateContent in preferred priority:
+  // 1. 2.5-flash, 2. 2.0-flash, 3. 1.5-flash, 4. any flash
+  const char* preferredPatterns[] = { "2.5-flash", "2.0-flash", "1.5-flash", "flash" };
+  for (const char* pat : preferredPatterns) {
+    for (JsonObject m : models) {
+      const char* name = m["name"] | "";
+      if (strstr(name, pat) == nullptr) continue;
 
-  // 2. Look for active v3 flash model (e.g. gemini-3.6-flash, gemini-3-flash)
-  for (JsonObject m : models) {
-    const char* name = m["name"] | "";
-    JsonArray methods = m["supportedGenerationMethods"].as<JsonArray>();
-    bool canGen = false;
-    for (JsonVariant v : methods) {
-      if (strcmp(v.as<const char*>(), "generateContent") == 0) {
-        canGen = true;
-        break;
+      JsonArray methods = m["supportedGenerationMethods"].as<JsonArray>();
+      bool canGen = false;
+      for (JsonVariant v : methods) {
+        if (strcmp(v.as<const char*>(), "generateContent") == 0) {
+          canGen = true;
+          break;
+        }
       }
-    }
-    if (canGen && strstr(name, "flash") != nullptr && (strstr(name, "3.") != nullptr || strstr(name, "3-") != nullptr)) {
-      const char* cleanName = (strncmp(name, "models/", 7) == 0) ? name + 7 : name;
-      strncpy(s_geminiModel, cleanName, sizeof(s_geminiModel) - 1);
-      s_geminiModel[sizeof(s_geminiModel) - 1] = '\0';
-      Serial.printf("PetBrain: Discovered active v3 flash model: %s\n", s_geminiModel);
-      return true;
+      if (canGen) {
+        const char* cleanName = (strncmp(name, "models/", 7) == 0) ? name + 7 : name;
+        strncpy(s_geminiModel, cleanName, sizeof(s_geminiModel) - 1);
+        s_geminiModel[sizeof(s_geminiModel) - 1] = '\0';
+        Serial.printf("PetBrain: Discovered active Gemini model: %s\n", s_geminiModel);
+        return true;
+      }
     }
   }
 
@@ -443,9 +437,9 @@ bool PetBrain_Step() {
     return true;
   }
 
-  // 15s throttle guard to strictly obey 5 RPM Free Tier limit
-  if (s_lastGeminiReqMs > 0 && (now - s_lastGeminiReqMs < 15000UL)) {
-    Serial.println("PetBrain: 15s throttle active, using offline thought");
+  // 20s throttle guard to strictly obey Free Tier RPM limit
+  if (s_lastGeminiReqMs > 0 && (now - s_lastGeminiReqMs < 20000UL)) {
+    Serial.println("PetBrain: 20s throttle active, using offline thought");
     generateOfflineThought(s_thought, sizeof(s_thought));
     s_isBusy = false;
     return true;
@@ -518,13 +512,13 @@ bool PetBrain_Step() {
   String jsonBody;
   serializeJson(reqDoc, jsonBody);
 
-  // Candidate models list: prefer gemini-3.8-flash first
+  // Candidate models list: prefer discovered model or official Google Gemini flash models
   const char* candidates[4];
   int candCount = 0;
   if (s_geminiModel[0] != '\0') candidates[candCount++] = s_geminiModel;
-  candidates[candCount++] = "gemini-3.8-flash";
-  candidates[candCount++] = "gemini-3.6-flash";
-  candidates[candCount++] = "gemini-3-flash";
+  candidates[candCount++] = "gemini-2.5-flash";
+  candidates[candCount++] = "gemini-2.0-flash";
+  candidates[candCount++] = "gemini-1.5-flash";
 
   bool success = false;
   String respBody;
@@ -532,6 +526,11 @@ bool PetBrain_Step() {
   for (int i = 0; i < candCount; i++) {
     // Avoid re-trying identical model name twice
     if (i > 0 && strcmp(candidates[i], candidates[0]) == 0) continue;
+
+    // Yield between candidate attempts to let mbedTLS buffers and socket close cleanly
+    if (i > 0) {
+      delay(300);
+    }
 
     String url = "https://generativelanguage.googleapis.com/v1beta/models/";
     url += candidates[i];
@@ -551,9 +550,15 @@ bool PetBrain_Step() {
       break;
     } else {
       if (statusCode == 429) {
-        Serial.println("PetBrain: Quota exceeded (HTTP 429). Rate-limited for 45s, stopping candidate scan.");
-        s_rateLimitedUntilMs = millis() + 45000UL;
+        Serial.println("PetBrain: Quota exceeded (HTTP 429). Rate-limited for 60s, stopping candidate scan.");
+        s_rateLimitedUntilMs = millis() + 60000UL;
         break; // Stop immediately, do not exhaust quota on subsequent candidate models!
+      } else if (statusCode == 400 || statusCode == 403) {
+        Serial.printf("PetBrain: Auth error (HTTP %d). Invalid API key or disabled API. Cooling down for 120s.\n", statusCode);
+        s_rateLimitedUntilMs = millis() + 120000UL;
+        break; // Invalid key or permission, retrying other models won't help!
+      } else if (statusCode == 404) {
+        Serial.printf("PetBrain: Model %s not found (HTTP 404), trying next candidate\n", candidates[i]);
       }
     }
   }
