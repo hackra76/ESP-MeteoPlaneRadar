@@ -92,6 +92,7 @@ static bool     s_bzPrecip = false;
 static bool     s_bzTouch  = false;
 static bool     s_bzHour   = false;
 static bool     s_bzNMute  = true;
+static bool     s_bzPet    = true;
 static bool     s_precipAlert = true;
 
 // --- UI state ---
@@ -271,6 +272,7 @@ void Settings_Begin() {
     s_bzTouch = prefs.getBool("bzTouch", false);
     s_bzHour  = prefs.getBool("bzHour", false);
     s_bzNMute = prefs.getBool("bzNMute", true);
+    s_bzPet   = prefs.getBool("bzPet", true);
     s_precipAlert = prefs.getBool("cPrecip", true);
     if (prefs.isKey("watch")) prefs.getString("watch", s_watch, sizeof(s_watch));
     s_rngP   = prefs.getUChar("rngP", 1);
@@ -807,6 +809,8 @@ bool Settings_BuzzerHourly() { return s_bzHour; }
 void Settings_SetBuzzerHourly(bool on) { s_bzHour = on; putBool("bzHour", on); }
 bool Settings_BuzzerNightMute() { return s_bzNMute; }
 void Settings_SetBuzzerNightMute(bool on) { s_bzNMute = on; putBool("bzNMute", on); }
+bool Settings_BuzzerPet() { return s_bzPet; }
+void Settings_SetBuzzerPet(bool on) { s_bzPet = on; putBool("bzPet", on); }
 
 bool Settings_PrecipAlert() { return s_precipAlert; }
 void Settings_SetPrecipAlert(bool on) { s_precipAlert = on; putBool("cPrecip", on); }
@@ -937,6 +941,7 @@ void Settings_ToJson(JsonObject o) {
   o["buzzerTouch"]     = s_bzTouch;
   o["buzzerHourly"]    = s_bzHour;
   o["buzzerNightMute"] = s_bzNMute;
+  o["buzzerPet"]       = s_bzPet;
   o["cPrecip"]         = s_precipAlert;
   o["showLegends"] = s_showLegends;
   o["hasPassword"] = Settings_HasAdminPassword();
@@ -1037,6 +1042,8 @@ bool Settings_FromJson(JsonObjectConst in) {
   setIf("buzzerTouch",     [](JsonVariantConst v){ Settings_SetBuzzerTouch(v.as<bool>()); });
   setIf("buzzerHourly",    [](JsonVariantConst v){ Settings_SetBuzzerHourly(v.as<bool>()); });
   setIf("buzzerNightMute", [](JsonVariantConst v){ Settings_SetBuzzerNightMute(v.as<bool>()); });
+  setIf("buzzerPet",       [](JsonVariantConst v){ Settings_SetBuzzerPet(v.as<bool>()); });
+  setIf("bzPet",           [](JsonVariantConst v){ Settings_SetBuzzerPet(v.as<bool>()); });
   setIf("cPrecip",         [](JsonVariantConst v){ Settings_SetPrecipAlert(v.as<bool>()); });
   setIf("financeTickers",  [](JsonVariantConst v){ Settings_SetFinanceTickers(v.as<const char*>()); });
   setIf("financeGraph",    [](JsonVariantConst v){ Settings_SetFinanceGraphType(v.as<uint8_t>()); });

@@ -657,6 +657,12 @@ td:first-child{color:var(--mut);width:45%}
               <span data-i18n="petEnabledLbl">Aktivovať AI zvieratko (potiahnutie od spodného okraja)</span>
             </label>
           </div>
+          <div class="row" style="margin-top:8px;">
+            <label class="chk">
+              <input type="checkbox" id="bzPetPetSettings">
+              <span data-i18n="bzPet">🐾 Zvuky bzučiaka pre DigiCat (pradenie, štebot)</span>
+            </label>
+          </div>
           <div class="row" style="margin-top:10px;align-items:center;">
             <label class="lbl" data-i18n="petCharLbl">Postavička:</label>
             <div style="flex:1 1 200px;font-weight:600;color:var(--accent);">🐱 DigiCat (Pixel Art Companion)</div>
@@ -876,6 +882,7 @@ td:first-child{color:var(--mut);width:45%}
             <label class="chk"><input type="checkbox" id="bzOverhead"><span data-i18n="bzOverhead">🔊 Prelet nad hlavou (Overhead alert)</span></label>
             <label class="chk"><input type="checkbox" id="bzPrecip"><span data-i18n="bzPrecip">🌧️ Blížiace sa zrážky (Nowcasting alert)</span></label>
             <label class="chk"><input type="checkbox" id="bzNightMute"><span data-i18n="bzNightMute">🌙 Nočný kľud (stíšiť bzučiak v noci)</span></label>
+            <label class="chk"><input type="checkbox" id="bzPet"><span data-i18n="bzPet">🐾 DigiCat virtuálne zvieratko (pradenie, štebotanie)</span></label>
           </div>
           <div style="margin-top:12px;">
             <button type="button" class="sec" onclick="testBuzzer()" data-i18n="btnTestBuzzer">🔊 Otestovať bzučiak</button>
@@ -1183,7 +1190,7 @@ const D={
   tfHeavy:"🛫 Těžké obří letouny (A380, B747, Beluga...)",tfGlider:"🪂 Větroně a kluzáky (Gliders)",
   buzzerHdr:"🔊 Zvukové výstrahy & Bzučák",buzzerHint:"Nastavení vestavěného bzučáku na desce pro radarové výstrahy a odezvu.",
   bzMaster:"Povolit bzučák (hlavní vypínač)",bzEmergency:"🚨 Nouzový squawk (7700 / 7600 / 7500)",bzWatch:"⭐ Sledovaný let (vstup do dosahu)",
-  bzTouch:"👆 Akustická odezva na dotyk displeje",bzHourly:"🕒 Pípnutí v celou hodinu (chime)",bzNightMute:"🌙 Noční klid (ztlumit bzučák v noci)",btnTestBuzzer:"🔊 Otestovat bzučák",
+  bzTouch:"👆 Akustická odezva na dotyk displeje",bzHourly:"🕒 Pípnutí v celou hodinu (chime)",bzNightMute:"🌙 Noční klid (ztlumit bzučák v noci)",bzPet:"🐾 DigiCat virtuální zvířátko (zvuky, předení, švitoření)",btnTestBuzzer:"🔊 Otestovat bzučák",
   brightness:"☀️ Jas displeje & Noční režim",briDay:"Denní jas",briNight:"Noční jas",nightAuto:"Přepínat noční režim automaticky podle slunce",
   nightOffset:"Posun proti východu/západu (minuty)",clockHdr:"🕒 Ciferník hodin",secStyle:"Styl vteřinového prstence",
   secOff:"Vypnuto",secDots:"Tečky (Dots)",secLine:"Plná čára (Line)",secComet:"Kometa (Comet)",
@@ -1281,7 +1288,7 @@ const D={
   tfHeavy:"🛫 Ťažké nákladné obry (A380, B747, Beluga...)",tfGlider:"🪂 Vetrone a klzáky (Gliders)",
   buzzerHdr:"🔊 Zvukové výstrahy & Bzučiak",buzzerHint:"Nastavenie vstavaného bzučiaka na doske pre radarové výstrahy a odozvu.",
   bzMaster:"Povoliť bzučiak (hlavný vypínač)",bzEmergency:"🚨 Núdzový squawk (7700 / 7600 / 7500)",bzWatch:"⭐ Sledovaný let (vstup do dosahu)",
-  bzTouch:"👆 Akustická odozva na dotyk displeja",bzHourly:"🕒 Pípnutie na celú hodinu (chime)",bzNightMute:"🌙 Nočný kľud (stíšiť bzučiak v noci)",btnTestBuzzer:"🔊 Otestovať bzučiak",
+  bzTouch:"👆 Akustická odozva na dotyk displeja",bzHourly:"🕒 Pípnutie na celú hodinu (chime)",bzNightMute:"🌙 Nočný kľud (stíšiť bzučiak v noci)",bzPet:"🐾 DigiCat virtuálne zvieratko (zvuky, pradenie, štebot)",btnTestBuzzer:"🔊 Otestovať bzučiak",
   brightness:"☀️ Jas displeja & Nočný režim",briDay:"Denný jas",briNight:"Nočný jas",nightAuto:"Prepínať nočný režim automaticky podľa západu/východu slnka",
   nightOffset:"Posun voči východu/západu (minúty)",clockHdr:"🕒 Ciferník hodín",secStyle:"Štýl sekundového prstenca",
   secOff:"Vypnuté",secDots:"Bodky (Dots)",secLine:"Plná čiara (Line)",secComet:"Kométa (Comet)",
@@ -1379,7 +1386,7 @@ const D={
   tfHeavy:"🛫 Heavy Giants (A380, B747, Beluga...)",tfGlider:"🪂 Gliders & Sailplanes",
   buzzerHdr:"🔊 Acoustic Alerts & Buzzer",buzzerHint:"Configure onboard active buzzer for radar alerts and touch feedback.",
   bzMaster:"Enable buzzer (Master Switch)",bzEmergency:"🚨 Emergency squawk (7700 / 7600 / 7500)",bzWatch:"⭐ Watched flight (arrival in range)",
-  bzTouch:"👆 Touch feedback click",bzHourly:"🕒 Hourly chime",bzNightMute:"🌙 Night quiet mode (mute buzzer at night)",btnTestBuzzer:"🔊 Test buzzer",
+  bzTouch:"👆 Touch feedback click",bzHourly:"🕒 Hourly chime",bzNightMute:"🌙 Night quiet mode (mute buzzer at night)",bzPet:"🐾 DigiCat virtual pet sounds (purr, chirp, sneeze)",btnTestBuzzer:"🔊 Test buzzer",
   brightness:"☀️ Display Brightness & Night Mode",briDay:"Day brightness",briNight:"Night brightness",nightAuto:"Automatic night mode with sun position",
   nightOffset:"Offset from sunset/sunrise (minutes)",clockHdr:"🕒 Clock Face",secStyle:"Seconds ring style",
   secOff:"Off",secDots:"Dots",secLine:"Line",secComet:"Comet",
@@ -1722,6 +1729,8 @@ const AUTO = [
  ["petCharacter","change","petCharacter",e=>parseInt(e.value,10)||0],
  ["geminiKey","change","geminiKey",e=>e.value.trim()],
  ["bzNightMute","change","buzzerNightMute",e=>e.checked],
+ ["bzPet","change","buzzerPet",e=>{ if($("bzPetPetSettings")) $("bzPetPetSettings").checked=e.checked; return e.checked; }],
+ ["bzPetPetSettings","change","buzzerPet",e=>{ if($("bzPet")) $("bzPet").checked=e.checked; return e.checked; }],
  ["hostname","change","hostname",e=>{ if($("netHost")) $("netHost").textContent=e.value+".local"; return e.value.trim(); }],
 ];
 
@@ -1949,6 +1958,8 @@ async function load(){
   if($("cPrecip")) $("cPrecip").checked=CFG.cPrecip!==false;
   if($("cPrecipMeteo")) $("cPrecipMeteo").checked=CFG.cPrecip!==false;
  if($("bzNightMute")) $("bzNightMute").checked=CFG.buzzerNightMute!==false;
+ if($("bzPet")) $("bzPet").checked=CFG.buzzerPet!==false;
+ if($("bzPetPetSettings")) $("bzPetPetSettings").checked=CFG.buzzerPet!==false;
    $("clockColor").value=rgb565ToHex(CFG.clockColor);$("secColor").value=rgb565ToHex(CFG.secColor);
    $("altMin").value=CFG.altMin;$("altMax").value=CFG.altMax;
    pwState();
@@ -2064,6 +2075,7 @@ function body(){return{
   buzzerPrecip:$("bzPrecip")?$("bzPrecip").checked:false,
   cPrecip:$("cPrecip")?$("cPrecip").checked:true,
  buzzerNightMute:$("bzNightMute")?$("bzNightMute").checked:true,
+  buzzerPet:($("bzPet")?$("bzPet").checked:($("bzPetPetSettings")?$("bzPetPetSettings").checked:true)),
  hostname:$("hostname")?$("hostname").value.trim():undefined,
  cOver:$("cOver")?$("cOver").checked:true,
  ovRad:$("ovRad")?parseFloat($("ovRad").value)||10:10,

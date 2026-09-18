@@ -160,6 +160,11 @@ void Buzzer_Play(BuzzerTone tone) {
     case BEEP_MORSE_SOS:
       if (!Settings_BuzzerEmergency()) return;
       break;
+    case BEEP_PET_PURR:
+    case BEEP_PET_CHIRP:
+    case BEEP_PET_SNEEZE:
+      if (!Settings_BuzzerPet()) return;
+      break;
     default:
       break;
   }

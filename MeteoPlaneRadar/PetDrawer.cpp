@@ -569,15 +569,25 @@ void PetDrawer_Draw() {
   // 1. Clock & Outside Temperature status line
   UI_DrawStatusLine(36);
 
-  // 2. Pet Title Pill with Aviation Rank
+  // 2. Pet Title Pill with Aviation Rank & Mute Toggle
   char titleBuf[64];
   snprintf(titleBuf, sizeof(titleBuf), "🐾 DIGICAT [%s]", PetBrain_GetStageTitle());
-  const int titleW = 280;
-  const int titleX = (LCD_WIDTH - titleW) / 2;
+  const int titleW = 254;
+  const int titleX = 85;
   const int titleY = 58;
   gfx->fillRoundRect(titleX, titleY, titleW, 22, 11, 0x10A2);
   gfx->drawRoundRect(titleX, titleY, titleW, 22, 11, C_CYAN);
   UI_TextCenteredIn(titleBuf, titleX, titleW, titleY + 4, C_WHITE, 1);
+
+  // Mute / Sound Toggle Button
+  const int muteX = 348;
+  const int muteY = 58;
+  const int muteW = 50;
+  const int muteH = 22;
+  bool petSound = Settings_BuzzerPet();
+  gfx->fillRoundRect(muteX, muteY, muteW, muteH, 11, petSound ? 0x0821 : 0x4800);
+  gfx->drawRoundRect(muteX, muteY, muteW, muteH, 11, petSound ? C_CYAN : C_RED);
+  UI_TextCenteredIn(petSound ? "VOL" : "MUTE", muteX, muteW, muteY + 4, petSound ? C_WHITE : C_YELLOW, 1);
 
   // 3. Virtual Pet Stats Badge
   PetStats stats = PetBrain_GetStats();
@@ -716,9 +726,31 @@ bool PetDrawer_HandleTap(int x, int y) {
     return true;
   }
 
+  // Tap on Mute button
+  if (y >= 50 && y <= 84 && x >= 344 && x <= 405) {
+    bool newState = !Settings_BuzzerPet();
+    Settings_SetBuzzerPet(newState);
+    if (newState) {
+      if (Settings_BuzzerEnabled()) Buzzer_Play(BEEP_PET_CHIRP);
+      setThought(
+        "🐾 Sound enabled! Purrrr! 😺",
+        "🐾 Zvuky zapnuté! Prrrrr! 😺",
+        "🐾 Zvuky zapnuty! Prrrrr! 😺"
+      );
+    } else {
+      if (Settings_BuzzerTouch()) Buzzer_Play(BEEP_CLICK);
+      setThought(
+        "🐾 Quiet mode active... Shhh! 🤫",
+        "🐾 Tichý režim aktívny... Pst! 🤫",
+        "🐾 Tichý režim aktivní... Pst! 🤫"
+      );
+    }
+    return true;
+  }
+
   // Tap on Title Pill refreshes thought & chirps
-  if (y >= 52 && y <= 80 && x >= 90 && x <= 390) {
-    if (Settings_BuzzerTouch()) Buzzer_Play(BEEP_PET_CHIRP);
+  if (y >= 52 && y <= 80 && x >= 80 && x < 344) {
+    if (Settings_BuzzerTouch() && Settings_BuzzerPet()) Buzzer_Play(BEEP_PET_CHIRP);
     PetBrain_RequestThought(false);
     return true;
   }

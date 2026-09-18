@@ -196,6 +196,8 @@ bool     Settings_BuzzerPrecip();
 void     Settings_SetBuzzerPrecip(bool on);
 bool     Settings_BuzzerNightMute();
 void     Settings_SetBuzzerNightMute(bool on);
+bool     Settings_BuzzerPet();
+void     Settings_SetBuzzerPet(bool on);
 
 // --- Precipitation alert ---------------------------------------------------
 bool     Settings_PrecipAlert();
