@@ -86,9 +86,7 @@ def main():
 
     assets = [
         os.path.join("release", "MeteoPlaneRadar-v2.0.0-factory.bin"),
-        os.path.join("release", "MeteoPlaneRadar-v2.0.0-ota.bin"),
-        os.path.join("release", "bootloader.bin"),
-        os.path.join("release", "partitions.bin")
+        os.path.join("release", "MeteoPlaneRadar-v2.0.0-ota.bin")
     ]
 
     for asset_path in assets:
