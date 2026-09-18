@@ -61,6 +61,10 @@ static int           s_strokeHeartY = 0;
 static unsigned long s_lastUserInteractMs = 0;
 static unsigned long s_petBounceUntilMs = 0;
 static unsigned long s_petFeedUntilMs = 0;
+static unsigned long s_nightWakeUntilMs = 0;
+static bool          s_isDrowsy = false;
+static const unsigned long NIGHT_WAKE_DURATION_MS = 120000; // 2 minutes awake after interaction
+static const unsigned long NIGHT_DROWSY_DURATION_MS = 20000; // 20 seconds yawning / slow blinks before sleep
 
 // IMU Reactive Inertia (Tilt)
 static float s_imuTiltX = 0.0f;
@@ -133,6 +137,10 @@ bool PetDrawer_IsOpen() {
   return s_isOpen;
 }
 
+bool PetDrawer_IsNightAwake() {
+  return Settings_IsNight() && (millis() < s_nightWakeUntilMs);
+}
+
 void PetDrawer_Open() {
   s_isOpen = true;
   const unsigned long now = millis();
@@ -140,13 +148,26 @@ void PetDrawer_Open() {
   s_nextBrainDecisionMs = now + 12000;
   s_hasCustomThought = false;
 
-  // Cat is centered on the deck immediately
-  s_catX = 240.0f;
-  s_catTargetX = 240.0f;
-  s_catFlipX = false;
-  s_catState = Settings_IsNight() ? CAT_STATE_SLEEPING : CAT_STATE_IDLE;
-  s_animFrame = 0;
-  s_nextFrameMs = now + 90;
+  bool isSleepingNow = Settings_IsNight() && (now >= s_nightWakeUntilMs);
+
+  if (isSleepingNow) {
+    // If it's night and not woken up, cat rests as a sleeping loaf directly in the center
+    s_catX = 240.0f;
+    s_catTargetX = 240.0f;
+    s_catFlipX = false;
+    s_catState = CAT_STATE_SLEEPING;
+    s_animFrame = 0;
+    s_nextFrameMs = now + 400;
+  } else {
+    // Coming from the sides animation! Random left or right entrance
+    bool enterFromLeft = (rand() % 2 == 0);
+    s_catX = enterFromLeft ? -70.0f : (LCD_WIDTH + 70.0f);
+    s_catTargetX = 240.0f;
+    s_catFlipX = !enterFromLeft; // facing towards center
+    s_catState = CAT_STATE_ENTERING;
+    s_animFrame = 0;
+    s_nextFrameMs = now + 75;
+  }
 
   // Contextual thought
   PetBrain_RequestThought(false);
@@ -156,7 +177,7 @@ void PetDrawer_Close() {
   s_isOpen = false;
   s_catX = 240.0f;
   s_catTargetX = 240.0f;
-  s_catState = CAT_STATE_IDLE;
+  s_catState = (Settings_IsNight() && millis() >= s_nightWakeUntilMs) ? CAT_STATE_SLEEPING : CAT_STATE_IDLE;
 }
 
 void PetDrawer_Toggle() {
@@ -168,16 +189,21 @@ static void callCatBack() {
   if (s_catState != CAT_STATE_AWAY && s_catState != CAT_STATE_LEAVING) return;
   const unsigned long now = millis();
 
+  if (Settings_IsNight()) {
+    s_nightWakeUntilMs = now + NIGHT_WAKE_DURATION_MS;
+    s_isDrowsy = false;
+  }
+
   if (Settings_BuzzerEnabled() && Settings_BuzzerPet()) {
     Buzzer_Play(BEEP_PET_CHIRP);
   }
 
   // Choose entrance side: nearest edge
   if (s_catX <= 240.0f) {
-    s_catX = -50.0f;
+    s_catX = -70.0f;
     s_catFlipX = false;
   } else {
-    s_catX = LCD_WIDTH + 50.0f;
+    s_catX = LCD_WIDTH + 70.0f;
     s_catFlipX = true;
   }
   s_catTargetX = 240.0f;
@@ -197,6 +223,10 @@ void PetDrawer_HandleTouchMove(int x, int y) {
   if (!s_isOpen) return;
   const unsigned long now = millis();
   s_lastUserInteractMs = now;
+  if (Settings_IsNight()) {
+    s_nightWakeUntilMs = now + NIGHT_WAKE_DURATION_MS;
+    s_isDrowsy = false;
+  }
 
   if (s_catState == CAT_STATE_AWAY || s_catState == CAT_STATE_LEAVING) {
     callCatBack();
@@ -255,6 +285,23 @@ bool PetDrawer_Tick() {
   char cs[16] = "";
   bool hasPlane = PetBrain_GetClosestPlaneTarget(bDeg, dist, cs, sizeof(cs));
   const bool isNight = Settings_IsNight();
+  const bool nightAwake = isNight && (now < s_nightWakeUntilMs);
+  const bool nightDrowsy = isNight && nightAwake && (s_nightWakeUntilMs - now <= NIGHT_DROWSY_DURATION_MS);
+
+  // Transition into drowsy state before falling asleep
+  if (nightDrowsy && !s_isDrowsy) {
+    s_isDrowsy = true;
+    setThought(
+      "🐾 *Yaaawn*... Getting sleepy... zzz",
+      "🐾 *Zíííva*... Už sa mi zatvárajú očká... zzz",
+      "🐾 *Zííívá*... Už se mi zavírají očka... zzz"
+    );
+    if (s_catState == CAT_STATE_IDLE) {
+      s_catState = CAT_STATE_STRETCH;
+      s_animFrame = 0;
+      s_nextFrameMs = now + 450;
+    }
+  }
 
   // 1. Direct interactive overrides (Feeding & Petting)
   if (now < s_petFeedUntilMs) {
@@ -264,9 +311,19 @@ bool PetDrawer_Tick() {
     s_catState = CAT_STATE_HAPPY;
     s_catTargetX = s_catX;
   } else if (s_catState == CAT_STATE_ENTERING) {
-    // Entering motion in progress: allow DigiCat to trot onto screen before sleeping
-  } else if (isNight) {
-    s_catState = CAT_STATE_SLEEPING;
+    // Entering motion in progress: allow DigiCat to trot onto screen before sleeping or idling
+  } else if (isNight && !nightAwake) {
+    if (s_catState != CAT_STATE_SLEEPING) {
+      s_catState = CAT_STATE_SLEEPING;
+      s_animFrame = 0;
+      s_nextFrameMs = now + 400;
+      s_isDrowsy = false;
+      setThought(
+        "🐾 Purr... Time to sleep... Goodnight! 🌙💤",
+        "🐾 Prrrr... Čas ísť spinkať... Dobrú noc! 🌙💤",
+        "🐾 Prrrr... Čas jít spát... Dobrou noc! 🌙💤"
+      );
+    }
     s_catTargetX = s_catX;
   } else if (s_catState == CAT_STATE_AWAY) {
     // Away exploring airfield: auto return after timer if user hasn't called him back
@@ -343,7 +400,7 @@ bool PetDrawer_Tick() {
   } else {
     // Cat is idle: check if a new close aircraft suddenly passed over
     static char s_lastCloseCallsign[16] = "";
-    if (hasPlane && dist < 18.0f && strcmp(cs, s_lastCloseCallsign) != 0 && !isNight) {
+    if (hasPlane && dist < 18.0f && strcmp(cs, s_lastCloseCallsign) != 0 && (!isNight || nightAwake)) {
       strncpy(s_lastCloseCallsign, cs, sizeof(s_lastCloseCallsign) - 1);
       s_catState = CAT_STATE_WATCH_PLANE;
       s_catFlipX = (bDeg > 180.0f);
@@ -356,69 +413,84 @@ bool PetDrawer_Tick() {
     s_catState = CAT_STATE_IDLE;
 
     if (now >= s_nextBrainDecisionMs && now > s_lastUserInteractMs + 5000) {
-      int roll = rand() % 100;
-
-      // If a plane is nearby, 20% chance to look up at it
-      if (hasPlane && dist < 50.0f && roll < 20) {
-        s_catState = CAT_STATE_WATCH_PLANE;
-        s_catFlipX = (bDeg > 180.0f);
-        s_watchPlaneUntilMs = now + 3500;
-        s_animFrame = 0;
-        s_nextFrameMs = now + 350;
-      } else if (roll < 42) {
-        // 1. Patrol to a new spot on the runway deck (160..320)
-        float targetX = 160.0f + (float)(rand() % 160);
-        s_catTargetX = targetX;
-        s_catFlipX = (targetX < s_catX);
-        s_catState = CAT_STATE_PATROL;
-        s_animFrame = 0;
-        s_nextFrameMs = now + 90;
-      } else if (roll < 60) {
-        // 2. Playful Jump / Pounce
-        s_catState = CAT_STATE_JUMP;
-        s_animFrame = 0;
-        s_nextFrameMs = now + 80;
-        if (Settings_BuzzerEnabled() && Settings_BuzzerPet()) {
-          Buzzer_Play(BEEP_PET_CHIRP);
-        }
-      } else if (roll < 74) {
-        // 3. Groom / Face Wash
-        s_catState = CAT_STATE_GROOM;
-        s_animFrame = 0;
-        s_nextFrameMs = now + 220;
-      } else if (roll < 86) {
-        // 4. Big Cat Stretch
-        s_catState = CAT_STATE_STRETCH;
-        s_animFrame = 0;
-        s_nextFrameMs = now + 450;
-      } else {
-        // 5. Explore airfield! (Leaves screen)
-        bool leaveRight = (s_catX > 240.0f);
-        s_catTargetX = leaveRight ? (LCD_WIDTH + 70.0f) : -70.0f;
-        s_catFlipX = (s_catTargetX < s_catX);
-        s_catState = CAT_STATE_LEAVING;
-        s_animFrame = 0;
-        s_nextFrameMs = now + 90;
-
-        int dep = rand() % 3;
-        if (dep == 0) {
-          setThought(
-            "🐾 DigiCat went exploring the hangar... Tap anywhere to call!",
-            "🐾 DigiCat išiel preskúmať hangár... Ťuknite pre privolanie!",
-            "🐾 DigiCat šel prozkoumat hangár... Klepněte pro přivolání!"
-          );
-        } else if (dep == 1) {
-          setThought(
-            "🐾 Chasing a moth near runway 22... Tap anywhere to call!",
-            "🐾 Naháňam moľa pri vzletovej dráhe... Ťukni pre privolanie!",
-            "🐾 Honička za můrou u vzletové dráhy... Klepni pro přivolání!"
-          );
+      if (nightDrowsy) {
+        // In drowsy phase, only do gentle wind-down actions (no jumping or leaving screen)
+        int drowsyRoll = rand() % 100;
+        if (drowsyRoll < 50) {
+          s_catState = CAT_STATE_STRETCH;
+          s_animFrame = 0;
+          s_nextFrameMs = now + 450;
         } else {
-          setThought(
-            "🐾 Gone to inspect the radar tower... Tap anywhere to call!",
-            "🐾 Idem skontrolovať radarovú vežu... Ťukni pre privolanie!",
-            "🐾 Jdu zkontrolovat radarovou věž... Klepni pro přivolání!"
-          );
+          s_catState = CAT_STATE_GROOM;
+          s_animFrame = 0;
+          s_nextFrameMs = now + 240;
+        }
+        s_nextBrainDecisionMs = now + 7000;
+      } else {
+        int roll = rand() % 100;
+
+        // If a plane is nearby, 20% chance to look up at it
+        if (hasPlane && dist < 50.0f && roll < 20) {
+          s_catState = CAT_STATE_WATCH_PLANE;
+          s_catFlipX = (bDeg > 180.0f);
+          s_watchPlaneUntilMs = now + 3500;
+          s_animFrame = 0;
+          s_nextFrameMs = now + 350;
+        } else if (roll < 42) {
+          // 1. Patrol to a new spot on the runway deck (160..320)
+          float targetX = 160.0f + (float)(rand() % 160);
+          s_catTargetX = targetX;
+          s_catFlipX = (targetX < s_catX);
+          s_catState = CAT_STATE_PATROL;
+          s_animFrame = 0;
+          s_nextFrameMs = now + 90;
+        } else if (roll < 60) {
+          // 2. Playful Jump / Pounce
+          s_catState = CAT_STATE_JUMP;
+          s_animFrame = 0;
+          s_nextFrameMs = now + 80;
+          if (Settings_BuzzerEnabled() && Settings_BuzzerPet()) {
+            Buzzer_Play(BEEP_PET_CHIRP);
+          }
+        } else if (roll < 74) {
+          // 3. Groom / Face Wash
+          s_catState = CAT_STATE_GROOM;
+          s_animFrame = 0;
+          s_nextFrameMs = now + 220;
+        } else if (roll < 86) {
+          // 4. Big Cat Stretch
+          s_catState = CAT_STATE_STRETCH;
+          s_animFrame = 0;
+          s_nextFrameMs = now + 450;
+        } else {
+          // 5. Explore airfield! (Leaves screen)
+          bool leaveRight = (s_catX > 240.0f);
+          s_catTargetX = leaveRight ? (LCD_WIDTH + 70.0f) : -70.0f;
+          s_catFlipX = (s_catTargetX < s_catX);
+          s_catState = CAT_STATE_LEAVING;
+          s_animFrame = 0;
+          s_nextFrameMs = now + 90;
+
+          int dep = rand() % 3;
+          if (dep == 0) {
+            setThought(
+              "🐾 DigiCat went exploring the hangar... Tap anywhere to call!",
+              "🐾 DigiCat išiel preskúmať hangár... Ťuknite pre privolanie!",
+              "🐾 DigiCat šel prozkoumat hangár... Klepněte pro přivolání!"
+            );
+          } else if (dep == 1) {
+            setThought(
+              "🐾 Chasing a moth near runway 22... Tap anywhere to call!",
+              "🐾 Naháňam moľa pri vzletovej dráhe... Ťukni pre privolanie!",
+              "🐾 Honička za můrou u vzletové dráhy... Klepni pro přivolání!"
+            );
+          } else {
+            setThought(
+              "🐾 Gone to inspect the radar tower... Tap anywhere to call!",
+              "🐾 Idem skontrolovať radarovú vežu... Ťukni pre privolanie!",
+              "🐾 Jdu zkontrolovat radarovou věž... Klepni pro přivolání!"
+            );
+          }
         }
       }
     }
@@ -430,7 +502,7 @@ bool PetDrawer_Tick() {
     float step = (s_catState == CAT_STATE_ENTERING) ? 5.2f : 3.2f;
     if (fabsf(dx) <= step) {
       s_catX = s_catTargetX;
-      s_catState = isNight ? CAT_STATE_SLEEPING : CAT_STATE_IDLE;
+      s_catState = (isNight && !nightAwake) ? CAT_STATE_SLEEPING : CAT_STATE_IDLE;
       s_animFrame = 0;
       s_nextBrainDecisionMs = now + 8000 + (rand() % 8000);
       if (s_hasCustomThought) {
@@ -463,7 +535,7 @@ bool PetDrawer_Tick() {
     if (now >= s_nextFrameMs) {
       if (s_animFrame >= 4 && s_animFrame <= 6) {
         s_animFrame = (s_animFrame == 6) ? 0 : s_animFrame + 1;
-        s_nextFrameMs = now + 140;
+        s_nextFrameMs = now + (nightDrowsy ? 280 : 140);
       } else if (s_animFrame == 7) {
         s_animFrame = 0;
         s_nextFrameMs = now + 350;
@@ -471,17 +543,17 @@ bool PetDrawer_Tick() {
         s_animFrame = (s_animFrame + 1) % 4;
         if (s_animFrame == 0) {
           int roll = rand() % 100;
-          if (roll < 25) {
+          if (nightDrowsy || roll < 25) {
             s_animFrame = 4; // slow blink
-            s_nextFrameMs = now + 140;
+            s_nextFrameMs = now + (nightDrowsy ? 280 : 140);
           } else if (roll < 40) {
             s_animFrame = 7; // ear flick
             s_nextFrameMs = now + 260;
           } else {
-            s_nextFrameMs = now + 350;
+            s_nextFrameMs = now + (nightDrowsy ? 500 : 350);
           }
         } else {
-          s_nextFrameMs = now + 350;
+          s_nextFrameMs = now + (nightDrowsy ? 500 : 350);
         }
       }
     }
@@ -733,6 +805,10 @@ bool PetDrawer_HandleTap(int x, int y) {
   if (!s_isOpen) return false;
   const unsigned long now = millis();
   s_lastUserInteractMs = now;
+  if (Settings_IsNight()) {
+    s_nightWakeUntilMs = now + NIGHT_WAKE_DURATION_MS;
+    s_isDrowsy = false;
+  }
 
   // Tap at top edge closes drawer
   if (y <= 48) {
@@ -745,6 +821,22 @@ bool PetDrawer_HandleTap(int x, int y) {
   if (s_catState == CAT_STATE_AWAY || s_catState == CAT_STATE_LEAVING) {
     callCatBack();
     return true;
+  }
+
+  // If the cat was sleeping, wake up with a stretch!
+  if (s_catState == CAT_STATE_SLEEPING) {
+    s_catState = CAT_STATE_STRETCH;
+    s_animFrame = 0;
+    s_nextFrameMs = now + 400;
+    s_nextBrainDecisionMs = now + 7000;
+    if (Settings_BuzzerEnabled() && Settings_BuzzerPet()) {
+      Buzzer_Play(BEEP_PET_PURR);
+    }
+    setThought(
+      "🐾 *Yawn*... Oh, hello! DigiCat woke up! 😸",
+      "🐾 *Zív*... Jéé, ahoj! DigiCat sa zobudil! 😸",
+      "🐾 *Zív*... Jéé, ahoj! DigiCat se vzbudil! 😸"
+    );
   }
 
   // Tap on Mute button

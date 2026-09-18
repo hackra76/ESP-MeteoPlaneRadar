@@ -22,3 +22,6 @@ void PetDrawer_HandleTouchRelease();
 
 // Draws the Pet Drawer overlay on top of active canvas
 void PetDrawer_Draw();
+
+// Returns true if pet is currently in the active wake period during night hours
+bool PetDrawer_IsNightAwake();

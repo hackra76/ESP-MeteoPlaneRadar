@@ -11,6 +11,7 @@
 #include "Net.h"
 #include "AsyncCore.h"
 #include "Lang.h"
+#include "PetDrawer.h"
 #include <ArduinoJson.h>
 #include <math.h>
 
@@ -94,7 +95,7 @@ static void generateOfflineThought(char* buf, size_t cap) {
   char tempBuf[OUTSIDE_TEXT_MAX] = "";
   Outside_StatusText(tempBuf, sizeof(tempBuf));
 
-  const bool isNight = Settings_IsNight();
+  const bool isNight = Settings_IsNight() && !PetDrawer_IsNightAwake();
   const bool isRaining = (PrecipTracker_IsApproaching() || PrecipTracker_IsCurrentlyActive());
 
   if (isNight) {
@@ -463,7 +464,7 @@ bool PetBrain_Step() {
   char tempBuf[OUTSIDE_TEXT_MAX] = "";
   Outside_StatusText(tempBuf, sizeof(tempBuf));
   const bool isRaining = (PrecipTracker_IsApproaching() || PrecipTracker_IsCurrentlyActive());
-  const bool isNight = Settings_IsNight();
+  const bool isNight = Settings_IsNight() && !PetDrawer_IsNightAwake();
 
   // Construct prompt
   char prompt[420];
