@@ -60,6 +60,7 @@ static unsigned long s_nextFrameMs = 0;
 static unsigned long s_nextBrainDecisionMs = 12000;
 static unsigned long s_autoReturnMs = 0;
 static unsigned long s_watchPlaneUntilMs = 0;
+static unsigned long s_planeChasePauseUntilMs = 0;
 
 // Dynamic Contextual Dialogue
 static char          s_customThought[128] = "";
@@ -340,8 +341,8 @@ bool PetDrawer_Tick() {
   const bool nightAwake = isNight && (now < s_nightWakeUntilMs);
   const bool nightDrowsy = isNight && nightAwake && (s_nightWakeUntilMs - now <= NIGHT_DROWSY_DURATION_MS);
 
-  // Tracked Aircraft simulation in pet screen
-  if (hasPlane && dist < 50.0f && (!isNight || nightAwake)) {
+  // Tracked Aircraft simulation in pet screen: only when very close (<= 10km)
+  if (hasPlane && dist <= 10.0f && (!isNight || nightAwake)) {
     s_skyPlane.active = true;
     s_skyPlane.distKm = dist;
     s_skyPlane.bearingDeg = bDeg;
@@ -373,10 +374,13 @@ bool PetDrawer_Tick() {
     }
     s_skyPlane.y = baseY;
 
-    // Cat reaction: chase or swat when active
+    // Cat reaction: chase or swat only when active, not in autonomous routine, and pause expired
     if (s_catState != CAT_STATE_SLEEPING && s_catState != CAT_STATE_AWAY &&
         s_catState != CAT_STATE_LEAVING && s_catState != CAT_STATE_EATING &&
-        s_catState != CAT_STATE_HAPPY && s_catState != CAT_STATE_ENTERING) {
+        s_catState != CAT_STATE_HAPPY && s_catState != CAT_STATE_ENTERING &&
+        s_catState != CAT_STATE_GROOM && s_catState != CAT_STATE_STRETCH &&
+        s_catState != CAT_STATE_WATCH_PLANE &&
+        now >= s_planeChasePauseUntilMs) {
       float catDist = fabsf(s_catX - (s_skyPlane.x + 28.0f));
 
       if (catDist <= 32.0f) {
@@ -387,7 +391,7 @@ bool PetDrawer_Tick() {
           s_nextFrameMs = now + 110;
         }
       } else {
-        if (s_catState != CAT_STATE_JUMP) {
+        if (s_catState != CAT_STATE_JUMP && s_catState != CAT_STATE_SWAT) {
           s_catTargetX = constrain(s_skyPlane.x + 28.0f, 140.0f, 340.0f);
           s_catFlipX = (s_catTargetX < s_catX);
           if (s_catState != CAT_STATE_PATROL) {
@@ -490,18 +494,17 @@ bool PetDrawer_Tick() {
         return true;
       }
 
-      // After 2 swat cycles (16 frames), chance for a playful jump at the aircraft!
+      // After 2 swat cycles (16 frames), chance for a playful jump at the aircraft or a rest
       if (s_animFrame >= 16) {
-        if (rand() % 100 < 50 && s_skyPlane.active) {
+        if (rand() % 100 < 40 && s_skyPlane.active) {
           s_catState = CAT_STATE_JUMP;
           s_animFrame = 0;
           s_nextFrameMs = now + 80;
         } else {
           s_animFrame = 0;
-          if (!s_skyPlane.active) {
-            s_catState = CAT_STATE_IDLE;
-            s_nextBrainDecisionMs = now + 5000;
-          }
+          s_catState = CAT_STATE_IDLE;
+          s_planeChasePauseUntilMs = now + 5000;
+          s_nextBrainDecisionMs = now + 5000;
         }
       }
     }
@@ -516,15 +519,10 @@ bool PetDrawer_Tick() {
         s_skyPlane.hopEndMs = now + 500;
       }
       if (s_animFrame >= 8) {
-        if (s_skyPlane.active) {
-          s_catState = CAT_STATE_SWAT;
-          s_animFrame = 0;
-          s_nextFrameMs = now + 110;
-        } else {
-          s_catState = CAT_STATE_IDLE;
-          s_animFrame = 0;
-          s_nextBrainDecisionMs = now + 7000 + (rand() % 7000);
-        }
+        s_catState = CAT_STATE_IDLE;
+        s_animFrame = 0;
+        s_planeChasePauseUntilMs = now + 4500;
+        s_nextBrainDecisionMs = now + 4500;
       }
     }
     return true;
@@ -1435,6 +1433,7 @@ bool PetDrawer_HandleTap(int x, int y) {
       if (Settings_BuzzerEnabled() && Settings_BuzzerPet()) Buzzer_Play(BEEP_PET_CHIRP);
       s_skyPlane.evasiveHop = true;
       s_skyPlane.hopEndMs = now + 500;
+      s_planeChasePauseUntilMs = 0;
       // Cat jumps towards the plane
       s_catTargetX = (int)s_skyPlane.x;
       s_catState = CAT_STATE_JUMP;

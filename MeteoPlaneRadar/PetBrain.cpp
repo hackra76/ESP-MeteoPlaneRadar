@@ -114,7 +114,7 @@ static void generateOfflineThought(char* buf, size_t cap) {
     return;
   }
 
-  if (hasPlane && dist < 12.0f) {
+  if (hasPlane && dist <= 10.0f) {
     s_mood = PET_MOOD_EXCITED;
     if (lang == LANG_SK) snprintf(buf, cap, "Mňau! Pozri hore! %s fičí nad nami! Skáčem a chytám ho labkou! ✈️🐾", cs);
     else if (lang == LANG_CZ) snprintf(buf, cap, "Mňau! Koukej nahoru! %s fičí nad námi! Skáču a chytám ho tlapkou! ✈️🐾", cs);
@@ -124,9 +124,9 @@ static void generateOfflineThought(char* buf, size_t cap) {
 
   if (hasPlane && dist < 45.0f) {
     s_mood = PET_MOOD_HAPPY;
-    if (lang == LANG_SK) snprintf(buf, cap, "%s na oblohe! DigiCat beží po dráhe a striehne naňho! 🛩️🐾", cs);
-    else if (lang == LANG_CZ) snprintf(buf, cap, "%s na obloze! DigiCat běží po dráze a číhá na něj! 🛩️🐾", cs);
-    else snprintf(buf, cap, "%s overhead! DigiCat chasing along the runway! 🛩️🐾", cs);
+    if (lang == LANG_SK) snprintf(buf, cap, "%s na radare (%.0fkm). DigiCat sleduje jeho let! 📡🐾", cs, dist);
+    else if (lang == LANG_CZ) snprintf(buf, cap, "%s na radaru (%.0fkm). DigiCat sleduje jeho let! 📡🐾", cs, dist);
+    else snprintf(buf, cap, "%s on radar (%.0fkm). DigiCat tracking flight path! 📡🐾", cs, dist);
     return;
   }
 
@@ -480,11 +480,20 @@ bool PetBrain_Step() {
       "The user just lovingly petted and tapped you on the touchscreen! "
       "Say one very short, cute, loving or funny reaction (max 10 words) %s directly to the user. Plain text only, no quotes, no hashtags, no asterisks.",
       charName, PetBrain_GetStageTitle(), s_stats.happiness, s_stats.hunger, langDirective);
-  } else if (hasPlane && dist < 30.0f) {
+  } else if (hasPlane && dist <= 10.0f) {
     snprintf(prompt, sizeof(prompt),
       "You are %s, an aviation cat pet (%s, Happiness: %d%%, Hunger: %d%%). Ambient: %s, rain=%s, night=%s. "
-      "Nearest flight is %s at %.0fkm flying overhead above you. "
+      "Nearest flight is %s at %.0fkm flying very close overhead right above you! "
       "Say one very short, cute or witty cat remark (max 12 words) %s about chasing or swatting/scratching at it. Plain text only, no quotes, no hashtags, no asterisks.",
+      charName, PetBrain_GetStageTitle(), s_stats.happiness, s_stats.hunger,
+      tempBuf[0] ? tempBuf : "unknown",
+      isRaining ? "yes" : "no", isNight ? "yes" : "no",
+      cs, dist, langDirective);
+  } else if (hasPlane && dist < 40.0f) {
+    snprintf(prompt, sizeof(prompt),
+      "You are %s, an aviation cat pet (%s, Happiness: %d%%, Hunger: %d%%). Ambient: %s, rain=%s, night=%s. "
+      "Nearest flight is %s at %.0fkm distance on radar. "
+      "Say one very short, cute or witty remark (max 12 words) %s about tracking it on radar. Plain text only, no quotes, no hashtags, no asterisks.",
       charName, PetBrain_GetStageTitle(), s_stats.happiness, s_stats.hunger,
       tempBuf[0] ? tempBuf : "unknown",
       isRaining ? "yes" : "no", isNight ? "yes" : "no",
