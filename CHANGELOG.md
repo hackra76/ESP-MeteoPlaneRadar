@@ -9,6 +9,19 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [2.0.3] - 2026-09-19
+
+### Pridané / Added
+- **Sledovanie preletu, lovenie a chňapanie po lietadlách (Overhead Aircraft Tracking & Paw Swatting):**
+  - **Lietadlo na oblohe v reálnom čase:** Ak je v blízkosti detegované lietadlo cez ADS-B radar, v hornej časti obrazovky zvieratka ($Y = 175..205$) plynule prelieta dvojmotorové pixel art lietadlo (28×14 px škálované 2× na 56×28 px).
+  - **Dymové stopy a blikajúce majáky:** Dvojité aerodynamické kondenzačné čiary (contrails) a striedavo blikajúce krídelné navigačné majáky doplnené o štítok s volacím znakom a vzdialenosťou (napr. `DLH123 · 8km`).
+  - **Lovenie a nová 8-snímková animácia chňapania (`CAT_STATE_SWAT`):** DigiCat beží po dráhe pod lietadlom, postaví sa na zadné labky a labkami zúrivo chňapá a škrabká do vzduchu priamo po lietadielku s vizuálnymi iskrami pazúrikov.
+  - **Úhybný manéver lietadla:** Pri zásahu labkou alebo ťuknutí na lietadlo prstami lietadlo vykoná úhybný skok nahor so zvukovým čipnutím a DigiCat po ňom môže skočiť (`CAT_STATE_JUMP`).
+- **Vylepšenia používateľského rozhrania a dialógov (UI & Speech Bubble Enhancements):**
+  - **Vycentrovaný text v bubline dialógu:** Prepracovaný layout textu presne počíta výšku riadkov a dokonale centruje viacriadkový text horizontálne aj vertikálne v bubline.
+  - **Odstránené slnečné okuliare:** Pri slnečnom počasí už zvieratko nenosí slnečné okuliare, takže má čistú a ničím nezakrytú tváričku.
+  - **Kontextové hlášky a Gemini AI:** Pridané témy lovenia lietadiel, chňapania labkami a sledovania preletov do offline generátora myšlienok aj do promptu pre Google Gemini LLM.
+
 ## [2.0.2] - 2026-09-18
 
 ### Pridané / Added

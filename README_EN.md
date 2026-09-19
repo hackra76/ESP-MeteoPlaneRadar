@@ -157,10 +157,16 @@ The round 480×480 display features **6 completely distinct geometry styles** wi
 
 ### 🐾 21. Interactive Pixel Art Companion & Autonomous DigiCat
 - Full-screen interactive companion drawer accessible from any screen via **Swipe Up** from the bottom edge or the Quick Control Center paw icon.
-- **Handcrafted 32-Frame Pixel Art Animation Engine**:
+- **Handcrafted 40-Frame Pixel Art Animation Engine**:
   - Crisp 16-color retro palette (RGB565) scaled 2× (128×128 px) via run-length span blitter (< 0.5 ms render time).
   - Authentic ginger tabby with "M" forehead pattern, white bib, pink pads, emerald eyes, and swishing tail.
-  - **9 Animation Sequences**: Walk Cycle (4 frames with bidirectional horizontal flipping), Sitting Idle with breathing & blinking (4 frames), Affectionate Purr & blushing (4 frames), Aircraft Tracking (2 frames), Snack Munching (4 frames), Night Sleeping Loaf with Zzz (4 frames), Pounce Leap (4 frames with vertical jump arc), Paw Face Wash Grooming (4 frames), and Yoga Stretch (2 frames).
+  - **10 Animation Sequences**: Walk Cycle (4 frames with bidirectional horizontal flipping), Sitting Idle with breathing & blinking (4 frames), Affectionate Purr & blushing (4 frames), Aircraft Tracking (2 frames), Snack Munching (4 frames), Night Sleeping Loaf with Zzz (4 frames), Pounce Leap (4 frames with vertical jump arc), Paw Face Wash Grooming (4 frames), Yoga Stretch (2 frames), and **Paw Swatting & Overhead Scratching** (8 frames).
+- **Live Overhead Aircraft Tracking, Swatting & Flight Chasing**:
+  - **Overhead Jet Glider:** Real-time $28\times14$ pixel art jet (rendered $2\times$ scale, $56\times28$ px) cruises across the sky band ($Y = 175..205$) whenever nearby aircraft are tracked via ADS-B/radar.
+  - **Contrail Vapor Trails & Strobe Beacons:** Dual aerodynamic vapor trails stretch behind the jet with flashing wingtip navigation strobes and a callsign/distance badge (`DLH123 · 8km`).
+  - **Paw Swatting & Claw Sparks (`CAT_STATE_SWAT`):** DigiCat sprints along the runway beneath the aircraft, rises on hind legs, and furiously swats/scratches at the plane with animated claw swipe sparks.
+  - **Evasive Jet Hops & High Pounces:** Paw contact or direct touchscreen tap triggers an evasive jet altitude hop with an avionics chirp, prompting DigiCat to leap up in pursuit (`CAT_STATE_JUMP`).
+  - **Centered Speech Bubble Layout:** Dialogue text is computed with bounding-box metrics and perfectly centered horizontally and vertically inside the speech bubble.
 - **Airfield Runway Deck & 3D Cast Shadow**:
   - **Tarmac Surface:** Physical runway platform with dashed yellow centerline markings and perimeter beacon lights (amber left, cyan right).
   - **Dynamic Cast Shadow:** Soft feathered oval drop shadow under DigiCat's paws that stays grounded on the deck and dynamically shrinks/fades during jumps for authentic 3D depth.

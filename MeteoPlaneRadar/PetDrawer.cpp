@@ -32,9 +32,23 @@ enum CatAnimState : uint8_t {
   CAT_STATE_JUMP,         // Playful crouch, launch, airborne apex, cushion land!
   CAT_STATE_GROOM,        // Sitting face wash & paw licking
   CAT_STATE_STRETCH,      // Big yoga stretch (front low, butt high, arched back)
+  CAT_STATE_SWAT,         // Swatting & scratching upward at overhead aircraft!
   CAT_STATE_LEAVING,      // Decided to leave screen on airfield adventure
   CAT_STATE_AWAY          // Off-screen exploring airfield; returns on tap/call or timer
 };
+
+struct TrackedPlaneDisplay {
+  bool active = false;
+  float x = 0.0f;
+  float y = 186.0f;
+  float vx = 1.6f;
+  float distKm = 0.0f;
+  float bearingDeg = 0.0f;
+  char callsign[16] = "";
+  bool evasiveHop = false;
+  unsigned long hopEndMs = 0;
+};
+static TrackedPlaneDisplay s_skyPlane;
 
 static CatAnimState  s_catState = CAT_STATE_IDLE;
 static float         s_catX = 240.0f;
@@ -115,6 +129,44 @@ static void drawCatSprite2x(const uint8_t* frame, int topLeftX, int topLeftY, bo
       int w = runLen * 2;
 
       // Screen clipping
+      if (startX < 0) {
+        w += startX;
+        startX = 0;
+      }
+      if (startX + w > LCD_WIDTH) {
+        w = LCD_WIDTH - startX;
+      }
+
+      if (w > 0) {
+        gfx->fillRect(startX, screenY, w, 2, color);
+      }
+    }
+  }
+}
+
+static void drawAirplaneSprite2x(int topLeftX, int topLeftY, bool flipX) {
+  for (int py = 0; py < CAT_AIRPLANE_H; py++) {
+    int screenY = topLeftY + py * 2;
+    if (screenY + 1 < 0 || screenY >= LCD_HEIGHT) continue;
+
+    const uint8_t* row = CAT_AIRPLANE + py * CAT_AIRPLANE_W;
+    int px = 0;
+    while (px < CAT_AIRPLANE_W) {
+      uint8_t c = row[px];
+      if (c == 0 || c >= 16) {
+        px++;
+        continue;
+      }
+
+      int startPx = px;
+      while (px < CAT_AIRPLANE_W && row[px] == c) {
+        px++;
+      }
+      int runLen = px - startPx;
+      uint16_t color = CAT_PALETTE[c];
+      int startX = flipX ? (topLeftX + (CAT_AIRPLANE_W - px) * 2) : (topLeftX + startPx * 2);
+      int w = runLen * 2;
+
       if (startX < 0) {
         w += startX;
         startX = 0;
@@ -288,6 +340,72 @@ bool PetDrawer_Tick() {
   const bool nightAwake = isNight && (now < s_nightWakeUntilMs);
   const bool nightDrowsy = isNight && nightAwake && (s_nightWakeUntilMs - now <= NIGHT_DROWSY_DURATION_MS);
 
+  // Tracked Aircraft simulation in pet screen
+  if (hasPlane && dist < 50.0f && (!isNight || nightAwake)) {
+    s_skyPlane.active = true;
+    s_skyPlane.distKm = dist;
+    s_skyPlane.bearingDeg = bDeg;
+    strncpy(s_skyPlane.callsign, cs, sizeof(s_skyPlane.callsign) - 1);
+    s_skyPlane.callsign[sizeof(s_skyPlane.callsign) - 1] = '\0';
+
+    if (s_skyPlane.vx == 0.0f) {
+      if (bDeg > 180.0f) {
+        s_skyPlane.x = 410.0f;
+        s_skyPlane.vx = -1.6f;
+      } else {
+        s_skyPlane.x = 50.0f;
+        s_skyPlane.vx = 1.6f;
+      }
+    }
+
+    s_skyPlane.x += s_skyPlane.vx;
+    if (s_skyPlane.vx > 0 && s_skyPlane.x > 410.0f) {
+      s_skyPlane.vx = -1.6f;
+    } else if (s_skyPlane.vx < 0 && s_skyPlane.x < 50.0f) {
+      s_skyPlane.vx = 1.6f;
+    }
+
+    float baseY = 186.0f + sinf((float)now * 0.003f) * 3.5f;
+    if (s_skyPlane.evasiveHop && now < s_skyPlane.hopEndMs) {
+      baseY -= 10.0f;
+    } else {
+      s_skyPlane.evasiveHop = false;
+    }
+    s_skyPlane.y = baseY;
+
+    // Cat reaction: chase or swat when active
+    if (s_catState != CAT_STATE_SLEEPING && s_catState != CAT_STATE_AWAY &&
+        s_catState != CAT_STATE_LEAVING && s_catState != CAT_STATE_EATING &&
+        s_catState != CAT_STATE_HAPPY && s_catState != CAT_STATE_ENTERING) {
+      float catDist = fabsf(s_catX - (s_skyPlane.x + 28.0f));
+
+      if (catDist <= 32.0f) {
+        if (s_catState != CAT_STATE_SWAT && s_catState != CAT_STATE_JUMP) {
+          s_catState = CAT_STATE_SWAT;
+          s_catFlipX = (s_skyPlane.vx < 0);
+          s_animFrame = 0;
+          s_nextFrameMs = now + 110;
+        }
+      } else {
+        if (s_catState != CAT_STATE_JUMP) {
+          s_catTargetX = constrain(s_skyPlane.x + 28.0f, 140.0f, 340.0f);
+          s_catFlipX = (s_catTargetX < s_catX);
+          if (s_catState != CAT_STATE_PATROL) {
+            s_catState = CAT_STATE_PATROL;
+            s_animFrame = 0;
+            s_nextFrameMs = now + 80;
+          }
+        }
+      }
+    }
+  } else {
+    s_skyPlane.active = false;
+    s_skyPlane.vx = 0.0f;
+    if (s_catState == CAT_STATE_SWAT) {
+      s_catState = CAT_STATE_IDLE;
+    }
+  }
+
   // Transition into drowsy state before falling asleep
   if (nightDrowsy && !s_isDrowsy) {
     s_isDrowsy = true;
@@ -347,15 +465,66 @@ bool PetDrawer_Tick() {
       s_animFrame = (s_animFrame + 1) % 8;
     }
     return true;
+  } else if (s_catState == CAT_STATE_SWAT) {
+    // Swatting & scratching overhead aircraft
+    if (now >= s_nextFrameMs) {
+      s_nextFrameMs = now + 110;
+      s_animFrame++;
+
+      // Claw apex swipe: trigger plane evasive hop
+      if ((s_animFrame % 8 == 2 || s_animFrame % 8 == 5) && s_skyPlane.active) {
+        s_skyPlane.evasiveHop = true;
+        s_skyPlane.hopEndMs = now + 450;
+        if (Settings_BuzzerEnabled() && Settings_BuzzerPet()) {
+          Buzzer_Play(BEEP_PET_CHIRP);
+        }
+      }
+
+      // If plane drifted out of swat range, resume chase
+      if (s_skyPlane.active && fabsf(s_catX - (s_skyPlane.x + 28.0f)) > 38.0f) {
+        s_catTargetX = constrain(s_skyPlane.x + 28.0f, 140.0f, 340.0f);
+        s_catFlipX = (s_catTargetX < s_catX);
+        s_catState = CAT_STATE_PATROL;
+        s_animFrame = 0;
+        s_nextFrameMs = now + 80;
+        return true;
+      }
+
+      // After 2 swat cycles (16 frames), chance for a playful jump at the aircraft!
+      if (s_animFrame >= 16) {
+        if (rand() % 100 < 50 && s_skyPlane.active) {
+          s_catState = CAT_STATE_JUMP;
+          s_animFrame = 0;
+          s_nextFrameMs = now + 80;
+        } else {
+          s_animFrame = 0;
+          if (!s_skyPlane.active) {
+            s_catState = CAT_STATE_IDLE;
+            s_nextBrainDecisionMs = now + 5000;
+          }
+        }
+      }
+    }
+    return true;
   } else if (s_catState == CAT_STATE_JUMP) {
     // Jump animation step (8 frames)
     if (now >= s_nextFrameMs) {
       s_nextFrameMs = now + 80;
       s_animFrame++;
+      if ((s_animFrame == 3 || s_animFrame == 4) && s_skyPlane.active) {
+        s_skyPlane.evasiveHop = true;
+        s_skyPlane.hopEndMs = now + 500;
+      }
       if (s_animFrame >= 8) {
-        s_catState = CAT_STATE_IDLE;
-        s_animFrame = 0;
-        s_nextBrainDecisionMs = now + 7000 + (rand() % 7000);
+        if (s_skyPlane.active) {
+          s_catState = CAT_STATE_SWAT;
+          s_animFrame = 0;
+          s_nextFrameMs = now + 110;
+        } else {
+          s_catState = CAT_STATE_IDLE;
+          s_animFrame = 0;
+          s_nextBrainDecisionMs = now + 7000 + (rand() % 7000);
+        }
       }
     }
     return true;
@@ -499,12 +668,18 @@ bool PetDrawer_Tick() {
   // Movement & Walk animation
   if (s_catState == CAT_STATE_ENTERING || s_catState == CAT_STATE_PATROL) {
     float dx = s_catTargetX - s_catX;
-    float step = (s_catState == CAT_STATE_ENTERING) ? 5.2f : 3.2f;
+    float step = (s_catState == CAT_STATE_ENTERING) ? 5.2f : (s_skyPlane.active ? 4.5f : 3.2f);
     if (fabsf(dx) <= step) {
       s_catX = s_catTargetX;
-      s_catState = (isNight && !nightAwake) ? CAT_STATE_SLEEPING : CAT_STATE_IDLE;
-      s_animFrame = 0;
-      s_nextBrainDecisionMs = now + 8000 + (rand() % 8000);
+      if (s_skyPlane.active) {
+        s_catState = CAT_STATE_SWAT;
+        s_animFrame = 0;
+        s_nextFrameMs = now + 110;
+      } else {
+        s_catState = (isNight && !nightAwake) ? CAT_STATE_SLEEPING : CAT_STATE_IDLE;
+        s_animFrame = 0;
+        s_nextBrainDecisionMs = now + 8000 + (rand() % 8000);
+      }
       if (s_hasCustomThought) {
         s_hasCustomThought = false; // resume normal thoughts
       }
@@ -565,6 +740,90 @@ bool PetDrawer_Tick() {
 // -----------------------------------------------------------------------------
 // Visual Helpers
 // -----------------------------------------------------------------------------
+static void wrapSpeechText(const char* text, int maxW, uint8_t fontSize, int maxLines,
+                           char lines[][64], int& lineCount, bool& allFit) {
+  lineCount = 0;
+  allFit = true;
+  if (!text || !*text) return;
+
+  const char* p = text;
+  while (*p && lineCount < maxLines) {
+    while (*p == ' ') p++;
+    if (!*p) break;
+
+    if (*p == '\n') {
+      p++;
+      continue;
+    }
+
+    const char* lineStart = p;
+    const char* lastBreak = nullptr;
+    const char* scan = p;
+
+    char candidate[64];
+
+    while (*scan && *scan != '\n') {
+      while (*scan == ' ') scan++;
+      if (!*scan || *scan == '\n') break;
+
+      const char* wordEnd = scan;
+      while (*wordEnd && *wordEnd != ' ' && *wordEnd != '\n') wordEnd++;
+
+      int len = wordEnd - lineStart;
+      if (len >= (int)sizeof(candidate)) {
+        break;
+      }
+
+      memcpy(candidate, lineStart, len);
+      candidate[len] = '\0';
+
+      if (Font_TextWidth(candidate, fontSize) <= maxW) {
+        lastBreak = wordEnd;
+        scan = wordEnd;
+      } else {
+        break;
+      }
+    }
+
+    if (!lastBreak) {
+      const char* hardScan = lineStart;
+      const char* lastChar = lineStart;
+      while (*hardScan && *hardScan != ' ' && *hardScan != '\n') {
+        const char* nextChar = hardScan + 1;
+        while ((*nextChar & 0xC0) == 0x80) nextChar++;
+        int len = nextChar - lineStart;
+        if (len >= (int)sizeof(candidate)) break;
+        memcpy(candidate, lineStart, len);
+        candidate[len] = '\0';
+        if (Font_TextWidth(candidate, fontSize) <= maxW) {
+          lastChar = nextChar;
+          hardScan = nextChar;
+        } else {
+          break;
+        }
+      }
+      lastBreak = (lastChar > lineStart) ? lastChar : (lineStart + 1);
+    }
+
+    int copyLen = lastBreak - lineStart;
+    if (copyLen >= (int)sizeof(lines[lineCount])) {
+      copyLen = sizeof(lines[lineCount]) - 1;
+    }
+    memcpy(lines[lineCount], lineStart, copyLen);
+    lines[lineCount][copyLen] = '\0';
+    lineCount++;
+
+    p = lastBreak;
+    if (*p == ' ') p++;
+    if (*p == '\n') p++;
+  }
+
+  while (*p == ' ') p++;
+  if (*p) {
+    allFit = false;
+  }
+}
+
 static void drawSpeechBubble(int bx, int by, int bw, int bh, const char* text) {
   gfx->fillRoundRect(bx, by, bw, bh, 14, 0x0821);
   gfx->drawRoundRect(bx, by, bw, bh, 14, C_CYAN);
@@ -577,38 +836,33 @@ static void drawSpeechBubble(int bx, int by, int bw, int bh, const char* text) {
 
   if (!text || !*text) return;
 
-  char line[64];
-  const char* p = text;
-  int ly = by + 10;
+  const int maxW = bw - 24;
+  char lines[4][64];
   int lineCount = 0;
+  bool allFit = false;
+  uint8_t fontSize = FONT_MEDIUM;
+  int fontH = 13;
+  int lineSpacing = 18;
 
-  while (*p && lineCount < 3) {
-    while (*p == ' ') p++;
-    if (!*p) break;
+  // Prefer FONT_MEDIUM (bold, highly legible) with up to 3 lines
+  wrapSpeechText(text, maxW, FONT_MEDIUM, 3, lines, lineCount, allFit);
 
-    int len = 0;
-    int lastSpace = -1;
-    while (p[len] && len < 34) {
-      if (p[len] == ' ') lastSpace = len;
-      len++;
-    }
+  // Fall back to FONT_SMALL (up to 4 lines) if text is unusually long
+  if (!allFit) {
+    fontSize = FONT_SMALL;
+    fontH = 10;
+    lineSpacing = 14;
+    wrapSpeechText(text, maxW, FONT_SMALL, 4, lines, lineCount, allFit);
+  }
 
-    int copyLen = len;
-    if (p[len] && lastSpace > 0) {
-      copyLen = lastSpace;
-    } else {
-      while (copyLen > 0 && ((unsigned char)p[copyLen] & 0xC0) == 0x80) {
-        copyLen--;
-      }
-    }
+  if (lineCount <= 0) return;
 
-    if (copyLen > (int)sizeof(line) - 1) copyLen = sizeof(line) - 1;
-    strncpy(line, p, copyLen);
-    line[copyLen] = '\0';
-    UI_TextCenteredIn(line, bx, bw, ly, C_WHITE, 1);
-    ly += 16;
-    lineCount++;
-    p += copyLen;
+  // Center text block vertically within the bubble
+  int totalTextH = (lineCount - 1) * lineSpacing + fontH;
+  int startY = by + (bh - totalTextH) / 2;
+
+  for (int i = 0; i < lineCount; i++) {
+    UI_TextCenteredIn(lines[i], bx, bw, startY + i * lineSpacing, C_WHITE, fontSize);
   }
 }
 
@@ -787,6 +1041,9 @@ static void drawCatCastShadow(int cx, CatAnimState state, uint8_t frame) {
       rx = 20;
       ry = 3;
     }
+  } else if (state == CAT_STATE_SWAT) {
+    rx = 20;
+    ry = 3;
   }
 
   gfx->fillRoundRect(cx - rx, 340, rx * 2, ry, ry / 2, col);
@@ -804,22 +1061,16 @@ static void drawCatWeatherAccessories(int catDrawX, int catDrawY, bool flipX, Ca
       int cy = 282;
       gfx->fillCircle(cx, cy, 24, 0xFDC0); // Yellow canopy
       gfx->fillRect(cx - 24, cy + 1, 49, 24, C_BLACK); // trim bottom half
-      gfx->drawFastHLine(cx - 24, cy, 49, 0xE700);
-      gfx->drawFastVLine(cx, cy, 58, 0x9482); // umbrella shaft
-      gfx->drawCircle(cx + 3, cy + 58, 3, 0x9482); // handle hook
-      gfx->drawFastVLine(cx, cy - 26, 3, 0xFDC0); // top spike
-      gfx->drawLine(cx - 12, cy, cx - 6, cy - 20, 0xF800); // red decorative wedges
-      gfx->drawLine(cx + 12, cy, cx + 6, cy - 20, 0xF800);
-      // Droplets bouncing off canopy
-      gfx->drawPixel(cx - 10, cy - 22, 0xFFFF);
-      gfx->drawPixel(cx + 8, cy - 23, 0xFFFF);
+      gfx->drawLine(cx, cy, cx - 8, cy + 32, 0x9482); // umbrella shaft
+      gfx->drawLine(cx - 14, cy, cx - 10, cy - 20, 0xF800); // Red alternating stripe panels
+      gfx->drawLine(cx + 14, cy, cx + 10, cy - 20, 0xF800);
+      gfx->drawPixel(cx, cy - 25, 0xFFFF); // top tip highlight
     } else {
-      // Held umbrella over walking / sitting DigiCat
-      int cx = (int)s_catX + (flipX ? -14 : 14);
+      // Handheld umbrella held upright in front paw
+      int cx = flipX ? (catDrawX + 44) : (catDrawX + 76);
       int cy = catDrawY + 10;
-      gfx->fillCircle(cx, cy, 22, 0xFDC0);
+      gfx->fillCircle(cx, cy, 22, 0xFDC0); // Yellow canopy
       gfx->fillRect(cx - 22, cy + 1, 45, 22, C_BLACK);
-      gfx->drawFastHLine(cx - 22, cy, 45, 0xE700);
       int pawX = flipX ? (catDrawX + 44) : (catDrawX + 76);
       int pawY = catDrawY + 52;
       gfx->drawLine(cx, cy, pawX, pawY, 0x9482); // shaft down to paw
@@ -843,20 +1094,60 @@ static void drawCatWeatherAccessories(int catDrawX, int catDrawY, bool flipX, Ca
     gfx->fillRect(tailX, neckY + 4, 4, 10, 0xF800); // fluttering scarf tail
     gfx->drawFastHLine(tailX, neckY + 12, 4, 0xFFFF);
     gfx->drawFastHLine(tailX, neckY + 14, 4, 0xDEFB); // fringe
-    return;
+  }
+}
+
+static void drawTrackedSkyPlane() {
+  if (!s_skyPlane.active) return;
+
+  const unsigned long now = millis();
+  int px = (int)s_skyPlane.x;
+  int py = (int)s_skyPlane.y;
+  bool flyingLeft = (s_skyPlane.vx < 0);
+
+  // 1. Dual jet engine contrails trailing behind the aircraft
+  int trailDir = flyingLeft ? 1 : -1;
+  int tailOffset = flyingLeft ? 52 : 4;
+  for (int i = 0; i < 7; i++) {
+    int cx = px + tailOffset + i * trailDir * 7;
+    if (cx < 40 || cx > 440) continue;
+    uint16_t cCol = (i < 2) ? 0xFFFF : ((i < 4) ? 0xCE79 : ((i < 6) ? 0x8410 : 0x4208));
+    gfx->drawFastHLine(cx, py + 10, 4, cCol);
+    gfx->drawFastHLine(cx + 2, py + 18, 4, cCol);
   }
 
-  // 3. Clear Sky / Sunny: Aviator Goggles on forehead!
-  if (weather == WEATHER_CLEAR && state != CAT_STATE_SLEEPING) {
-    int gogX = flipX ? (catDrawX + 64) : (catDrawX + 54);
-    int gogY = catDrawY + 28;
-    gfx->drawFastHLine(gogX - 10, gogY + 1, 20, 0x59A0); // leather strap
-    gfx->drawRoundRect(gogX - 9, gogY - 3, 8, 7, 2, 0xDEFB); // left rim
-    gfx->fillRect(gogX - 8, gogY - 2, 6, 5, 0x07FF); // left blue lens
-    gfx->drawRoundRect(gogX + 1, gogY - 3, 8, 7, 2, 0xDEFB); // right rim
-    gfx->fillRect(gogX + 2, gogY - 2, 6, 5, 0x07FF); // right blue lens
-    gfx->drawPixel(gogX - 7, gogY - 1, 0xFFFF); // lens reflections
-    gfx->drawPixel(gogX + 3, gogY - 1, 0xFFFF);
+  // 2. Draw 2x scaled Pixel-Art Airplane Sprite (56x28 px)
+  drawAirplaneSprite2x(px, py, flyingLeft);
+
+  // 3. Strobe beacon light flash on fuselage/tailfin every 600ms
+  if ((now / 300) % 2 == 0) {
+    int strobeX = flyingLeft ? (px + 50) : (px + 6);
+    gfx->fillCircle(strobeX, py + 2, 2, 0xFFFF);
+  }
+
+  // 4. Callsign & Distance Badge Pill floating right below plane
+  char badge[32];
+  if (s_skyPlane.callsign[0]) {
+    snprintf(badge, sizeof(badge), "%s • %.0fkm", s_skyPlane.callsign, s_skyPlane.distKm);
+  } else {
+    snprintf(badge, sizeof(badge), "✈ %.0fkm", s_skyPlane.distKm);
+  }
+  int bw = Font_TextWidth(badge, FONT_TINY) + 12;
+  int bx = px + 28 - bw / 2;
+  bx = constrain(bx, 45, 435 - bw);
+  int by = py + 30;
+
+  gfx->fillRoundRect(bx, by, bw, 13, 4, 0x0821);
+  gfx->drawRoundRect(bx, by, bw, 13, 4, 0x39E7);
+  UI_TextCenteredIn(badge, bx, bw, by + 2, C_WHITE, FONT_TINY);
+
+  // 5. Dynamic claw scratch marks / sparks when cat is actively swatting
+  if (s_catState == CAT_STATE_SWAT && (s_animFrame % 8 == 2 || s_animFrame % 8 == 5)) {
+    int clawX = (int)s_catX + (s_catFlipX ? -16 : 16);
+    int clawY = py + 24;
+    gfx->drawLine(clawX - 6, clawY - 4, clawX - 2, clawY + 5, 0xFFE0);
+    gfx->drawLine(clawX - 1, clawY - 6, clawX + 3, clawY + 3, 0xFFFF);
+    gfx->drawLine(clawX + 4, clawY - 5, clawX + 8, clawY + 4, 0xFFE0);
   }
 }
 
@@ -914,6 +1205,7 @@ void PetDrawer_Draw() {
   PetWeather curWeather = getPetWeather();
   drawWeatherBackdrop(curWeather);
   drawRunwayDeck(curWeather);
+  drawTrackedSkyPlane();
 
   // 6. Draw DigiCat Pixel Art Sprite (or Away Radar Beacon & Call Button)
   const unsigned long now = millis();
@@ -964,6 +1256,8 @@ void PetDrawer_Draw() {
       frameToDraw = CAT_SLEEP_FRAMES[s_animFrame % 8];
     } else if (s_catState == CAT_STATE_WATCH_PLANE) {
       frameToDraw = CAT_WATCH_FRAMES[s_animFrame % 4];
+    } else if (s_catState == CAT_STATE_SWAT) {
+      frameToDraw = CAT_SWAT_FRAMES[s_animFrame % 8];
     } else {
       frameToDraw = CAT_IDLE_FRAMES[s_animFrame % 8];
     }
@@ -979,6 +1273,9 @@ void PetDrawer_Draw() {
     if (s_catState == CAT_STATE_JUMP) {
       static const int8_t s_jumpY[8] = { 4, 6, -14, -26, -32, -20, -2, 4 };
       catDrawY += s_jumpY[s_animFrame % 8];
+    } else if (s_catState == CAT_STATE_SWAT) {
+      static const int8_t s_swatBob[8] = { 0, -2, -4, -2, -5, -4, -2, 0 };
+      catDrawY += s_swatBob[s_animFrame % 8];
     } else if (s_catState == CAT_STATE_ENTERING || s_catState == CAT_STATE_PATROL || s_catState == CAT_STATE_LEAVING) {
       static const int8_t s_walkBob[8] = { 0, -2, -1, 0, 0, -2, -1, 0 };
       catDrawY += s_walkBob[s_animFrame % 8];
@@ -1126,6 +1423,29 @@ bool PetDrawer_HandleTap(int x, int y) {
       s_petBounceUntilMs = now + 1800;
       s_catTargetX = s_catX;
       PetBrain_RequestThought(true);
+      return true;
+    }
+  }
+
+  // Tap on the overhead tracked aircraft -> triggers evasive jet dash & cat jump/swat reaction!
+  if (s_skyPlane.active && s_catState != CAT_STATE_AWAY && s_catState != CAT_STATE_LEAVING) {
+    int px = (int)(s_skyPlane.x + 28);
+    int py = (int)(s_skyPlane.y + 14);
+    if (abs(x - px) < 42 && abs(y - py) < 32) {
+      if (Settings_BuzzerEnabled() && Settings_BuzzerPet()) Buzzer_Play(BEEP_PET_CHIRP);
+      s_skyPlane.evasiveHop = true;
+      s_skyPlane.hopEndMs = now + 500;
+      // Cat jumps towards the plane
+      s_catTargetX = (int)s_skyPlane.x;
+      s_catState = CAT_STATE_JUMP;
+      s_animFrame = 0;
+      s_nextFrameMs = now + 80;
+      s_nextBrainDecisionMs = now + 5000;
+      setThought(
+        "✈️ *SWIPEE!* Look at that jet zoom! Almost caught it! 🛩️🐾",
+        "✈️ *CHŇAP!* Pozri ako to lietadielko fičí! Skoro som ho chytil! 🛩️🐾",
+        "✈️ *CHŇAP!* Koukej jak to letadélko fičí! Málem jsem ho chytil! 🛩️🐾"
+      );
       return true;
     }
   }

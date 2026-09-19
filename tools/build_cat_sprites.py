@@ -950,6 +950,176 @@ def build_sleeping_cat(frame_idx):
     s.draw_outline()
     return s
 
+def build_swatting_cat(frame_idx):
+    s = Sprite(f"swat_{frame_idx}")
+
+    # Ground shadow beneath rear paws
+    s.draw_ellipse(32, 60, 22, 3, 15)
+
+    # High swishing tail
+    sway = int(math.sin(frame_idx * 0.9) * 4)
+    for i in range(13):
+        tx = 14 + sway + (i // 3)
+        ty = 53 - i
+        s.draw_disc(tx, ty, 3, 4)
+        if i in (3, 7): s.draw_disc(tx, ty, 3, 2)
+        if i >= 10: s.draw_disc(tx, ty, 2, 6)
+
+    # Rear planted paws & thighs (sitting back on haunches, standing upright on hind legs)
+    s.draw_ellipse(22, 54, 7, 6, 3)
+    s.draw_ellipse(42, 54, 7, 6, 3)
+    s.draw_ellipse(20, 58, 5, 3, 6)
+    s.draw_ellipse(44, 58, 5, 3, 6)
+
+    # Tall upright torso
+    torso_bob = 1 if (frame_idx in (2, 5)) else 0
+    s.draw_ellipse(32, 42 - torso_bob, 12, 13, 4)
+    s.draw_ellipse(32, 43 - torso_bob, 7, 10, 6) # white belly
+
+    # Head tilted up to track overhead aircraft
+    head_y = 23 - torso_bob
+    head_x = 32
+    s.draw_disc(head_x, head_y, 13, 4)
+    s.draw_disc(head_x - 10, head_y + 3, 5, 4)
+    s.draw_disc(head_x + 10, head_y + 3, 5, 4)
+
+    # Ears perked backwards in excitement
+    for i in range(7):
+        s.draw_disc(head_x - 11 - i//3, head_y - 8 - i, 2, 4)
+        if i < 5: s.draw_disc(head_x - 10 - i//3, head_y - 8 - i, 1, 7)
+        s.draw_disc(head_x + 11 + i//3, head_y - 8 - i, 2, 4)
+        if i < 5: s.draw_disc(head_x + 10 + i//3, head_y - 8 - i, 1, 7)
+
+    # Tabby forehead markings
+    s.draw_disc(head_x, head_y - 9, 2, 2)
+    s.draw_disc(head_x - 4, head_y - 8, 1, 2)
+    s.draw_disc(head_x + 4, head_y - 8, 1, 2)
+
+    # White muzzle & pink nose
+    s.draw_ellipse(head_x, head_y + 5, 6, 4, 6)
+    s.set(head_x, head_y + 3, 7)
+    s.set(head_x - 1, head_y + 3, 7)
+    s.set(head_x + 1, head_y + 3, 7)
+    s.set(head_x, head_y + 4, 1)
+
+    # Excited eyes looking straight up!
+    eye_y = head_y - 2
+    s.draw_ellipse(head_x - 5, eye_y, 4, 4, 10)
+    s.draw_ellipse(head_x + 5, eye_y, 4, 4, 10)
+    s.draw_disc(head_x - 5, eye_y - 2, 2, 9)
+    s.draw_disc(head_x + 5, eye_y - 2, 2, 9)
+    s.set(head_x - 6, eye_y - 3, 6)
+    s.set(head_x + 4, eye_y - 3, 6)
+
+    # Whiskers
+    for dy in (-1, 1):
+        for w in range(5):
+            s.set(head_x - 12 - w, head_y + 4 + dy*w//3, 6)
+            s.set(head_x + 12 + w, head_y + 4 + dy*w//3, 6)
+
+    # 8-Frame Dynamic Swatting / Batting / Scratching Paw Arcs
+    if frame_idx == 0:
+        s.draw_ellipse(20, 30, 4, 5, 4)
+        s.draw_ellipse(18, 25, 4, 3, 6)
+        s.draw_ellipse(44, 28, 4, 5, 4)
+        s.draw_ellipse(46, 22, 4, 3, 6)
+    elif frame_idx == 1:
+        s.draw_ellipse(20, 28, 4, 4, 4)
+        s.draw_ellipse(19, 23, 4, 3, 6)
+        for i in range(8):
+            s.draw_disc(40 + i//2, 24 - i*2, 3, 4)
+        s.draw_ellipse(44, 11, 4, 4, 6)
+        s.set(43, 8, 6); s.set(45, 7, 6); s.set(47, 8, 6)
+    elif frame_idx == 2:
+        for i in range(8):
+            s.draw_disc(42 - i, 22 - i, 3, 4)
+        s.draw_ellipse(34, 10, 5, 4, 6)
+        s.set(31, 7, 11); s.set(34, 6, 11); s.set(37, 7, 11)
+        s.draw_ellipse(20, 26, 4, 5, 4)
+        s.draw_ellipse(18, 20, 4, 3, 6)
+    elif frame_idx == 3:
+        for i in range(8):
+            s.draw_disc(24 - i//2, 24 - i*2, 3, 4)
+        s.draw_ellipse(20, 11, 4, 4, 6)
+        s.set(18, 8, 6); s.set(20, 7, 6); s.set(22, 8, 6)
+        s.draw_ellipse(42, 25, 4, 5, 4)
+        s.draw_ellipse(44, 20, 4, 3, 6)
+    elif frame_idx == 4:
+        for i in range(8):
+            s.draw_disc(22 + i, 22 - i, 3, 4)
+        s.draw_ellipse(30, 10, 5, 4, 6)
+        s.set(28, 7, 11); s.set(31, 6, 11); s.set(34, 7, 11)
+        s.draw_ellipse(44, 24, 4, 5, 4)
+        s.draw_ellipse(45, 18, 4, 3, 6)
+    elif frame_idx == 5:
+        for i in range(7):
+            s.draw_disc(25 - i//3, 23 - i*2, 3, 4)
+            s.draw_disc(39 + i//3, 23 - i*2, 3, 4)
+        s.draw_ellipse(22, 10, 4, 4, 6)
+        s.draw_ellipse(42, 10, 4, 4, 6)
+        s.set(20, 8, 6); s.set(22, 7, 6); s.set(24, 8, 6)
+        s.set(40, 8, 6); s.set(42, 7, 6); s.set(44, 8, 6)
+    elif frame_idx == 6:
+        for i in range(8):
+            s.draw_disc(24 - i//2, 22 - i*2, 3, 4)
+        s.draw_ellipse(19, 9, 4, 4, 6)
+        s.set(17, 7, 6); s.set(19, 6, 6)
+        s.draw_ellipse(43, 20, 4, 5, 4)
+        s.draw_ellipse(45, 16, 4, 3, 6)
+    else:
+        for i in range(8):
+            s.draw_disc(40 + i//2, 22 - i*2, 3, 4)
+        s.draw_ellipse(45, 9, 4, 4, 6)
+        s.set(45, 6, 6); s.set(47, 7, 6)
+        s.draw_ellipse(21, 20, 4, 5, 4)
+        s.draw_ellipse(19, 16, 4, 3, 6)
+
+    s.draw_outline()
+    return s
+
+def build_airplane():
+    pixels = [[0 for _ in range(28)] for _ in range(14)]
+    for x in range(3, 25):
+        pixels[6][x] = 6
+        pixels[7][x] = 6
+    for x in range(4, 24):
+        pixels[8][x] = 14
+    pixels[6][25] = 6
+    pixels[7][25] = 6
+    pixels[6][26] = 6
+    pixels[5][21] = 9
+    pixels[5][22] = 9
+    pixels[6][23] = 9
+    for i in range(6):
+        pixels[5 - i][11 + i] = 6
+        pixels[5 - i][12 + i] = 6
+    pixels[0][11] = 13 # Red port wingtip nav light
+    for i in range(6):
+        pixels[8 + i][11 + i] = 6
+        pixels[8 + i][12 + i] = 14
+    pixels[13][11] = 10 # Green starboard wingtip nav light
+    for x in range(14, 18):
+        pixels[4][x] = 5
+        pixels[9][x] = 5
+    for i in range(5):
+        pixels[5 - i][3 + i] = 6
+        pixels[5 - i][4 + i] = 6
+    pixels[1][3] = 11 # Strobe beacon
+    pixels[6][2] = 6
+    pixels[7][2] = 6
+    pixels[5][1] = 6
+    pixels[8][1] = 6
+    copy = [row[:] for row in pixels]
+    for y in range(14):
+        for x in range(28):
+            if copy[y][x] != 0:
+                for dy, dx in [(-1,0), (1,0), (0,-1), (0,1)]:
+                    ny, nx = y + dy, x + dx
+                    if 0 <= ny < 14 and 0 <= nx < 28:
+                        if copy[ny][nx] == 0:
+                            pixels[ny][nx] = 1
+    return pixels
+
 def main():
     sprites = []
 
@@ -988,6 +1158,10 @@ def main():
     # 9. Stretching (6 frames)
     for i in range(6):
         sprites.append(build_stretching_cat(i))
+
+    # 10. Swatting / Scratching Overhead Aircraft (8 frames)
+    for i in range(8):
+        sprites.append(build_swatting_cat(i))
 
     # Save PNG previews
     out_dir = os.path.join(os.path.dirname(__file__), "preview_sprites")
@@ -1085,6 +1259,23 @@ def main():
         f.write("static const uint8_t* const CAT_STRETCH_FRAMES[6] = {\n")
         f.write("  CAT_STRETCH_0, CAT_STRETCH_1, CAT_STRETCH_2,\n")
         f.write("  CAT_STRETCH_3, CAT_STRETCH_4, CAT_STRETCH_5\n")
+        f.write("};\n\n")
+
+        f.write("static const uint8_t* const CAT_SWAT_FRAMES[8] = {\n")
+        f.write("  CAT_SWAT_0, CAT_SWAT_1, CAT_SWAT_2, CAT_SWAT_3,\n")
+        f.write("  CAT_SWAT_4, CAT_SWAT_5, CAT_SWAT_6, CAT_SWAT_7\n")
+        f.write("};\n\n")
+
+        # Airplane sprite for overhead tracking
+        airplane_pixels = build_airplane()
+        f.write("#define CAT_AIRPLANE_W 28\n")
+        f.write("#define CAT_AIRPLANE_H 14\n\n")
+        f.write("static const uint8_t CAT_AIRPLANE[28 * 14] PROGMEM = {\n")
+        for y in range(14):
+            f.write("  ")
+            for x in range(28):
+                f.write(f"{airplane_pixels[y][x]},")
+            f.write("\n")
         f.write("};\n\n")
 
     print(f"Generated {target_h} successfully.")

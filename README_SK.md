@@ -157,10 +157,16 @@ Až **7 štýlov sekundového prstenca**:
 
 ### 🐾 21. Interaktívny Pixel Art spoločník & Autonómny DigiCat
 - Celoobrazovková interaktívna zásuvka s virtuálnym spoločníkom dostupná z akejkoľvek obrazovky potiahnutím zospodu nahor (**Swipe Up**) alebo cez ikonu labky v Ovládacom centre.
-- **Ručne tvorený 32-snímkový Pixel Art animačný engine**:
+- **Ručne tvorený 40-snímkový Pixel Art animačný engine**:
   - Žiarivá 16-farebná retro paleta (RGB565) škálovaná 2× (128×128 px) cez hardvérovo optimalizovaný span blitter (< 0.5 ms na snímku).
   - Autentický ryšavý tabby kocúrik s ikonickým „M“ na čele, bielou náprsenkou, ružovými vankúšikmi, smaragdovými očkami a animovaným chvostíkom.
-  - **9 kompletných animovaných cyklov**: Chôdza (4 snímky s obojsmerným zrkadlením), Sedenie so žmurkaním a dýchaním (4 snímky), Blažené pradenie a červenanie (4 snímky), Sledovanie lietadiel na oblohe (2 snímky), Chrumkanie rybičky (4 snímky), Spiaci bochníček s písmenkami Zzz (4 snímky), Výskok s parabolickým letom (4 snímky), Umývanie tváre a uška labkou (4 snímky) a Veľký mačací joga strečing (2 snímky).
+  - **10 kompletných animovaných cyklov**: Chôdza (4 snímky s obojsmerným zrkadlením), Sedenie so žmurkaním a dýchaním (4 snímky), Blažené pradenie a červenanie (4 snímky), Sledovanie lietadiel na oblohe (2 snímky), Chrumkanie rybičky (4 snímky), Spiaci bochníček s písmenkami Zzz (4 snímky), Výskok s parabolickým letom (4 snímky), Umývanie tváre a uška labkou (4 snímky), Veľký mačací joga strečing (2 snímky) a **Chňapanie a škrabkanie labkami do výšky** (8 snímok).
+- **Sledovanie preletu, lovenie a chňapanie po lietadlách**:
+  - **Lietadlo na oblohe v reálnom čase:** Ak je v blízkosti detegované lietadlo cez ADS-B radar, v hornej časti obrazovky ($Y = 175..205$) plynule prelieta dvojmotorové pixel art lietadlo (28×14 px škálované 2× na 56×28 px).
+  - **Kondenzačné stopy & zábleskové majáky:** Dvojité aerodynamické stopy motora, striedavo blikajúce krídelné navigačné majáky a štítok s volacím znakom a vzdialenosťou (`DLH123 · 8km`).
+  - **Chňapanie a iskry pazúrikov (`CAT_STATE_SWAT`):** DigiCat beží po dráhe priamo pod lietadlom, postaví sa na zadné labky a labkami zúrivo chňapá do vzduchu s viditeľnými iskrami pazúrikov.
+  - **Úhybné manévre & výskoky:** Zásah labkou alebo dotyk prsta na displeji vyvolá úhybný skok lietadla nahor s pípnutím, načo DigiCat vyskočí do výšky v pokuse ho chytiť (`CAT_STATE_JUMP`).
+  - **Vycentrovaný text bubliny:** Výpočet textových blokov dokonale vycentruje dialóg v bubline horizontálne aj vertikálne.
 - **Asfaltová dráha & 3D vrhaný tieň**:
   - **Runway platforma:** Fyzický dráhový povrch s centrálnymi žltými prerušovanými pruhmi a obvodovými návestidlami (jantárové vľavo, azúrové vpravo).
   - **Dynamický vrhaný tieň:** Mäkký oválny tieň pod labkami, ktorý pri skokoch zostáva na dráhe a plynulo sa zmenšuje a bledne s výškou skoku pre realistickú 3D priestorovú hĺbku.

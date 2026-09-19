@@ -26,10 +26,10 @@ def main():
 
     owner = "hackra76"
     repo = "ESP-MeteoPlaneRadar"
-    tag_name = "v2.0.2"
-    release_title = "v2.0.2: Runway Deck, Dynamic Weather Effects & Extended Night Wake"
+    tag_name = "v2.0.3"
+    release_title = "v2.0.3: Overhead Aircraft Tracking, Swatting & Flight Chasing Animations"
     
-    notes_path = os.path.join("release", "release_notes_v2.0.2.md")
+    notes_path = os.path.join("release", "release_notes_v2.0.3.md")
     with open(notes_path, "r", encoding="utf-8") as f:
         release_notes = f.read()
 
@@ -93,8 +93,8 @@ def main():
     base_upload_url = upload_url_template.split("{")[0]
 
     assets = [
-        os.path.join("release", "MeteoPlaneRadar-v2.0.2-factory.bin"),
-        os.path.join("release", "MeteoPlaneRadar-v2.0.2-ota.bin")
+        os.path.join("release", "MeteoPlaneRadar-v2.0.3-factory.bin"),
+        os.path.join("release", "MeteoPlaneRadar-v2.0.3-ota.bin")
     ]
 
     for asset_path in assets:

@@ -116,17 +116,17 @@ static void generateOfflineThought(char* buf, size_t cap) {
 
   if (hasPlane && dist < 12.0f) {
     s_mood = PET_MOOD_EXCITED;
-    if (lang == LANG_SK) snprintf(buf, cap, "Mňau! Pozri! %s preletel priamo nad ušami!", cs);
-    else if (lang == LANG_CZ) snprintf(buf, cap, "Mňau! Koukej! %s přeletěl přímo nad ušima!", cs);
-    else snprintf(buf, cap, "Mrow! Look! %s zoomed right above our ears!", cs);
+    if (lang == LANG_SK) snprintf(buf, cap, "Mňau! Pozri hore! %s fičí nad nami! Skáčem a chytám ho labkou! ✈️🐾", cs);
+    else if (lang == LANG_CZ) snprintf(buf, cap, "Mňau! Koukej nahoru! %s fičí nad námi! Skáču a chytám ho tlapkou! ✈️🐾", cs);
+    else snprintf(buf, cap, "Mrow! Look up! %s zooming right above! Swatting paws at it! ✈️🐾", cs);
     return;
   }
 
   if (hasPlane && dist < 45.0f) {
     s_mood = PET_MOOD_HAPPY;
-    if (lang == LANG_SK) snprintf(buf, cap, "%s spozorovaný! DigiCat sleduje trasu letu!", cs);
-    else if (lang == LANG_CZ) snprintf(buf, cap, "%s zpozorován! DigiCat sleduje trasu letu!", cs);
-    else snprintf(buf, cap, "%s spotted! DigiCat tracking the flight path!", cs);
+    if (lang == LANG_SK) snprintf(buf, cap, "%s na oblohe! DigiCat beží po dráhe a striehne naňho! 🛩️🐾", cs);
+    else if (lang == LANG_CZ) snprintf(buf, cap, "%s na obloze! DigiCat běží po dráze a číhá na něj! 🛩️🐾", cs);
+    else snprintf(buf, cap, "%s overhead! DigiCat chasing along the runway! 🛩️🐾", cs);
     return;
   }
 
@@ -482,9 +482,9 @@ bool PetBrain_Step() {
       charName, PetBrain_GetStageTitle(), s_stats.happiness, s_stats.hunger, langDirective);
   } else if (hasPlane && dist < 30.0f) {
     snprintf(prompt, sizeof(prompt),
-      "You are %s, an aviation pet (%s, Happiness: %d%%, Hunger: %d%%). Ambient: %s, rain=%s, night=%s. "
-      "Nearest flight is %s at %.0fkm distance. "
-      "Say one very short, cute or witty sentence (max 12 words) %s about this. Plain text only, no quotes, no hashtags, no asterisks.",
+      "You are %s, an aviation cat pet (%s, Happiness: %d%%, Hunger: %d%%). Ambient: %s, rain=%s, night=%s. "
+      "Nearest flight is %s at %.0fkm flying overhead above you. "
+      "Say one very short, cute or witty cat remark (max 12 words) %s about chasing or swatting/scratching at it. Plain text only, no quotes, no hashtags, no asterisks.",
       charName, PetBrain_GetStageTitle(), s_stats.happiness, s_stats.hunger,
       tempBuf[0] ? tempBuf : "unknown",
       isRaining ? "yes" : "no", isNight ? "yes" : "no",
