@@ -97,12 +97,32 @@ static bool readBody(JsonDocument& doc) {
   return deserializeJson(doc, s_srv.arg("plain")) == DeserializationError::Ok;
 }
 
+static int s_failedLogins = 0;
+static unsigned long s_lockoutUntil = 0;
+
 // Every destructive endpoint goes through here. When no password is set this
 // waves everything through - that is the documented default, and the device
 // only listens on the home LAN.
 static bool authed(JsonDocument& body) {
+  if (millis() < s_lockoutUntil) {
+    s_srv.send(429, "application/json", "{\"error\":\"Too many attempts, locked out\"}");
+    return false;
+  }
+
   const char* pw = body["password"] | "";
-  if (Settings_CheckAdminPassword(pw)) return true;
+  if (Settings_CheckAdminPassword(pw)) {
+    s_failedLogins = 0;
+    return true;
+  }
+
+  s_failedLogins++;
+  if (s_failedLogins >= 5) {
+    s_lockoutUntil = millis() + 300000UL; // 5 minutes lockout
+    s_failedLogins = 0;
+    s_srv.send(429, "application/json", "{\"error\":\"Too many attempts, locked out\"}");
+    return false;
+  }
+
   s_srv.send(403, "application/json", "{\"error\":\"password\"}");
   return false;
 }

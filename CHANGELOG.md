@@ -9,7 +9,24 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [2.0.5] - 2026-09-20
+
+### Opravené / Fixed
+- **Ochrana proti opotrebeniu NVS Flash pamäte (Flash Wear Prevention):**
+  - Predĺžený interval debouncingu pre ukladanie štatistík letov (`FlightStats`) a stavu zvieratka (`PetBrain`) z niekoľkých sekúnd na 15 minút. Toto kritické vylepšenie zabraňuje nadmernému opotrebeniu a zničeniu internej flash pamäte ESP32.
+- **Bezpečnosť Webového Rozhrania (Web UI Security Enhancements):**
+  - **Ochrana proti Brute-Force útokom:** Pridaný mechanizmus uzamknutia (lockout) na 5 minút po 5 neúspešných pokusoch o zadanie administrátorského hesla. Počas uzamknutia server vracia chybu HTTP 429 Too Many Requests.
+  - **Maskovanie API kľúčov:** Konfiguračný JSON odosielaný do prehliadača teraz maskuje citlivé kľúče (`youtubeKey`, `geminiKey`) hodnotou `***`. To zabraňuje ich odpočúvaniu v lokálnej sieti, keďže webový server beží na nezabezpečenom protokole HTTP. Funkcie pre ukladanie nastavení boli upravené tak, aby ignorovali zápis hodnoty `***`.
+
 ## [2.0.4] - 2026-09-20
+
+### Pridané / Added
+- **Fyzikálna interakcia s IMU náklonom pre DigiCat (IMU Real-Time Tilt Physics & Reactions):**
+  - **Mierny náklon ($10^\circ - 25^\circ$) — Zábavné kĺzanie / surfovanie (`CAT_STATE_SLIDE`):** Zvieratko sa ladne šmýka po dráhe v smere gravitácie s veternými/prachovými stopami pod labkami. Mierny náklon mu prináša radosť, spúšťa pradenie (`BEEP_PET_PURR`) a zvyšuje úroveň šťastia.
+  - **Strmý náklon ($25^\circ - 45^\circ$) — Vystrašené kotúľanie a škrabanie (`CAT_STATE_TUMBLE`):** DigiCat stráca rovnováhu, rýchlo rotuje a kotúľa sa po ploche dráhy. Na asfalte vznikajú iskry od šmýkajúcich sa pazúrikov, nad hlavou sa objavujú kvapky potu, prepína sa do vystrašenej nálady (`PET_MOOD_SCARED`) a zaznieva varovný tón.
+  - **Extrémny náklon ($> 45^\circ$ alebo pád z okraja dráhy):** Náhodný výber z dvoch animovaných scenárov:
+    - **Možnosť A (Zachytenie sa o okraj displeja `CAT_STATE_CLING`):** Zvieratko sa zachytí prednými labkami o okrúhly lem obrazovky, trasie sa s vystrašenými očkami a prosí o vyrovnanie. Po zrovnaní zariadenia alebo ťuknutí na displej sa hrdinsky vytiahne späť na dráhu (`CAT_STATE_JUMP`).
+    - **Možnosť B (Zošmyknutie mimo obrazovky `CAT_STATE_AWAY`):** DigiCat sa zosunie úplne mimo displeja do trávy letiska. Po vyrovnaní do vodorovnej polohy alebo ťuknutí na obrazovku vbehne naradovane späť na plochu (`CAT_STATE_ENTERING`).
 
 ### Opravené / Fixed
 - **Vykresľovanie dáždnika a doplnkov (Non-Destructive Weather Accessories):**
@@ -21,6 +38,16 @@ pohromadě v `MeteoPlaneRadar/Config.h`.
   - **Obmedzenie preletov na bezprostrednú blízkosť ($\le 10\text{ km}$):** Vykresľovanie lietadielka a chňapanie sa aktivuje výhradne pri blízkych preletoch priamo nad hlavou ($\le 10\text{ km}$), čo zabraňuje neustálemu rozptyľovaniu zvieratka vzdialenými letmi.
   - **Prirodzený oddych po chňapaní:** Pridaný časovač pauzy (`s_planeChasePauseUntilMs`), vďaka ktorému sa DigiCat po niekoľkých cykloch chňapania vráti k pokojnému posedávaniu a ďalším autonómnym aktivitám.
   - **Rozlíšené radarové myšlienky:** Pre lety vo vzdialenosti $10-40\text{ km}$ DigiCat komentuje sledovanie cieľa na radare namiesto priameho chňapania do vzduchu.
+- **Perzistencia štatistík letov a 24-hodinový cyklus (Flight Statistics NVS & Auto-Reset):**
+  - **NVS ukladanie denných štatistík:** Štatistiky letov (`FlightStats`) sa po reštarte zariadenia už nemažú na nulu. Počty unikátnych letov, maximálna rýchlosť, vzdialenosti, nadmorské výšky a zoznam videných ICAO kódov sa načítavajú a asynchrónne ukladajú do NVS pamäte.
+  - **Automatický reset o polnoci (`FlightStats_Tick`):** Štatistiky sa automaticky nulujú pri prechode na nový kalendárny deň alebo manuálnym resetom používateľa.
+- **Perzistencia a postup DigiCat (Pet XP & NVS State Persistence):**
+  - **Ukladanie stavu zvieratka:** Úroveň šťastia, hlad, vývojové štádium a body skúseností (`xp`) sa ukladajú do NVS pamäte (`"digicat"` namespace) s debouncovaným zápisom.
+  - **Získavanie XP bodov:** Pridaná funkcia `PetBrain_AwardXP()` volaná pri úspešnom chňapaní na lietadielko na oblohe a pri interakcii používateľa s letiacim lietadlom.
+  - **Aktivácia autonómneho cyklu (`PetBrain_Tick`):** Napojený `PetBrain_Tick()` do hlavnej slučky `loop()`.
+- **Zvukové efekty a OTA inicializácia:**
+  - **Kýchnutie pri čistení srsti:** Do animácie umývania tváričky (`CAT_STATE_GROOM`) bol pridaný zvukový efekt `BEEP_PET_SNEEZE`.
+  - **Inicializácia GitHub OTA:** Do štartovacej sekvencie `setup()` bolo doplnené volanie `GithubOTA_Init()`.
 
 ## [2.0.3] - 2026-09-19
 

@@ -13,7 +13,8 @@ enum PetMood {
   PET_MOOD_EXCITED,    // Plane very close or high speed
   PET_MOOD_SLEEPY,     // Night mode or late hours
   PET_MOOD_RAIN,       // Rain / storm detected
-  PET_MOOD_THINKING    // Fetching Gemini thought
+  PET_MOOD_THINKING,   // Fetching Gemini thought
+  PET_MOOD_SCARED      // Steep tilt, tumbling, or clinging
 };
 
 struct PetStats {
@@ -27,6 +28,7 @@ void     PetBrain_Init();
 void     PetBrain_Tick();                     // Core 1 periodic checks (mood & stat updates)
 void     PetBrain_RequestThought(bool userTapped = false);
 void     PetBrain_Feed();                     // Give treat / feed pet
+void     PetBrain_AwardXP(uint16_t pts = 1);  // Award XP & advance rank
 PetStats PetBrain_GetStats();
 const char* PetBrain_GetStageTitle();
 bool     PetBrain_Step();                     // Core 0 background fetch via AsyncCore

@@ -10,6 +10,7 @@
 void     FlightStats_Init();
 void     FlightStats_Update(const Aircraft* list, int count);
 void     FlightStats_CheckMidnight();
+void     FlightStats_Tick();
 
 uint8_t  FlightStats_ScopeCount();
 float    FlightStats_ScopeRangeKm(uint8_t scope);

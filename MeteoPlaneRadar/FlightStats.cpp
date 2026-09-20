@@ -7,6 +7,7 @@
 #include "Settings.h"
 #include "Outside.h"
 #include "Config.h"
+#include <Preferences.h>
 #include <esp_heap_caps.h>
 #include <time.h>
 #include <math.h>
@@ -32,6 +33,11 @@ struct ScopeStats {
 
 static ScopeStats s_scopes[TOTAL_STATS_SCOPES];
 static int        s_lastDay = -1;
+static bool       s_statsDirty = false;
+static unsigned long s_statsDirtyMs = 0;
+
+static void FlightStats_Save();
+static void FlightStats_Load();
 
 static float haversineKm(float lat1, float lon1, float lat2, float lon2) {
   const float R = 6371.0f;
@@ -61,7 +67,100 @@ void FlightStats_Init() {
       }
     }
   }
-  FlightStats_Reset(-1);
+  // Restore persisted 24-hour daily statistics from NVS
+  FlightStats_Load();
+}
+
+static void FlightStats_Save() {
+  Preferences prefs;
+  if (!prefs.begin("fstats", false)) return;
+
+  if (Outside_TimeValid()) {
+    time_t now = time(nullptr);
+    struct tm lt;
+    localtime_r(&now, &lt);
+    prefs.putInt("yday", lt.tm_yday);
+    prefs.putInt("year", lt.tm_year);
+  } else if (s_lastDay >= 0) {
+    prefs.putInt("yday", s_lastDay);
+  }
+
+  for (int s = 0; s < TOTAL_STATS_SCOPES; s++) {
+    char key[16];
+    snprintf(key, sizeof(key), "u_%d", s);
+    prefs.putUInt(key, s_scopes[s].uniqueCount);
+    snprintf(key, sizeof(key), "tot_%d", s);
+    prefs.putUInt(key, s_scopes[s].totalSightings);
+    snprintf(key, sizeof(key), "dist_%d", s);
+    prefs.putFloat(key, s_scopes[s].maxDistKm);
+    snprintf(key, sizeof(key), "spd_%d", s);
+    prefs.putFloat(key, s_scopes[s].maxSpeedKt);
+    snprintf(key, sizeof(key), "altH_%d", s);
+    prefs.putFloat(key, s_scopes[s].maxAltFt);
+    snprintf(key, sizeof(key), "altL_%d", s);
+    prefs.putFloat(key, s_scopes[s].minAltFt);
+    snprintf(key, sizeof(key), "cs_%d", s);
+    prefs.putString(key, s_scopes[s].maxSpeedCallsign);
+
+    // Save up to 450 unique ICAOs per scope in NVS to preserve deduplication
+    snprintf(key, sizeof(key), "seen_%d", s);
+    uint32_t count = s_scopes[s].uniqueCount;
+    if (count > 450) count = 450;
+    if (count > 0 && s_scopes[s].seenIcao) {
+      prefs.putBytes(key, s_scopes[s].seenIcao, count * sizeof(uint32_t));
+    } else {
+      prefs.remove(key);
+    }
+  }
+  prefs.end();
+}
+
+static void FlightStats_Load() {
+  Preferences prefs;
+  if (!prefs.begin("fstats", true)) return;
+
+  int savedDay = prefs.getInt("yday", -1);
+  int savedYear = prefs.getInt("year", -1);
+
+  if (Outside_TimeValid()) {
+    time_t now = time(nullptr);
+    struct tm lt;
+    localtime_r(&now, &lt);
+    if (savedDay != -1 && (savedDay != lt.tm_yday || savedYear != lt.tm_year)) {
+      prefs.end();
+      FlightStats_Reset(-1);
+      s_lastDay = lt.tm_yday;
+      return;
+    }
+    s_lastDay = lt.tm_yday;
+  } else {
+    s_lastDay = savedDay;
+  }
+
+  for (int s = 0; s < TOTAL_STATS_SCOPES; s++) {
+    char key[16];
+    snprintf(key, sizeof(key), "u_%d", s);
+    s_scopes[s].uniqueCount = prefs.getUInt(key, 0);
+    snprintf(key, sizeof(key), "tot_%d", s);
+    s_scopes[s].totalSightings = prefs.getUInt(key, 0);
+    snprintf(key, sizeof(key), "dist_%d", s);
+    s_scopes[s].maxDistKm = prefs.getFloat(key, 0.0f);
+    snprintf(key, sizeof(key), "spd_%d", s);
+    s_scopes[s].maxSpeedKt = prefs.getFloat(key, 0.0f);
+    snprintf(key, sizeof(key), "altH_%d", s);
+    s_scopes[s].maxAltFt = prefs.getFloat(key, 0.0f);
+    snprintf(key, sizeof(key), "altL_%d", s);
+    s_scopes[s].minAltFt = prefs.getFloat(key, 999999.0f);
+    snprintf(key, sizeof(key), "cs_%d", s);
+    prefs.getString(key, s_scopes[s].maxSpeedCallsign, sizeof(s_scopes[s].maxSpeedCallsign));
+
+    snprintf(key, sizeof(key), "seen_%d", s);
+    size_t len = prefs.getBytesLength(key);
+    if (len > 0 && len <= MAX_SEEN_ICAO * sizeof(uint32_t) && s_scopes[s].seenIcao) {
+      prefs.getBytes(key, s_scopes[s].seenIcao, len);
+    }
+  }
+  prefs.end();
 }
 
 void FlightStats_Reset(int scope) {
@@ -80,6 +179,8 @@ void FlightStats_Reset(int scope) {
       memset(s_scopes[s].seenIcao, 0, MAX_SEEN_ICAO * sizeof(uint32_t));
     }
   }
+  FlightStats_Save();
+  s_statsDirty = false;
 }
 
 void FlightStats_CheckMidnight() {
@@ -90,6 +191,15 @@ void FlightStats_CheckMidnight() {
 
   if (s_lastDay == -1) {
     s_lastDay = lt.tm_yday;
+    Preferences prefs;
+    if (prefs.begin("fstats", true)) {
+      int savedDay = prefs.getInt("yday", -1);
+      int savedYear = prefs.getInt("year", -1);
+      prefs.end();
+      if (savedDay != -1 && (savedDay != lt.tm_yday || savedYear != lt.tm_year)) {
+        FlightStats_Reset(-1);
+      }
+    }
     return;
   }
 
@@ -98,6 +208,17 @@ void FlightStats_CheckMidnight() {
     s_lastDay = lt.tm_yday;
     FlightStats_Reset(-1);
     Serial.printf("FlightStats: Midnight reset, starting new day %d\n", s_lastDay);
+  }
+}
+
+void FlightStats_Tick() {
+  const unsigned long now = millis();
+  FlightStats_CheckMidnight();
+
+  // Increased debounce to 15 minutes (900000ms) to prevent excessive NVS flash wear
+  if (s_statsDirty && (now - s_statsDirtyMs >= 900000UL)) {
+    s_statsDirty = false;
+    FlightStats_Save();
   }
 }
 
@@ -185,6 +306,8 @@ void FlightStats_Update(const Aircraft* list, int count) {
       }
     }
   }
+  s_statsDirty = true;
+  s_statsDirtyMs = millis();
 }
 
 static inline int resolveScope(int scope) {

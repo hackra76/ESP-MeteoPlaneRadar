@@ -753,6 +753,7 @@ void setup() {
   Iss_Init();
   YouTube_Init();
   PetBrain_Init();
+  GithubOTA_Init();
   Async_Begin();
   Async_SetActiveScreen((uint8_t)s_screen);
 
@@ -1059,6 +1060,8 @@ void loop() {
   displayWatchdog();
   NightMode_Tick();   // day/night brightness
   QMI8658_Tick();     // IMU gestures (double-tap detection)
+  PetBrain_Tick();    // pet autonomy, mood, hunger, and NVS persistence
+  FlightStats_Tick(); // midnight check and debounced NVS persistence
 
   Settings_Tick();    // debounced persist of UI state to NVS
   Watchdog_Feed();

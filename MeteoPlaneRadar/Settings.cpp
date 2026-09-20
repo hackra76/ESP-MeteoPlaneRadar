@@ -652,6 +652,7 @@ void Settings_SetIssAlert(bool on) {
 const char* Settings_YouTubeApiKey() { return s_ytApiKey; }
 void Settings_SetYouTubeApiKey(const char* key) {
   if (!key) key = "";
+  if (strcmp(key, "***") == 0) return;
   if (strcmp(s_ytApiKey, key) == 0) return;
   strncpy(s_ytApiKey, key, sizeof(s_ytApiKey) - 1);
   s_ytApiKey[sizeof(s_ytApiKey) - 1] = '\0';
@@ -686,6 +687,7 @@ void Settings_SetPetCharacter(uint8_t ch) {
 const char* Settings_GeminiApiKey() { return s_geminiApiKey; }
 void Settings_SetGeminiApiKey(const char* key) {
   if (!key) key = "";
+  if (strcmp(key, "***") == 0) return;
   if (strcmp(s_geminiApiKey, key) == 0) return;
   strncpy(s_geminiApiKey, key, sizeof(s_geminiApiKey) - 1);
   s_geminiApiKey[sizeof(s_geminiApiKey) - 1] = '\0';
@@ -968,11 +970,11 @@ void Settings_ToJson(JsonObject o) {
   o["financeTickers"] = s_finTickers;
   o["financeGraph"]   = s_finGraphType;
   o["issAlert"]   = s_issAlert;
-  o["youtubeKey"] = s_ytApiKey;
+  o["youtubeKey"] = (s_ytApiKey[0] != '\0') ? "***" : "";
   o["youtubeChannel"] = s_ytChannel;
   o["petEnabled"]     = s_petEnabled;
   o["petCharacter"]   = s_petChar;
-  o["geminiKey"]      = s_geminiApiKey;
+  o["geminiKey"]      = (s_geminiApiKey[0] != '\0') ? "***" : "";
 }
 
 bool Settings_FromJson(JsonObjectConst in) {

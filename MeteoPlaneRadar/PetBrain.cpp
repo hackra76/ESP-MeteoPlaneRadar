@@ -13,6 +13,7 @@
 #include "Lang.h"
 #include "PetDrawer.h"
 #include <ArduinoJson.h>
+#include <Preferences.h>
 #include <math.h>
 
 static PetMood  s_mood = PET_MOOD_IDLE;
@@ -194,6 +195,8 @@ static bool s_lastWasFeed = false;
 static bool s_lastWasUserTap = false;
 static unsigned long s_lastGeminiReqMs = 0;
 static unsigned long s_rateLimitedUntilMs = 0;
+static bool s_statsDirty = false;
+static unsigned long s_statsDirtyMs = 0;
 
 PetStats PetBrain_GetStats() {
   return s_stats;
@@ -208,6 +211,17 @@ const char* PetBrain_GetStageTitle() {
   } else {
     return (lang == LANG_SK || lang == LANG_CZ) ? "Letecké eso" : "Airspace Ace";
   }
+}
+
+void PetBrain_AwardXP(uint16_t pts) {
+  s_stats.flightsTracked += pts;
+  if (s_stats.flightsTracked >= 50) s_stats.stage = 2; // Airspace Ace
+  else if (s_stats.flightsTracked >= 15) s_stats.stage = 1; // Radar Navigator
+  else s_stats.stage = 0; // Cadet
+
+  if (s_stats.happiness < 100) s_stats.happiness++;
+  s_statsDirty = true;
+  s_statsDirtyMs = millis();
 }
 
 // Generate feeding dialogue when user feeds the pet a treat
@@ -249,6 +263,8 @@ void PetBrain_Feed() {
   // Stats update: reduce hunger, increase happiness
   s_stats.hunger = (s_stats.hunger > 30) ? (s_stats.hunger - 30) : 0;
   s_stats.happiness = (s_stats.happiness <= 85) ? (s_stats.happiness + 15) : 100;
+  s_statsDirty = true;
+  s_statsDirtyMs = millis();
 
   // Immediate feeding reaction in 0ms!
   generateFeedingThought(s_thought, sizeof(s_thought));
@@ -275,6 +291,17 @@ void PetBrain_Init() {
   s_rateLimitedUntilMs = 0;
   s_lastWasUserTap = false;
   s_lastWasFeed = false;
+
+  // Restore persisted stats from NVS
+  Preferences prefs;
+  if (prefs.begin("digicat", true)) {
+    s_stats.happiness = prefs.getUChar("happy", 92);
+    s_stats.hunger = prefs.getUChar("hunger", 18);
+    s_stats.stage = prefs.getUChar("stage", 0);
+    s_stats.flightsTracked = prefs.getUShort("xp", 0);
+    prefs.end();
+  }
+
   generateOfflineThought(s_thought, sizeof(s_thought));
 }
 
@@ -287,6 +314,8 @@ void PetBrain_RequestThought(bool userTapped) {
     // Tapping increases happiness
     if (s_stats.happiness <= 92) s_stats.happiness += 8;
     else s_stats.happiness = 100;
+    s_statsDirty = true;
+    s_statsDirtyMs = millis();
     // Always give an immediate, instant petting reaction in 0ms!
     generatePettingThought(s_thought, sizeof(s_thought));
   }
@@ -324,8 +353,8 @@ bool PetBrain_IsBusy() {
 void PetBrain_Tick() {
   const unsigned long now = millis();
 
-  // Reset temporary happy mood after tap
-  if (s_moodResetMs > 0 && now > s_moodResetMs && s_mood == PET_MOOD_HAPPY) {
+  // Reset temporary happy/scared mood after interaction or tilt
+  if (s_moodResetMs > 0 && now > s_moodResetMs && (s_mood == PET_MOOD_HAPPY || s_mood == PET_MOOD_SCARED)) {
     s_moodResetMs = 0;
     s_mood = PET_MOOD_IDLE;
   }
@@ -340,11 +369,10 @@ void PetBrain_Tick() {
     float bDeg = 0, dist = 9999.0f;
     char cs[16] = "";
     if (PetBrain_GetClosestPlaneTarget(bDeg, dist, cs, sizeof(cs)) && dist < 45.0f) {
-      s_stats.flightsTracked++;
-      if (s_stats.happiness < 100) s_stats.happiness++;
-      if (s_stats.flightsTracked >= 50) s_stats.stage = 2; // Airspace Ace
-      else if (s_stats.flightsTracked >= 15) s_stats.stage = 1; // Radar Navigator
-      else s_stats.stage = 0; // Cadet
+      PetBrain_AwardXP(1);
+    } else {
+      s_statsDirty = true;
+      s_statsDirtyMs = now;
     }
   }
 
@@ -355,6 +383,19 @@ void PetBrain_Tick() {
     s_lastWasUserTap = false;
     s_fetchRequested = true;
     Async_RequestPetThought();
+  }
+
+  // Debounced persist of pet stats to NVS (15 minutes to reduce flash wear)
+  if (s_statsDirty && (now - s_statsDirtyMs >= 900000UL)) {
+    s_statsDirty = false;
+    Preferences prefs;
+    if (prefs.begin("digicat", false)) {
+      prefs.putUChar("happy", s_stats.happiness);
+      prefs.putUChar("hunger", s_stats.hunger);
+      prefs.putUChar("stage", s_stats.stage);
+      prefs.putUShort("xp", s_stats.flightsTracked);
+      prefs.end();
+    }
   }
 }
 

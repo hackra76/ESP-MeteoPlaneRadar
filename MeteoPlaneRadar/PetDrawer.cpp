@@ -34,7 +34,10 @@ enum CatAnimState : uint8_t {
   CAT_STATE_STRETCH,      // Big yoga stretch (front low, butt high, arched back)
   CAT_STATE_SWAT,         // Swatting & scratching upward at overhead aircraft!
   CAT_STATE_LEAVING,      // Decided to leave screen on airfield adventure
-  CAT_STATE_AWAY          // Off-screen exploring airfield; returns on tap/call or timer
+  CAT_STATE_AWAY,         // Off-screen exploring airfield; returns on tap/call or timer
+  CAT_STATE_SLIDE,        // Gentle tilt fun slide/surf across runway!
+  CAT_STATE_TUMBLE,       // Steep tilt tumbling, scrambling claws & rolling!
+  CAT_STATE_CLING         // Extreme tilt Option A: Clinging to circular bezel rim!
 };
 
 struct TrackedPlaneDisplay {
@@ -81,9 +84,15 @@ static bool          s_isDrowsy = false;
 static const unsigned long NIGHT_WAKE_DURATION_MS = 120000; // 2 minutes awake after interaction
 static const unsigned long NIGHT_DROWSY_DURATION_MS = 20000; // 20 seconds yawning / slow blinks before sleep
 
-// IMU Reactive Inertia (Tilt)
-static float s_imuTiltX = 0.0f;
-static float s_imuTiltY = 0.0f;
+// IMU Reactive Inertia & Physics Tilt Interactions
+static float         s_imuTiltX = 0.0f;
+static float         s_imuTiltY = 0.0f;
+static float         s_catVx = 0.0f;
+static uint8_t       s_extremeOption = 0; // 0 = none, 1 = Option A Cling, 2 = Option B Slide Away
+static bool          s_clingLeft = false;
+static unsigned long s_lastTiltSfxMs = 0;
+static unsigned long s_clingStartMs = 0;
+static unsigned long s_tiltLevelTimeMs = 0;
 
 // Forward declarations
 static void callCatBack();
@@ -222,6 +231,10 @@ void PetDrawer_Open() {
     s_nextFrameMs = now + 75;
   }
 
+  s_catVx = 0.0f;
+  s_extremeOption = 0;
+  s_tiltLevelTimeMs = 0;
+
   // Contextual thought
   PetBrain_RequestThought(false);
 }
@@ -230,6 +243,9 @@ void PetDrawer_Close() {
   s_isOpen = false;
   s_catX = 240.0f;
   s_catTargetX = 240.0f;
+  s_catVx = 0.0f;
+  s_extremeOption = 0;
+  s_tiltLevelTimeMs = 0;
   s_catState = (Settings_IsNight() && millis() >= s_nightWakeUntilMs) ? CAT_STATE_SLEEPING : CAT_STATE_IDLE;
 }
 
@@ -320,12 +336,145 @@ bool PetDrawer_Tick() {
   s_lastAnimTick = now;
   s_frameCounter++;
 
-  // IMU reading for physical inertia
+  // IMU reading for physical inertia & dynamic tilt interactions
+  float tiltG = 0.0f;
+  float absTilt = 0.0f;
   if (QMI8658_Available()) {
     QMI_Data imuData;
     QMI8658_GetData(&imuData);
-    s_imuTiltX += (-imuData.ax * 12.0f - s_imuTiltX) * 0.15f;
+    tiltG = -imuData.ax; // Positive = tilted right (+X), Negative = tilted left (-X)
+    absTilt = fabsf(tiltG);
+    s_imuTiltX += (tiltG * 12.0f - s_imuTiltX) * 0.15f;
     s_imuTiltY += (imuData.ay * 12.0f - s_imuTiltY) * 0.15f;
+  }
+
+  // Dynamic IMU Tilt Physics & Reactions
+  if (absTilt < 0.14f) {
+    // Device held relatively level/flat
+    if (s_tiltLevelTimeMs == 0) s_tiltLevelTimeMs = now;
+
+    // Decay slide/tumble inertia
+    if (s_catState == CAT_STATE_SLIDE || s_catState == CAT_STATE_TUMBLE) {
+      s_catVx *= 0.78f;
+      s_catX += s_catVx;
+      s_catX = constrain(s_catX, 100.0f, 380.0f);
+      if (fabsf(s_catVx) < 0.25f) {
+        s_catVx = 0.0f;
+        s_catState = CAT_STATE_IDLE;
+        s_animFrame = 0;
+        s_nextFrameMs = now + 140;
+        s_nextBrainDecisionMs = now + 5000;
+        s_extremeOption = 0;
+        s_hasCustomThought = false;
+      }
+    } else if (s_catState == CAT_STATE_CLING) {
+      // Option A recovery: held level for 600ms -> hoist back onto runway!
+      if (now - s_tiltLevelTimeMs >= 600) {
+        s_catState = CAT_STATE_JUMP;
+        s_catX = s_clingLeft ? 150.0f : 330.0f;
+        s_catVx = 0.0f;
+        s_extremeOption = 0;
+        s_animFrame = 0;
+        s_nextFrameMs = now + 80;
+        s_nextBrainDecisionMs = now + 6000;
+        if (Settings_BuzzerEnabled() && Settings_BuzzerPet()) Buzzer_Play(BEEP_PET_CHIRP);
+        setThought(
+          "🐾 *PHEW!* Leveled out! Hopped back onto the runway! 😸",
+          "🐾 *UF!* Už je to rovno! Vyskočil som späť na dráhu! 😸",
+          "🐾 *UF!* Už je to rovně! Vyskočil jsem zpět na dráhu! 😸"
+        );
+      }
+    } else if (s_catState == CAT_STATE_AWAY && s_extremeOption == 2) {
+      // Option B recovery: held level for 1800ms -> trot back onto deck!
+      if (now - s_tiltLevelTimeMs >= 1800) {
+        callCatBack();
+        s_extremeOption = 0;
+      }
+    }
+  } else {
+    // Device is actively tilted
+    s_tiltLevelTimeMs = 0;
+
+    // Check for extreme tilt or falling off deck edge
+    if (absTilt >= 0.68f || ((s_catX <= 75.0f || s_catX >= 405.0f) && absTilt >= 0.35f)) {
+      if (s_catState != CAT_STATE_CLING && s_catState != CAT_STATE_AWAY && s_catState != CAT_STATE_LEAVING) {
+        if (s_extremeOption == 0) {
+          s_extremeOption = (rand() % 2) + 1; // 1 = Option A Cling, 2 = Option B Slide Away
+        }
+        if (s_extremeOption == 1) {
+          // Option A: Cling to circular bezel rim by claws!
+          s_catState = CAT_STATE_CLING;
+          s_clingLeft = (s_catX < 240.0f);
+          s_catX = s_clingLeft ? 52.0f : 428.0f;
+          s_catVx = 0.0f;
+          s_clingStartMs = now;
+          if (Settings_BuzzerEnabled() && Settings_BuzzerPet()) Buzzer_Play(BEEP_EMERGENCY);
+          setThought(
+            "🙀 *HOLD ME FLAT!* Clinging to the rim for dear life! Slipping! 🐾",
+            "🙀 *DRŽ MA ROVNO!* Držím sa okraja! Šmýkam sa dole! 🐾",
+            "🙀 *DRŽ MĚ ROVNĚ!* Držím se okraje! Kloužu dolů! 🐾"
+          );
+        } else {
+          // Option B: Slide completely off the screen edge into AWAY
+          s_catState = CAT_STATE_AWAY;
+          s_autoReturnMs = now + 25000;
+          s_catVx = 0.0f;
+          if (Settings_BuzzerEnabled() && Settings_BuzzerPet()) Buzzer_Play(BEEP_OVERHEAD);
+          setThought(
+            "🐾 *WHEEE-WHOOPS!* Slid right off the deck! Level device to call back! 🍂",
+            "🐾 *FÍÍÍ-AU!* Skĺzol som z dráhy! Vyrovnaj displej pre privolanie! 🍂",
+            "🐾 *FÍÍÍ-AU!* Sklouzl jsem z dráhy! Srovnej displej pro přivolání! 🍂"
+          );
+        }
+      }
+    } else if (absTilt >= 0.42f) {
+      // Big Tilt: Scared tumbling & scrambling claws!
+      if (s_catState != CAT_STATE_CLING && s_catState != CAT_STATE_AWAY && s_catState != CAT_STATE_LEAVING) {
+        s_catState = CAT_STATE_TUMBLE;
+        s_catFlipX = (tiltG < 0);
+        s_catVx += tiltG * 2.8f;
+        s_catVx = constrain(s_catVx, -9.5f, 9.5f);
+        s_catX += s_catVx;
+        s_catX = constrain(s_catX, 70.0f, 410.0f);
+        PetBrain_SetMood(PET_MOOD_SCARED);
+        if (now - s_lastTiltSfxMs >= 1600) {
+          s_lastTiltSfxMs = now;
+          if (Settings_BuzzerEnabled() && Settings_BuzzerPet()) Buzzer_Play(BEEP_WATCHED);
+          if (!s_hasCustomThought) {
+            setThought(
+              "🙀 *WHOAAAA!* Too steep! DigiCat is tumbling out of control! 🌪️🐾",
+              "🙀 *ÁÁÁÁÁ!* Príliš strmé! Kotúľam sa a strácam rovnováhu! 🌪️🐾",
+              "🙀 *ÁÁÁÁÁ!* Příliš strmé! Kutálím se a ztrácím rovnováhu! 🌪️🐾"
+            );
+          }
+        }
+      }
+    } else {
+      // Small Tilt (0.15f <= absTilt < 0.42f): Happy sliding / surfing!
+      if (s_catState == CAT_STATE_SLEEPING) {
+        s_catX += tiltG * 1.2f;
+        s_catX = constrain(s_catX, 100.0f, 380.0f);
+      } else if (s_catState != CAT_STATE_CLING && s_catState != CAT_STATE_AWAY && s_catState != CAT_STATE_LEAVING) {
+        s_catState = CAT_STATE_SLIDE;
+        s_catFlipX = (tiltG < 0);
+        s_catVx += tiltG * 1.6f;
+        s_catVx = constrain(s_catVx, -5.2f, 5.2f);
+        s_catX += s_catVx;
+        s_catX = constrain(s_catX, 70.0f, 410.0f);
+        if (now - s_lastTiltSfxMs >= 2000) {
+          s_lastTiltSfxMs = now;
+          PetBrain_SetMood(PET_MOOD_HAPPY);
+          if (Settings_BuzzerEnabled() && Settings_BuzzerPet()) Buzzer_Play(BEEP_PET_PURR);
+          if (!s_hasCustomThought) {
+            setThought(
+              "🐾 Wheee! Fun sliding! DigiCat is surfing the deck! 🏄‍♂️✨",
+              "🐾 Jéééj! To sa parádne kĺže! DigiCat surfuje po dráhe! 🏄‍♂️✨",
+              "🐾 Jéééj! To to hezky klouže! DigiCat surfuje po dráze! 🏄‍♂️✨"
+            );
+          }
+        }
+      }
+    }
   }
 
   // Decay pet lean when touch released
@@ -380,6 +529,8 @@ bool PetDrawer_Tick() {
         s_catState != CAT_STATE_HAPPY && s_catState != CAT_STATE_ENTERING &&
         s_catState != CAT_STATE_GROOM && s_catState != CAT_STATE_STRETCH &&
         s_catState != CAT_STATE_WATCH_PLANE &&
+        s_catState != CAT_STATE_SLIDE && s_catState != CAT_STATE_TUMBLE &&
+        s_catState != CAT_STATE_CLING &&
         now >= s_planeChasePauseUntilMs) {
       float catDist = fabsf(s_catX - (s_skyPlane.x + 28.0f));
 
@@ -496,6 +647,7 @@ bool PetDrawer_Tick() {
 
       // After 2 swat cycles (16 frames), chance for a playful jump at the aircraft or a rest
       if (s_animFrame >= 16) {
+        PetBrain_AwardXP(1);
         if (rand() % 100 < 40 && s_skyPlane.active) {
           s_catState = CAT_STATE_JUMP;
           s_animFrame = 0;
@@ -531,6 +683,9 @@ bool PetDrawer_Tick() {
     if (now >= s_nextFrameMs) {
       s_nextFrameMs = now + 220;
       s_animFrame++;
+      if (s_animFrame == 4 && (rand() % 100 < 35)) {
+        if (Settings_BuzzerEnabled() && Settings_BuzzerPet()) Buzzer_Play(BEEP_PET_SNEEZE);
+      }
       if (s_animFrame >= 8) {
         s_catState = CAT_STATE_IDLE;
         s_animFrame = 0;
@@ -564,6 +719,8 @@ bool PetDrawer_Tick() {
     return true;
   } else if (s_catState == CAT_STATE_ENTERING || s_catState == CAT_STATE_PATROL) {
     // In-motion states
+  } else if (s_catState == CAT_STATE_SLIDE || s_catState == CAT_STATE_TUMBLE || s_catState == CAT_STATE_CLING) {
+    return true; // Active tilt physical response
   } else {
     // Cat is idle: check if a new close aircraft suddenly passed over
     static char s_lastCloseCallsign[16] = "";
@@ -579,7 +736,7 @@ bool PetDrawer_Tick() {
 
     s_catState = CAT_STATE_IDLE;
 
-    if (now >= s_nextBrainDecisionMs && now > s_lastUserInteractMs + 5000) {
+    if (now >= s_nextBrainDecisionMs && now > s_lastUserInteractMs + 5000 && absTilt < 0.15f) {
       if (nightDrowsy) {
         // In drowsy phase, only do gentle wind-down actions (no jumping or leaving screen)
         int drowsyRoll = rand() % 100;
@@ -703,6 +860,21 @@ bool PetDrawer_Tick() {
     if (now >= s_nextFrameMs) {
       s_nextFrameMs = now + 400;
       s_animFrame = (s_animFrame + 1) % 8;
+    }
+  } else if (s_catState == CAT_STATE_SLIDE) {
+    if (now >= s_nextFrameMs) {
+      s_nextFrameMs = now + 90;
+      s_animFrame = (s_animFrame + 1) % 8;
+    }
+  } else if (s_catState == CAT_STATE_TUMBLE) {
+    if (now >= s_nextFrameMs) {
+      s_nextFrameMs = now + 65;
+      s_animFrame = (s_animFrame + 1) % 4;
+    }
+  } else if (s_catState == CAT_STATE_CLING) {
+    if (now >= s_nextFrameMs) {
+      s_nextFrameMs = now + 120;
+      s_animFrame = (s_animFrame + 1) % 4;
     }
   } else { // CAT_STATE_IDLE
     if (now >= s_nextFrameMs) {
@@ -1018,6 +1190,7 @@ static void drawRunwayDeck(PetWeather weather) {
 }
 
 static void drawCatCastShadow(int cx, CatAnimState state, uint8_t frame) {
+  if (state == CAT_STATE_CLING || state == CAT_STATE_AWAY) return;
   if (state == CAT_STATE_SLEEPING) {
     gfx->fillRoundRect(cx - 30, 340, 60, 5, 2, 0x0821);
     return;
@@ -1040,6 +1213,12 @@ static void drawCatCastShadow(int cx, CatAnimState state, uint8_t frame) {
     }
   } else if (state == CAT_STATE_SWAT) {
     rx = 20;
+    ry = 3;
+  } else if (state == CAT_STATE_SLIDE) {
+    rx = 30;
+    ry = 3;
+  } else if (state == CAT_STATE_TUMBLE) {
+    rx = 22;
     ry = 3;
   }
 
@@ -1083,8 +1262,9 @@ static void drawCatWeatherAccessories(int catDrawX, int catDrawY, bool flipX, Ca
       // Clean non-destructive upper dome
       drawUmbrellaCanopy(cx, cy, r, 0xFDC0, 0xF800);
     } else {
-      // Suppress umbrella during active acrobatic actions (jumping, swatting, eating, away)
-      if (state == CAT_STATE_JUMP || state == CAT_STATE_SWAT || state == CAT_STATE_EATING || state == CAT_STATE_AWAY) {
+      // Suppress umbrella during active acrobatic actions (jumping, swatting, eating, away, slide, tumble, cling)
+      if (state == CAT_STATE_JUMP || state == CAT_STATE_SWAT || state == CAT_STATE_EATING || state == CAT_STATE_AWAY ||
+          state == CAT_STATE_SLIDE || state == CAT_STATE_TUMBLE || state == CAT_STATE_CLING) {
         return;
       }
       // Handheld umbrella held upright in front paw
@@ -1104,7 +1284,7 @@ static void drawCatWeatherAccessories(int catDrawX, int catDrawY, bool flipX, Ca
 
   // 2. Snow / Freezing Weather: Cozy Knit Winter Scarf!
   bool isCold = (weather == WEATHER_SNOW) || (Forecast_CurrentValid() && Forecast_CurrentTemp() <= 2.0f);
-  if (isCold) {
+  if (isCold && state != CAT_STATE_CLING && state != CAT_STATE_AWAY) {
     int neckX = flipX ? (catDrawX + 68) : (catDrawX + 48);
     int neckY = catDrawY + 54;
     gfx->fillRoundRect(neckX - 7, neckY, 15, 6, 2, 0xF800); // bright red scarf wrap
@@ -1169,6 +1349,63 @@ static void drawTrackedSkyPlane() {
     gfx->drawLine(clawX - 1, clawY - 6, clawX + 3, clawY + 3, 0xFFFF);
     gfx->drawLine(clawX + 4, clawY - 5, clawX + 8, clawY + 4, 0xFFE0);
   }
+}
+
+// -----------------------------------------------------------------------------
+// Dynamic Tilt Visual Effects (Skid trails, tumble sparks, bezel clinging)
+// -----------------------------------------------------------------------------
+static void drawSlideParticles(int catX, int catY, bool flipX, float speed) {
+  int dir = flipX ? 1 : -1;
+  int px = catX + dir * 20;
+  unsigned long now = millis();
+  for (int i = 0; i < 3; i++) {
+    int ly = 340 + i * 2;
+    int lx = px + dir * (i * 14 + (int)((now / 35) % 18));
+    int len = 8 + (int)(fabsf(speed) * 1.6f);
+    if (lx >= 40 && lx <= 440) {
+      gfx->drawFastHLine(flipX ? lx : (lx - len), ly, len, 0xCE79);
+    }
+  }
+}
+
+static void drawTumbleEffects(int catX, int catY, bool flipX) {
+  unsigned long now = millis();
+  int sparkBaseX = catX + (flipX ? 22 : -22);
+  for (int i = 0; i < 4; i++) {
+    int sx = sparkBaseX + (int)(sinf((float)now * 0.025f + (float)i * 1.5f) * 16.0f);
+    int sy = 338 - (int)(fabsf(cosf((float)now * 0.03f + (float)i * 1.2f)) * 14.0f);
+    if (sx >= 40 && sx <= 440 && sy >= 300 && sy <= 342) {
+      uint16_t col = (i % 2 == 0) ? 0xFFE0 : 0xFD06;
+      gfx->drawPixel(sx, sy, col);
+      gfx->drawPixel(sx + 1, sy, 0xFFFF);
+    }
+  }
+  // Scared sweat droplet above head
+  int sweatX = catX + (flipX ? 16 : -16);
+  int sweatY = catY - 42 - (int)((now / 50) % 18);
+  if (sweatX >= 40 && sweatX <= 440) {
+    gfx->fillCircle(sweatX, sweatY, 3, 0x5DDF);
+    gfx->drawPixel(sweatX, sweatY - 1, 0xFFFF);
+  }
+}
+
+static void drawClingEffects(int catX, int catY, bool clingLeft) {
+  int pawX1 = clingLeft ? 38 : 422;
+  int pawX2 = clingLeft ? 52 : 436;
+  // White/cream cat paws holding the rim
+  gfx->fillRoundRect(pawX1, 339, 10, 6, 2, 0xFFFF);
+  gfx->fillRoundRect(pawX2, 339, 10, 6, 2, 0xFFFF);
+  // Claw lines gripping curb
+  gfx->drawFastVLine(pawX1 + 3, 338, 3, 0x18A2);
+  gfx->drawFastVLine(pawX1 + 7, 338, 3, 0x18A2);
+  gfx->drawFastVLine(pawX2 + 3, 338, 3, 0x18A2);
+  gfx->drawFastVLine(pawX2 + 7, 338, 3, 0x18A2);
+
+  // Sweat drops splashing off forehead
+  unsigned long now = millis();
+  int swY = 320 + (int)((now / 60) % 16);
+  gfx->fillCircle(clingLeft ? 68 : 412, swY, 3, 0x5DDF);
+  gfx->drawPixel(clingLeft ? 68 : 412, swY - 1, 0xFFFF);
 }
 
 // -----------------------------------------------------------------------------
@@ -1254,9 +1491,13 @@ void PetDrawer_Draw() {
                                                   : "( Tap anywhere to call pet back )");
     UI_TextCentered(awayHint, 330, 0x632C, 1);
   } else {
-    // Screen clamping only when sitting or patrolling on-screen
-    if (s_catState != CAT_STATE_ENTERING && s_catState != CAT_STATE_LEAVING) {
-      s_catX = constrain(s_catX, 140.0f, 340.0f);
+    // Screen clamping: slide and tumble can traverse wide deck [70, 410], cling is at rim [52, 428]
+    if (s_catState != CAT_STATE_ENTERING && s_catState != CAT_STATE_LEAVING && s_catState != CAT_STATE_CLING) {
+      if (s_catState == CAT_STATE_SLIDE || s_catState == CAT_STATE_TUMBLE) {
+        s_catX = constrain(s_catX, 70.0f, 410.0f);
+      } else {
+        s_catX = constrain(s_catX, 140.0f, 340.0f);
+      }
     }
 
     const uint8_t* frameToDraw = nullptr;
@@ -1278,6 +1519,18 @@ void PetDrawer_Draw() {
       frameToDraw = CAT_WATCH_FRAMES[s_animFrame % 4];
     } else if (s_catState == CAT_STATE_SWAT) {
       frameToDraw = CAT_SWAT_FRAMES[s_animFrame % 8];
+    } else if (s_catState == CAT_STATE_SLIDE) {
+      frameToDraw = CAT_HAPPY_FRAMES[(now / 110) % 8];
+    } else if (s_catState == CAT_STATE_TUMBLE) {
+      static const uint8_t* const s_tumbleFrames[4] = {
+        CAT_JUMP_FRAMES[1],
+        CAT_SLEEP_FRAMES[0],
+        CAT_STRETCH_FRAMES[2],
+        CAT_JUMP_FRAMES[6]
+      };
+      frameToDraw = s_tumbleFrames[(now / 70) % 4];
+    } else if (s_catState == CAT_STATE_CLING) {
+      frameToDraw = CAT_SWAT_FRAMES[4];
     } else {
       frameToDraw = CAT_IDLE_FRAMES[s_animFrame % 8];
     }
@@ -1299,6 +1552,14 @@ void PetDrawer_Draw() {
     } else if (s_catState == CAT_STATE_ENTERING || s_catState == CAT_STATE_PATROL || s_catState == CAT_STATE_LEAVING) {
       static const int8_t s_walkBob[8] = { 0, -2, -1, 0, 0, -2, -1, 0 };
       catDrawY += s_walkBob[s_animFrame % 8];
+    } else if (s_catState == CAT_STATE_CLING) {
+      catDrawY += 34; // Pinned down so paws grip the curb line
+      if ((now / 140) % 2 == 0) catDrawY += 2; // struggling jitter
+      s_catFlipX = !s_clingLeft;
+    } else if (s_catState == CAT_STATE_TUMBLE) {
+      catDrawY += (int)(sinf((float)now * 0.02f) * 4.0f);
+    } else if (s_catState == CAT_STATE_SLIDE) {
+      catDrawY += 2;
     }
 
     // Ground cast shadow directly under DigiCat's paws
@@ -1306,6 +1567,15 @@ void PetDrawer_Draw() {
 
     // Render DigiCat 2x scaled sprite
     drawCatSprite2x(frameToDraw, catDrawX, catDrawY, s_catFlipX);
+
+    // Dynamic particles & effects for tilt physics
+    if (s_catState == CAT_STATE_SLIDE) {
+      drawSlideParticles((int)s_catX, 340, s_catFlipX, s_catVx);
+    } else if (s_catState == CAT_STATE_TUMBLE) {
+      drawTumbleEffects((int)s_catX, 340, s_catFlipX);
+    } else if (s_catState == CAT_STATE_CLING) {
+      drawClingEffects((int)s_catX, 340, s_clingLeft);
+    }
 
     // Weather-adaptive accessories (Umbrella in rain, Scarf in snow/cold, Aviator goggles in clear sky)
     drawCatWeatherAccessories(catDrawX, catDrawY, s_catFlipX, s_catState, curWeather);
@@ -1372,6 +1642,24 @@ bool PetDrawer_HandleTap(int x, int y) {
   // If the cat is away or leaving, ANY tap summons him back immediately!
   if (s_catState == CAT_STATE_AWAY || s_catState == CAT_STATE_LEAVING) {
     callCatBack();
+    return true;
+  }
+
+  // If cat is clinging to rim, tap rescues it immediately!
+  if (s_catState == CAT_STATE_CLING) {
+    if (Settings_BuzzerEnabled() && Settings_BuzzerPet()) Buzzer_Play(BEEP_PET_CHIRP);
+    s_catState = CAT_STATE_JUMP;
+    s_catX = s_clingLeft ? 150.0f : 330.0f;
+    s_catVx = 0.0f;
+    s_extremeOption = 0;
+    s_animFrame = 0;
+    s_nextFrameMs = now + 80;
+    s_nextBrainDecisionMs = now + 6000;
+    setThought(
+      "🐾 *Hup!* Thanks for pulling me up! You saved me! 😸❤️",
+      "🐾 *Hop!* Ďakujem za pomoc! Vytiahol si ma! 😸❤️",
+      "🐾 *Hop!* Díky za pomoc! Vytáhl jsi mě! 😸❤️"
+    );
     return true;
   }
 
@@ -1448,11 +1736,12 @@ bool PetDrawer_HandleTap(int x, int y) {
   }
 
   // Tap on the overhead tracked aircraft -> triggers evasive jet dash & cat jump/swat reaction!
-  if (s_skyPlane.active && s_catState != CAT_STATE_AWAY && s_catState != CAT_STATE_LEAVING) {
+  if (s_skyPlane.active && s_catState != CAT_STATE_AWAY && s_catState != CAT_STATE_LEAVING && s_catState != CAT_STATE_CLING) {
     int px = (int)(s_skyPlane.x + 28);
     int py = (int)(s_skyPlane.y + 14);
     if (abs(x - px) < 42 && abs(y - py) < 32) {
       if (Settings_BuzzerEnabled() && Settings_BuzzerPet()) Buzzer_Play(BEEP_PET_CHIRP);
+      PetBrain_AwardXP(2);
       s_skyPlane.evasiveHop = true;
       s_skyPlane.hopEndMs = now + 500;
       s_planeChasePauseUntilMs = 0;
