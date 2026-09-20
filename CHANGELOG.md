@@ -9,6 +9,19 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [2.0.4] - 2026-09-20
+
+### Opravené / Fixed
+- **Vykresľovanie dáždnika a doplnkov (Non-Destructive Weather Accessories):**
+  - **Odstránené čierne orezávacie obdĺžniky:** Dáždnik (ručná verzia aj stojanový slnečník) bol prepracovaný na polkruhové riadkové scanline vykresľovanie (`drawUmbrellaCanopy`) bez použitia deštruktívneho `fillRect(..., C_BLACK)`, ktorý predtým prekrýval hlavu, uši a srsť zvieratka čiernym blokom.
+  - **Stojanový slnečník pre spiace zvieratko:** Pri spánku v daždi je slnečník umiestnený nad zvieratkom s tyčou a podstavcom ukotveným vedľa neho na dráhe, takže zvieratko je chránené pred dažďom bez kolízie so spiacim telíčkom.
+  - **Potlačenie dáždnika pri akrobatických akciách:** Počas skákania (`JUMP`), chňapania po lietadle (`SWAT`), jedenia maškrty (`EATING`) alebo neprítomnosti (`AWAY`) sa držanie dáždnika dočasne deaktivuje pre prirodzenejší vzhľad.
+  - **Čistý vrhaný tieň na dráhe:** Odstránené vnútorné `0x0000` čierne výrezy v tieni pod labkami, ktoré predtým rezali čierny otvor cez farebný asfalt dráhy.
+- **Optimalizácia sledovania preletov (Flight Tracking Calibration):**
+  - **Obmedzenie preletov na bezprostrednú blízkosť ($\le 10\text{ km}$):** Vykresľovanie lietadielka a chňapanie sa aktivuje výhradne pri blízkych preletoch priamo nad hlavou ($\le 10\text{ km}$), čo zabraňuje neustálemu rozptyľovaniu zvieratka vzdialenými letmi.
+  - **Prirodzený oddych po chňapaní:** Pridaný časovač pauzy (`s_planeChasePauseUntilMs`), vďaka ktorému sa DigiCat po niekoľkých cykloch chňapania vráti k pokojnému posedávaniu a ďalším autonómnym aktivitám.
+  - **Rozlíšené radarové myšlienky:** Pre lety vo vzdialenosti $10-40\text{ km}$ DigiCat komentuje sledovanie cieľa na radare namiesto priameho chňapania do vzduchu.
+
 ## [2.0.3] - 2026-09-19
 
 ### Pridané / Added

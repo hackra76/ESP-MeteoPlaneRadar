@@ -1020,7 +1020,6 @@ static void drawRunwayDeck(PetWeather weather) {
 static void drawCatCastShadow(int cx, CatAnimState state, uint8_t frame) {
   if (state == CAT_STATE_SLEEPING) {
     gfx->fillRoundRect(cx - 30, 340, 60, 5, 2, 0x0821);
-    gfx->fillRoundRect(cx - 20, 341, 40, 3, 1, 0x0000);
     return;
   }
 
@@ -1045,37 +1044,60 @@ static void drawCatCastShadow(int cx, CatAnimState state, uint8_t frame) {
   }
 
   gfx->fillRoundRect(cx - rx, 340, rx * 2, ry, ry / 2, col);
-  if (rx > 16) {
-    gfx->fillRoundRect(cx - (rx - 8), 341, (rx - 8) * 2, 2, 1, 0x0000);
+}
+
+static void drawUmbrellaCanopy(int cx, int cy, int r, uint16_t baseCol, uint16_t stripeCol) {
+  // Render upper half of circle scanline-by-scanline without destructive black masks
+  for (int dy = -r; dy <= 0; dy++) {
+    int dx = (int)roundf(sqrtf((float)(r * r - dy * dy)));
+    if (dx <= 0) continue;
+    gfx->drawFastHLine(cx - dx, cy + dy, dx * 2 + 1, baseCol);
   }
+  // Decorative contrasting ribs/stripes across canopy
+  for (int dy = -r + 2; dy <= 0; dy++) {
+    int dx = (int)roundf(sqrtf((float)(r * r - dy * dy)));
+    if (dx > 4) {
+      int s1 = dx / 2;
+      gfx->drawPixel(cx - s1, cy + dy, stripeCol);
+      gfx->drawPixel(cx + s1, cy + dy, stripeCol);
+    }
+  }
+  // Apex tip ferrule & highlight
+  gfx->drawFastVLine(cx, cy - r - 2, 3, baseCol);
+  gfx->drawPixel(cx, cy - r - 3, 0xFFFF);
 }
 
 static void drawCatWeatherAccessories(int catDrawX, int catDrawY, bool flipX, CatAnimState state, PetWeather weather) {
   // 1. Rain & Thunderstorm: Umbrella!
   if (weather == WEATHER_RAIN || weather == WEATHER_THUNDERSTORM) {
     if (state == CAT_STATE_SLEEPING) {
-      // Pitched beach umbrella stand beside sleeping loaf
-      int cx = (int)s_catX + 16;
-      int cy = 282;
-      gfx->fillCircle(cx, cy, 24, 0xFDC0); // Yellow canopy
-      gfx->fillRect(cx - 24, cy + 1, 49, 24, C_BLACK); // trim bottom half
-      gfx->drawLine(cx, cy, cx - 8, cy + 32, 0x9482); // umbrella shaft
-      gfx->drawLine(cx - 14, cy, cx - 10, cy - 20, 0xF800); // Red alternating stripe panels
-      gfx->drawLine(cx + 14, cy, cx + 10, cy - 20, 0xF800);
-      gfx->drawPixel(cx, cy - 25, 0xFFFF); // top tip highlight
+      // Pitched beach/garden parasol sheltering the sleeping loaf from above
+      int cx = (int)s_catX + 24;
+      int cy = 265;
+      int r = 26;
+      int baseGroundX = cx + 24;
+      int baseGroundY = 341;
+      // Umbrella shaft and stand beside the loaf
+      gfx->drawLine(cx, cy, baseGroundX, baseGroundY, 0x9482);
+      gfx->drawFastHLine(baseGroundX - 6, baseGroundY, 13, 0x9482);
+      // Clean non-destructive upper dome
+      drawUmbrellaCanopy(cx, cy, r, 0xFDC0, 0xF800);
     } else {
+      // Suppress umbrella during active acrobatic actions (jumping, swatting, eating, away)
+      if (state == CAT_STATE_JUMP || state == CAT_STATE_SWAT || state == CAT_STATE_EATING || state == CAT_STATE_AWAY) {
+        return;
+      }
       // Handheld umbrella held upright in front paw
-      int cx = flipX ? (catDrawX + 44) : (catDrawX + 76);
-      int cy = catDrawY + 10;
-      gfx->fillCircle(cx, cy, 22, 0xFDC0); // Yellow canopy
-      gfx->fillRect(cx - 22, cy + 1, 45, 22, C_BLACK);
-      int pawX = flipX ? (catDrawX + 44) : (catDrawX + 76);
-      int pawY = catDrawY + 52;
-      gfx->drawLine(cx, cy, pawX, pawY, 0x9482); // shaft down to paw
-      gfx->drawFastVLine(cx, cy - 24, 3, 0xFDC0); // top spike
-      gfx->drawLine(cx - 10, cy, cx - 5, cy - 18, 0xF800);
-      gfx->drawLine(cx + 10, cy, cx + 5, cy - 18, 0xF800);
-      gfx->drawPixel(cx - 8, cy - 20, 0xFFFF);
+      int cx = flipX ? (catDrawX + 38) : (catDrawX + 90);
+      int cy = catDrawY + 14;
+      int r = 22;
+      int pawX = flipX ? (catDrawX + 42) : (catDrawX + 86);
+      int pawY = catDrawY + 48;
+      // Draw shaft down to paw
+      gfx->drawLine(cx, cy, pawX, pawY, 0x9482);
+      gfx->drawPixel(pawX + (flipX ? -1 : 1), pawY, 0x9482);
+      // Clean non-destructive upper dome
+      drawUmbrellaCanopy(cx, cy, r, 0xFDC0, 0xF800);
     }
     return;
   }
