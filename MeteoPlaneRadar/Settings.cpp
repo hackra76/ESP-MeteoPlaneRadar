@@ -6,6 +6,7 @@
 #include "Settings.h"
 #include "FlightStats.h"
 #include "Lang.h"
+#include "Display_ST7701.h"
 #include <Preferences.h>
 #include <string.h>
 #include <ctype.h>
@@ -127,6 +128,8 @@ void Settings_BatchEnd() {
     s_batchDepth--;
     if (s_batchDepth == 0) {
       prefs.end();
+      // Failsafe: Realign the ST7701 panel if a massive sector erase starved the DMA
+      LCD_Restart();
     }
   }
 }
