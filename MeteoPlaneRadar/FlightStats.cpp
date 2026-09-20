@@ -4,6 +4,7 @@
 //
 // =============================================================================
 #include "FlightStats.h"
+#include "Display_ST7701.h"
 #include "Settings.h"
 #include "Outside.h"
 #include "Config.h"
@@ -113,6 +114,7 @@ static void FlightStats_Save() {
     }
   }
   prefs.end();
+  LCD_Restart();
 }
 
 static void FlightStats_Load() {

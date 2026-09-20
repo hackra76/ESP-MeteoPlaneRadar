@@ -140,6 +140,7 @@ static void putU8(const char* k, uint8_t v) {
   } else if (prefs.begin(NS, false)) {
     prefs.putUChar(k, v);
     prefs.end();
+    LCD_Restart();
   }
 }
 static void putI8(const char* k, int8_t v) {
@@ -148,6 +149,7 @@ static void putI8(const char* k, int8_t v) {
   } else if (prefs.begin(NS, false)) {
     prefs.putChar(k, v);
     prefs.end();
+    LCD_Restart();
   }
 }
 static void putU16(const char* k, uint16_t v) {
@@ -156,6 +158,7 @@ static void putU16(const char* k, uint16_t v) {
   } else if (prefs.begin(NS, false)) {
     prefs.putUShort(k, v);
     prefs.end();
+    LCD_Restart();
   }
 }
 static void putBool(const char* k, bool v) {
@@ -164,6 +167,7 @@ static void putBool(const char* k, bool v) {
   } else if (prefs.begin(NS, false)) {
     prefs.putBool(k, v);
     prefs.end();
+    LCD_Restart();
   }
 }
 static void putStr(const char* k, const char* v) {
@@ -172,6 +176,7 @@ static void putStr(const char* k, const char* v) {
   } else if (prefs.begin(NS, false)) {
     prefs.putString(k, v);
     prefs.end();
+    LCD_Restart();
   }
 }
 

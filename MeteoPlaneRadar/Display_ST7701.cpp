@@ -208,7 +208,7 @@ bool ST7701_Init() {
   rgb.data_width = 16;
   rgb.bits_per_pixel = 16;
   rgb.num_fbs = 2;                               // double buffering (no tearing)
-  rgb.bounce_buffer_size_px = 60 * LCD_WIDTH;    // 60 lines DMA feed (balances bus cushion with internal SRAM for SSL)
+  rgb.bounce_buffer_size_px = 30 * LCD_WIDTH;    // 30 lines DMA feed (balances bus cushion with internal SRAM for SSL)
   rgb.psram_trans_align = 64;
   rgb.hsync_gpio_num = RGB_HSYNC;
   rgb.vsync_gpio_num = RGB_VSYNC;

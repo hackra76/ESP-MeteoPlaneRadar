@@ -3,6 +3,9 @@
 //  PetBrain.cpp - AI Pet intelligence and Google Gemini LLM integration.
 // =============================================================================
 #include "PetBrain.h"
+#include "Display_ST7701.h"
+#include <Preferences.h>
+#include <Arduino.h>
 #include "Settings.h"
 #include "ADSB.h"
 #include "Outside.h"
@@ -395,6 +398,7 @@ void PetBrain_Tick() {
       prefs.putUChar("stage", s_stats.stage);
       prefs.putUShort("xp", s_stats.flightsTracked);
       prefs.end();
+      LCD_Restart();
     }
   }
 }
