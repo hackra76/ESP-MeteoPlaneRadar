@@ -342,7 +342,7 @@ bool PetDrawer_Tick() {
   if (QMI8658_Available()) {
     QMI_Data imuData;
     QMI8658_GetData(&imuData);
-    tiltG = imuData.ay; // Lateral roll: Positive = tilted right, Negative = tilted left
+    tiltG = -imuData.ay; // Lateral roll: Negative = tilted left, Positive = tilted right
     absTilt = fabsf(tiltG);
     s_imuTiltX += (tiltG * 12.0f - s_imuTiltX) * 0.15f;
     s_imuTiltY += (imuData.ax * 12.0f - s_imuTiltY) * 0.15f; // Vertical pitch
