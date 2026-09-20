@@ -17,6 +17,8 @@ pohromadě v `MeteoPlaneRadar/Config.h`.
 - **Bezpečnosť Webového Rozhrania (Web UI Security Enhancements):**
   - **Ochrana proti Brute-Force útokom:** Pridaný mechanizmus uzamknutia (lockout) na 5 minút po 5 neúspešných pokusoch o zadanie administrátorského hesla. Počas uzamknutia server vracia chybu HTTP 429 Too Many Requests.
   - **Maskovanie API kľúčov:** Konfiguračný JSON odosielaný do prehliadača teraz maskuje citlivé kľúče (`youtubeKey`, `geminiKey`) hodnotou `***`. To zabraňuje ich odpočúvaniu v lokálnej sieti, keďže webový server beží na nezabezpečenom protokole HTTP. Funkcie pre ukladanie nastavení boli upravené tak, aby ignorovali zápis hodnoty `***`.
+- **Oprava IMU Tilt Senzoru:**
+  - Fyzikálny engine teraz správne ignoruje náklon zariadenia dopredu/dozadu (pitch), v ktorom zariadenie prirodzene odpočíva v stojane. DigiCat reaguje výlučne na naklonenie doľava/doprava (roll).
 
 ## [2.0.4] - 2026-09-20
 

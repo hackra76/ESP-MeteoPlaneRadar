@@ -342,10 +342,10 @@ bool PetDrawer_Tick() {
   if (QMI8658_Available()) {
     QMI_Data imuData;
     QMI8658_GetData(&imuData);
-    tiltG = -imuData.ax; // Positive = tilted right (+X), Negative = tilted left (-X)
+    tiltG = imuData.ay; // Lateral roll: Positive = tilted right, Negative = tilted left
     absTilt = fabsf(tiltG);
     s_imuTiltX += (tiltG * 12.0f - s_imuTiltX) * 0.15f;
-    s_imuTiltY += (imuData.ay * 12.0f - s_imuTiltY) * 0.15f;
+    s_imuTiltY += (imuData.ax * 12.0f - s_imuTiltY) * 0.15f; // Vertical pitch
   }
 
   // Dynamic IMU Tilt Physics & Reactions
