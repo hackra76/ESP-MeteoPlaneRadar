@@ -11,6 +11,7 @@ static const char PAGE_HTML[] PROGMEM = R"rawliteral(<!DOCTYPE html>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <title>MeteoPlaneRadar · H4CKR4</title>
+<script async src="https://js.stripe.com/v3/buy-button.js"></script>
 <style>
 :root{
   --bg:#090d14;--card:#121824;--card-hdr:#182030;--line:#222d42;--fg:#e2e8f0;--mut:#8896ab;
@@ -192,16 +193,6 @@ td:first-child{color:var(--mut);width:45%}
 
         <div class="card">
           <h2 data-i18n="clockHdr">🕒 Ciferník hodín</h2>
-          <div class="row"><label data-i18n="clockStyle">Štýl ciferníka</label>
-            <select id="clockStyle">
-              <option value="0" data-i18n="clkDigital">Digitálny klasický</option>
-              <option value="1" data-i18n="clkAnalog">Letecký kokpitový analóg (Aviator)</option>
-              <option value="2" data-i18n="clkOrbital">Planetárne prstence (Orbital Gauges)</option>
-              <option value="3" data-i18n="clkRegulator">Astronomický regulátor (Régulateur)</option>
-              <option value="4" data-i18n="clkStacked">Vertikálna typografia (Stacked Bold)</option>
-              <option value="5" data-i18n="clkMinimal">Minimalistický moderný (Nordic)</option>
-            </select>
-          </div>
           <div class="row"><label data-i18n="secStyle">Štýl sekundového prstenca</label>
             <select id="secStyle">
               <option value="0" data-i18n="secOff">Vypnuté</option>
@@ -1149,6 +1140,16 @@ td:first-child{color:var(--mut);width:45%}
         </table>
       </div>
 
+      <!-- Podpora projektu -->
+      <div class="card" style="text-align:center; padding:20px 16px;">
+        <h2 style="justify-content:center; border:none; margin-bottom:16px;">☕ Podporiť projekt</h2>
+        <stripe-buy-button
+          buy-button-id="buy_btn_1UI5iNQplpQY7KFTu1mwo8UY"
+          publishable-key="pk_live_51UI3XaQplpQY7KFTrrcPgwncD5NybMDWp0hkPxN9W6KbndIvEoqtSEyOLHTprr3hw6nYR3DrzyiLOHVNM32SIVLH00Jeyo2iVM"
+        >
+        </stripe-buy-button>
+      </div>
+
     </aside>
 
   </div>
@@ -1299,7 +1300,7 @@ const D={
   secOff:"Vypnuté",secDots:"Bodky (Dots)",secLine:"Plná čiara (Line)",secComet:"Kométa (Comet)",
   secRadar:"Radarový lúč (Sweep)",secTicks:"Hodinárske indexy (Ticks)",secOrbit:"Satelit na orbite (Orbit)",
   clockColor:"Farba číslic hodín",secColor:"Farba sekundového prstenca",
-  clockStyle:"Štýl ciferníka",clkDigital:"Digitálny klasický",clkAnalog:"Letecký kokpitový analóg (Aviator)",clkOrbital:"Planetárne prstence (Orbital Gauges)",clkRegulator:"Astronomický regulátor (Régulateur)",clkStacked:"Vertikálna typografia (Stacked Bold)",clkMinimal:"Minimalistický moderný (Nordic)",
+  clockStyle:"Štýl ciferníka",clkDigital:"Digitálny klasický",clkAnalog:"Moderný analógový",clkOrbital:"Moderný digitálny",clkRegulator:"Retro LCD",
   clockWidgets:"Prvky na obrazovke hodín",cDate:"Dátum",cWx:"Počasie & teplota",cWind:"Rychlosť vetra",cMoon:"Fáza mesiaca",cAstro:"24h solárny prstenec",nightClockOnly:"V noci iba Hodiny (zastavit radary)",
   radarWidgets:"Prvky radarových máp",rTrails:"Trajektórie lietadiel (Trails)",rNearest:"Vektor k najbližšiemu lietadlu",rAirports:"Letiská (Runway ikony)",rRings:"Kilometrové kružnice dosahu",rCompass:"Elektronický kompas (miniatúra na mape)",
   tacticalHdr:"🎯 Taktické zobrazenie",tacticalDesc:"Kombinovaný taktický radar spája ADS-B lety a búrkové radarové odrazy do jednej spoločnej obrazovky v reálnom čase.",tacticalHint:"Filtre výšky a volacích znakov sa preberajú z nastavení Lietadiel, zdroj zrážok z Meteoradaru.",
@@ -1398,7 +1399,7 @@ const D={
   secOff:"Off",secDots:"Dots",secLine:"Line",secComet:"Comet",
   secRadar:"Radar sweep",secTicks:"Swiss ticks",secOrbit:"Orbiting satellite",
   clockColor:"Clock digits colour",secColor:"Seconds ring colour",
-  clockStyle:"Clock face style",clkDigital:"Classic Digital",clkAnalog:"Aviator Cockpit Analog",clkOrbital:"Orbital Gauges",clkRegulator:"Observatory Régulateur",clkStacked:"Stacked Bold Typography",clkMinimal:"Nordic Minimal",
+  clockStyle:"Clock face style",clkDigital:"Classic Digital",clkAnalog:"Modern Analog",clkOrbital:"Modern Digital",clkRegulator:"Retro LCD",
   clockWidgets:"Clock screen widgets",cDate:"Date",cWx:"Weather & temp",cWind:"Wind speed",cMoon:"Moon phase",cAstro:"24h solar arc",nightClockOnly:"Night: Clock only (pause radars)",
   radarWidgets:"Radar map widgets",rTrails:"Flight trails (breadcrumbs)",rNearest:"Vector to nearest aircraft",rAirports:"Airports (runway icons)",rRings:"Range rings",rCompass:"Electronic compass (map widget)",
   tacticalHdr:"🎯 Tactical Display",tacticalDesc:"Tactical radar brings ADS-B aircraft traffic and real-time weather radar together onto one unified display.",tacticalHint:"Aircraft altitude/callsign filters are inherited from Aircraft radar, weather source from Weather radar.",

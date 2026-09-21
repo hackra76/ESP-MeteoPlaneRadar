@@ -53,14 +53,8 @@ Designed specifically for the **Waveshare ESP32-S3-Touch-LCD-2.1** development b
 
 ## 🌟 Implemented Features
 
-### 🕒 1. Collection of 6 Unique Clock Faces
-The round 480×480 display features **6 completely distinct geometry styles** with smooth vertical swipe switching:
-1. **Stacked Bold Typography** – Contemporary smartwatch aesthetic with giant stacked hours `HH` and minutes `MM` flanked by rounded capsule badges for weather, moon, date, and wind.
-2. **Aviator Cockpit Analog** – Authentic pilot dial with luminous tapered hands, hour chapter ring, and two sub-dials (weather at 9 o'clock, moon phase at 3 o'clock).
-3. **🚀 Orbital Gauges** – Futuristic sci-fi face with three concentric circular arcs (minutes, hours, seconds) with glowing tip markers and a central telemetry hub.
-4. **⏱️ Observatory Régulateur Chrono** – High-horology regulator chronometer with decoupled axes: full-diameter master minute hand, separate upper hour sub-dial (at 12:00), separate lower second sub-dial (at 6:00), and side complications.
-5. **Nordic Minimal** – High-contrast, clean minimalist time easily readable across the room.
-6. **Classic Digital** – Clean horizontal `HH:MM` layout with u8g2 font, date, centered weather condition icon, 3-hour forecast pills, wind, and moon phase.
+### 🕒 1. Classic Digital Clock Face
+The round 480×480 display features a **Classic Digital** style – Clean horizontal `HH:MM` layout with u8g2 font, date, centered weather condition icon, 3-hour forecast pills, wind, and moon phase.
 
 - **Solar Arc with Sun Rays**: Realistic 24-hour astronomical sun position arc with radiant solar rays, gold day arc, blue night arc, and exact sunrise/sunset milestones.
 

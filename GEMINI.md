@@ -5,6 +5,7 @@
 - **Auto-Accept Changes**: Automatically implement, edit, and apply code changes directly without pausing to ask for approval.
 - **Verification**: Proactively run `pio run` to verify and ensure zero compile regressions.
 - **Release Documentation Protocol**: Whenever asked to make a new release, always update the README files (`README.md`, `README_EN.md`, `README_SK.md`) and wiki pages first to keep them completely accurate before publishing the release.
+- **Flashing Firmware**: Always use `$env:PYTHONIOENCODING="utf8"; pio run -t upload` when flashing the firmware to prevent Python UnicodeEncodeError crashes in the Windows console.
 
 # TOKEN EFFICIENCY & EXECUTION PROTOCOL
 

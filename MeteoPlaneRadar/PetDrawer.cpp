@@ -1252,13 +1252,13 @@ static void drawCatWeatherAccessories(int catDrawX, int catDrawY, bool flipX, Ca
     if (state == CAT_STATE_SLEEPING) {
       // Pitched beach/garden parasol sheltering the sleeping loaf from above
       int cx = (int)s_catX + 24;
-      int cy = 265;
-      int r = 26;
-      int baseGroundX = cx + 24;
+      int cy = 245; // moved higher up
+      int r = 60;   // much larger canopy
+      int baseGroundX = cx + 32;
       int baseGroundY = 341;
       // Umbrella shaft and stand beside the loaf
       gfx->drawLine(cx, cy, baseGroundX, baseGroundY, 0x9482);
-      gfx->drawFastHLine(baseGroundX - 6, baseGroundY, 13, 0x9482);
+      gfx->drawFastHLine(baseGroundX - 12, baseGroundY, 25, 0x9482);
       // Clean non-destructive upper dome
       drawUmbrellaCanopy(cx, cy, r, 0xFDC0, 0xF800);
     } else {
@@ -1268,9 +1268,9 @@ static void drawCatWeatherAccessories(int catDrawX, int catDrawY, bool flipX, Ca
         return;
       }
       // Handheld umbrella held upright in front paw
-      int cx = flipX ? (catDrawX + 38) : (catDrawX + 90);
-      int cy = catDrawY + 14;
-      int r = 22;
+      int cx = flipX ? (catDrawX + 28) : (catDrawX + 100);
+      int cy = catDrawY - 5; // moved higher up
+      int r = 50;            // much larger canopy
       int pawX = flipX ? (catDrawX + 42) : (catDrawX + 86);
       int pawY = catDrawY + 48;
       // Draw shaft down to paw

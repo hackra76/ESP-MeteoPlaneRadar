@@ -242,7 +242,7 @@ SpecialCategory Aircraft_Classify(const Aircraft& ac, char* labelOut, size_t lab
       strcasecmp(ac.type, "C130") == 0 || strcasecmp(ac.type, "A400") == 0 ||
       strcasecmp(ac.type, "C17") == 0) {
     if (colorOut) *colorOut = COL_MILITARY;
-    if (labelOut && labelCap > 0) snprintf(labelOut, labelCap, "Vojensky let");
+    if (labelOut && labelCap > 0) snprintf(labelOut, labelCap, (Lang_Get() == LANG_EN) ? "Military Flight" : ((Lang_Get() == LANG_CZ) ? "Vojensky let" : "Vojensky let"));
     return SPEC_MILITARY;
   }
 

@@ -387,13 +387,8 @@
 #define SEC_STYLE_MAX    6
 
 // Clock face styles.
-#define CLOCK_STYLE_DIGITAL   0
-#define CLOCK_STYLE_ANALOG    1
-#define CLOCK_STYLE_ORBITAL   2
-#define CLOCK_STYLE_REGULATOR 3
-#define CLOCK_STYLE_STACKED   4
-#define CLOCK_STYLE_MINIMAL   5
-#define CLOCK_STYLE_MAX       5
+#define CLOCK_STYLE_DIGITAL        0
+#define CLOCK_STYLE_MAX            0
 
 // ---------------------------------------------------------------------------
 //  Night mode

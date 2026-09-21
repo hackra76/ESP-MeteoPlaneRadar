@@ -419,7 +419,8 @@ void QuickControl_Draw(int currentScreen) {
   gfx->drawRoundRect(CW_X, CW_Y, CW_W, CW_H, 16, C_CYAN);
 
   // Title
-  UI_TextCenteredIn("OVLÁDACIE CENTRUM", CW_X, CW_W, CW_Y + 10, C_WHITE, 1);
+  const char* ccTitle = (Lang_Get() == LANG_EN) ? "CONTROL CENTER" : ((Lang_Get() == LANG_CZ) ? "OVLÁDACÍ CENTRUM" : "OVLÁDACIE CENTRUM");
+  UI_TextCenteredIn(ccTitle, CW_X, CW_W, CW_Y + 10, C_WHITE, 1);
 
   // Close button 'X' in top-right
   const int cx = CW_X + CW_W - 20, cy = CW_Y + 16;
@@ -439,10 +440,11 @@ void QuickControl_Draw(int currentScreen) {
 
   // --- Row 2: Night Mode & Full Settings ---
   const int y2 = CW_Y + 74;
-  const char* nLabel = Settings_NightAuto() ? "Noc: AUTO"
-                     : (Settings_IsNight() ? "Noc: ZAP" : "Noc: VYP");
+  const char* nLabel = Settings_NightAuto() ? ((Lang_Get() == LANG_EN) ? "Night: AUTO" : "Noc: AUTO")
+                     : (Settings_IsNight() ? ((Lang_Get() == LANG_EN) ? "Night: ON" : "Noc: ZAP") : ((Lang_Get() == LANG_EN) ? "Night: OFF" : "Noc: VYP"));
   drawButton(CW_X + 16, y2, 158, 32, nLabel, Settings_IsNight(), 0x3BDF);
-  drawButton(CW_X + 186, y2, 158, 32, "Všetky nastavenia", false);
+  const char* allSettings = (Lang_Get() == LANG_EN) ? "All Settings" : ((Lang_Get() == LANG_CZ) ? "Vsechna nastaveni" : "Všetky nastavenia");
+  drawButton(CW_X + 186, y2, 158, 32, allSettings, false);
 
   // Divider
   gfx->drawFastHLine(CW_X + 16, CW_Y + 114, CW_W - 32, 0x31A6);
@@ -452,44 +454,64 @@ void QuickControl_Draw(int currentScreen) {
   const int y4 = CW_Y + 160;
 
   if (currentScreen == SCREEN_PLANES_I) {
-    drawButton(CW_X + 16,  y3, 158, 34, Settings_RadarShowAirports() ? "Letiská: ZAP" : "Letiská: VYP", Settings_RadarShowAirports());
-    drawButton(CW_X + 186, y3, 158, 34, Settings_RadarShowRings()    ? "Okruhy: ZAP"  : "Okruhy: VYP",  Settings_RadarShowRings());
-    drawButton(CW_X + 16,  y4, 158, 34, Settings_ShowLegends()       ? "Popisy: ZAP"  : "Popisy: VYP",  Settings_ShowLegends());
-    drawButton(CW_X + 186, y4, 158, 34, Settings_RadarShowCompass()   ? "Kompas: ZAP"  : "Kompas: VYP",  Settings_RadarShowCompass());
+    const char* airOn = (Lang_Get() == LANG_EN) ? "Airports: ON" : "Letiská: ZAP";
+    const char* airOff = (Lang_Get() == LANG_EN) ? "Airports: OFF" : "Letiská: VYP";
+    const char* ringOn = (Lang_Get() == LANG_EN) ? "Rings: ON" : "Okruhy: ZAP";
+    const char* ringOff = (Lang_Get() == LANG_EN) ? "Rings: OFF" : "Okruhy: VYP";
+    const char* legOn = (Lang_Get() == LANG_EN) ? "Labels: ON" : "Popisy: ZAP";
+    const char* legOff = (Lang_Get() == LANG_EN) ? "Labels: OFF" : "Popisy: VYP";
+    const char* compOn = (Lang_Get() == LANG_EN) ? "Compass: ON" : "Kompas: ZAP";
+    const char* compOff = (Lang_Get() == LANG_EN) ? "Compass: OFF" : "Kompas: VYP";
+    drawButton(CW_X + 16,  y3, 158, 34, Settings_RadarShowAirports() ? airOn : airOff, Settings_RadarShowAirports());
+    drawButton(CW_X + 186, y3, 158, 34, Settings_RadarShowRings()    ? ringOn : ringOff,  Settings_RadarShowRings());
+    drawButton(CW_X + 16,  y4, 158, 34, Settings_ShowLegends()       ? legOn : legOff,  Settings_ShowLegends());
+    drawButton(CW_X + 186, y4, 158, 34, Settings_RadarShowCompass()  ? compOn : compOff,  Settings_RadarShowCompass());
   } else if (currentScreen == SCREEN_TACTICAL_I) {
-    drawButton(CW_X + 16,  y3, 158, 34, Settings_RadarShowTrails()   ? "Trasy: ZAP"   : "Trasy: VYP",   Settings_RadarShowTrails());
-    const char* tSrc = (Settings_RadarSource() == RADAR_SRC_SHMU) ? "Zdroj: SHMU" :
-                       (Settings_RadarSource() == RADAR_SRC_RAINVIEWER) ? "Zdroj: RainViewer" : "Zdroj: CHMU";
+    const char* trOn = (Lang_Get() == LANG_EN) ? "Trails: ON" : "Trasy: ZAP";
+    const char* trOff = (Lang_Get() == LANG_EN) ? "Trails: OFF" : "Trasy: VYP";
+    drawButton(CW_X + 16,  y3, 158, 34, Settings_RadarShowTrails()   ? trOn : trOff,   Settings_RadarShowTrails());
+    const char* tSrc = (Settings_RadarSource() == RADAR_SRC_SHMU) ? ((Lang_Get() == LANG_EN) ? "Source: SHMU" : "Zdroj: SHMU") :
+                       (Settings_RadarSource() == RADAR_SRC_RAINVIEWER) ? ((Lang_Get() == LANG_EN) ? "Source: RainViewer" : "Zdroj: RainViewer") : ((Lang_Get() == LANG_EN) ? "Source: CHMU" : "Zdroj: CHMU");
     drawButton(CW_X + 186, y3, 158, 34, tSrc, false);
-    const char* smLabel = Settings_SmoothRadar() ? "Vyhladenie: ZAP" : "Vyhladenie: VYP";
+    const char* smLabel = Settings_SmoothRadar() ? ((Lang_Get() == LANG_EN) ? "Smooth: ON" : "Vyhladenie: ZAP") : ((Lang_Get() == LANG_EN) ? "Smooth: OFF" : "Vyhladenie: VYP");
     drawButton(CW_X + 16,  y4, 158, 34, smLabel, Settings_SmoothRadar(), 0x07E0);
-    drawButton(CW_X + 186, y4, 158, 34, Settings_RadarShowAirports() ? "Letiská: ZAP" : "Letiská: VYP", Settings_RadarShowAirports());
+    const char* airOn = (Lang_Get() == LANG_EN) ? "Airports: ON" : "Letiská: ZAP";
+    const char* airOff = (Lang_Get() == LANG_EN) ? "Airports: OFF" : "Letiská: VYP";
+    drawButton(CW_X + 186, y4, 158, 34, Settings_RadarShowAirports() ? airOn : airOff, Settings_RadarShowAirports());
   } else if (currentScreen == SCREEN_METEO_I) {
-    const char* mSrc = (Settings_RadarSource() == RADAR_SRC_SHMU) ? "Zdroj: SHMU" :
-                       (Settings_RadarSource() == RADAR_SRC_RAINVIEWER) ? "Zdroj: RainViewer" : "Zdroj: CHMU";
+    const char* mSrc = (Settings_RadarSource() == RADAR_SRC_SHMU) ? ((Lang_Get() == LANG_EN) ? "Source: SHMU" : "Zdroj: SHMU") :
+                       (Settings_RadarSource() == RADAR_SRC_RAINVIEWER) ? ((Lang_Get() == LANG_EN) ? "Source: RainViewer" : "Zdroj: RainViewer") : ((Lang_Get() == LANG_EN) ? "Source: CHMU" : "Zdroj: CHMU");
     drawButton(CW_X + 16,  y3, 158, 34, mSrc, false);
-    const char* smLabel = Settings_SmoothRadar() ? "Vyhladenie: ZAP" : "Vyhladenie: VYP";
+    const char* smLabel = Settings_SmoothRadar() ? ((Lang_Get() == LANG_EN) ? "Smooth: ON" : "Vyhladenie: ZAP") : ((Lang_Get() == LANG_EN) ? "Smooth: OFF" : "Vyhladenie: VYP");
     drawButton(CW_X + 186, y3, 158, 34, smLabel, Settings_SmoothRadar(), 0x07E0);
-    drawButton(CW_X + 16,  y4, CW_W - 32, 34, "Prepnúť radarový zdroj", true, 0x07E0);
+    const char* swSrc = (Lang_Get() == LANG_EN) ? "Switch Radar Source" : ((Lang_Get() == LANG_CZ) ? "Prepnout radarovy zdroj" : "Prepnúť radarový zdroj");
+    drawButton(CW_X + 16,  y4, CW_W - 32, 34, swSrc, true, 0x07E0);
   } else if (currentScreen == SCREEN_CLOCK_I) {
-    const char* cStyle = "Ciferník: Digitálny";
+    const char* cStyle = (Lang_Get() == LANG_EN) ? "Clock: Digital" : "Ciferník: Digitálny";
     switch (Settings_ClockStyle()) {
-      case 0: cStyle = "Ciferník: Digitálny"; break;
-      case 1: cStyle = "Ciferník: Analógový"; break;
-      case 2: cStyle = "Ciferník: Orbitálny"; break;
-      case 3: cStyle = "Ciferník: Regulátor"; break;
-      case 4: cStyle = "Ciferník: Vrstvený";  break;
-      case 5: cStyle = "Ciferník: Minimálny"; break;
+      case 0: cStyle = (Lang_Get() == LANG_EN) ? "Clock: Digital" : "Ciferník: Digitálny"; break;
+      case 1: cStyle = (Lang_Get() == LANG_EN) ? "Clock: Modern Analog" : "Ciferník: Moderný Analógový"; break;
+      case 2: cStyle = (Lang_Get() == LANG_EN) ? "Clock: Modern Digital" : "Ciferník: Moderný Digitálny"; break;
+      case 3: cStyle = (Lang_Get() == LANG_EN) ? "Clock: Retro LCD" : "Ciferník: Retro LCD"; break;
     }
     drawButton(CW_X + 16,  y3, CW_W - 32, 34, cStyle, false);
-    drawButton(CW_X + 16,  y4, CW_W - 32, 34, Settings_ClockShowAstro() ? "Solárny oblúk: ZAP" : "Solárny oblúk: VYP", Settings_ClockShowAstro());
+    
+    const char* sArc = (Lang_Get() == LANG_EN) ? 
+        (Settings_ClockShowAstro() ? "Solar Arc: ON" : "Solar Arc: OFF") :
+        (Settings_ClockShowAstro() ? "Solárny oblúk: ZAP" : "Solárny oblúk: VYP");
+    drawButton(CW_X + 16,  y4, CW_W - 32, 34, sArc, Settings_ClockShowAstro());
   } else if (currentScreen == SCREEN_FORECAST_I) {
-    drawButton(CW_X + 16,  y3, CW_W - 32, 34, Settings_MetricUnits() ? "Jednotky: Metrické" : "Jednotky: Letecké", false);
-    drawButton(CW_X + 16,  y4, CW_W - 32, 34, "Aktualizovať predpoveď", true, 0x07E0);
+    const char* uMet = (Lang_Get() == LANG_EN) ? "Units: Metric" : "Jednotky: Metrické";
+    const char* uAv = (Lang_Get() == LANG_EN) ? "Units: Aviation" : "Jednotky: Letecké";
+    drawButton(CW_X + 16,  y3, CW_W - 32, 34, Settings_MetricUnits() ? uMet : uAv, false);
+    const char* upd = (Lang_Get() == LANG_EN) ? "Update Forecast" : ((Lang_Get() == LANG_CZ) ? "Aktualizovat predpoved" : "Aktualizovať predpoveď");
+    drawButton(CW_X + 16,  y4, CW_W - 32, 34, upd, true, 0x07E0);
   } else if (currentScreen == SCREEN_ISS_I) {
-    const char* aLbl = Settings_IssAlert() ? "Výstraha preletu: ZAP" : "Výstraha preletu: VYP";
-    drawButton(CW_X + 16,  y3, CW_W - 32, 34, aLbl, Settings_IssAlert(), 0x07E0);
-    drawButton(CW_X + 16,  y4, CW_W - 32, 34, "Aktualizovať polohu ISS", true, 0x07E0);
+    const char* aLblOn = (Lang_Get() == LANG_EN) ? "Flyover Alert: ON" : "Výstraha preletu: ZAP";
+    const char* aLblOff = (Lang_Get() == LANG_EN) ? "Flyover Alert: OFF" : "Výstraha preletu: VYP";
+    drawButton(CW_X + 16,  y3, CW_W - 32, 34, Settings_IssAlert() ? aLblOn : aLblOff, Settings_IssAlert(), 0x07E0);
+    const char* updIss = (Lang_Get() == LANG_EN) ? "Update ISS Location" : ((Lang_Get() == LANG_CZ) ? "Aktualizovat polohu ISS" : "Aktualizovať polohu ISS");
+    drawButton(CW_X + 16,  y4, CW_W - 32, 34, updIss, true, 0x07E0);
   } else if (currentScreen == SCREEN_FINANCE_I) {
     char slots[4][16];
     getFinanceSlotTickers(slots);
@@ -511,7 +533,8 @@ void QuickControl_Draw(int currentScreen) {
   }
 
   // Bottom pull-up hint
-  UI_TextCenteredIn("^ potiahnutím hore zatvoríte ^", CW_X, CW_W, CW_Y + CW_H - 20, C_GRAY, 1);
+  const char* hint = (Lang_Get() == LANG_EN) ? "^ swipe up to close ^" : ((Lang_Get() == LANG_CZ) ? "^ potazenim nahoru zavrete ^" : "^ potiahnutím hore zatvoríte ^");
+  UI_TextCenteredIn(hint, CW_X, CW_W, CW_Y + CW_H - 20, C_GRAY, 1);
 }
 
 static void switchRadarSource() {
@@ -659,7 +682,7 @@ bool QuickControl_HandleTap(int x, int y, int currentScreen) {
     }
   } else if (currentScreen == SCREEN_CLOCK_I) {
     if (y >= y3 && y <= y3 + 34) {
-      uint8_t nextSt = (Settings_ClockStyle() + 1) % 7;
+      uint8_t nextSt = (Settings_ClockStyle() + 1) % (CLOCK_STYLE_MAX + 1);
       Settings_SetClockStyle(nextSt);
       return true;
     }

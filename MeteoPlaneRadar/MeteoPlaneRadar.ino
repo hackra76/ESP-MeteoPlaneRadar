@@ -441,7 +441,12 @@ static bool activeTick() {
 
 static void activeChangeRange(int dir) {
   switch (s_screen) {
-    case SCREEN_CLOCK_I:    ScreenClock_ChangeStyle(dir);    break;
+    case SCREEN_CLOCK_I:
+      if (dir < 0 && Settings_PetEnabled() && !PetDrawer_IsOpen()) {
+        PetDrawer_Open();
+        drawActive();
+      }
+      break;
     case SCREEN_PLANES_I:   ScreenPlanes_ChangeRange(dir);   break;
     case SCREEN_METEO_I:    ScreenWeather_ChangeRange(dir);  break;
     case SCREEN_TACTICAL_I: ScreenTactical_ChangeRange(dir); break;
@@ -835,8 +840,6 @@ void loop() {
       s_apOwnsScreen = true;
       WiFi_DrawApScreen();
     }
-    WiFi_Loop();                         // may accept credentials and leave AP mode
-    WebConfig_Loop();
     if (WebConfig_WantsRestart()) {
       Serial.println("Settings changed, restarting...");
       Serial.flush();

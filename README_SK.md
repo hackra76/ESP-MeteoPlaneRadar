@@ -53,14 +53,8 @@ Vyvinuté špeciálne pre vývojovú dosku **Waveshare ESP32-S3-Touch-LCD-2.1** 
 
 ## 🌟 Implementované funkcie
 
-### 🕒 1. Kolekcia 6 unikátnych ciferníkov hodín
-Okrúhly 480×480 displej ponúka **6 odlišných geometrických štýlov ciferníka** s plynulým prepínaním zvislým potiahnutím prsta (Swipe Hore / Dole):
-1. **Vertikálna typografia (Stacked Bold)** – moderný smartwatch dizajn (Pixel / Nothing štýl) s obrovským dvojčíslom hodín `HH` a minút `MM` doplneným zaoblenými kapsulami pre počasie, mesiac, dátum a vietor.
-2. **Letecký kokpitový analóg (Aviator Cockpit)** – autentické pilotné hodinky s luminiscenčnými ručičkami, hodinovými indexmi a dvoma sub-ciferníkmi (počasie na 9. hodine, fáza mesiaca na 3. hodine).
-3. **🚀 Planetárne prstence (Orbital Gauges)** – sci-fi dizajn tvorený tromi sústrednými kruhovými oblúkmi (minúty, hodiny, sekundy) so svetelnými perlami a centrálnym telemetrickým jadrom.
-4. **⏱️ Astronomický regulátor (Régulateur Chrono)** – mechanický chronometer s oddelenými osami: hlavná minútová ručička, horný sub-ciferník hodín (na 12:00) a spodný sub-ciferník sekúnd (na 6:00).
-5. **Nordic minimalistický (Minimal)** – masívny, vysoko kontrastný čas výborne čitateľný aj z veľkej vzdialenosti.
-6. **Digitálny klasický (Classic Digital)** – čistý horizontálny čas `HH:MM`, dátum, počasie, 3-hodinová minipredpoveď, vietor a fáza mesiaca.
+### 🕒 1. Digitálny klasický ciferník
+Okrúhly 480×480 displej ponúka **Digitálny klasický (Classic Digital)** štýl – čistý horizontálny čas `HH:MM`, dátum, počasie, 3-hodinová minipredpoveď, vietor a fáza mesiaca.
 
 - **Solárny oblúk so slnečnými lúčmi (Solar Arc):** Realistický 24-hodinový astronomický oblúk dráhy slnka so zlatým lúčovým symbolom žiariaceho slnka, nočnou modrou fázou a presnými míľnikmi východu a západu slnka.
 
