@@ -13,6 +13,8 @@ Designed specifically for the **Waveshare ESP32-S3-Touch-LCD-2.1** development b
 > 🇸🇰 Slovenská dokumentácia: **[README_SK.md](README_SK.md)**  
 > 📌 Forked and significantly enhanced from the original project **[petus/MeteoPlaneRadar](https://github.com/petus/MeteoPlaneRadar)**.
 
+<a href="https://buymeacoffee.com/hackra" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
+
 ---
 
 ## 📸 Live Device Demo
