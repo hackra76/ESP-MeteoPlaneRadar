@@ -55,6 +55,8 @@ struct TrackedPlaneDisplay {
 static TrackedPlaneDisplay s_skyPlane;
 
 static CatAnimState  s_catState = CAT_STATE_IDLE;
+static uint8_t       s_sleepVariant     = 0;   // 0-4: which sleep style (rolled at sleep entry)
+static bool          s_sleepFacingRight = true; // left/right locked for the whole sleep session
 static float         s_catX = 240.0f;
 static float         s_catY = 282.0f;
 static float         s_catTargetX = 240.0f;
@@ -212,6 +214,9 @@ void PetDrawer_Open() {
     s_catState = CAT_STATE_SLEEPING;
     s_animFrame = 0;
     s_nextFrameMs = now + 400;
+    // Roll sleep variant once — stays locked until the cat wakes up
+    s_sleepVariant     = (uint8_t)(rand() % 5);   // 0 = style 1 … 4 = style 5
+    s_sleepFacingRight = (rand() % 2 == 0);        // left or right
   } else {
     // Coming from the sides animation! Random left or right entrance
     bool enterFromLeft = (rand() % 2 == 0);
@@ -1558,7 +1563,8 @@ void PetDrawer_Draw() {
         break;
 
       case CAT_STATE_STRETCH:
-        hiResFrame = cat_going_to_sleep[s_animFrame % HIRES_CAT_GOING_TO_SLEEP_FRAMES];
+        // Going-to-sleep removed; yawn is the best available pre-sleep pose
+        hiResFrame = cat_yawn[s_animFrame % HIRES_CAT_YAWN_FRAMES];
         break;
 
       case CAT_STATE_PATROL:
@@ -1570,13 +1576,25 @@ void PetDrawer_Draw() {
         hiResFrame = cat_run[s_animFrame % HIRES_CAT_RUN_FRAMES];
         break;
 
-      case CAT_STATE_SLEEPING:
-        // Transition into sleep, then loop the breathing animation
-        if (s_animFrame < HIRES_CAT_GOING_TO_SLEEP_FRAMES)
-          hiResFrame = cat_going_to_sleep[s_animFrame];
-        else
-          hiResFrame = cat_sleep[(s_animFrame - HIRES_CAT_GOING_TO_SLEEP_FRAMES) % HIRES_CAT_SLEEP_FRAMES];
+      case CAT_STATE_SLEEPING: {
+        // Variant and orientation locked at sleep entry – never mix rows within one session.
+        // Orientation baked into the sprite: force flipX=false, sprite already faces correct way.
+        s_catFlipX = false;
+        uint8_t fi = s_animFrame % 8;  // all sleep rows interpolated to 8 frames
+        switch (s_sleepVariant * 2 + (s_sleepFacingRight ? 1 : 0)) {
+          case 0:  hiResFrame = cat_sleep_1_left [fi]; break;
+          case 1:  hiResFrame = cat_sleep_1_right[fi]; break;
+          case 2:  hiResFrame = cat_sleep_2_left [fi]; break;
+          case 3:  hiResFrame = cat_sleep_2_right[fi]; break;
+          case 4:  hiResFrame = cat_sleep_3_left [fi]; break;
+          case 5:  hiResFrame = cat_sleep_3_right[fi]; break;
+          case 6:  hiResFrame = cat_sleep_4_left [fi]; break;
+          case 7:  hiResFrame = cat_sleep_4_right[fi]; break;
+          case 8:  hiResFrame = cat_sleep_5_left [fi]; break;
+          default: hiResFrame = cat_sleep_5_right[fi]; break;
+        }
         break;
+      }
 
       case CAT_STATE_EATING:
         hiResFrame = cat_eat[s_animFrame % HIRES_CAT_EAT_FRAMES];

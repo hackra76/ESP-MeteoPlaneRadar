@@ -37,9 +37,18 @@ ANIMATIONS = [
     # ── Locomotion ──────────────────────────────────────────────────────
     ("cat_walk",              6, 12,  True, "Walk right – patrol / leaving"),
     ("cat_run",              11,  8, False, "Running right – entering fast"),
-    # ── Sleep cycle ─────────────────────────────────────────────────────
-    ("cat_going_to_sleep",    7,  8, False, "Going to sleep – transition / stretch"),
-    ("cat_sleep",            46, 10,  True, "Sleep 1 right front – sleep loop"),
+    # ── Sleep variants (5 styles × left/right) ──────────────────────────
+    # Each pair: left = flipX=true, right = flipX=false
+    ("cat_sleep_1_left",     45,  8,  True, "Sleep 1 left front – breathing loop"),
+    ("cat_sleep_1_right",    46,  8,  True, "Sleep 1 right front – breathing loop"),
+    ("cat_sleep_2_left",     49,  8,  True, "Sleep 2 left front – breathing loop"),
+    ("cat_sleep_2_right",    50,  8,  True, "Sleep 2 right front – breathing loop"),
+    ("cat_sleep_3_left",     51,  8,  True, "Sleep 3 left front – breathing loop"),
+    ("cat_sleep_3_right",    52,  8,  True, "Sleep 3 right front – breathing loop"),
+    ("cat_sleep_4_left",     53,  8,  True, "Sleep 4 left front – breathing loop"),
+    ("cat_sleep_4_right",    54,  8,  True, "Sleep 4 right front – breathing loop"),
+    ("cat_sleep_5_left",     55,  8,  True, "Sleep 5 left front – breathing loop"),
+    ("cat_sleep_5_right",    56,  8,  True, "Sleep 5 right front – breathing loop"),
     # ── Action states ───────────────────────────────────────────────────
     ("cat_eat",              60,  8, False, "Eat food stand right – eating"),
     ("cat_swat",             36,  8, False, "Right paw swipe stand right – swat at plane"),

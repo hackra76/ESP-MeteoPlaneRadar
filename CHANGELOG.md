@@ -9,7 +9,19 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [2.0.8] - 2026-09-22
+
+### Pridané / Added
+- **5 variantov spánkového pózya (Sleep Pose Variants):**
+  - Pri každom zaspaní DigiCat si náhodne vyroluje jeden z 5 dostupných štýlov spánku (Rows 45–56) a smer ležania (vľavo / vpravo).
+  - Raz vybraný variant + smer zostane nemenný počas celej noci – žiadne prepínanie pózy alebo otáčanie strán.
+  - Pri ďalšom zaspaní (napr. po ďalšej noci) sa nový variant vyroluje znova.
+  - Dostupné štýly: `sleep 1` až `sleep 5` (každý v ľavom a pravom prevedení – celkovo 10 samostatných animačných sád).
+- **Odstrânenie prechodovej animácie `cat_going_to_sleep` (Row 7):** Zvieratko sa okamžite uloží do vybranej spánkovej pózy bez prechodovej animácie.
+- **Stav STRETCH** teraz používa `cat_yawn` (Row 44) ako najvhodnejšiu náhradu.
+
 ## [2.0.7] - 2026-09-22
+
 
 ### Pridané / Added
 - **Hi-Res Ginger Cat Sprite Overhaul (64×64 RGB565 PROGMEM):**
