@@ -13,7 +13,8 @@
 #include "QMI8658.h"
 #include "Forecast.h"
 #include "PrecipTracker.h"
-#include "CatSprites.h"
+#include "AirplaneSprite.h"
+#include "CatSpritesHiRes.h"
 #include <math.h>
 
 static bool s_isOpen = false;
@@ -110,45 +111,36 @@ static const char* getThoughtText() {
   return PetBrain_GetThought();
 }
 
-// -----------------------------------------------------------------------------
-// Fast Scaled (2x) Palette Blitter with Run-Length Span Acceleration
-// -----------------------------------------------------------------------------
-static void drawCatSprite2x(const uint8_t* frame, int topLeftX, int topLeftY, bool flipX) {
+// (Old palette blitter removed – all cat states now use drawCatSpriteHiRes2x)
+
+static void drawCatSpriteHiRes2x(const uint16_t* frame, int topLeftX, int topLeftY, bool flipX) {
   if (!frame) return;
 
-  for (int py = 0; py < CAT_SPRITE_H; py++) {
-    int screenY = topLeftY + py * 2;
-    if (screenY + 1 < 0 || screenY >= LCD_HEIGHT) continue;
+  for (int py = 0; py < 64; py++) {
+    int screenY = topLeftY + py * 3;
+    if (screenY + 2 < 0 || screenY >= LCD_HEIGHT) continue;
 
-    const uint8_t* row = frame + py * CAT_SPRITE_W;
+    const uint16_t* row = frame + py * 64;
     int px = 0;
-    while (px < CAT_SPRITE_W) {
-      uint8_t c = row[px];
-      if (c == 0 || c >= 16) {
+    while (px < 64) {
+      uint16_t c = row[px];
+      if (c == 0x0000) {
         px++;
-        continue; // Transparent pixel
+        continue; // Transparent
       }
 
       int startPx = px;
-      while (px < CAT_SPRITE_W && row[px] == c) {
+      while (px < 64 && row[px] == c) {
         px++;
       }
       int runLen = px - startPx;
-      uint16_t color = CAT_PALETTE[c];
-      int startX = flipX ? (topLeftX + (CAT_SPRITE_W - px) * 2) : (topLeftX + startPx * 2);
-      int w = runLen * 2;
+      int startX = flipX ? (topLeftX + (64 - px) * 3) : (topLeftX + startPx * 3);
+      int w = runLen * 3;
 
-      // Screen clipping
-      if (startX < 0) {
-        w += startX;
-        startX = 0;
-      }
-      if (startX + w > LCD_WIDTH) {
-        w = LCD_WIDTH - startX;
-      }
-
+      if (startX < 0) { w += startX; startX = 0; }
+      if (startX + w > LCD_WIDTH) { w = LCD_WIDTH - startX; }
       if (w > 0) {
-        gfx->fillRect(startX, screenY, w, 2, color);
+        gfx->fillRect(startX, screenY, w, 3, c);
       }
     }
   }
@@ -1500,49 +1492,10 @@ void PetDrawer_Draw() {
       }
     }
 
-    const uint8_t* frameToDraw = nullptr;
-    if (s_catState == CAT_STATE_ENTERING || s_catState == CAT_STATE_PATROL || s_catState == CAT_STATE_LEAVING) {
-      frameToDraw = CAT_WALK_FRAMES[s_animFrame % 8];
-    } else if (s_catState == CAT_STATE_JUMP) {
-      frameToDraw = CAT_JUMP_FRAMES[s_animFrame % 8];
-    } else if (s_catState == CAT_STATE_GROOM) {
-      frameToDraw = CAT_GROOM_FRAMES[s_animFrame % 8];
-    } else if (s_catState == CAT_STATE_STRETCH) {
-      frameToDraw = CAT_STRETCH_FRAMES[s_animFrame % 6];
-    } else if (s_catState == CAT_STATE_EATING) {
-      frameToDraw = CAT_EAT_FRAMES[s_animFrame % 8];
-    } else if (s_catState == CAT_STATE_HAPPY) {
-      frameToDraw = CAT_HAPPY_FRAMES[s_animFrame % 8];
-    } else if (s_catState == CAT_STATE_SLEEPING) {
-      frameToDraw = CAT_SLEEP_FRAMES[s_animFrame % 8];
-    } else if (s_catState == CAT_STATE_WATCH_PLANE) {
-      frameToDraw = CAT_WATCH_FRAMES[s_animFrame % 4];
-    } else if (s_catState == CAT_STATE_SWAT) {
-      frameToDraw = CAT_SWAT_FRAMES[s_animFrame % 8];
-    } else if (s_catState == CAT_STATE_SLIDE) {
-      frameToDraw = CAT_HAPPY_FRAMES[(now / 110) % 8];
-    } else if (s_catState == CAT_STATE_TUMBLE) {
-      static const uint8_t* const s_tumbleFrames[4] = {
-        CAT_JUMP_FRAMES[1],
-        CAT_SLEEP_FRAMES[0],
-        CAT_STRETCH_FRAMES[2],
-        CAT_JUMP_FRAMES[6]
-      };
-      frameToDraw = s_tumbleFrames[(now / 70) % 4];
-    } else if (s_catState == CAT_STATE_CLING) {
-      frameToDraw = CAT_SWAT_FRAMES[4];
-    } else {
-      frameToDraw = CAT_IDLE_FRAMES[s_animFrame % 8];
-    }
-
-    if (!frameToDraw) {
-      frameToDraw = CAT_IDLE_FRAMES[0];
-    }
-
-    int catDrawX = (int)(s_catX + s_imuTiltX * 0.5f + s_petLeanX) - 64;
+    int catDrawX = (int)(s_catX + s_imuTiltX * 0.5f + s_petLeanX) - 96;
     int catDrawY = (int)(s_catY + s_imuTiltY * 0.5f) - 64;
 
-    // Jump vertical curve & walk bob
+    // Per-state Y offset & flip adjustments
     if (s_catState == CAT_STATE_JUMP) {
       static const int8_t s_jumpY[8] = { 4, 6, -14, -26, -32, -20, -2, 4 };
       catDrawY += s_jumpY[s_animFrame % 8];
@@ -1565,8 +1518,101 @@ void PetDrawer_Draw() {
     // Ground cast shadow directly under DigiCat's paws
     drawCatCastShadow((int)s_catX, s_catState, s_animFrame);
 
-    // Render DigiCat 2x scaled sprite
-    drawCatSprite2x(frameToDraw, catDrawX, catDrawY, s_catFlipX);
+    // ------------------------------------------------------------------
+    // Hi-res sprite routing (64x64 RGB565, all states covered).
+    // All sprite cells have 16 transparent rows at the bottom, so paws
+    // land on the runway with a +32px offset at 2x scale.
+    // ------------------------------------------------------------------
+    static uint8_t       s_idleSubAnim  = 0;   // 0=loaf, 1=lick, 2=meow, 3=scratch
+    static unsigned long s_nextIdleSubMs = 0;
+
+    const uint16_t* hiResFrame = nullptr;
+
+    switch (s_catState) {
+      case CAT_STATE_IDLE:
+        // Rotate idle personality sub-animations every 4-10 seconds
+        if (millis() > s_nextIdleSubMs) {
+          uint8_t roll = (uint8_t)(millis() & 0xFF);
+          if      (roll < 160) s_idleSubAnim = 0;  // 63% loaf sit
+          else if (roll < 210) s_idleSubAnim = 1;  // 20% lick paw
+          else if (roll < 235) s_idleSubAnim = 2;  // 10% meow
+          else                 s_idleSubAnim = 3;  //  7% scratch ear
+          s_nextIdleSubMs = millis() + 4000 + (millis() % 6000);
+        }
+        if      (s_idleSubAnim == 1) hiResFrame = cat_idle_lick   [s_animFrame % HIRES_CAT_IDLE_LICK_FRAMES];
+        else if (s_idleSubAnim == 2) hiResFrame = cat_idle_meow   [s_animFrame % HIRES_CAT_IDLE_MEOW_FRAMES];
+        else if (s_idleSubAnim == 3) hiResFrame = cat_idle_scratch [s_animFrame % HIRES_CAT_IDLE_SCRATCH_FRAMES];
+        else                         hiResFrame = cat_idle         [s_animFrame % HIRES_CAT_IDLE_FRAMES];
+        break;
+
+      case CAT_STATE_HAPPY:
+        hiResFrame = cat_happy[s_animFrame % HIRES_CAT_HAPPY_FRAMES];
+        break;
+
+      case CAT_STATE_WATCH_PLANE:
+        hiResFrame = cat_watch_plane[s_animFrame % HIRES_CAT_WATCH_PLANE_FRAMES];
+        break;
+
+      case CAT_STATE_GROOM:
+        hiResFrame = cat_idle_lick[s_animFrame % HIRES_CAT_IDLE_LICK_FRAMES];
+        break;
+
+      case CAT_STATE_STRETCH:
+        hiResFrame = cat_going_to_sleep[s_animFrame % HIRES_CAT_GOING_TO_SLEEP_FRAMES];
+        break;
+
+      case CAT_STATE_PATROL:
+      case CAT_STATE_LEAVING:
+        hiResFrame = cat_walk[s_animFrame % HIRES_CAT_WALK_FRAMES];
+        break;
+
+      case CAT_STATE_ENTERING:
+        hiResFrame = cat_run[s_animFrame % HIRES_CAT_RUN_FRAMES];
+        break;
+
+      case CAT_STATE_SLEEPING:
+        // Transition into sleep, then loop the breathing animation
+        if (s_animFrame < HIRES_CAT_GOING_TO_SLEEP_FRAMES)
+          hiResFrame = cat_going_to_sleep[s_animFrame];
+        else
+          hiResFrame = cat_sleep[(s_animFrame - HIRES_CAT_GOING_TO_SLEEP_FRAMES) % HIRES_CAT_SLEEP_FRAMES];
+        break;
+
+      case CAT_STATE_EATING:
+        hiResFrame = cat_eat[s_animFrame % HIRES_CAT_EAT_FRAMES];
+        break;
+
+      case CAT_STATE_SWAT:
+        hiResFrame = cat_swat[s_animFrame % HIRES_CAT_SWAT_FRAMES];
+        break;
+
+      case CAT_STATE_JUMP:
+        hiResFrame = cat_jump[s_animFrame % HIRES_CAT_JUMP_FRAMES];
+        break;
+
+      case CAT_STATE_CLING:
+        hiResFrame = cat_cling[s_animFrame % HIRES_CAT_CLING_FRAMES];
+        break;
+
+      case CAT_STATE_SLIDE:
+        hiResFrame = cat_slide[(now / 120) % HIRES_CAT_SLIDE_FRAMES];
+        break;
+
+      case CAT_STATE_TUMBLE:
+        // Rapid cycling of jump frames simulates chaotic tumble
+        hiResFrame = cat_jump[(now / 70) % HIRES_CAT_JUMP_FRAMES];
+        break;
+
+      default:
+        hiResFrame = cat_idle[s_animFrame % HIRES_CAT_IDLE_FRAMES];
+        break;
+    }
+
+    // Render DigiCat – at 3x scale, paws are at sprite row 47 → 47×3=141px from top.
+    // catDrawY baseline = s_catY-64. Runway at s_catY+62. Net offset: 344-(282-64)-141 = -15.
+    if (hiResFrame) {
+      drawCatSpriteHiRes2x(hiResFrame, catDrawX, catDrawY - 15, s_catFlipX);
+    }
 
     // Dynamic particles & effects for tilt physics
     if (s_catState == CAT_STATE_SLIDE) {
@@ -1577,8 +1623,8 @@ void PetDrawer_Draw() {
       drawClingEffects((int)s_catX, 340, s_clingLeft);
     }
 
-    // Weather-adaptive accessories (Umbrella in rain, Scarf in snow/cold, Aviator goggles in clear sky)
-    drawCatWeatherAccessories(catDrawX, catDrawY, s_catFlipX, s_catState, curWeather);
+    // Weather-adaptive accessories (Umbrella/Scarf/Goggles)
+    drawCatWeatherAccessories(catDrawX, catDrawY + 26, s_catFlipX, s_catState, curWeather);
   }
 
   // 7. Floating Hearts when Happy or Petted

@@ -9,7 +9,43 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [2.0.7] - 2026-09-22
+
+### Pridané / Added
+- **Hi-Res Ginger Cat Sprite Overhaul (64×64 RGB565 PROGMEM):**
+  - Všetky 16 stavov DigiCata nahradené profesionálnymi 64×64 RGBA sprite animáciami z balíčku `PACK/cat 2 (64×64).png` (ginger tabby).
+  - **17 animačných sekvencií / 113 snímok** správne namapovaných podľa `activities.ini`:
+    - `cat_idle` (Row 20): Sedenie s vrtením chvosta – hlavný pokojový stav
+    - `cat_idle_lick` (Row 13): Lízanie labky v sede – podaniácia grooming
+    - `cat_idle_meow` (Row 15): Mňaukanie v sede – podaniácia mňaukanie
+    - `cat_idle_scratch` (Row 18): Škrabanie ucha labkou – pokojová animácia
+    - `cat_yawn` (Row 44): Zívanie v sede – ospalý/pred-spánkový stav
+    - `cat_happy` (Row 20): Vrtenie chvosta v sede – šťastný/hladkaný stav
+    - `cat_watch_plane` (Row 23): Vrtenie chvosta vpravo – sledovanie lietadla
+    - `cat_hiss` (Row 62): Sykanie vpravo – vystrašená/defensívna reakcia
+    - `cat_walk` (Row 6): Chôdza vpravo – hliadka / odchod z obrazovky
+    - `cat_run` (Row 11): Beh vpravo – vstup na obrazovku
+    - `cat_going_to_sleep` (Row 7): Líhanie – prechod do spánku / strečing
+    - `cat_sleep` (Row 46): Spánok stočený vpravo – slučka dýchania
+    - `cat_eat` (Row 60): Jedenie v stoji vpravo – jedenie maškrty
+    - `cat_swat` (Row 36): Mávnutie pravou labkou v stoji – chytanie lietadla
+    - `cat_jump` (Row 65): Skok vpravo – skokový stav
+    - `cat_cling` (Row 66): Na zadných labkách – zachytenie sa o lem displeja
+    - `cat_slide` (Row 29): Vrtenie chvosta v ľahu vpravo – kĺzanie pri náklone
+  - Interpolácia snímok (PIL + NumPy) pre plynulejší pohyb: `cat_walk` 6→12, `cat_happy` 5→10, `cat_sleep` 2→10.
+  - **Pokojové sub-animácie:** DigiCat náhodne strieda sedenie / lízanie / mňaukanie / škrabanie každých 4–10 sekúnd pre výraznú osobnosť.
+  - **Spánkový prechod:** `cat_going_to_sleep` prehrá celú ľahnutú animáciu pred cyklovaním dychového spánku.
+- **Škálovanie na 3× (192×192 px):**
+  - DigiCat je teraz 50 % väčší na obrazovke (192×192 px namiesto 128×128 px).
+  - Renderer (`drawCatSpriteHiRes2x`) prepnutý na pixel scale 3 s presným nastavením Y offsetu pre dokonalé zarovnanie labiek na dráhu.
+- **Odstránenie starých palettových sprite:** Celý `CatSprites.h` (32 starých palettových snímok, 16-farebná paleta) bol vyradený. Sprite lietadla zachovaný v novom `AirplaneSprite.h`.
+- **Nástroj na generovanie sprite:** `tools/gen_cat_sprites.py` – automatické extrahovanie, interpolácia a zápis RGB565 PROGMEM hlavičky.
+
+### Opravené / Fixed
+- **Oprava riadkovania OTA aktualizácie (same-version reflash):** `isNewerVersion` zmenené na `>=` – umožňuje re-flash rovnakej verzie cez OTA.
+
 ## [2.0.5] - 2026-09-20
+
 
 ### Opravené / Fixed
 - **Ochrana proti opotrebeniu NVS Flash pamäte (Flash Wear Prevention):**

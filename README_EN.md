@@ -4,14 +4,14 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20SK%20%7C%20CZ-green.svg)
-![Release](https://img.shields.io/badge/Release-v2.0.5-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v2.0.7-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, ISS orbit tracking, YouTube channel analytics, financial market tickers, and animated pixel-art virtual pet companion on a round 2.1" IPS touchscreen.**  
 Designed specifically for the **Waveshare ESP32-S3-Touch-LCD-2.1** development board with modern smartphone-like touch gestures, a pull-down Control Center, live aircraft photos, bilinear radar smoothing, and a responsive web dashboard for remote control and complete configuration.
 
 > 🇸🇰 Slovenská dokumentácia: **[README_SK.md](README_SK.md)**  
-> 📌 Forked and significantly enhanced from the original project **[petus/MeteoPlaneRadar](https://github.com/petus/MeteoPlaneRadar)**.
+> 🔄 Forked and significantly enhanced from the original project **[petus/MeteoPlaneRadar](https://github.com/petus/MeteoPlaneRadar)**.
 
 *If you enjoy this project or it looks great on your desk, please consider supporting its development! Your coffee helps fund new sensors and features.* ☕  
 <a href="https://buymeacoffee.com/hackra" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
@@ -46,7 +46,7 @@ Designed specifically for the **Waveshare ESP32-S3-Touch-LCD-2.1** development b
 </p>
 
 <p align="center">
-  <em>DigiCat handcrafted 32-frame pixel art: <b>Walk Cycle</b>, <b>Pounce Leap</b>, <b>Face Grooming</b>, <b>Yoga Stretch</b>, <b>Purr & Blush</b>, <b>Fish Snack</b>, <b>Sleeping Loaf</b>.</em>
+  <em>DigiCat hi-res 64×64 ginger cat sprites (113 frames, RGB565 PROGMEM): <b>Tail Wag Idle</b>, <b>Pounce Leap</b>, <b>Lick Paw Groom</b>, <b>Going-to-Sleep Stretch</b>, <b>Happy Tail Wag</b>, <b>Eat Snack</b>, <b>Sleeping Loaf</b>.</em>
 </p>
 
 ---
@@ -154,10 +154,13 @@ The round 480×480 display features a **Classic Digital** style – Clean horizo
 
 ### 🐾 21. Interactive Pixel Art Companion & Autonomous DigiCat
 - Full-screen interactive companion drawer accessible from any screen via **Swipe Up** from the bottom edge or the Quick Control Center paw icon.
-- **Handcrafted 40-Frame Pixel Art Animation Engine**:
-  - Crisp 16-color retro palette (RGB565) scaled 2× (128×128 px) via run-length span blitter (< 0.5 ms render time).
-  - Authentic ginger tabby with "M" forehead pattern, white bib, pink pads, emerald eyes, and swishing tail.
-  - **10 Animation Sequences**: Walk Cycle (4 frames with bidirectional horizontal flipping), Sitting Idle with breathing & blinking (4 frames), Affectionate Purr & blushing (4 frames), Aircraft Tracking (2 frames), Snack Munching (4 frames), Night Sleeping Loaf with Zzz (4 frames), Pounce Leap (4 frames with vertical jump arc), Paw Face Wash Grooming (4 frames), Yoga Stretch (2 frames), and **Paw Swatting & Overhead Scratching** (8 frames).
+- **Professional Hi-Res 64×64 Sprite Animation Engine (v2.0.7+)**:
+  - **113 frames across 17 animation sequences** sourced from the ginger tabby PACK sprite sheet, stored as RGB565 PROGMEM arrays.
+  - Rendered at **3× scale (192×192 px)** via a run-length span blitter for crisp, artifact-free upscaling on the ESP32-S3.
+  - Frame interpolation (PIL + NumPy) used for walk, happy, and sleep cycles to achieve smooth 60 fps-class motion from raw sprite data.
+  - **Direction-Aware Horizontal Flipping (`flipX`):** Real-time mirroring so DigiCat always faces the correct direction without doubling memory footprint.
+  - **Idle Personality Cycling:** Every 4–10 seconds DigiCat randomly switches between tail-wag sitting, licking paw, meowing, or scratching ear for a lively, unpredictable personality.
+  - **17 Distinct Animation States:** Idle (tail wag), Groom (lick paw), Meow, Yawn, Happy (tail wag), Watch Plane (tail wag right), Hiss, Walk, Run, Going-to-Sleep transition, Sleep (curl + breathing), Eat, Swat (paw swipe at plane), Jump, Cling (on hind legs), Slide, and Tumble.
 - **Live Overhead Aircraft Tracking, Swatting & Flight Chasing**:
   - **Overhead Jet Glider:** Real-time $28\times14$ pixel art jet (rendered $2\times$ scale, $56\times28$ px) cruises across the sky band ($Y = 175..205$) whenever nearby aircraft are tracked via ADS-B/radar.
   - **Contrail Vapor Trails & Strobe Beacons:** Dual aerodynamic vapor trails stretch behind the jet with flashing wingtip navigation strobes and a callsign/distance badge (`DLH123 · 8km`).

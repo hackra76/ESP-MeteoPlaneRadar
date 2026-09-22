@@ -106,7 +106,7 @@ static bool isNewerVersion(const char* latest, const char* current) {
 
   if (latMaj > curMaj) return true;
   if (latMaj == curMaj && latMin > curMin) return true;
-  if (latMaj == curMaj && latMin == curMin && latPat > curPat) return true;
+  if (latMaj == curMaj && latMin == curMin && latPat >= curPat) return true;
   return false;
 }
 

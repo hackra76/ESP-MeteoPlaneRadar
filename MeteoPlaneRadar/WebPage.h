@@ -2375,7 +2375,7 @@ async function checkGithubUpdates(userTriggered){
      let otaUrl = "";
      if(gj.assets) {
       for(let a of gj.assets) {
-       if(a.name && (a.name.indexOf("-ota.bin") >= 0 || a.name.indexOf("ota.bin") >= 0)) {
+       if(a.name && (a.name.indexOf("ota.bin") >= 0 || a.name === "firmware.bin")) {
         otaUrl = a.browser_download_url;
         break;
        }
@@ -2385,7 +2385,7 @@ async function checkGithubUpdates(userTriggered){
      const lat = (gj.tag_name || "").replace(/^v/i, "");
      const [c1,c2,c3] = cur.split(".").map(Number);
      const [l1,l2,l3] = lat.split(".").map(Number);
-     const isNewer = (l1>c1) || (l1===c1 && l2>c2) || (l1===c1 && l2===c2 && l3>c3);
+     const isNewer = (l1>c1) || (l1===c1 && l2>c2) || (l1===c1 && l2===c2 && l3>=c3);
      data = {
       current: cur,
       latest: gj.tag_name,

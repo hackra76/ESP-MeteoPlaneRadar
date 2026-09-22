@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-SK%20%7C%20CZ%20%7C%20EN-green.svg)
-![Release](https://img.shields.io/badge/Release-v2.0.5-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v2.0.7-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunkčná meteorologická stanica, živý letecký ADS-B radar, animovaný radar zrážok (SHMÚ, ČHMÚ, RainViewer), kombinovaný taktický radar, sledovanie stanice ISS, analytika YouTube kanála, finančné trhy, dizajnové ciferníky a animovaný pixel art virtuálny spoločník na okrúhlom 2.1" IPS dotykovom displeji.**  
@@ -46,7 +46,7 @@ Vyvinuté špeciálne pre vývojovú dosku **Waveshare ESP32-S3-Touch-LCD-2.1** 
 </p>
 
 <p align="center">
-  <em>Ručne tvorený 32-snímkový pixel art DigiCat: <b>Chôdza</b>, <b>Výskok s oblúkom</b>, <b>Umývanie uška a líčka</b>, <b>Joga strečing</b>, <b>Pradenie a červenanie</b>, <b>Chrumkanie rybičky</b>, <b>Spiaci bochníček</b>.</em>
+  <em>DigiCat hi-res 64×64 ginger cat sprite animácie (113 snímok, RGB565 PROGMEM): <b>Vrtenie chvosta</b>, <b>Výskok</b>, <b>Lízanie labky</b>, <b>Lúhanie / Strečing</b>, <b>Šťastné vrtenie chvosta</b>, <b>Jedenie maškrty</b>, <b>Spiací boch-níček</b>.</em>
 </p>
 
 ---
