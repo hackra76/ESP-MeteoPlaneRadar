@@ -23,39 +23,49 @@ COLS       = 14          # frames per row in the sheet
 # target_frames: desired frame count after interpolation
 # interpolate: True = blend consecutive frames to reach target_frames
 ANIMATIONS = [
-    # name                   row  tgt  interp  description
-    # ── Idle sub-animations ──────────────────────────────────────────────
-    ("cat_idle",             20, 10,  True, "Tail wag sit front – primary idle"),
-    ("cat_idle_lick",        13,  8, False, "Lick paw sitting front – groom sub-anim"),
-    ("cat_idle_meow",        15,  6, False, "Meow sit front – idle sub-anim"),
-    ("cat_idle_scratch",     18,  6, False, "Scratch sit left paw – idle fidget"),
-    ("cat_yawn",             44,  6, False, "Yawn sit front – drowsy / pre-sleep"),
-    # ── Reactive ────────────────────────────────────────────────────────
-    ("cat_happy",            20, 10,  True, "Tail wag sit front – happy / petted"),
-    ("cat_watch_plane",      23,  6, False, "Tail wag sit right – watching sky"),
-    ("cat_hiss",             62,  6, False, "Hiss front right – scared / defensive"),
-    # ── Locomotion ──────────────────────────────────────────────────────
-    ("cat_walk",              6, 12,  True, "Walk right – patrol / leaving"),
-    ("cat_run",              11,  8, False, "Running right – entering fast"),
-    # ── Sleep variants (5 styles × left/right) ──────────────────────────
-    # Each pair: left = flipX=true, right = flipX=false
-    ("cat_sleep_1_left",     45,  8,  True, "Sleep 1 left front – breathing loop"),
-    ("cat_sleep_1_right",    46,  8,  True, "Sleep 1 right front – breathing loop"),
-    ("cat_sleep_2_left",     49,  8,  True, "Sleep 2 left front – breathing loop"),
-    ("cat_sleep_2_right",    50,  8,  True, "Sleep 2 right front – breathing loop"),
-    ("cat_sleep_3_left",     51,  8,  True, "Sleep 3 left front – breathing loop"),
-    ("cat_sleep_3_right",    52,  8,  True, "Sleep 3 right front – breathing loop"),
-    ("cat_sleep_4_left",     53,  8,  True, "Sleep 4 left front – breathing loop"),
-    ("cat_sleep_4_right",    54,  8,  True, "Sleep 4 right front – breathing loop"),
-    ("cat_sleep_5_left",     55,  8,  True, "Sleep 5 left front – breathing loop"),
-    ("cat_sleep_5_right",    56,  8,  True, "Sleep 5 right front – breathing loop"),
-    # ── Action states ───────────────────────────────────────────────────
-    ("cat_eat",              60,  8, False, "Eat food stand right – eating"),
-    ("cat_swat",             36,  8, False, "Right paw swipe stand right – swat at plane"),
-    ("cat_jump",             65,  8, False, "Jump right – jump state"),
-    # ── Physics states ──────────────────────────────────────────────────
-    ("cat_cling",            66,  6, False, "On hind legs – cling to bezel rim"),
-    ("cat_slide",            29,  8, False, "Tail wag lie right – slide / surf"),
+    # name                       row  tgt  interp  description
+    # ── Idle sub-animations ────────────────────────────────────────────────
+    ("cat_idle",                 20, 10,  True, "Tail wag sit front – primary idle"),
+    ("cat_idle_lick",            13,  8, False, "Lick paw sitting front – groom sub-anim"),
+    ("cat_idle_lick_lie",        14,  8, False, "Lick paw lying front – lying groom"),
+    ("cat_idle_meow",            15,  6, False, "Meow sit front – idle sub-anim"),
+    ("cat_idle_meow_lie",        16,  6, False, "Meow lie front – idle sub-anim"),
+    ("cat_idle_meow_stand",      17,  6, False, "Meow stand front – idle sub-anim"),
+    ("cat_idle_scratch",         18,  6, False, "Scratch sit left paw – idle fidget"),
+    ("cat_idle_scratch_right",   19,  6, False, "Scratch sit right paw – idle fidget"),
+    ("cat_yawn",                 44,  6, False, "Yawn sit front – drowsy / pre-sleep"),
+    # ── Reactive ──────────────────────────────────────────────────────────
+    ("cat_happy",                20, 10,  True, "Tail wag sit front – happy / petted"),
+    ("cat_happy_stand_front",    24, 10,  True, "Tail wag stand front – standing happy"),
+    ("cat_happy_stand_right",    27, 10,  True, "Tail wag stand right – excited happy"),
+    ("cat_watch_plane",          23,  6, False, "Tail wag sit right – watching sky"),
+    ("cat_hiss",                 62,  6, False, "Hiss front right – scared / defensive"),
+    # ── Locomotion ────────────────────────────────────────────────────────
+    ("cat_walk",                  6, 12,  True, "Walk right – patrol / leaving"),
+    ("cat_run",                  11,  8, False, "Running right – entering from left"),
+    ("cat_run_left",             12,  8, False, "Running left – entering from right"),
+    # ── Sleep variants (5 styles × left/right) ────────────────────────────
+    ("cat_sleep_1_left",         45,  8,  True, "Sleep 1 left front – breathing loop"),
+    ("cat_sleep_1_right",        46,  8,  True, "Sleep 1 right front – breathing loop"),
+    ("cat_sleep_2_left",         49,  8,  True, "Sleep 2 left front – breathing loop"),
+    ("cat_sleep_2_right",        50,  8,  True, "Sleep 2 right front – breathing loop"),
+    ("cat_sleep_3_left",         51,  8,  True, "Sleep 3 left front – breathing loop"),
+    ("cat_sleep_3_right",        52,  8,  True, "Sleep 3 right front – breathing loop"),
+    ("cat_sleep_4_left",         53,  8,  True, "Sleep 4 left front – breathing loop"),
+    ("cat_sleep_4_right",        54,  8,  True, "Sleep 4 right front – breathing loop"),
+    ("cat_sleep_5_left",         55,  8,  True, "Sleep 5 left front – breathing loop"),
+    ("cat_sleep_5_right",        56,  8,  True, "Sleep 5 right front – breathing loop"),
+    # ── Action states ─────────────────────────────────────────────────────
+    ("cat_eat",                  60,  8, False, "Eat food stand right – eating"),
+    ("cat_eat_front",            57,  8, False, "Eat food stand front – eating face-on"),
+    ("cat_swat",                 36,  8, False, "Right paw swipe stand right – swat at plane"),
+    ("cat_swat_sit_right",       37,  8, False, "Right paw swipe sit front – sit swat"),
+    ("cat_swat_sit_left",        38,  8, False, "Left paw swipe sit front – sit swat"),
+    ("cat_jump",                 65,  8, False, "Jump right – jump state"),
+    # ── Physics states ────────────────────────────────────────────────────
+    ("cat_cling",                66,  6, False, "On hind legs – cling to bezel rim"),
+    ("cat_slide",                29,  8, False, "Tail wag lie right – slide right"),
+    ("cat_slide_left",           28,  8, False, "Tail wag lie left – slide left"),
 ]
 
 # ── Helpers ──────────────────────────────────────────────────────────────

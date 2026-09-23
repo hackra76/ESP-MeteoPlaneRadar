@@ -54,9 +54,15 @@ struct TrackedPlaneDisplay {
 };
 static TrackedPlaneDisplay s_skyPlane;
 
-static CatAnimState  s_catState = CAT_STATE_IDLE;
-static uint8_t       s_sleepVariant     = 0;   // 0-4: which sleep style (rolled at sleep entry)
-static bool          s_sleepFacingRight = true; // left/right locked for the whole sleep session
+static CatAnimState  s_catState         = CAT_STATE_IDLE;
+static CatAnimState  s_prevCatState     = CAT_STATE_IDLE;  // for sub-anim roll-on-entry
+static uint8_t       s_sleepVariant     = 0;
+static bool          s_sleepFacingRight = true;
+static uint8_t       s_swatSubAnim      = 0;   // 0=stand-right, 1=sit-right, 2=sit-left
+static uint8_t       s_eatSubAnim       = 0;   // 0=stand-right, 1=stand-front
+static uint8_t       s_groomSubAnim     = 0;   // 0=sit-lick, 1=lie-lick
+static uint8_t       s_happySubAnim     = 0;   // 0=sit, 1=stand-front, 2=stand-right
+static unsigned long s_nextHappySubMs   = 0;
 static float         s_catX = 240.0f;
 static float         s_catY = 282.0f;
 static float         s_catTargetX = 240.0f;
@@ -1528,9 +1534,24 @@ void PetDrawer_Draw() {
     // All sprite cells have 16 transparent rows at the bottom, so paws
     // land on the runway with a +32px offset at 2x scale.
     // ------------------------------------------------------------------
-    static uint8_t       s_idleSubAnim  = 0;   // 0=loaf, 1=lick, 2=meow, 3=scratch
+    static uint8_t       s_idleSubAnim  = 0;
     static unsigned long s_nextIdleSubMs = 0;
 
+    // Detect state entry – roll sub-animation variants once per state
+    if (s_catState != s_prevCatState) {
+      if (s_catState == CAT_STATE_SWAT) {
+        s_swatSubAnim = (uint8_t)(rand() % 3);    // 0=stand-right, 1=sit-right, 2=sit-left
+      }
+      if (s_catState == CAT_STATE_EATING) {
+        s_eatSubAnim  = (uint8_t)(rand() % 2);    // 0=eat-right, 1=eat-front
+      }
+      if (s_catState == CAT_STATE_GROOM) {
+        s_groomSubAnim = (uint8_t)(rand() % 2);   // 0=sit-lick, 1=lie-lick
+      }
+      s_prevCatState = s_catState;
+    }
+
+    bool renderFlipX = s_catFlipX;   // may be overridden per-state below
     const uint16_t* hiResFrame = nullptr;
 
     switch (s_catState) {
@@ -1538,20 +1559,41 @@ void PetDrawer_Draw() {
         // Rotate idle personality sub-animations every 4-10 seconds
         if (millis() > s_nextIdleSubMs) {
           uint8_t roll = (uint8_t)(millis() & 0xFF);
-          if      (roll < 160) s_idleSubAnim = 0;  // 63% loaf sit
-          else if (roll < 210) s_idleSubAnim = 1;  // 20% lick paw
-          else if (roll < 235) s_idleSubAnim = 2;  // 10% meow
-          else                 s_idleSubAnim = 3;  //  7% scratch ear
+          if      (roll < 100) s_idleSubAnim = 0;  // 39% tail-wag sit
+          else if (roll < 140) s_idleSubAnim = 1;  // 16% lick paw sit
+          else if (roll < 165) s_idleSubAnim = 2;  // 10% lick paw lie
+          else if (roll < 185) s_idleSubAnim = 3;  //  8% meow sit
+          else if (roll < 200) s_idleSubAnim = 4;  //  6% meow lie
+          else if (roll < 210) s_idleSubAnim = 5;  //  4% meow stand
+          else if (roll < 230) s_idleSubAnim = 6;  //  8% scratch left
+          else if (roll < 245) s_idleSubAnim = 7;  //  6% scratch right
+          else                 s_idleSubAnim = 8;  //  4% yawn
           s_nextIdleSubMs = millis() + 4000 + (millis() % 6000);
         }
-        if      (s_idleSubAnim == 1) hiResFrame = cat_idle_lick   [s_animFrame % HIRES_CAT_IDLE_LICK_FRAMES];
-        else if (s_idleSubAnim == 2) hiResFrame = cat_idle_meow   [s_animFrame % HIRES_CAT_IDLE_MEOW_FRAMES];
-        else if (s_idleSubAnim == 3) hiResFrame = cat_idle_scratch [s_animFrame % HIRES_CAT_IDLE_SCRATCH_FRAMES];
-        else                         hiResFrame = cat_idle         [s_animFrame % HIRES_CAT_IDLE_FRAMES];
+        switch (s_idleSubAnim) {
+          case 1:  hiResFrame = cat_idle_lick          [s_animFrame % HIRES_CAT_IDLE_LICK_FRAMES];          break;
+          case 2:  hiResFrame = cat_idle_lick_lie       [s_animFrame % HIRES_CAT_IDLE_LICK_LIE_FRAMES];     break;
+          case 3:  hiResFrame = cat_idle_meow           [s_animFrame % HIRES_CAT_IDLE_MEOW_FRAMES];         break;
+          case 4:  hiResFrame = cat_idle_meow_lie       [s_animFrame % HIRES_CAT_IDLE_MEOW_LIE_FRAMES];     break;
+          case 5:  hiResFrame = cat_idle_meow_stand     [s_animFrame % HIRES_CAT_IDLE_MEOW_STAND_FRAMES];   break;
+          case 6:  hiResFrame = cat_idle_scratch        [s_animFrame % HIRES_CAT_IDLE_SCRATCH_FRAMES];      break;
+          case 7:  hiResFrame = cat_idle_scratch_right  [s_animFrame % HIRES_CAT_IDLE_SCRATCH_RIGHT_FRAMES];break;
+          case 8:  hiResFrame = cat_yawn                [s_animFrame % HIRES_CAT_YAWN_FRAMES];              break;
+          default: hiResFrame = cat_idle                [s_animFrame % HIRES_CAT_IDLE_FRAMES];              break;
+        }
         break;
 
       case CAT_STATE_HAPPY:
-        hiResFrame = cat_happy[s_animFrame % HIRES_CAT_HAPPY_FRAMES];
+        // Cycle between 3 happy variants every ~2 seconds
+        if (millis() > s_nextHappySubMs) {
+          s_happySubAnim   = (uint8_t)(rand() % 3);
+          s_nextHappySubMs = millis() + 1500 + (millis() % 2500);
+        }
+        switch (s_happySubAnim) {
+          case 1:  hiResFrame = cat_happy_stand_front[s_animFrame % HIRES_CAT_HAPPY_STAND_FRONT_FRAMES]; break;
+          case 2:  hiResFrame = cat_happy_stand_right[s_animFrame % HIRES_CAT_HAPPY_STAND_RIGHT_FRAMES]; break;
+          default: hiResFrame = cat_happy            [s_animFrame % HIRES_CAT_HAPPY_FRAMES];             break;
+        }
         break;
 
       case CAT_STATE_WATCH_PLANE:
@@ -1559,7 +1601,11 @@ void PetDrawer_Draw() {
         break;
 
       case CAT_STATE_GROOM:
-        hiResFrame = cat_idle_lick[s_animFrame % HIRES_CAT_IDLE_LICK_FRAMES];
+        // Alternate sitting lick vs lying lick (rolled at state entry)
+        if (s_groomSubAnim == 1)
+          hiResFrame = cat_idle_lick_lie[s_animFrame % HIRES_CAT_IDLE_LICK_LIE_FRAMES];
+        else
+          hiResFrame = cat_idle_lick    [s_animFrame % HIRES_CAT_IDLE_LICK_FRAMES];
         break;
 
       case CAT_STATE_STRETCH:
@@ -1573,7 +1619,13 @@ void PetDrawer_Draw() {
         break;
 
       case CAT_STATE_ENTERING:
-        hiResFrame = cat_run[s_animFrame % HIRES_CAT_RUN_FRAMES];
+        // Use direction-specific sprite – no flipX needed, orientation baked in
+        if (s_catFlipX) {
+          hiResFrame  = cat_run_left[s_animFrame % HIRES_CAT_RUN_LEFT_FRAMES];
+          renderFlipX = false;  // sprite already faces left
+        } else {
+          hiResFrame  = cat_run[s_animFrame % HIRES_CAT_RUN_FRAMES];
+        }
         break;
 
       case CAT_STATE_SLEEPING: {
@@ -1597,11 +1649,20 @@ void PetDrawer_Draw() {
       }
 
       case CAT_STATE_EATING:
-        hiResFrame = cat_eat[s_animFrame % HIRES_CAT_EAT_FRAMES];
+        // Alternate right-side eating vs face-on (rolled at state entry)
+        if (s_eatSubAnim == 1)
+          hiResFrame = cat_eat_front[s_animFrame % HIRES_CAT_EAT_FRONT_FRAMES];
+        else
+          hiResFrame = cat_eat      [s_animFrame % HIRES_CAT_EAT_FRAMES];
         break;
 
       case CAT_STATE_SWAT:
-        hiResFrame = cat_swat[s_animFrame % HIRES_CAT_SWAT_FRAMES];
+        // 3-way swat: stand-right, sit-front-right, sit-front-left (rolled at state entry)
+        switch (s_swatSubAnim) {
+          case 1:  hiResFrame = cat_swat_sit_right[s_animFrame % HIRES_CAT_SWAT_SIT_RIGHT_FRAMES]; break;
+          case 2:  hiResFrame = cat_swat_sit_left [s_animFrame % HIRES_CAT_SWAT_SIT_LEFT_FRAMES];  break;
+          default: hiResFrame = cat_swat          [s_animFrame % HIRES_CAT_SWAT_FRAMES];           break;
+        }
         break;
 
       case CAT_STATE_JUMP:
@@ -1613,7 +1674,12 @@ void PetDrawer_Draw() {
         break;
 
       case CAT_STATE_SLIDE:
-        hiResFrame = cat_slide[(now / 120) % HIRES_CAT_SLIDE_FRAMES];
+        // Direction-aware slide: use natively oriented sprite, no flipX
+        renderFlipX = false;
+        if (s_catVx < 0)
+          hiResFrame = cat_slide_left[(now / 120) % HIRES_CAT_SLIDE_LEFT_FRAMES];
+        else
+          hiResFrame = cat_slide     [(now / 120) % HIRES_CAT_SLIDE_FRAMES];
         break;
 
       case CAT_STATE_TUMBLE:
@@ -1629,7 +1695,7 @@ void PetDrawer_Draw() {
     // Render DigiCat – at 3x scale, paws are at sprite row 47 → 47×3=141px from top.
     // catDrawY baseline = s_catY-64. Runway at s_catY+62. Net offset: 344-(282-64)-141 = -15.
     if (hiResFrame) {
-      drawCatSpriteHiRes2x(hiResFrame, catDrawX, catDrawY - 15, s_catFlipX);
+      drawCatSpriteHiRes2x(hiResFrame, catDrawX, catDrawY - 15, renderFlipX);
     }
 
     // Dynamic particles & effects for tilt physics
