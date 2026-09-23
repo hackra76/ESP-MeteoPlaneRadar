@@ -7,6 +7,15 @@
 #pragma once
 #include <Arduino.h>
 
+enum SkyPlaneType {
+  PLANE_TYPE_JET = 0,
+  PLANE_TYPE_HEAVY,
+  PLANE_TYPE_SMALL,
+  PLANE_TYPE_HELI,
+  PLANE_TYPE_RESCUE,
+  PLANE_TYPE_FIGHTER
+};
+
 enum PetMood {
   PET_MOOD_IDLE = 0,
   PET_MOOD_HAPPY,
@@ -37,4 +46,5 @@ bool     PetBrain_IsBusy();
 PetMood  PetBrain_GetMood();
 void     PetBrain_SetMood(PetMood mood);
 const char* PetBrain_GetThought();
-bool     PetBrain_GetClosestPlaneTarget(float& bearingDeg, float& distKm, char* outCallsign, size_t callsignCap);
+bool     PetBrain_GetClosestPlaneTarget(float& bearingDeg, float& distKm, char* outCallsign, size_t callsignCap, SkyPlaneType& outType);
+

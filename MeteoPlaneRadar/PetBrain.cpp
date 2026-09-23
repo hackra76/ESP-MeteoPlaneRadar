@@ -51,7 +51,7 @@ static float calcBearingDeg(double lat1, double lon1, double lat2, double lon2) 
   return b;
 }
 
-bool PetBrain_GetClosestPlaneTarget(float& bearingDeg, float& distKm, char* outCallsign, size_t callsignCap) {
+bool PetBrain_GetClosestPlaneTarget(float& bearingDeg, float& distKm, char* outCallsign, size_t callsignCap, SkyPlaneType& outType) {
   bearingDeg = 0.0f;
   distKm = 9999.0f;
   if (outCallsign && callsignCap > 0) outCallsign[0] = '\0';
@@ -84,6 +84,29 @@ bool PetBrain_GetClosestPlaneTarget(float& bearingDeg, float& distKm, char* outC
       strncpy(outCallsign, cs, callsignCap - 1);
       outCallsign[callsignCap - 1] = '\0';
     }
+    outType = PLANE_TYPE_JET;
+    const Aircraft& ac = list[closestIdx];
+    if (ac.isMilitary) {
+      outType = PLANE_TYPE_FIGHTER;
+    } else {
+      String t = String(ac.type);
+      String csStr = String(ac.callsign);
+      t.toUpperCase();
+      csStr.toUpperCase();
+      
+      bool isHeli = (t == "EC35" || t == "EC45" || t == "R44" || t == "A109" || t == "B429" || t == "H60" || t == "UH60" || t == "AS32");
+      bool isRescue = isHeli && (csStr.indexOf("POL") >= 0 || csStr.indexOf("HEMS") >= 0 || csStr.indexOf("KRYSTOF") >= 0 || csStr.indexOf("RESCUE") >= 0);
+      
+      if (isRescue) {
+        outType = PLANE_TYPE_RESCUE;
+      } else if (isHeli) {
+        outType = PLANE_TYPE_HELI;
+      } else if (t.startsWith("B77") || t.startsWith("B78") || t.startsWith("A33") || t.startsWith("A35") || t.startsWith("A38") || t.startsWith("B74")) {
+        outType = PLANE_TYPE_HEAVY;
+      } else if (t.startsWith("C172") || t.startsWith("DA40") || t.startsWith("SR22") || t.startsWith("P28") || (ac.altFt > 0 && ac.altFt < 10000 && ac.gsKt > 0 && ac.gsKt < 150)) {
+        outType = PLANE_TYPE_SMALL;
+      }
+    }
     return true;
   }
   return false;
@@ -94,7 +117,8 @@ static void generateOfflineThought(char* buf, size_t cap) {
   const uint8_t lang = Settings_Language();
   float bDeg = 0, dist = 9999.0f;
   char cs[16] = "";
-  bool hasPlane = PetBrain_GetClosestPlaneTarget(bDeg, dist, cs, sizeof(cs));
+  SkyPlaneType dummyType;
+  bool hasPlane = PetBrain_GetClosestPlaneTarget(bDeg, dist, cs, sizeof(cs), dummyType);
 
   char tempBuf[OUTSIDE_TEXT_MAX] = "";
   Outside_StatusText(tempBuf, sizeof(tempBuf));
@@ -371,7 +395,8 @@ void PetBrain_Tick() {
     // Check if planes are in airspace to increment experience & rank
     float bDeg = 0, dist = 9999.0f;
     char cs[16] = "";
-    if (PetBrain_GetClosestPlaneTarget(bDeg, dist, cs, sizeof(cs)) && dist < 45.0f) {
+    SkyPlaneType dummyType;
+    if (PetBrain_GetClosestPlaneTarget(bDeg, dist, cs, sizeof(cs), dummyType) && dist < 45.0f) {
       PetBrain_AwardXP(1);
     } else {
       s_statsDirty = true;
@@ -504,7 +529,8 @@ bool PetBrain_Step() {
 
   float bDeg = 0, dist = 9999.0f;
   char cs[16] = "";
-  bool hasPlane = PetBrain_GetClosestPlaneTarget(bDeg, dist, cs, sizeof(cs));
+  SkyPlaneType dummyType;
+  bool hasPlane = PetBrain_GetClosestPlaneTarget(bDeg, dist, cs, sizeof(cs), dummyType);
 
   char tempBuf[OUTSIDE_TEXT_MAX] = "";
   Outside_StatusText(tempBuf, sizeof(tempBuf));
@@ -659,3 +685,4 @@ bool PetBrain_Step() {
   s_isBusy = false;
   return true;
 }
+

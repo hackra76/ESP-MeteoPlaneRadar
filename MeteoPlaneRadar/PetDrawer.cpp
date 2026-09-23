@@ -42,6 +42,7 @@ enum CatAnimState : uint8_t {
 };
 
 struct TrackedPlaneDisplay {
+  SkyPlaneType type = PLANE_TYPE_JET;
   bool active = false;
   float x = 0.0f;
   float y = 186.0f;
@@ -154,12 +155,12 @@ static void drawCatSpriteHiRes2x(const uint16_t* frame, int topLeftX, int topLef
   }
 }
 
-static void drawAirplaneSprite2x(int topLeftX, int topLeftY, bool flipX) {
+static void drawAirplaneSprite2x(const uint8_t* spriteArray, int topLeftX, int topLeftY, bool flipX) {
   for (int py = 0; py < CAT_AIRPLANE_H; py++) {
     int screenY = topLeftY + py * 2;
     if (screenY + 1 < 0 || screenY >= LCD_HEIGHT) continue;
 
-    const uint8_t* row = CAT_AIRPLANE + py * CAT_AIRPLANE_W;
+    const uint8_t* row = spriteArray + py * CAT_AIRPLANE_W;
     int px = 0;
     while (px < CAT_AIRPLANE_W) {
       uint8_t c = row[px];
@@ -488,7 +489,8 @@ bool PetDrawer_Tick() {
   // Airplane tracking check
   float bDeg = 0.0f, dist = 9999.0f;
   char cs[16] = "";
-  bool hasPlane = PetBrain_GetClosestPlaneTarget(bDeg, dist, cs, sizeof(cs));
+  SkyPlaneType pType;
+  bool hasPlane = PetBrain_GetClosestPlaneTarget(bDeg, dist, cs, sizeof(cs), pType);
   const bool isNight = Settings_IsNight();
   const bool nightAwake = isNight && (now < s_nightWakeUntilMs);
   const bool nightDrowsy = isNight && nightAwake && (s_nightWakeUntilMs - now <= NIGHT_DROWSY_DURATION_MS);
@@ -497,6 +499,7 @@ bool PetDrawer_Tick() {
   if (hasPlane && dist <= 10.0f && (!isNight || nightAwake)) {
     s_skyPlane.active = true;
     s_skyPlane.distKm = dist;
+    s_skyPlane.type = pType;
     s_skyPlane.bearingDeg = bDeg;
     strncpy(s_skyPlane.callsign, cs, sizeof(s_skyPlane.callsign) - 1);
     s_skyPlane.callsign[sizeof(s_skyPlane.callsign) - 1] = '\0';
@@ -1308,24 +1311,53 @@ static void drawTrackedSkyPlane() {
   int py = (int)s_skyPlane.y;
   bool flyingLeft = (s_skyPlane.vx < 0);
 
-  // 1. Dual jet engine contrails trailing behind the aircraft
-  int trailDir = flyingLeft ? 1 : -1;
-  int tailOffset = flyingLeft ? 52 : 4;
-  for (int i = 0; i < 7; i++) {
-    int cx = px + tailOffset + i * trailDir * 7;
-    if (cx < 40 || cx > 440) continue;
-    uint16_t cCol = (i < 2) ? 0xFFFF : ((i < 4) ? 0xCE79 : ((i < 6) ? 0x8410 : 0x4208));
-    gfx->drawFastHLine(cx, py + 10, 4, cCol);
-    gfx->drawFastHLine(cx + 2, py + 18, 4, cCol);
+  bool isHeli = (s_skyPlane.type == PLANE_TYPE_HELI || s_skyPlane.type == PLANE_TYPE_RESCUE);
+  
+  if (isHeli) {
+    // Slight vertical bobbing for helicopters
+    py += (int)(sin((float)now / 150.0f) * 2.0f);
+  }
+
+  // 1. Dual jet engine contrails trailing behind the aircraft (only for jets/heavy)
+  if (s_skyPlane.type == PLANE_TYPE_JET || s_skyPlane.type == PLANE_TYPE_HEAVY || s_skyPlane.type == PLANE_TYPE_FIGHTER) {
+    int trailDir = flyingLeft ? 1 : -1;
+    int tailOffset = flyingLeft ? 52 : 4;
+    for (int i = 0; i < 7; i++) {
+      int cx = px + tailOffset + i * trailDir * 7;
+      if (cx < 40 || cx > 440) continue;
+      uint16_t cCol = (i < 2) ? 0xFFFF : ((i < 4) ? 0xCE79 : ((i < 6) ? 0x8410 : 0x4208));
+      gfx->drawFastHLine(cx, py + 10, 4, cCol);
+      if (s_skyPlane.type == PLANE_TYPE_HEAVY) {
+        gfx->drawFastHLine(cx + 2, py + 14, 4, cCol); // 4-engine style wide contrail
+        gfx->drawFastHLine(cx, py + 22, 4, cCol);
+      } else {
+        gfx->drawFastHLine(cx + 2, py + 18, 4, cCol);
+      }
+    }
+  }
+
+  const uint8_t* spriteArray = CAT_AIRPLANE_JET;
+  switch (s_skyPlane.type) {
+    case PLANE_TYPE_HEAVY:   spriteArray = CAT_AIRPLANE_HEAVY; break;
+    case PLANE_TYPE_SMALL:   spriteArray = CAT_AIRPLANE_SMALL; break;
+    case PLANE_TYPE_HELI:    spriteArray = CAT_AIRPLANE_HELI; break;
+    case PLANE_TYPE_RESCUE:  spriteArray = CAT_AIRPLANE_RESCUE; break;
+    case PLANE_TYPE_FIGHTER: spriteArray = CAT_AIRPLANE_FIGHTER; break;
+    default:                 spriteArray = CAT_AIRPLANE_JET; break;
   }
 
   // 2. Draw 2x scaled Pixel-Art Airplane Sprite (56x28 px)
-  drawAirplaneSprite2x(px, py, flyingLeft);
+  drawAirplaneSprite2x(spriteArray, px, py, flyingLeft);
 
   // 3. Strobe beacon light flash on fuselage/tailfin every 600ms
   if ((now / 300) % 2 == 0) {
     int strobeX = flyingLeft ? (px + 50) : (px + 6);
-    gfx->fillCircle(strobeX, py + 2, 2, 0xFFFF);
+    int strobeY = py + 2;
+    if (isHeli) {
+      strobeX = px + 28; // strobe on top of rotor
+      strobeY = py + 6;
+    }
+    gfx->fillCircle(strobeX, strobeY, 2, 0xFFFF);
   }
 
   // 4. Callsign & Distance Badge Pill floating right below plane
@@ -1901,3 +1933,5 @@ bool PetDrawer_HandleTap(int x, int y) {
 
   return true;
 }
+
+

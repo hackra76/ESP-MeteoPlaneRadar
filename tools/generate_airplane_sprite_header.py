@@ -1,4 +1,6 @@
-// =============================================================================
+import os
+
+h_content = """// =============================================================================
 //  AirplaneSprite.h  -  Pixel-art airplanes for the SWAT/watch-plane overlay.
 //  Extracted from the original CatSprites palette, and expanded for diversity.
 // =============================================================================
@@ -129,3 +131,7 @@ static const uint8_t CAT_AIRPLANE_FIGHTER[28 * 14] PROGMEM = {
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 };
 
+"""
+
+with open("MeteoPlaneRadar/AirplaneSprite.h", "w") as f:
+    f.write(h_content)
