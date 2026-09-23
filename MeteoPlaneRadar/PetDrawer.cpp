@@ -1588,7 +1588,7 @@ void PetDrawer_Draw() {
 
     switch (s_catState) {
       case CAT_STATE_IDLE:
-        // Rotate idle personality sub-animations every 4-10 seconds
+        // Rotate idle personality sub-animations every 10-20 seconds
         if (millis() > s_nextIdleSubMs) {
           uint8_t roll = (uint8_t)(millis() & 0xFF);
           if      (roll < 100) s_idleSubAnim = 0;  // 39% tail-wag sit
@@ -1600,7 +1600,7 @@ void PetDrawer_Draw() {
           else if (roll < 230) s_idleSubAnim = 6;  //  8% scratch left
           else if (roll < 245) s_idleSubAnim = 7;  //  6% scratch right
           else                 s_idleSubAnim = 8;  //  4% yawn
-          s_nextIdleSubMs = millis() + 4000 + (millis() % 6000);
+          s_nextIdleSubMs = millis() + 10000 + (millis() % 10000);
         }
         switch (s_idleSubAnim) {
           case 1:  hiResFrame = cat_idle_lick          [s_animFrame % HIRES_CAT_IDLE_LICK_FRAMES];          break;
@@ -1689,12 +1689,8 @@ void PetDrawer_Draw() {
         break;
 
       case CAT_STATE_SWAT:
-        // 3-way swat: stand-right, sit-front-right, sit-front-left (rolled at state entry)
-        switch (s_swatSubAnim) {
-          case 1:  hiResFrame = cat_swat_sit_right[s_animFrame % HIRES_CAT_SWAT_SIT_RIGHT_FRAMES]; break;
-          case 2:  hiResFrame = cat_swat_sit_left [s_animFrame % HIRES_CAT_SWAT_SIT_LEFT_FRAMES];  break;
-          default: hiResFrame = cat_swat          [s_animFrame % HIRES_CAT_SWAT_FRAMES];           break;
-        }
+        // Only standing swat is used now
+        hiResFrame = cat_swat[s_animFrame % HIRES_CAT_SWAT_FRAMES];
         break;
 
       case CAT_STATE_JUMP:
