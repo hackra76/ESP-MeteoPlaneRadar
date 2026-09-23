@@ -32,7 +32,7 @@ Vyvinuté pre **Waveshare ESP32-S3-Touch-LCD-2.1** s dotykovými gestami v štý
 ### 🐱 DigiCat — Animovaný virtuálny spoločník
 
 <p align="center">
-  <img src="docs/media/digicat_showcase.png" width="80%" alt="DigiCat hi-res animácie ginger mačky" />
+  <img src="docs/media/digicat_showcase_v2.png" width="80%" alt="DigiCat hi-res animácie ginger mačky" />
 </p>
 
 <p align="center">
@@ -196,3 +196,4 @@ MIT License.
 - Pôvodný projekt: **[petus/MeteoPlaneRadar](https://github.com/petus/MeteoPlaneRadar)**
 - DigiCat herné mechaniky: **[aquascape123/digicat](https://github.com/aquascape123/digicat)** (MIT)
 - Vylepšenia, SHMÚ radar, ISS tracker, ciferníky, dotykové ovládanie, DigiCat hi-res sprite, AI mačací mozog, webový panel, slovenská lokalizácia: **Rado & Antigravity AI**
+

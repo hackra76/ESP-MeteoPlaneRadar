@@ -32,7 +32,7 @@ Designed for the **Waveshare ESP32-S3-Touch-LCD-2.1** with smartphone-like touch
 ### 🐱 DigiCat — Animated Virtual Pet Companion
 
 <p align="center">
-  <img src="docs/media/digicat_showcase.png" width="80%" alt="DigiCat hi-res ginger cat animations" />
+  <img src="docs/media/digicat_showcase_v2.png" width="80%" alt="DigiCat hi-res ginger cat animations" />
 </p>
 
 <p align="center">
