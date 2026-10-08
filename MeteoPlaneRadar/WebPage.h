@@ -136,7 +136,7 @@ td:first-child{color:var(--mut);width:45%}
     <span class="ver-pill" id="ver"></span>
   </div>
   <div class="hdr-right">
-    <div id="liveDispPill" class="live-pill" title="Aktuálne zobrazená obrazovka na displeji">
+    <div id="liveDispPill" class="live-pill" title="Aktuálne zobrazená obrazovka na displeji" data-i18n-title="liveDispTitle">
       <span class="pulse-dot"></span>
       <span id="liveDispName">Hodiny</span>
     </div>
@@ -197,19 +197,19 @@ td:first-child{color:var(--mut);width:45%}
           <h2 data-i18n="clockAstrolabeFeatures">✨ Integrované komplikácie orloja</h2>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:10px;">
             <div style="background:rgba(255,255,255,0.03);padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);">
-              <strong style="color:var(--acc);">🌌 24h Solárny prstenec súmraku</strong>
+              <strong style="color:var(--acc);" data-i18n="compSolarRing">🌌 24h Solárny prstenec súmraku</strong>
               <p style="margin:4px 0 0;color:var(--mut);font-size:12px;" data-i18n="descAstroRing">Plynulý 24h prstenec súmraku (astronomický, nautický, občiansky), zlatá hodinka, reálna pozícia Slnka a symboly východu/západu.</p>
             </div>
             <div style="background:rgba(255,255,255,0.03);padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);">
-              <strong style="color:#fde047;">🌕 3D Fotorealistický Mesiac</strong>
+              <strong style="color:#fde047;" data-i18n="compMoon">🌕 3D Fotorealistický Mesiac</strong>
               <p style="margin:4px 0 0;color:var(--mut);font-size:12px;" data-i18n="descMoonComp">Sub-ciferník s detailnou textúrou mesačných kráterov, výpočtom osvetlenia v % a presným lunárnym terminátorom.</p>
             </div>
             <div style="background:rgba(255,255,255,0.03);padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);">
-              <strong style="color:#22c55e;">🌡️ Meteorologický sub-ciferník</strong>
+              <strong style="color:#22c55e;" data-i18n="compMeteoSub">🌡️ Meteorologický sub-ciferník</strong>
               <p style="margin:4px 0 0;color:var(--mut);font-size:12px;" data-i18n="descWxSub">Kruhový prístroj v spodnej časti s aktuálnou teplotou a dynamickou 24-hodinovou sparkline krivkou vývoja teploty.</p>
             </div>
             <div style="background:rgba(255,255,255,0.03);padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);">
-              <strong style="color:#38bdf8;">🔵 Obiehajúca sekundová guľôčka</strong>
+              <strong style="color:#38bdf8;" data-i18n="compSecBead">🔵 Obiehajúca sekundová guľôčka</strong>
               <p style="margin:4px 0 0;color:var(--mut);font-size:12px;" data-i18n="descSecBead">Plynulá subpixelová elektricky modrá fosforová guľôčka obiehajúca po vnútornej lunete ciferníka s plynulým 30 FPS pohybom.</p>
             </div>
           </div>
@@ -458,7 +458,7 @@ td:first-child{color:var(--mut);width:45%}
             </label>
           </div>
           <p class="hint" data-i18n="sonarPingHint">Test autentického akustického pingu sonaru cez piezo bzučiak.</p>
-          <button type="button" class="sec" onclick="fetch('/api/buzzer/test_sonar',{method:'POST'});msg('Sonar Ping!','ok');" data-i18n="btnSonarPing">🔊 Prehrať Sonar Ping</button>
+          <button type="button" class="sec" onclick="fetch('/api/buzzer/test_sonar',{method:'POST'});msg((D[L]&&D[L].sonarPingOk)?D[L].sonarPingOk:'Sonar Ping!','ok');" data-i18n="btnSonarPing">🔊 Prehrať Sonar Ping</button>
         </div>
       </section>
 
@@ -547,7 +547,7 @@ td:first-child{color:var(--mut);width:45%}
               <select id="finSel1" onchange="onFinSelChange(1)" style="flex:1 1 180px;min-width:160px;"></select>
               <div style="display:flex;align-items:center;gap:6px;">
                 <input type="text" id="finTk1" placeholder="BTC-USD" style="width:110px;text-transform:uppercase;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700;letter-spacing:0.5px;" oninput="onFinInputChange(1)">
-                <button type="button" class="sec" onclick="clearFinSlot(1)" style="padding:6px 10px;font-size:12px;" title="Vymazať" data-i18n="finClear">✕</button>
+                <button type="button" class="sec" onclick="clearFinSlot(1)" style="padding:6px 10px;font-size:12px;" title="Vymazať" data-i18n="finClear" data-i18n-title="finClearTitle">✕</button>
               </div>
             </div>
 
@@ -563,7 +563,7 @@ td:first-child{color:var(--mut);width:45%}
               <select id="finSel2" onchange="onFinSelChange(2)" style="flex:1 1 180px;min-width:160px;"></select>
               <div style="display:flex;align-items:center;gap:6px;">
                 <input type="text" id="finTk2" placeholder="^GSPC" style="width:110px;text-transform:uppercase;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700;letter-spacing:0.5px;" oninput="onFinInputChange(2)">
-                <button type="button" class="sec" onclick="clearFinSlot(2)" style="padding:6px 10px;font-size:12px;" title="Vymazať" data-i18n="finClear">✕</button>
+                <button type="button" class="sec" onclick="clearFinSlot(2)" style="padding:6px 10px;font-size:12px;" title="Vymazať" data-i18n="finClear" data-i18n-title="finClearTitle">✕</button>
               </div>
             </div>
 
@@ -579,7 +579,7 @@ td:first-child{color:var(--mut);width:45%}
               <select id="finSel3" onchange="onFinSelChange(3)" style="flex:1 1 180px;min-width:160px;"></select>
               <div style="display:flex;align-items:center;gap:6px;">
                 <input type="text" id="finTk3" placeholder="AAPL" style="width:110px;text-transform:uppercase;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700;letter-spacing:0.5px;" oninput="onFinInputChange(3)">
-                <button type="button" class="sec" onclick="clearFinSlot(3)" style="padding:6px 10px;font-size:12px;" title="Vymazať" data-i18n="finClear">✕</button>
+                <button type="button" class="sec" onclick="clearFinSlot(3)" style="padding:6px 10px;font-size:12px;" title="Vymazať" data-i18n="finClear" data-i18n-title="finClearTitle">✕</button>
               </div>
             </div>
 
@@ -595,7 +595,7 @@ td:first-child{color:var(--mut);width:45%}
               <select id="finSel4" onchange="onFinSelChange(4)" style="flex:1 1 180px;min-width:160px;"></select>
               <div style="display:flex;align-items:center;gap:6px;">
                 <input type="text" id="finTk4" placeholder="GC=F" style="width:110px;text-transform:uppercase;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700;letter-spacing:0.5px;" oninput="onFinInputChange(4)">
-                <button type="button" class="sec" onclick="clearFinSlot(4)" style="padding:6px 10px;font-size:12px;" title="Vymazať" data-i18n="finClear">✕</button>
+                <button type="button" class="sec" onclick="clearFinSlot(4)" style="padding:6px 10px;font-size:12px;" title="Vymazať" data-i18n="finClear" data-i18n-title="finClearTitle">✕</button>
               </div>
             </div>
           </div>
@@ -712,7 +712,7 @@ td:first-child{color:var(--mut);width:45%}
 
           <div class="row" style="margin-top:10px;">
             <label class="lbl" for="ytChan" data-i18n="ytChanLbl">Kanál (ID alebo @handle):</label>
-            <input type="text" id="ytChan" placeholder="@mkbhd alebo UC..." style="flex:1 1 280px;">
+            <input type="text" id="ytChan" placeholder="@mkbhd alebo UC..." data-i18n-placeholder="ytChanPh" style="flex:1 1 280px;">
           </div>
           <p class="hint" data-i18n="ytChanHint">Zadajte YouTube handle (napr. @mkbhd) alebo Channel ID (napr. UCbjqrq...).</p>
 
@@ -751,14 +751,14 @@ td:first-child{color:var(--mut);width:45%}
           </div>
           <div class="row" style="margin-top:10px;align-items:center;">
             <label class="lbl" data-i18n="petCharLbl">Postavička:</label>
-            <div style="flex:1 1 200px;font-weight:600;color:var(--accent);">🐱 DigiCat (Pixel Art Companion)</div>
+            <div style="flex:1 1 200px;font-weight:600;color:var(--accent);" data-i18n="petDigiCatName">🐱 DigiCat (Pixel Art Companion)</div>
             <input type="hidden" id="petCharacter" value="1">
           </div>
           <div class="row" style="margin-top:10px;">
             <label class="lbl" for="geminiKey" data-i18n="geminiKeyLbl">Google Gemini API kľúč:</label>
             <div style="display:flex;flex:1 1 280px;gap:6px;">
               <input type="password" id="geminiKey" placeholder="AIzaSy..." style="flex:1;">
-              <button type="button" class="sec" onclick="const f=$('geminiKey');f.type=(f.type==='password'?'text':'password');this.textContent=(f.type==='password'?'👁️':'🔒');" style="padding:6px 10px;font-size:13px;" title="Zobraziť / Skryť kľúč">👁️</button>
+              <button type="button" class="sec" onclick="const f=$('geminiKey');f.type=(f.type==='password'?'text':'password');this.textContent=(f.type==='password'?'👁️':'🔒');" style="padding:6px 10px;font-size:13px;" title="Zobraziť / Skryť kľúč" data-i18n-title="toggleKeyTitle">👁️</button>
             </div>
           </div>
           <p class="hint" data-i18n="geminiKeyHint">Bezplatný API kľúč z Google AI Studio pre generovanie myšlienok. Ak je pole prázdne, zvieratko funguje plne offline so vstavanými reakciami.</p>
@@ -871,7 +871,7 @@ td:first-child{color:var(--mut);width:45%}
           <div class="hero-actions">
             <div id="serialStatusBadge" class="live-pill" style="background:rgba(100,116,139,0.15);color:var(--mut);border-color:rgba(100,116,139,0.3);">
               <span class="pulse-dot" style="background:var(--mut);box-shadow:none;" id="serialDot"></span>
-              <span id="serialStateTxt">Pozastavené</span>
+              <span id="serialStateTxt" data-i18n="serialPaused">Pozastavené</span>
             </div>
             <button type="button" class="btn-live" id="btnToggleSerial" onclick="toggleSerialMonitor()">
               ▶ <span id="btnToggleSerialTxt" data-i18n="btnSerialStart">Spustiť monitor</span>
@@ -901,7 +901,7 @@ td:first-child{color:var(--mut);width:45%}
           </div>
 
           <div style="display:flex;gap:8px;margin-top:12px;align-items:center;">
-            <input type="text" id="serialCmdInput" placeholder="Zadajte príkaz (napr. heap, status, ping, reboot)..." onkeydown="if(event.key==='Enter')sendSerialCmd()" style="flex:1;">
+            <input type="text" id="serialCmdInput" placeholder="Zadajte príkaz (napr. heap, status, ping, reboot)..." data-i18n-placeholder="serialCmdPh" onkeydown="if(event.key==='Enter')sendSerialCmd()" style="flex:1;">
             <button type="button" onclick="sendSerialCmd()" data-i18n="btnSerialSend">Odoslať ↵</button>
           </div>
           <p class="hint" data-i18n="serialHint" style="margin-top:8px;">Streamovanie výstupov sériového portu cez WiFi bez nutnosti USB kábla. Pri odchode zo záložky sa prenos automaticky pozastaví.</p>
@@ -1011,15 +1011,15 @@ td:first-child{color:var(--mut);width:45%}
           <h2 data-i18n="tzHdr">🕒 Časové pásmo & Posun GMT</h2>
           <div class="row"><label data-i18n="tzSelectLbl">Časové pásmo / Posun</label>
             <select id="timezone" style="flex:2 1 240px">
-              <optgroup label="Európske časové pásma (automatický letný/zimný čas)">
-                <option value="CET-1CEST,M3.5.0,M10.5.0/3">Stredoeurópsky čas (CET/CEST: SK, CZ, AT, DE... UTC+1 / leto UTC+2)</option>
-                <option value="EET-2EEST,M3.5.0/3,M10.5.0/4">Východoeurópsky čas (EET/EEST: UA, FI, GR, RO... UTC+2 / leto UTC+3)</option>
-                <option value="GMT0BST,M3.5.0/1,M10.5.0">Západoeurópsky čas / UK (WET/WEST: UK, IE, PT... UTC+0 / leto UTC+1)</option>
+              <optgroup label="Európske časové pásma (automatický letný/zimný čas)" data-i18n="tzGrpEurope">
+                <option value="CET-1CEST,M3.5.0,M10.5.0/3" data-i18n="tzCet">Stredoeurópsky čas (CET/CEST: SK, CZ, AT, DE... UTC+1 / leto UTC+2)</option>
+                <option value="EET-2EEST,M3.5.0/3,M10.5.0/4" data-i18n="tzEet">Východoeurópsky čas (EET/EEST: UA, FI, GR, RO... UTC+2 / leto UTC+3)</option>
+                <option value="GMT0BST,M3.5.0/1,M10.5.0" data-i18n="tzWet">Západoeurópsky čas / UK (WET/WEST: UK, IE, PT... UTC+0 / leto UTC+1)</option>
               </optgroup>
-              <optgroup label="Svetový referenčný čas">
-                <option value="UTC0">UTC / Zulu / GMT (UTC+0 bez zmeny času)</option>
+              <optgroup label="Svetový referenčný čas" data-i18n="tzGrpUtc">
+                <option value="UTC0" data-i18n="tzUtc">UTC / Zulu / GMT (UTC+0 bez zmeny času)</option>
               </optgroup>
-              <optgroup label="Fixné posuny voči UTC (bez zmeny času)">
+              <optgroup label="Fixné posuny voči UTC (bez zmeny času)" data-i18n="tzGrpFixed">
                 <option value="<-12>12">UTC-12:00</option>
                 <option value="<-11>11">UTC-11:00 (Samoa)</option>
                 <option value="<-10>10">UTC-10:00 (Hawaii)</option>
@@ -1029,25 +1029,25 @@ td:first-child{color:var(--mut);width:45%}
                 <option value="<-06>6">UTC-06:00 (CST / US Central)</option>
                 <option value="<-05>5">UTC-05:00 (EST / US Eastern)</option>
                 <option value="<-04>4">UTC-04:00 (AST / Atlantic)</option>
-                <option value="<-03>3">UTC-03:00 (Brazília, Argentína)</option>
+                <option value="<-03>3" data-i18n="tzU_03">UTC-03:00 (Brazília, Argentína)</option>
                 <option value="<-02>2">UTC-02:00</option>
-                <option value="<-01>1">UTC-01:00 (Azory)</option>
-                <option value="<+01>-1">UTC+01:00 (CET fixný)</option>
-                <option value="<+02>-2">UTC+02:00 (EET fixný)</option>
-                <option value="<+03>-3">UTC+03:00 (Moskva, Saudská Arábia, Turecko)</option>
-                <option value="<+0330>-3:30">UTC+03:30 (Teherán)</option>
-                <option value="<+04>-4">UTC+04:00 (Dubaj, Baku)</option>
-                <option value="<+0430>-4:30">UTC+04:30 (Kábul)</option>
+                <option value="<-01>1" data-i18n="tzU_01">UTC-01:00 (Azory)</option>
+                <option value="<+01>-1" data-i18n="tzU_P01">UTC+01:00 (CET fixný)</option>
+                <option value="<+02>-2" data-i18n="tzU_P02">UTC+02:00 (EET fixný)</option>
+                <option value="<+03>-3" data-i18n="tzU_P03">UTC+03:00 (Moskva, Saudská Arábia, Turecko)</option>
+                <option value="<+0330>-3:30" data-i18n="tzU_P0330">UTC+03:30 (Teherán)</option>
+                <option value="<+04>-4" data-i18n="tzU_P04">UTC+04:00 (Dubaj, Baku)</option>
+                <option value="<+0430>-4:30" data-i18n="tzU_P0430">UTC+04:30 (Kábul)</option>
                 <option value="<+05>-5">UTC+05:00 (Pakistan, Uzbekistan)</option>
-                <option value="<+0530>-5:30">UTC+05:30 (India, Srí Lanka)</option>
-                <option value="<+06>-6">UTC+06:00 (Bangladéš, Astana)</option>
+                <option value="<+0530>-5:30" data-i18n="tzU_P0530">UTC+05:30 (India, Srí Lanka)</option>
+                <option value="<+06>-6" data-i18n="tzU_P06">UTC+06:00 (Bangladéš, Astana)</option>
                 <option value="<+07>-7">UTC+07:00 (Bangkok, Jakarta)</option>
-                <option value="<+08>-8">UTC+08:00 (Singapur, Peking, Perth)</option>
-                <option value="<+09>-9">UTC+09:00 (Tokio, Soul)</option>
+                <option value="<+08>-8" data-i18n="tzU_P08">UTC+08:00 (Singapur, Peking, Perth)</option>
+                <option value="<+09>-9" data-i18n="tzU_P09">UTC+09:00 (Tokio, Soul)</option>
                 <option value="<+0930>-9:30">UTC+09:30 (Adelaide)</option>
                 <option value="<+10>-10">UTC+10:00 (Sydney, Melbourne)</option>
-                <option value="<+11>-11">UTC+11:00 (Šalamúnove ostrovy)</option>
-                <option value="<+12>-12">UTC+12:00 (Auckland, Fidži)</option>
+                <option value="<+11>-11" data-i18n="tzU_P11">UTC+11:00 (Šalamúnove ostrovy)</option>
+                <option value="<+12>-12" data-i18n="tzU_P12">UTC+12:00 (Auckland, Fidži)</option>
                 <option value="<+13>-13">UTC+13:00 (Tonga, Samoa)</option>
                 <option value="<+14>-14">UTC+14:00 (Kiritimati)</option>
               </optgroup>
@@ -1061,7 +1061,7 @@ td:first-child{color:var(--mut);width:45%}
         <div class="card">
           <h2 data-i18n="location">📍 Domovská poloha</h2>
           <div class="row"><label data-i18n="findCity">Vyhľadať mesto</label>
-            <input type="text" id="q" style="flex:2 1 200px" placeholder="Hertník, Bardejov, Praha...">
+            <input type="text" id="q" style="flex:2 1 200px" placeholder="Hertník, Bardejov, Praha..." data-i18n-placeholder="citySearchPh">
             <button class="sec" onclick="geo()" data-i18n="search">Hľadať</button>
           </div>
           <div class="row hide" id="geoRow"><label data-i18n="found">Nájdené výsledky</label>
@@ -1130,7 +1130,7 @@ td:first-child{color:var(--mut);width:45%}
         </div>
         <div class="row" style="justify-content:center;gap:6px;margin:8px 0;">
           <button class="sec" onclick="stepScreen(-1)" data-i18n="btnPrev" style="flex:1;">&#8592; Predch.</button>
-          <button class="sec" onclick="toggleLegendsRemote()" style="background:#1d293d;color:var(--acc);border-color:var(--acc);flex:1;" data-i18n="btnDblTap" title="Dvojklik / Legenda">🔄 Legenda</button>
+          <button class="sec" onclick="toggleLegendsRemote()" style="background:#1d293d;color:var(--acc);border-color:var(--acc);flex:1;" data-i18n="btnDblTap" title="Dvojklik / Legenda" data-i18n-title="btnDblTapTitle">🔄 Legenda</button>
           <button class="sec" onclick="stepScreen(1)" data-i18n="btnNext" style="flex:1;">Nasled. &#8594;</button>
         </div>
         <div class="row" style="justify-content:center;gap:6px;margin:6px 0;">
@@ -1139,9 +1139,9 @@ td:first-child{color:var(--mut);width:45%}
         <div class="range-ctrl-row" id="rangeControlRow">
           <span data-i18n="rangeLbl" class="range-lbl">Mierka:</span>
           <div class="range-stepper">
-            <button type="button" class="btn-step" id="rMinus" onclick="stepRange(-1)" data-i18n-title="btnDec" title="Priblížiť (− km)">−</button>
+            <button type="button" class="btn-step" id="rMinus" onclick="stepRange(-1)" data-i18n-title="btnZoomIn" title="Priblížiť (− km)">−</button>
             <span id="rangeNow" class="range-val">–</span>
-            <button type="button" class="btn-step" id="rPlus" onclick="stepRange(1)" data-i18n-title="btnInc" title="Oddialiť (+ km)">+</button>
+            <button type="button" class="btn-step" id="rPlus" onclick="stepRange(1)" data-i18n-title="btnZoomOut" title="Oddialiť (+ km)">+</button>
           </div>
         </div>
         <div class="row" id="scrBtns" style="justify-content:center;gap:5px;margin-top:10px;"></div>
@@ -1156,9 +1156,9 @@ td:first-child{color:var(--mut);width:45%}
         <div style="text-align:center;margin:12px 0;">
           <div id="scrShotWrap" style="position:relative;display:inline-block;margin:0 auto;padding:6px;border-radius:50%;background:radial-gradient(circle, #1e293b 60%, #0f172a 100%);box-shadow:0 0 0 1px rgba(56,189,248,0.25), 0 8px 24px rgba(0,0,0,0.7), inset 0 0 12px rgba(0,0,0,0.9);cursor:pointer;" onclick="onMirrorClick(event)" title="Klepnutím na displej prepnete detaily letov a legendu" data-i18n-title="scrShotHint">
             <img id="scrShotImg" class="hide" style="width:204px;height:204px;border-radius:50%;border:2px solid var(--acc);background:#000;display:block;margin:0 auto;box-shadow:0 0 15px rgba(56,189,248,0.3);object-fit:cover;transition:transform 0.15s ease;" alt="Display Screenshot">
-            <div id="scrShotPlaceholder" style="width:204px;height:204px;border-radius:50%;border:2px dashed var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;margin:0 auto;color:var(--mut);font-size:12px;gap:6px;" data-i18n="scrShotNone">
+            <div id="scrShotPlaceholder" style="width:204px;height:204px;border-radius:50%;border:2px dashed var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;margin:0 auto;color:var(--mut);font-size:12px;gap:6px;">
               <span style="font-size:24px;">🎛️</span>
-              <span>Kliknite pre načítanie</span>
+              <span data-i18n="scrShotNone">Kliknite pre načítanie</span>
             </div>
           </div>
           <div style="font-size:11px;color:var(--mut);margin-top:6px;" data-i18n="scrShotHint">Klepnutím na displej prepnete detaily / legendu</div>
@@ -1224,7 +1224,7 @@ td:first-child{color:var(--mut);width:45%}
           <tr><td data-i18n="hwLocalTimeLbl">Miestny čas:</td><td><span class="stat-val" id="hwLocalTime" style="color:var(--acc);font-weight:700;">-</span></td></tr>
           <tr><td data-i18n="hwTzLbl">Pásmo / Posun:</td><td><span class="stat-val" id="hwTzOffset">-</span></td></tr>
           <tr><td data-i18n="hwRtcTimeLbl">Čas v RTC čipe:</td><td><span class="stat-val" id="hwRtcTime">-</span></td></tr>
-          <tr><td data-i18n="hwRtcLbl">Stav RTC čipu:</td><td><span class="pill pill-ok" id="hwRtcState">Aktívny (I2C 0x51)</span></td></tr>
+          <tr><td data-i18n="hwRtcLbl">Stav RTC čipu:</td><td><span class="pill pill-ok" id="hwRtcState" data-i18n="rtcActive">Aktívny (I2C 0x51)</span></td></tr>
         </table>
         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
           <button class="sec" onclick="syncRtcNtp()" data-i18n="btnSyncNtp" style="flex:1;">🌐 NTP sync</button>
@@ -1371,7 +1371,18 @@ const D={
   petTip1Hdr:"👆 Potažení nahoru:",petTip1Txt:"Potažením prstu od spodního okraje obrazovky nahoru kdykoliv vyvoláte mazlíčka.",
   petTip2Hdr:"❤️ Pohlazení:",petTip2Txt:"Klepnutí na mazlíčka ho pohladí, zvýší štěstí a spustí radostnou animaci.",
   petTip3Hdr:"🐟 Krmení & Dvojklik:",petTip3Txt:"Dvojklik na mazlíčka mu dá pamlsek, sníží hlad a doplní energii.",
-  petTip4Hdr:"🧭 6-osý IMU senzor:",petTip4Txt:"Mazlíček reaguje na fyzické naklánění radarového zařízení v prostoru."
+  petTip4Hdr:"🧭 6-osý IMU senzor:",petTip4Txt:"Mazlíček reaguje na fyzické naklánění radarového zařízení v prostoru.",
+   issViewModeLbl:"Režim zobrazení mapy:",issView3dIss:"🌍 3D Glóbus (Centrován na ISS)",issView3dHome:"📍 3D Glóbus (Centrován na Domov)",issView2dMap:"🗺️ 2D Plochá mapa světa",
+   compSolarRing:"🌌 24h Solární prstenec soumraku",compMoon:"🌕 3D Fotorealistický Měsíc",compMeteoSub:"🌡️ Meteorologický sub-ciferník",compSecBead:"🔵 Obíhající sekundová kulička",
+   petDigiCatName:"🐱 DigiCat (Pixel art společník)",toggleKeyTitle:"Zobrazit / Skrýt klíč",liveDispTitle:"Aktuálně zobrazená obrazovka na displeji",
+   btnDblTapTitle:"Dvojklik / Legenda",btnZoomIn:"Přiblížit (− km)",btnZoomOut:"Oddálit (+ km)",finClearTitle:"Vymazat",
+   serialFilterPh:"🔍 Filtrovat výpis...",serialCmdPh:"Zadejte příkaz (např. heap, status, ping, reboot)...",citySearchPh:"Praha, Brno, Ostrava...",ytChanPh:"@mkbhd nebo UC...",
+   rtcActive:"Aktivní (I2C 0x51)",rtcOsf:"Výpadek napájení (OSF)",rtcNotFound:"Nenalezen",
+   rtcNtpSyncOk:"RTC synchronizováno s NTP",rtcBrowserSyncOk:"Čas z prohlížeče uložen do RTC",rtcSyncErr:"Chyba synchronizace",rtcWriteErr:"Chyba zápisu",netErr:"Chyba spojení",
+   sonarPingOk:"Sonar Ping!",buzzerBeepOk:"Píp!",
+   tzGrpEurope:"Evropská časová pásma (automatický letní/zimní čas)",tzCet:"Středoevropský čas (CET/CEST: CZ, SK, AT, DE... UTC+1 / léto UTC+2)",tzEet:"Východoevropský čas (EET/EEST: UA, FI, GR, RO... UTC+2 / léto UTC+3)",tzWet:"Západoevropský čas / UK (WET/WEST: UK, IE, PT... UTC+0 / léto UTC+1)",
+   tzGrpUtc:"Světový referenční čas",tzUtc:"UTC / Zulu / GMT (UTC+0 bez změny času)",tzGrpFixed:"Fixní posuny vůči UTC (bez změny času)",
+   tzU_03:"UTC-03:00 (Brazílie, Argentina)",tzU_01:"UTC-01:00 (Azory)",tzU_P01:"UTC+01:00 (CET fixní)",tzU_P02:"UTC+02:00 (EET fixní)",tzU_P03:"UTC+03:00 (Moskva, Saúdská Arábie, Turecko)",tzU_P0330:"UTC+03:30 (Teherán)",tzU_P04:"UTC+04:00 (Dubaj, Baku)",tzU_P0430:"UTC+04:30 (Kábul)",tzU_P0530:"UTC+05:30 (Indie, Srí Lanka)",tzU_P06:"UTC+06:00 (Bangladéš, Astana)",tzU_P08:"UTC+08:00 (Singapur, Peking, Perth)",tzU_P09:"UTC+09:00 (Tokio, Soul)",tzU_P11:"UTC+11:00 (Šalamounovy ostrovy)",tzU_P12:"UTC+12:00 (Auckland, Fidži)"
  },
  sk:{
   tabScrClock:"🕒 Hodiny",tabScrPlanes:"✈️ Lietadlá",tabScrMeteo:"🌧️ Meteoradar",tabScrTactical:"🎯 Taktický radar",tabScrForecast:"⛅ Predpoveď",tabScrInfo:"ℹ️ Info & Štatistiky",tabScrFinance:"📈 Trhy & Krypto",tabCommon:"⚙️ Spoločné nastavenia",
@@ -1480,7 +1491,17 @@ const D={
   petTip1Hdr:"👆 Potiahnutie nahor:",petTip1Txt:"Potiahnutím prsta od spodného okraja obrazovky nahor kedykoľvek vyvoláte zvieratko.",
   petTip2Hdr:"❤️ Pohladkanie:",petTip2Txt:"Ťuknutie na zvieratko ho pohladká, zvýši šťastie a spustí radostnú animáciu.",
   petTip3Hdr:"🐟 Kŕmenie & Dvojklik:",petTip3Txt:"Dvojklik na zvieratko mu dá maškrtu, zníži hlad a doplní energiu.",
-  petTip4Hdr:"🧭 6-osový IMU senzor:",petTip4Txt:"Zvieratko reaguje na fyzické nakláňanie radarového zariadenia v priestore."
+  petTip4Hdr:"🧭 6-osový IMU senzor:",petTip4Txt:"Zvieratko reaguje na fyzické nakláňanie radarového zariadenia v priestore.",
+   compSolarRing:"🌌 24h Solárny prstenec súmraku",compMoon:"🌕 3D Fotorealistický Mesiac",compMeteoSub:"🌡️ Meteorologický sub-ciferník",compSecBead:"🔵 Obiehajúca sekundová guľôčka",
+   petDigiCatName:"🐱 DigiCat (Pixel art spoločník)",toggleKeyTitle:"Zobraziť / Skryť kľúč",liveDispTitle:"Aktuálne zobrazená obrazovka na displeji",
+   btnDblTapTitle:"Dvojklik / Legenda",btnZoomIn:"Priblížiť (− km)",btnZoomOut:"Oddialiť (+ km)",finClearTitle:"Vymazať",
+   serialFilterPh:"🔍 Filtrovať výpis...",serialCmdPh:"Zadajte príkaz (napr. heap, status, ping, reboot)...",citySearchPh:"Hertník, Bardejov, Praha...",ytChanPh:"@mkbhd alebo UC...",
+   rtcActive:"Aktívny (I2C 0x51)",rtcOsf:"Výpadok napájania (OSF)",rtcNotFound:"Nenájdený",
+   rtcNtpSyncOk:"RTC synchronizované s NTP",rtcBrowserSyncOk:"Čas z prehliadača uložený do RTC",rtcSyncErr:"Chyba synchronizácie",rtcWriteErr:"Chyba zápisu",netErr:"Chyba spojenia",
+   sonarPingOk:"Sonar Ping!",buzzerBeepOk:"Píp!",
+   tzGrpEurope:"Európske časové pásma (automatický letný/zimný čas)",tzCet:"Stredoeurópsky čas (CET/CEST: SK, CZ, AT, DE... UTC+1 / leto UTC+2)",tzEet:"Východoeurópsky čas (EET/EEST: UA, FI, GR, RO... UTC+2 / leto UTC+3)",tzWet:"Západoeurópsky čas / UK (WET/WEST: UK, IE, PT... UTC+0 / leto UTC+1)",
+   tzGrpUtc:"Svetový referenčný čas",tzUtc:"UTC / Zulu / GMT (UTC+0 bez zmeny času)",tzGrpFixed:"Fixné posuny voči UTC (bez zmeny času)",
+   tzU_03:"UTC-03:00 (Brazília, Argentína)",tzU_01:"UTC-01:00 (Azory)",tzU_P01:"UTC+01:00 (CET fixný)",tzU_P02:"UTC+02:00 (EET fixný)",tzU_P03:"UTC+03:00 (Moskva, Saudská Arábia, Turecko)",tzU_P0330:"UTC+03:30 (Teherán)",tzU_P04:"UTC+04:00 (Dubaj, Baku)",tzU_P0430:"UTC+04:30 (Kábul)",tzU_P0530:"UTC+05:30 (India, Srí Lanka)",tzU_P06:"UTC+06:00 (Bangladéš, Astana)",tzU_P08:"UTC+08:00 (Singapur, Peking, Perth)",tzU_P09:"UTC+09:00 (Tokio, Soul)",tzU_P11:"UTC+11:00 (Šalamúnove ostrovy)",tzU_P12:"UTC+12:00 (Auckland, Fidži)"
  },
  en:{
   tabScrClock:"🕒 Clock",tabScrPlanes:"✈️ Aircraft",tabScrMeteo:"🌧️ Weather Radar",tabScrTactical:"🎯 Tactical Radar",tabScrForecast:"⛅ Forecast",tabScrInfo:"ℹ️ Info & Stats",tabScrFinance:"📈 Markets & Crypto",tabCommon:"⚙️ Shared Settings",
@@ -1589,11 +1610,21 @@ const D={
   petTip1Hdr:"👆 Swipe Up:",petTip1Txt:"Swipe upwards from the bottom edge on any screen to summon your pet companion.",
   petTip2Hdr:"❤️ Petting:",petTip2Txt:"Tapping the pet gives loving pats, increases happiness, and triggers happy animations.",
   petTip3Hdr:"🐟 Feeding & Double-tap:",petTip3Txt:"Double-tapping feeds your pet a treat, satisfying hunger and restoring energy.",
-  petTip4Hdr:"🧭 6-Axis IMU Sensor:",petTip4Txt:"The pet organically leans and responds to physical device tilting and orientation."
+  petTip4Hdr:"🧭 6-Axis IMU Sensor:",petTip4Txt:"The pet organically leans and responds to physical device tilting and orientation.",
+   compSolarRing:"🌌 24h Solar Twilight Ring",compMoon:"🌕 3D Photorealistic Moon",compMeteoSub:"🌡️ Weather Sub-Dial",compSecBead:"🔵 Orbiting Seconds Bead",
+   petDigiCatName:"🐱 DigiCat (Pixel Art Companion)",toggleKeyTitle:"Show / Hide Key",liveDispTitle:"Currently active screen on display",
+   btnDblTapTitle:"Double-tap / Legend",btnZoomIn:"Zoom in (− km)",btnZoomOut:"Zoom out (+ km)",finClearTitle:"Clear",
+   serialFilterPh:"🔍 Filter output...",serialCmdPh:"Enter command (e.g. heap, status, ping, reboot)...",citySearchPh:"London, New York, Prague...",ytChanPh:"@mkbhd or UC...",
+   rtcActive:"Active (I2C 0x51)",rtcOsf:"Power Loss (OSF)",rtcNotFound:"Not Found",
+   rtcNtpSyncOk:"RTC synchronized with NTP",rtcBrowserSyncOk:"Browser time saved to RTC",rtcSyncErr:"Sync Error",rtcWriteErr:"Write Error",netErr:"Connection Error",
+   sonarPingOk:"Sonar Ping!",buzzerBeepOk:"Beep!",
+   tzGrpEurope:"European time zones (automatic DST)",tzCet:"Central European Time (CET/CEST: UTC+1 / DST UTC+2)",tzEet:"Eastern European Time (EET/EEST: UTC+2 / DST UTC+3)",tzWet:"Western European Time / UK (WET/WEST: UTC+0 / DST UTC+1)",
+   tzGrpUtc:"World reference time",tzUtc:"UTC / Zulu / GMT (UTC+0 no DST)",tzGrpFixed:"Fixed UTC offsets (no DST)",
+   tzU_03:"UTC-03:00 (Brazil, Argentina)",tzU_01:"UTC-01:00 (Azores)",tzU_P01:"UTC+01:00 (CET fixed)",tzU_P02:"UTC+02:00 (EET fixed)",tzU_P03:"UTC+03:00 (Moscow, Saudi Arabia, Turkey)",tzU_P0330:"UTC+03:30 (Tehran)",tzU_P04:"UTC+04:00 (Dubai, Baku)",tzU_P0430:"UTC+04:30 (Kabul)",tzU_P0530:"UTC+05:30 (India, Sri Lanka)",tzU_P06:"UTC+06:00 (Bangladesh, Astana)",tzU_P08:"UTC+08:00 (Singapore, Beijing, Perth)",tzU_P09:"UTC+09:00 (Tokyo, Seoul)",tzU_P11:"UTC+11:00 (Solomon Islands)",tzU_P12:"UTC+12:00 (Auckland, Fiji)"
  }
 };
 
-let L="sk", CFG={}, TAB="tScrClock";
+let L="sk", CFG={}, TAB="tScrClock", g_lastStatus=null;
 const $=id=>document.getElementById(id);
 
 function setLang(v){
@@ -1606,6 +1637,8 @@ function setLang(v){
   if(t!==undefined){
    if(e.tagName==="INPUT" && (e.type==="button"||e.type==="submit")){
     e.value=t;
+   } else if(e.tagName==="OPTGROUP"){
+    e.label=t;
    } else {
     e.textContent=t;
    }
@@ -1616,6 +1649,25 @@ function setLang(v){
    const t=D[L][k];
    if(t!==undefined) e.title=t;
  });
+ document.querySelectorAll("[data-i18n-placeholder]").forEach(e=>{
+   const k=e.dataset.i18nPlaceholder;
+   const t=D[L][k];
+   if(t!==undefined) e.placeholder=t;
+ });
+ if(g_lastStatus){
+  drawScrBtns(g_lastStatus.screen, g_lastStatus.enabled);
+  const scrKeys=["scrClock","scrPlanes","scrMeteo","scrTactical","scrSonar","scrForecast","scrFinance","scrIss","scrYouTube","scrInfo","scrSettings"];
+  const curKey = scrKeys[g_lastStatus.screen] || "scrClock";
+  let curName = (D[L] && D[L][curKey]) ? D[L][curKey] : ("Screen " + g_lastStatus.screen);
+  if(g_lastStatus.petOpen) curName += " + 🐾 DigiCat";
+  if($("liveDispName")) $("liveDispName").textContent = curName;
+  if($("hwCurScreenName")) $("hwCurScreenName").textContent = curName;
+  if($("btnPetRemote")){
+    const isOpen = !!g_lastStatus.petOpen;
+    $("btnPetRemote").textContent = isOpen ? (D[L].btnPetHide||"🐾 Skryť DigiCat (Pet)") : (D[L].btnPetShow||"🐾 Zobraziť DigiCat (Pet)");
+  }
+ }
+ if(typeof updateSerialBadge==="function") updateSerialBadge(g_serialRunning);
  pwState();status();updateHardware();initFinPresets();
 }
 
@@ -1729,7 +1781,7 @@ async function updateHardware(){
   if($("hwTzOffset")) $("hwTzOffset").textContent = h.tzOffset || "-";
   if($("hwRtcState")){
     const ok = !!h.rtcDetected;
-    $("hwRtcState").textContent = ok ? (h.rtcOscStopped ? "Výpadok napájania (OSF)" : "Aktívny (I2C 0x51)") : "Nenájdený";
+    $("hwRtcState").textContent = ok ? (h.rtcOscStopped ? ((D[L]&&D[L].rtcOsf)||"Výpadok napájania (OSF)") : ((D[L]&&D[L].rtcActive)||"Aktívny (I2C 0x51)")) : ((D[L]&&D[L].rtcNotFound)||"Nenájdený");
     $("hwRtcState").className = "pill " + (ok ? (h.rtcOscStopped ? "pill-warn" : "pill-ok") : "pill-err");
     if($("hwRtcTime")) $("hwRtcTime").textContent = h.rtcTime || "-";
   }
@@ -1738,9 +1790,9 @@ async function updateHardware(){
 async function syncRtcNtp(){
   try{
     const r = await fetch("/api/rtc/sync_ntp", {method:"POST"});
-    if(r.ok) { msg("RTC synchronizované s NTP", "ok"); updateHardware(); }
-    else { const err = await r.json(); msg(err.error||"Chyba synchronizácie", "err"); }
-  }catch(e){ msg("Chyba spojenia", "err"); }
+    if(r.ok) { msg((D[L]&&D[L].rtcNtpSyncOk)||"RTC synchronizované s NTP", "ok"); updateHardware(); }
+    else { const err = await r.json(); msg(err.error||(D[L]&&D[L].rtcSyncErr)||"Chyba synchronizácie", "err"); }
+  }catch(e){ msg((D[L]&&D[L].netErr)||"Chyba spojenia", "err"); }
 }
 async function syncRtcBrowser(){
   try{
@@ -1750,9 +1802,9 @@ async function syncRtcBrowser(){
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify({epoch:epoch})
     });
-    if(r.ok) { msg("Čas z prehliadača uložený do RTC", "ok"); updateHardware(); }
-    else { msg("Chyba zápisu", "err"); }
-  }catch(e){ msg("Chyba spojenia", "err"); }
+    if(r.ok) { msg((D[L]&&D[L].rtcBrowserSyncOk)||"Čas z prehliadača uložený do RTC", "ok"); updateHardware(); }
+    else { msg((D[L]&&D[L].rtcWriteErr)||"Chyba zápisu", "err"); }
+  }catch(e){ msg((D[L]&&D[L].netErr)||"Chyba spojenia", "err"); }
 }
 setInterval(updateHardware, 4000);
 
@@ -2137,6 +2189,7 @@ $("briDay").addEventListener("input",bri);$("briNight").addEventListener("input"
 async function status(){
  try{
   const s=await(await fetch("/api/status")).json();
+  g_lastStatus=s;
   if(s.lang !== undefined){
     const devL = (s.lang==1||s.lang=="en")?"en":((s.lang==0||s.lang=="cs")?"cs":"sk");
     if(L !== devL){
@@ -2402,7 +2455,7 @@ async function onMirrorClick(e){
 async function testBuzzer(){
  try{
   await fetch("/api/buzzer/test",{method:"POST"});
-  msg("Píp!","ok");
+  msg((D[L]&&D[L].buzzerBeepOk)?D[L].buzzerBeepOk:"Píp!","ok");
  }catch(e){msg(D[L].failed||"Chyba","err");}
 }
 
