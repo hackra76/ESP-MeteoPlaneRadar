@@ -21,12 +21,12 @@ Designed for the **Waveshare ESP32-S3-Touch-LCD-2.1** with smartphone-like touch
 ## 📸 Live Device Demo
 
 <p align="center">
+  <img src="docs/media/clock_luxury.png" width="16%" alt="Luxury Astronomical Chronograph" />
   <img src="docs/media/tactical_radar_live.gif" width="16%" alt="Tactical Radar" />
-  <img src="docs/media/screen_iss_live.png" width="16%" alt="ISS Orbit Tracker" />
+  <img src="docs/media/screen_sonar.png" width="16%" alt="Phosphor Sonar Radar" />
+  <img src="docs/media/screen_iss_live.png" width="16%" alt="3D ISS Orbit Tracker" />
   <img src="docs/media/finance_screen.png" width="16%" alt="Markets & Crypto" />
   <img src="docs/media/plane_detail_photo.png" width="16%" alt="Aircraft Detail" />
-  <img src="docs/media/weather_radar_chmu.gif" width="16%" alt="Weather Radar" />
-  <img src="docs/media/clock_stacked_bold.png" width="16%" alt="Clock Face" />
 </p>
 
 ### 🐱 DigiCat — Animated Virtual Pet Companion
@@ -44,45 +44,61 @@ Designed for the **Waveshare ESP32-S3-Touch-LCD-2.1** with smartphone-like touch
 ## 🌟 Features
 
 ### 🚀 v3.0.0 Major Architectural Upgrade
-- **LVGL 9 Rendering Pipeline:** Replaced the legacy Arduino_GFX rendering with double-buffered LVGL 9.0, achieving buttery smooth animations and native anti-aliasing via DMA transfers.
-- **Sonar Screen Mode:** Added a brand new tactical phosphor sweep radar screen with animated fading trails and real-time aircraft blips.
-- **Zero PSRAM Fragmentation:** Complete overhaul of PNG memory allocation, ensuring stable 250km SHMU/CHMU weather radar playback without crashing.
-- **Gesture Overhaul:** Rebuilt touch handling for flawless swipes, screen transitions, and Quick Control panel drop-downs.
+- **LVGL 9 Rendering Pipeline:** Replaced legacy Arduino_GFX rendering with double-buffered LVGL 9.1 (2× 480×480 in PSRAM) and DMA transfers, achieving buttery smooth animations and native anti-aliasing.
+- **Luxury Astronomical Chronograph:** Handcrafted Swiss luxury watchface featuring a 24-hour solar twilight perimeter arc with orbiting Sun glyph and golden hour bands, photorealistic 3D raymarched lunar sphere with embedded NASA LROC albedo texture, outdoor temperature trend sparkline subdial, and an orbiting 30 FPS electric-blue seconds bead with Gaussian bloom arc.
+- **Glass Cockpit Avionics & Radar Modernization:** 360-degree aviation compass rose bezel, forward 1-minute velocity vector leader lines, selectable target styles (aerodynamic vector chevrons vs. silhouettes), floating uncluttered stacked avionics callouts (with smart origin/destination route substitution), and metric/aviation unit scaling.
+- **Multi-Provider Map Underlays:** Switch seamlessly between offline high-speed vector European borders & cities (`EuBorder`) and online raster map tiles (Esri World Dark Gray Canvas, OpenStreetMap Standard) cached to flash memory.
+- **Tactical Sonar Screen:** Cold War tactical phosphor green CRT radar sweep (25 FPS) with analog phosphor persistence decay, Doppler velocity color encoding (Closing cyan, Opening amber, Cross-track green), acoustic ping on target contact, and 3 view modes (Classic PPI sweep, Split view with BTR waterfall spectrogram, Full-height Waterfall).
+- **3D Orbital Space Command ISS Tracker:** Real-time 3D orthographic spherical Earth projection with Rayleigh atmospheric limb scattering halo, real-time Day/Night solar terminator shading, orbital ground track and radio footprint circle, and 3 view modes (3D ISS, 3D Home, 2D Map).
+- **DigiCat 2.0 Aero-Cat Flight Deck Co-Pilot:** Top Gun tactical military intercept mode with aviator sunglasses, animated mini radar scope, real-time 6-axis IMU attitude telemetry (pitch, roll, gyro heading), and Google Gemini AI thoughts.
+- **Auto-Hiding Floating Translucent Zoom Controls:** Circular glass `+` and `-` buttons that appear on right-edge touch and auto-hide after 3.5s, eliminating accidental zoom during swipes.
+- **Quick Control Center:** Drop-down panel accessible by swiping down from the top edge with direct toggles for brightness, sound/buzzer, flight trails, target styles, map provider, sonar ping, and DigiCat launcher.
+- **Zero PSRAM Fragmentation:** Dynamic on-the-fly row downsampling capping buffer to 307KB per frame, preventing memory fragmentation and crashes during wide SHMÚ/ČHMÚ radar playback.
 
-### 🕒 Clock Faces & Time
-6 selectable watchfaces (Stacked Bold, Aviator, Orbital, Régulateur, Nordic Minimal, Classic Digital) with forecast pills, moon phase, and a 24-hour solar arc. **7 seconds ring styles**: Off, Dot, Smooth Arc, Pulse, Radar Sweep, Swiss Ticks, Orbital Satellite.
+### 🕒 Luxury Astronomical Chronograph
+- **24-Hour Solar Twilight Arc:** Outer perimeter ring displaying real-time solar progression (Noon at 12 o'clock, Midnight at 6 o'clock), astronomical sunrise and sunset markers, 24K gold morning/evening golden hour bands, and a dynamic Sun glyph orbiting in real-time according to local solar time.
+- **Photorealistic 3D Moon Phase Aperture:** Top complication featuring an embedded 92×92 photographic NASA LROC lunar albedo texture rendered with analytical 3D Lambertian diffuse lighting, limb darkening, smooth phase terminator shadow, and real-time illumination percentage.
+- **Temperature Trend Subdial:** Bottom complication with 12 rose-gold radial hour ticks, outdoor temperature, and an electric-blue area sparkline trend curve with glowing end bead. Tap jumps directly to the 3-day weather forecast.
+- **Dynamic Seconds Orbit & Bloom:** Electric-blue concentric ring with smooth orbiting luminous seconds bead (~30 FPS) leaving an active Gaussian bloom arc trailing from 12 o'clock to the current second.
+- **Swiss Anti-Aliased Typography:** Clean white 76px digital clock digits (HH:MM) with supersampled anti-aliased bezels and a localized date complication.
+- **Interactive Alert Banners:** Floating overhead flight banner and approaching precipitation banner with tap-to-inspect navigation.
 
-### 🛩️ Aircraft Tracking & Alert HUD
-- **360° radar** (14–200 km) via adsb.fi / adsb.lol with range rings and airport beacons.
+### 🛩️ Aircraft Tracking & Glass Cockpit Radar
+- **360° radar** (14–200 km) via adsb.fi / adsb.lol with range rings, airport beacons, and 360° aviation compass rose bezel.
+- **Target blip styling**: Choose between Glass Cockpit aerodynamic vector chevrons (with combat jet double-chevrons) and aircraft silhouettes.
+- **Forward velocity vectors**: 1-minute forward ground track leader lines with speed indicator pip.
+- **Stacked avionics callouts**: 3-line floating data tags (Callsign or ORIG>DEST, Altitude & vertical rate trend, Ground speed & route) with decluttered spacing and metric/aviation units toggle.
 - **Special flight detection**: Rescue (green), VIP/Government (gold), Heavy jets (cyan), Military (red) — glowing target rings and top alert banner.
 - **Emergency squawk auto-focus** (7500/7600/7700): locks onto aircraft, dims all others, shows live telemetry banner.
 - **Proximity vector** to nearest aircraft with distance, bearing, and altitude delta.
 - **Offline route database**: callsign → origin/destination decoding (e.g., `BOJ→WAW`).
-- **Tap any aircraft** for a full telemetry card with live high-res photo from Planespotters.net.
+- **Aero Glass Flight Deck HUD**: Tap any aircraft for a full telemetry card with live photo from Planespotters.net; tap photo for an aspect-fit, edge-to-edge Aero Glass HUD with zero truncation and live avionics telemetry overlay.
 
 ### 🌧️ Precipitation Radar & Nowcasting
-- Animated radar loops (SHMÚ / ČHMÚ / RainViewer) with temporal cross-dissolve and optional bilinear smoothing.
+- Animated radar loops (SHMÚ / ČHMÚ / RainViewer) with temporal cross-dissolve, isotropic circular masking, and zero-fragmentation row downsampling.
 - **TREC 2D nowcasting**: alerts only when rain is genuinely heading toward your location (ETA ≤ 35 min, miss ≤ 6 km).
 - **Auto precipitation typing**: Rain / Sleet (1–3°C) / Snow (≤1°C) / Hail (>50 dBZ).
 
-### 🛰️ Tactical Radar, ISS, YouTube & Finance
-- **Combined Tactical Radar**: precipitation radar + ADS-B flights on one screen simultaneously.
-- **ISS Orbit Tracker**: world map with solar terminator, past/future orbits, footprint ring, next-pass countdown, and sonar ping on entry.
-- **YouTube Analytics**: live subscriber count, total views, and latest video stats (YouTube Data API v3).
-- **Financial Markets**: 4 configurable tickers (ETFs, stocks, crypto, forex) with sparkline and candlestick charts (Yahoo Finance v8).
+### 🛰️ Tactical Radar, Sonar, ISS, YouTube & Finance
+- **Combined Tactical Radar**: precipitation radar + ADS-B flights on one screen simultaneously with glass cockpit avionics.
+- **Tactical Acoustic Sonar**: 25 FPS CRT phosphor sweep, BTR waterfall spectrogram history, Doppler velocity encoding, and acoustic contact ping.
+- **3D ISS Orbit Tracker**: 3D orthographic Earth globe with atmospheric Rayleigh limb halo, solar terminator Day/Night shading, orbital tracks, and 3 view modes (3D ISS, 3D Home, 2D Map).
+- **YouTube Analytics**: live subscriber count, total views, and latest / top video stats (YouTube Data API v3).
+- **Financial Markets**: up to 8 configurable tickers (ETFs, stocks, crypto, forex) with sparkline and candlestick charts (Yahoo Finance v8).
 
 ### 🌤️ Weather, Air Quality & Night Mode
 - Hourly temperature, wind, and rain curves, 3-day forecast, AQI, PM2.5, and pollen (Open-Meteo).
 - **Deep-Red Night Mode** (0.5% backlight) and `nightClockOnly` mode (locks to clock face during sleep hours).
 
 ### 🐾 DigiCat Virtual Pet (v3.0.0)
-Full-screen interactive companion (Swipe Up from any screen or Quick Control Center paw icon).
+Full-screen interactive companion (Swipe Up from bottom edge or Quick Control Center paw icon).
 
 - **247 frames · 38 animation sequences** — professional 64×64 RGBA ginger cat sprites, RGB565 PROGMEM, rendered at **3× scale (192×192 px)**.
+- **Aero-Cat Co-Pilot**: Top Gun military intercept mode with gold aviator sunglasses, animated mini radar scope, and live 6-axis IMU attitude telemetry (PITCH, ROLL, GYRO HEADING).
 - **Rich idle personality (9 sub-animations)**: tail-wag sit, lick paw sitting, lick paw lying, meow sitting/lying/standing, scratch left/right ear, yawn — randomly cycled every 4–10 s.
 - **Happy reaction (3 variants)**: sitting, standing-front, standing-right tail-wag — cycling every 1.5–4 s.
 - **Aircraft swat (3 variants)**: standing swipe, sitting right paw, sitting left paw — rolled each encounter.
-- **5 randomised sleep poses** (Rows 45–56): variant + left/right orientation locked for the entire night.
+- **5 randomised sleep poses**: variant + left/right orientation locked for the entire night.
 - **Direction-aware locomotion**: authentic `cat_run_left` when entering from the right; `cat_slide_left` when tilting left.
 - **Live weather accessories**: umbrella (rain/storm), knit scarf (snow/cold ≤2°C), aviator goggles (clear).
 - **Weather-reactive runway**: dry asphalt / wet reflection / snow dusting.
@@ -93,12 +109,12 @@ Full-screen interactive companion (Swipe Up from any screen or Quick Control Cen
 - **Google Gemini Live AI**: optional Gemini Flash integration for live air traffic commentary (100% offline fallback, SK/CZ/EN).
 
 ### ⚡ System & Connectivity
-- **Dual-Core FreeRTOS**: Core 1 for ST7701 RGB rendering (double-framebuffer, zero flicker) + touch; Core 0 for network, radar caching, ADS-B parsing.
+- **Dual-Core FreeRTOS**: Core 1 for LVGL 9 RGB rendering (double-framebuffer, zero flicker) + touch; Core 0 for network, radar caching, ADS-B parsing.
 - **Zero-Drift ST7701 driver**: calibrated 8 MHz RGB clock, no SPI Flash writes during carousel, VSYNC auto-recovery.
 - **Hardware RTC** (PCF85063) with optional supercapacitor backup (3.3 V, 1.0–1.5 F).
-- **Web dashboard**: configuration, OTA, live serial monitor (64 KB PSRAM ring buffer), screenshot capture, remote screen control.
+- **Web dashboard**: configuration, OTA, live serial monitor (64 KB PSRAM ring buffer), interactive virtual device mirror with touch simulation, remote screen control.
 - **Smart Home REST API**: `/api/status`, `/api/screen`, `/api/display/resync`, `/api/toggle-legends`, `/api/rtc/sync_ntp`.
-- **Active buzzer**: emergency squawk alerts, storm warnings, ISS sonar ping, hourly chimes, night muting.
+- **Active buzzer**: emergency squawk alerts, storm warnings, ISS sonar ping, acoustic sweep ping, hourly chimes, night muting.
 
 ---
 
@@ -106,17 +122,18 @@ Full-screen interactive companion (Swipe Up from any screen or Quick Control Cen
 
 | Screen | Preview | Description | Source |
 | :--- | :---: | :--- | :--- |
-| **0. Clock** | <img src="docs/media/clock_stacked_bold.png" width="70" /> | 6 watchfaces, forecast pills, moon phase, solar arc | Open-Meteo |
-| **1. Planes** | <img src="docs/media/plane_radar_live.png" width="70" /> | 360° ADS-B radar, emergency squawks, routes, airports | adsb.fi / adsb.lol |
-| **1b. Aircraft Detail** | <img src="docs/media/plane_detail_photo.png" width="70" /> | Full telemetry + live photo on tap | Planespotters.net |
-| **2. Weather Radar** | <img src="docs/media/weather_radar_chmu.gif" width="70" /> | Animated radar loop, cross-dissolve, bilinear smoothing | SHMÚ / ČHMÚ / RainViewer |
-| **3. Tactical Radar** | <img src="docs/media/tactical_radar_live.gif" width="70" /> | Precipitation radar + live ADS-B overlay | SHMÚ / ČHMÚ + adsb.fi |
-| **4. Forecast** | <img src="docs/media/forecast_screen.png" width="70" /> | Hourly curves, 3-day forecast, AQI, PM2.5, pollen | Open-Meteo |
-| **5. Markets & Crypto** | <img src="docs/media/finance_screen.png" width="70" /> | 4 custom tickers, sparkline & candlestick charts | Yahoo Finance v8 |
-| **6. ISS Tracker** | <img src="docs/media/screen_iss_live.png" width="70" /> | World map, terminator, orbits, footprint, countdown | WhereTheISS API |
-| **7. YouTube** | <img src="docs/media/youtube_screen.png" width="70" /> | Subscriber count, total views, latest video stats | YouTube Data API v3 |
-| **8. Flight Stats** | <img src="docs/media/flight_stats_screen.png" width="70" /> | 24h airspace activity across 6 zoom scopes | PSRAM Tracker |
-| **9. Settings** | <img src="docs/media/settings_screen.png" width="70" /> | Device telemetry, IP, brightness, language, radar config | System |
+| **0. Clock** | <img src="docs/media/clock_luxury.png" width="70" /> | Luxury Astronomical Chronograph (24h solar arc, 3D moon, temp sparkline) | Open-Meteo |
+| **1. Planes** | <img src="docs/media/plane_radar_live.png" width="70" /> | Glass Cockpit ADS-B radar, 360° compass rose, velocity vectors, map tiles | adsb.fi / adsb.lol |
+| **1b. Aircraft Detail** | <img src="docs/media/plane_detail_photo.png" width="70" /> | Aero Glass Flight Deck HUD with full telemetry + live photo on tap | Planespotters.net |
+| **2. Weather Radar** | <img src="docs/media/weather_radar_chmu.gif" width="70" /> | Animated radar loop, downsampled memory-safe decoding, rain nowcasting | SHMÚ / ČHMÚ / RainViewer |
+| **3. Tactical Radar** | <img src="docs/media/tactical_radar_live.gif" width="70" /> | Precipitation radar + live ADS-B overlay with glass cockpit styling | SHMÚ / ČHMÚ + adsb.fi |
+| **4. Sonar** | <img src="docs/media/screen_sonar.png" width="70" /> | CRT phosphor radar sweep, BTR waterfall spectrogram, Doppler velocity, acoustic ping | adsb.fi |
+| **5. Forecast** | <img src="docs/media/forecast_screen.png" width="70" /> | Hourly curves, 3-day forecast, AQI, PM2.5, pollen | Open-Meteo |
+| **6. Markets & Crypto** | <img src="docs/media/finance_screen.png" width="70" /> | Up to 8 custom tickers, sparkline & candlestick charts | Yahoo Finance v8 |
+| **7. ISS Tracker** | <img src="docs/media/screen_iss_live.png" width="70" /> | 3D orthographic Earth globe, solar terminator, Rayleigh limb glow, orbits | WhereTheISS API |
+| **8. YouTube** | <img src="docs/media/youtube_screen.png" width="70" /> | Subscriber count, total views, latest / top video stats | YouTube Data API v3 |
+| **9. Flight Stats & Info** | <img src="docs/media/flight_stats_screen.png" width="70" /> | 24h airspace activity across 6 zoom scopes, internal SRAM & PSRAM telemetry | PSRAM Tracker |
+| **10. Settings** | <img src="docs/media/settings_screen.png" width="70" /> | Device telemetry, IP, brightness, language, map provider, audio, OTA | System |
 
 ---
 
@@ -125,15 +142,20 @@ Full-screen interactive companion (Swipe Up from any screen or Quick Control Cen
 | Gesture | Action |
 | :--- | :--- |
 | **Swipe Left / Right** | Previous / next screen |
-| **Pull Down from top edge** | Quick Control Center (brightness, night mode, toggles) |
+| **Pull Down from top edge** | Quick Control Center (brightness, night mode, trails, blip style, map provider) |
 | **Swipe Up from bottom edge** | DigiCat companion drawer |
-| **Tap pet** | Pet / affection (purr, blush, dialogue) |
+| **Tap right flank zone (Radars)** | Reveal floating translucent `+` / `-` zoom buttons (auto-hide after 3.5s) |
+| **Tap `+` / `-` zoom buttons** | Zoom in / zoom out radar range |
+| **Tap bottom subdial (Clock)** | Jump directly to Weather Forecast screen |
+| **Tap alert banner (Clock)** | Jump to Planes (overhead flight) or Weather Radar (rain alert) |
+| **Tap aircraft blip** | Open telemetry detail card with live photo |
+| **Tap aircraft photo** | Open full-screen Aero Glass Flight Deck HUD (tap to return) |
+| **Double-tap screen (Radars)** | Toggle clean map mode (hide / show legends & labels) |
+| **Tap top-right badge (Sonar)** | Cycle sonar view mode (Classic PPI → Split → Waterfall) |
+| **Tap bottom range pill (Sonar)** | Cycle sonar range (25, 50, 100, 150 km) |
+| **Tap Earth globe (ISS)** | Cycle ISS view mode (3D ISS → 3D Home → 2D Map) |
+| **Tap pet (DigiCat)** | Pet / affection (purr, blush, dialogue); tap forehead to toggle Top Gun mode |
 | **Double-tap pet** | Feed treat (restores hunger & happiness) |
-| **Swipe Up/Down (center)** | Clock: cycle watchface · Radars: zoom in/out |
-| **Tap bottom range bar** | Left = zoom out · Right = zoom in |
-| **Tap aircraft** | Open telemetry detail card with live photo |
-| **Tap aircraft photo** | Full-screen photo (tap to return) |
-| **Double-tap (knock)** | Radars: toggle clean map mode · Finance/ISS: force refresh |
 | **Hold BOOT button ~3 s** | Factory reset (clears Wi-Fi & NVS) |
 
 ---
@@ -189,7 +211,7 @@ pio run -t upload  # flash
 | :--- | :---: | :--- |
 | `/api/status` | GET | Full JSON status (weather, aircraft, heap, ISS) |
 | `/api/hardware` | GET | Peripherals, RTC, I2C scan, reset reason |
-| `/api/screen` | POST | Switch screen `{"index": 0}` (0–9) |
+| `/api/screen` | POST | Switch screen `{"index": 0}` (0–10) |
 | `/api/display/resync` | POST | Force display hardware resync |
 | `/api/toggle-legends` | POST | Toggle clean map mode |
 | `/api/rtc/sync_ntp` | POST | Force NTP → RTC sync |
