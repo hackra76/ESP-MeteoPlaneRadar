@@ -68,7 +68,7 @@
   X(S_MIN,           "min",                "min",                "min",                "min",                "min") \
   X(S_WHOLE_CZ,      "cela CR",            "celá ČR",            "cela CR",            "celá ČR",            "whole CZ") \
   X(S_WHOLE_SK,      "cele Slovensko",     "celé Slovensko",     "cele Slovensko",     "celé Slovensko",     "whole Slovakia") \
-  X(S_WHOLE_COUNTRY, "cela krajina",       "celá krajina",       "cela krajina",       "celá krajina",       "whole country") \
+  X(S_WHOLE_COUNTRY, "cela zeme",          "celá země",          "cela krajina",       "celá krajina",       "whole country") \
   X(S_LOADING_NEWER, "nacitam novejsi snimky...", "načítám novější snímky...", "nacitavam novsie snimky...", "načítavam novšie snímky...", "loading newer frames...") \
   X(S_OLD_DATA,      "bez spojeni, zobrazena starsi data", "bez spojení, zobrazena starší data", "bez spojenia, zobrazene starsie data", "bez spojenia, zobrazené staršie dáta", "no link, showing older data") \
   X(S_FRAME_WIDE,    "snimek moc siroky",  "snímek moc široký",  "snimka prilis siroka", "snímka príliš široká", "frame too wide") \

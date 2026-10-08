@@ -50,6 +50,9 @@ const char* Aircraft_GetCategoryName(AircraftIconType iconType);
 // Draws vector aircraft silhouette matching its category rotated by trackDeg on the radar
 void Aircraft_DrawIcon(Arduino_GFX* g, int x, int y, float trackDeg, bool hasTrack, uint16_t col, AircraftIconType iconType);
 
+// Draws sleek glass cockpit directional chevron blip (with tactical double-chevron for military/bogey)
+void Aircraft_DrawChevron(Arduino_GFX* g, int x, int y, float trackDeg, bool hasTrack, uint16_t col, AircraftIconType iconType, bool isSelected = false, bool isMil = false);
+
 // Draws a large high-detail vector silhouette of the aircraft category (e.g. for photo replacement)
 void Aircraft_DrawDetailedSilhouette(Arduino_GFX* g, int cx, int cy, int maxW, int maxH, uint16_t col, AircraftIconType iconType);
 

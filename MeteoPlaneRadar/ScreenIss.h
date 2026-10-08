@@ -5,7 +5,6 @@
 #pragma once
 #include <Arduino.h>
 
-void ScreenIss_Enter();
-void ScreenIss_Draw();
-bool ScreenIss_Tick();
-bool ScreenIss_HandleTap(int x, int y);
+#include <lvgl.h>
+
+void ScreenIss_Init(lv_obj_t* parent);

@@ -5,6 +5,7 @@
 #pragma once
 #include <Arduino.h>
 
+void QuickControl_Init();
 bool QuickControl_IsOpen();
 void QuickControl_Open();
 void QuickControl_Close();

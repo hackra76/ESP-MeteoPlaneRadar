@@ -11,6 +11,9 @@
 // =============================================================================
 #pragma once
 #include <Arduino.h>
+#include <lvgl.h>
+
+void ScreenWeather_Init(lv_obj_t* parent);
 
 void ScreenWeather_Enter();
 bool ScreenWeather_Tick();          // downloads/animates; true = needs redraw

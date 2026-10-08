@@ -5,11 +5,15 @@
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)
 // =============================================================================
 #include "ScreenInfo.h"
+
+static lv_obj_t* s_screenObj = nullptr;
+static lv_timer_t* s_timer = nullptr;
 #include "FlightStats.h"
 #include "Settings.h"
 #include "Layout.h"
 #include "Lang.h"
 #include "UI.h"
+#include "PetDrawer.h"
 #include "Display_ST7701.h"
 #include "Config.h"
 #include "Version.h"
@@ -17,6 +21,7 @@
 
 #include <WiFi.h>
 #include <esp_system.h>
+#include <esp_heap_caps.h>
 #include <time.h>
 
 #define CX (LCD_WIDTH / 2)
@@ -26,29 +31,16 @@ static unsigned long s_lastTick = 0;
 static bool s_resetFlash = false;
 static unsigned long s_resetFlashTime = 0;
 
-void ScreenInfo_Enter() {
-  FlightStats_CheckMidnight();
-}
 
-bool ScreenInfo_Tick() {
-  unsigned long now = millis();
-  if (s_resetFlash && now - s_resetFlashTime > 1500) {
-    s_resetFlash = false;
-    return true;
-  }
-  // Refresh every second for uptime and stats
-  if (now - s_lastTick >= 1000) {
-    s_lastTick = now;
-    return true;
-  }
-  return false;
-}
 
-bool ScreenInfo_HandleTap(int x, int y) {
+
+
+static bool ScreenInfo_HandleTap(int x, int y) {
   // Tap Card 1 top area (Y in [52, 106], X in [95, 385]) to cycle scope (ALL -> 10km -> 25km -> 50km -> 100km -> 200km -> ALL)
   if (y >= 52 && y <= 106 && x >= 95 && x <= 385) {
     Settings_CycleStatsScope();
     Buzzer_Play(BEEP_CLICK);
+    if (s_screenObj) lv_obj_invalidate(s_screenObj);
     return true;
   }
 
@@ -58,6 +50,7 @@ bool ScreenInfo_HandleTap(int x, int y) {
     s_resetFlash = true;
     s_resetFlashTime = millis();
     Buzzer_Play(BEEP_CLICK);
+    if (s_screenObj) lv_obj_invalidate(s_screenObj);
     return true;
   }
   return false;
@@ -81,7 +74,7 @@ static void drawWifiStrength(int x, int y, int rssi) {
   }
 }
 
-void ScreenInfo_Draw() {
+static void ScreenInfo_Draw() {
   gfx->fillScreen(C_BLACK);
   Layout_Begin();
   Layout_ReserveBand(LY_DOTS - 6, 12);
@@ -284,7 +277,7 @@ void ScreenInfo_Draw() {
   const char* memLbl = isEn ? "Memory:" : (isSk ? "Pamat:" : "Pamet:");
   UI_Text(memLbl, cardX + padX, cr4Y + 4, C_GRAY, 1);
   char memBuf[48];
-  uint32_t freeHeap = esp_get_free_heap_size() / 1024;
+  uint32_t freeHeap = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT) / 1024;
   uint32_t freePsram = ESP.getFreePsram() / 1024;
   snprintf(memBuf, sizeof(memBuf), "Heap: %uk | PSRAM: %.1fM", freeHeap, freePsram / 1024.0f);
   UI_Text(memBuf, cardX + cardW - Layout_TextW(memBuf, 1) - padX, cr4Y + 4, C_LTGRAY, 1);
@@ -308,11 +301,59 @@ void ScreenInfo_Draw() {
   if (s_resetFlash) {
     gfx->fillRoundRect(btnX, btnY, btnW, btnH, 8, C_GREEN);
     const char* rstOk = isEn ? "Reset Complete!" : (isSk ? "Reset uspesny!" : "Reset uspesny!");
-    UI_TextCenteredIn(rstOk, btnX, btnW, btnY + 8, C_BLACK, 1);
+    UI_TextCenteredBox(rstOk, btnX, btnY, btnW, btnH, C_BLACK, 1);
   } else {
     gfx->fillRoundRect(btnX, btnY, btnW, btnH, 8, 0x18C3);
     gfx->drawRoundRect(btnX, btnY, btnW, btnH, 8, 0x31A6);
     const char* rstText = isEn ? "[ Reset Statistics ]" : (isSk ? "[ Resetovat statistiky ]" : "[ Resetovat statistiky ]");
-    UI_TextCenteredIn(rstText, btnX, btnW, btnY + 8, C_GRAY, 1);
+    UI_TextCenteredBox(rstText, btnX, btnY, btnW, btnH, C_GRAY, 1);
   }
+}
+
+static void ScreenInfo_TimerCb(lv_timer_t* t) {
+  if (UI_GetActiveScreen() != SCREEN_INFO_I) return;
+  
+  unsigned long now = millis();
+  if (s_resetFlash && now - s_resetFlashTime > 1500) {
+    s_resetFlash = false;
+    lv_obj_invalidate(s_screenObj);
+    return;
+  }
+  // Refresh every second for uptime and stats
+  if (now - s_lastTick >= 1000) {
+    s_lastTick = now;
+    lv_obj_invalidate(s_screenObj);
+  }
+}
+
+static void ScreenInfo_EventCb(lv_event_t* e) {
+  lv_event_code_t code = lv_event_get_code(e);
+  if (code == LV_EVENT_DRAW_MAIN) {
+    lv_layer_t* layer = lv_event_get_layer(e);
+    gfx->setLayer(layer);
+    ScreenInfo_Draw();
+    gfx->setLayer(nullptr);
+  } else if (code == LV_EVENT_CLICKED) {
+    if (UI_IsSwipeActive()) return;
+    lv_indev_t* indev = lv_indev_active();
+    if (indev) {
+      lv_point_t pt;
+      lv_indev_get_point(indev, &pt);
+      ScreenInfo_HandleTap(pt.x, pt.y);
+    }
+  } else if (code == LV_EVENT_SCREEN_LOAD_START) {
+    FlightStats_CheckMidnight();
+  }
+}
+
+void ScreenInfo_Init(lv_obj_t* parent) {
+  s_screenObj = parent;
+  lv_obj_set_size(s_screenObj, 480, 480);
+  lv_obj_center(s_screenObj);
+  lv_obj_set_scrollable(s_screenObj, false);
+  lv_obj_set_clickable(s_screenObj, true);
+
+  lv_obj_add_event_cb(s_screenObj, ScreenInfo_EventCb, LV_EVENT_ALL, nullptr);
+
+  s_timer = lv_timer_create(ScreenInfo_TimerCb, 500, nullptr);
 }

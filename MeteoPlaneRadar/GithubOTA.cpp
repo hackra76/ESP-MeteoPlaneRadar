@@ -123,6 +123,12 @@ static bool doCheckGitHubReleases() {
   s_otaState = GH_OTA_CHECKING;
   s_otaError = "";
 
+  if (!Net_HeapOk("GH_OTA")) {
+    s_otaError = "Low memory";
+    s_otaState = GH_OTA_ERROR;
+    return false;
+  }
+
   WiFiClientSecure client;
   client.setInsecure();
   client.setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
@@ -255,7 +261,7 @@ bool GithubOTA_CheckAsync() {
   if (s_otaState == GH_OTA_CHECKING || GithubOTA_IsBusy()) return false;
   if (s_checkTaskHandle != nullptr) return false;
 
-  BaseType_t ret = xTaskCreatePinnedToCore(checkTask, "GhOtaChk", 16384, NULL, 5, &s_checkTaskHandle, 0);
+  BaseType_t ret = xTaskCreatePinnedToCore(checkTask, "GhOtaChk", 10240, NULL, 5, &s_checkTaskHandle, 0);
   return (ret == pdPASS);
 }
 
@@ -474,10 +480,14 @@ static void downloadAndFlashTask(void* param) {
       } else {
         if (downloaded + avail > ramCap) {
           size_t newCap = ramCap + 524288;
-          uint8_t* newBuf = (uint8_t*)heap_caps_realloc(ramBuf, newCap, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+          uint8_t* newBuf = (uint8_t*)heap_caps_malloc(newCap, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
           if (!newBuf) {
-            s_otaError = "PSRAM realloc failed";
+            s_otaError = "PSRAM alloc failed";
             break;
+          }
+          if (ramBuf) {
+            memcpy(newBuf, ramBuf, downloaded);
+            heap_caps_free(ramBuf);
           }
           ramBuf = newBuf;
           ramCap = newCap;

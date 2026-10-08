@@ -14,12 +14,12 @@ static const char PAGE_HTML[] PROGMEM = R"rawliteral(<!DOCTYPE html>
 <script async src="https://js.stripe.com/v3/buy-button.js"></script>
 <style>
 :root{
-  --bg:#090d14;--card:#121824;--card-hdr:#182030;--line:#222d42;--fg:#e2e8f0;--mut:#8896ab;
-  --acc:#38bdf8;--acc-glow:rgba(56,189,248,0.25);--ok:#22c55e;--warn:#f59e0b;--err:#ef4444;--purple:#a855f7;
+  --bg:#070a10;--card:rgba(18,25,38,0.78);--card-hdr:rgba(24,34,52,0.85);--line:rgba(56,189,248,0.16);--fg:#e2e8f0;--mut:#8896ab;
+  --acc:#38bdf8;--acc-glow:rgba(56,189,248,0.28);--ok:#22c55e;--warn:#f59e0b;--err:#ef4444;--purple:#a855f7;
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;-webkit-text-size-adjust:100%}
-header{padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:#0d131f;border-bottom:1px solid var(--line)}
+body{margin:0;background:radial-gradient(circle at 50% 0%,#111a2e 0%,var(--bg) 75%);background-attachment:fixed;color:var(--fg);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;-webkit-text-size-adjust:100%}
+header{padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:rgba(13,19,31,0.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
 .brand{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .brand .logo{font-size:22px;color:var(--acc);line-height:1}
 .brand .title{font-size:18px;font-weight:700;color:#fff;letter-spacing:-0.02em;line-height:1}
@@ -51,10 +51,10 @@ nav.tabs button.tab-common.on{background:var(--card-hdr);color:var(--acc);border
   .hw-col{position:sticky;top:54px;max-height:calc(100vh - 72px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--line) transparent;padding-right:4px}
 }
 
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 4px 16px rgba(0,0,0,0.2)}
+.card{background:var(--card);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 8px 32px rgba(0,0,0,0.35)}
 .card h2{font-size:15px;margin:0 0 12px;color:var(--acc);display:flex;align-items:center;gap:8px;font-weight:600;border-bottom:1px solid rgba(34,45,66,0.6);padding-bottom:8px}
 
-.screen-hero{background:linear-gradient(135deg,#151e2e 0%,#0f1725 100%);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.screen-hero{background:linear-gradient(135deg,rgba(21,30,46,0.85) 0%,rgba(15,23,37,0.85) 100%);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
 .hero-title{display:flex;align-items:center;gap:10px}
 .hero-title h2{font-size:16px;font-weight:700;color:#fff;margin:0}
 .hero-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -153,6 +153,7 @@ td:first-child{color:var(--mut);width:45%}
   <button data-tab="tScrPlanes"   data-i18n="tabScrPlanes">✈️ Lietadlá</button>
   <button data-tab="tScrMeteo"    data-i18n="tabScrMeteo">🌧️ Meteoradar</button>
   <button data-tab="tScrTactical" data-i18n="tabScrTactical">🎯 Taktický radar</button>
+  <button data-tab="tScrSonar"    data-i18n="tabScrSonar">🟢 Sonar</button>
   <button data-tab="tScrForecast" data-i18n="tabScrForecast">⛅ Predpoveď</button>
   <button data-tab="tScrFinance"  data-i18n="tabScrFinance">📈 Trhy & Krypto</button>
   <button data-tab="tScrIss"      data-i18n="tabScrIss">🛰️ ISS Tracker</button>
@@ -173,7 +174,7 @@ td:first-child{color:var(--mut);width:45%}
       <section id="tScrClock" class="tab">
         <div class="screen-hero">
           <div class="hero-title">
-            <h2>🕒 <span data-i18n="scrClockHdr">Hodiny & Astro</span></h2>
+            <h2>🕒 <span data-i18n="scrClockHdr">Astronomický orloj & Haute Horlogerie</span></h2>
           </div>
           <div class="hero-actions">
             <button type="button" class="btn-live" onclick="goScreen(0)">
@@ -191,34 +192,36 @@ td:first-child{color:var(--mut);width:45%}
           </div>
         </div>
 
-        <div class="card">
-          <h2 data-i18n="clockHdr">🕒 Ciferník hodín</h2>
-          <div class="row"><label data-i18n="secStyle">Štýl sekundového prstenca</label>
-            <select id="secStyle">
-              <option value="0" data-i18n="secOff">Vypnuté</option>
-              <option value="1" data-i18n="secDots">Bodky (Dots)</option>
-              <option value="2" data-i18n="secLine">Plná čiara (Line)</option>
-              <option value="3" data-i18n="secComet">Kométa (Comet)</option>
-              <option value="4" data-i18n="secRadar">Radarový lúč (Sweep)</option>
-              <option value="5" data-i18n="secTicks">Hodinárske indexy (Ticks)</option>
-              <option value="6" data-i18n="secOrbit">Satelit na orbite (Orbit)</option>
-            </select>
+        <!-- Astrolabe Features Showcase -->
+        <div class="card" style="border-left:3px solid var(--acc);">
+          <h2 data-i18n="clockAstrolabeFeatures">✨ Integrované komplikácie orloja</h2>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:10px;">
+            <div style="background:rgba(255,255,255,0.03);padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);">
+              <strong style="color:var(--acc);">🌌 24h Solárny prstenec súmraku</strong>
+              <p style="margin:4px 0 0;color:var(--mut);font-size:12px;" data-i18n="descAstroRing">Plynulý 24h prstenec súmraku (astronomický, nautický, občiansky), zlatá hodinka, reálna pozícia Slnka a symboly východu/západu.</p>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);">
+              <strong style="color:#fde047;">🌕 3D Fotorealistický Mesiac</strong>
+              <p style="margin:4px 0 0;color:var(--mut);font-size:12px;" data-i18n="descMoonComp">Sub-ciferník s detailnou textúrou mesačných kráterov, výpočtom osvetlenia v % a presným lunárnym terminátorom.</p>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);">
+              <strong style="color:#22c55e;">🌡️ Meteorologický sub-ciferník</strong>
+              <p style="margin:4px 0 0;color:var(--mut);font-size:12px;" data-i18n="descWxSub">Kruhový prístroj v spodnej časti s aktuálnou teplotou a dynamickou 24-hodinovou sparkline krivkou vývoja teploty.</p>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);">
+              <strong style="color:#38bdf8;">🔵 Obiehajúca sekundová guľôčka</strong>
+              <p style="margin:4px 0 0;color:var(--mut);font-size:12px;" data-i18n="descSecBead">Plynulá subpixelová elektricky modrá fosforová guľôčka obiehajúca po vnútornej lunete ciferníka s plynulým 30 FPS pohybom.</p>
+            </div>
           </div>
-          <div class="row"><label data-i18n="clockColor">Farba číslic hodín</label><input type="color" id="clockColor"></div>
-          <div class="row"><label data-i18n="secColor">Farba sekundového prstenca</label><input type="color" id="secColor"></div>
         </div>
 
         <div class="card">
-          <h2 data-i18n="clockWidgets">Prvky na obrazovke hodín</h2>
+          <h2 data-i18n="clockWidgets">Prvky a upozornenia na obrazovke hodín</h2>
           <div class="grid">
-            <label class="chk"><input type="checkbox" id="cDate"><span data-i18n="cDate">Dátum</span></label>
-            <label class="chk"><input type="checkbox" id="cWx"><span data-i18n="cWx">Počasie & teplota</span></label>
-            <label class="chk"><input type="checkbox" id="cWind"><span data-i18n="cWind">Rýchlosť vetra</span></label>
-            <label class="chk"><input type="checkbox" id="cMoon"><span data-i18n="cMoon">Fáza mesiaca</span></label>
-            <label class="chk"><input type="checkbox" id="cAstro"><span data-i18n="cAstro">24h solárny prstenec</span></label>
+            <label class="chk"><input type="checkbox" id="cDate"><span data-i18n="cDate">Dátum (zobrazený pod Mesiacom)</span></label>
             <label class="chk"><input type="checkbox" id="nightClockOnly"><span data-i18n="nightClockOnly">V noci iba Hodiny (zastaviť radary)</span></label>
             <label class="chk"><input type="checkbox" id="bzHourlyClock"><span data-i18n="bzHourly">🕒 Pípnutie na celú hodinu (chime)</span></label>
-            <label class="chk"><input type="checkbox" id="cOver"><span data-i18n="cOver">✈️ Nadhlavný let (Overhead widget)</span></label>
+            <label class="chk"><input type="checkbox" id="cOver"><span data-i18n="cOver">✈️ Nadhlavný let (Overhead banner)</span></label>
             <label class="chk"><input type="checkbox" id="bzOverheadClock"><span data-i18n="bzOverhead">🔊 Pípnutie pri prelete nad hlavou</span></label>
             <label class="chk"><input type="checkbox" id="cPrecip"><span data-i18n="cPrecip">🌧️ Výstraha blížiacich sa zrážok</span></label>
             <label class="chk"><input type="checkbox" id="bzPrecipClock"><span data-i18n="bzPrecip">🔊 Pípnutie pri blížiacich sa zrážkach</span></label>
@@ -276,14 +279,41 @@ td:first-child{color:var(--mut);width:45%}
 
         <div class="card">
           <h2 data-i18n="radarWidgets">Prvky radarovej mapy lietadiel</h2>
+          <div class="row" style="margin-bottom:10px;">
+            <label data-i18n="mapProvider">Zdroj mapového podkladu</label>
+            <select id="mapProvider">
+              <option value="0" data-i18n="mapProvVector">Vektorová offline mapa (hranice + mestá)</option>
+              <option value="1" data-i18n="mapProvEsri">Esri World Dark Gray (tmavý podklad)</option>
+              <option value="2" data-i18n="mapProvOsm">OpenStreetMap Standard (cesty, terén a mestá)</option>
+            </select>
+          </div>
+          <div class="row" style="margin-bottom:12px;">
+            <label data-i18n="rBlipStyle">Štýl cieľov na radare</label>
+            <select id="rBlipStyle">
+              <option value="0" data-i18n="blipChevrons">Smerové vektorové šípky (Chevrons + vektor rýchlosti)</option>
+              <option value="1" data-i18n="blipSilhouettes">Siluety lietadiel podľa typu</option>
+            </select>
+          </div>
           <div class="grid">
+            <label class="chk"><input type="checkbox" id="rCompass"><span data-i18n="rCompass">360° Kompasová ružica (obvodový azimut)</span></label>
             <label class="chk"><input type="checkbox" id="rTrails"><span data-i18n="rTrails">Trajektórie lietadiel (Trails)</span></label>
             <label class="chk"><input type="checkbox" id="rNearest"><span data-i18n="rNearest">Vektor k najbližšiemu lietadlu</span></label>
             <label class="chk"><input type="checkbox" id="rAirports"><span data-i18n="rAirports">Letiská (Runway ikony)</span></label>
             <label class="chk"><input type="checkbox" id="rRings"><span data-i18n="rRings">Kilometrové kružnice dosahu</span></label>
-            <label class="chk"><input type="checkbox" id="rCompass"><span data-i18n="rCompass">Elektronický kompas (miniatúra na mape)</span></label>
             <label class="chk"><input type="checkbox" id="showLegends"><span data-i18n="showAltBar">Výšková lišta letových hladín</span></label>
           </div>
+        </div>
+
+        <div class="card" style="border-left:3px solid var(--acc);">
+          <h2 data-i18n="radarAvionicsFeatures">✈️ Avionika letového displeja (Glass Cockpit)</h2>
+          <p class="hint" style="font-size:12.5px;color:var(--fg);margin-bottom:6px;" data-i18n="radarAvionicsDesc">
+            Letový radar využíva moderné avionické usporiadanie inšpirované Garmin G1000 a Collins Aerospace:
+          </p>
+          <ul style="margin:4px 0 0 18px;padding:0;font-size:12.5px;color:var(--mut);line-height:1.6;">
+            <li data-i18n="avFeat1"><strong style="color:var(--acc);">Priama de-clutter vizualizácia:</strong> Štítky lietadiel a letísk plávajú priamo nad mapovým podkladom bez rušivých čiernych rámčekov.</li>
+            <li data-i18n="avFeat2"><strong style="color:var(--acc);">Inteligentná náhrada volacieho znaku:</strong> Pri známej trase letu sa zobrazuje skratka linky (napr. <code style="color:#fde047;">TIA&gt;WAW</code>), čím šetrí miesto na mape.</li>
+            <li data-i18n="avFeat3"><strong style="color:var(--acc);">Kompaktná dvojriadková telemetria:</strong> Výška a rýchlosť sú zmenšené a zarovnané doľava s automatickým rešpektovaním zvolených metrických (m, km/h) alebo imperiálnych (FL, kts) jednotiek.</li>
+          </ul>
         </div>
       </section>
 
@@ -374,24 +404,72 @@ td:first-child{color:var(--mut);width:45%}
             Kombinovaný taktický radar spája ADS-B lety a búrkové radarové odrazy do jednej spoločnej obrazovky v reálnom čase.
           </p>
           <div class="grid" style="margin-top:10px;">
+            <label class="chk"><input type="checkbox" id="rCompassTac" onchange="$('rCompass').checked=this.checked;autoSave('rCompass',this.checked)"><span data-i18n="rCompass">360° Kompasová ružica</span></label>
             <label class="chk"><input type="checkbox" id="rTrailsTac" onchange="$('rTrails').checked=this.checked;autoSave('rTrails',this.checked)"><span data-i18n="rTrails">Trajektórie lietadiel</span></label>
             <label class="chk"><input type="checkbox" id="rNearestTac" onchange="$('rNearest').checked=this.checked;autoSave('rNearest',this.checked)"><span data-i18n="rNearest">Vektor k najbližšiemu lietadlu</span></label>
             <label class="chk"><input type="checkbox" id="rAirportsTac" onchange="$('rAirports').checked=this.checked;autoSave('rAirports',this.checked)"><span data-i18n="rAirports">Letiská (Runway ikony)</span></label>
             <label class="chk"><input type="checkbox" id="rRingsTac" onchange="$('rRings').checked=this.checked;autoSave('rRings',this.checked)"><span data-i18n="rRings">Kilometrové kružnice</span></label>
-            <label class="chk"><input type="checkbox" id="rCompassTac" onchange="$('rCompass').checked=this.checked;autoSave('rCompass',this.checked)"><span data-i18n="rCompass">Elektronický kompas</span></label>
           </div>
           <p class="hint" data-i18n="tacticalHint">Filtre výšky a volacích znakov sa preberajú z nastavení Lietadiel, zdroj zrážok z Meteoradaru.</p>
         </div>
       </section>
 
-      <!-- 5. OBRAZOVKA: PREDPOVEĎ POČASIA -->
+      <!-- 5. OBRAZOVKA: SONAR RADAR -->
+      <section id="tScrSonar" class="tab hide">
+        <div class="screen-hero">
+          <div class="hero-title">
+            <h2>🟢 <span data-i18n="scrSonarHdr">Akustický sonarový radar</span></h2>
+          </div>
+          <div class="hero-actions">
+            <button type="button" class="btn-live" onclick="goScreen(4)">
+              ▶ <span data-i18n="btnShowOnDisp">Zobraziť na displeji</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="row" style="margin-top:0;">
+            <label class="chk" style="font-weight:600;font-size:14px;">
+              <input type="checkbox" id="sSonar">
+              <span data-i18n="scrSonarActive">Zahrnúť obrazovku do automatického striedania</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 data-i18n="sonarViewHdr">🎯 Režim zobrazenia sonaru</h2>
+          <div class="row" style="margin-top:0;">
+            <label class="lbl" for="sonarViewMode" data-i18n="sonarViewModeLbl">Pohľad radaru:</label>
+            <select id="sonarViewMode" style="flex:1 1 240px;">
+              <option value="0" data-i18n="sonarViewPpi">🎯 Klasický kruhový PPI radar</option>
+              <option value="1" data-i18n="sonarViewSplit">⚡ Rozdelený (Split PPI + Vodopád BTR)</option>
+              <option value="2" data-i18n="sonarViewWaterfall">🌊 Plný akustický vodopád (Waterfall Spectrogram)</option>
+            </select>
+          </div>
+          <p class="hint" data-i18n="sonarViewHint">Akustický vodopád (Bearing-Time Record) zaznamenáva históriu detekcií v čase s Dopplerovým farebným kódovaním (azúrová približovanie, jantárová vzďaľovanie, fosforová zelená tangenciálny prelet).</p>
+        </div>
+
+        <div class="card">
+          <h2 data-i18n="sonarPingHdr">🔊 Akustický sonarový ping</h2>
+          <div class="row" style="margin-top:0;margin-bottom:12px;">
+            <label class="chk" style="font-size:13.5px;">
+              <input type="checkbox" id="bzSonarSonarSettings">
+              <span data-i18n="bzSonarLbl">Akustický sonarový ping pri každej otáčke radarového lúča</span>
+            </label>
+          </div>
+          <p class="hint" data-i18n="sonarPingHint">Test autentického akustického pingu sonaru cez piezo bzučiak.</p>
+          <button type="button" class="sec" onclick="fetch('/api/buzzer/test_sonar',{method:'POST'});msg('Sonar Ping!','ok');" data-i18n="btnSonarPing">🔊 Prehrať Sonar Ping</button>
+        </div>
+      </section>
+
+      <!-- 6. OBRAZOVKA: PREDPOVEĎ POČASIA -->
       <section id="tScrForecast" class="tab hide">
         <div class="screen-hero">
           <div class="hero-title">
             <h2>⛅ <span data-i18n="scrForecastHdr">Predpoveď počasia</span></h2>
           </div>
           <div class="hero-actions">
-            <button type="button" class="btn-live" onclick="goScreen(4)">
+            <button type="button" class="btn-live" onclick="goScreen(5)">
               ▶ <span data-i18n="btnShowOnDisp">Zobraziť na displeji</span>
             </button>
           </div>
@@ -417,14 +495,14 @@ td:first-child{color:var(--mut);width:45%}
         </div>
       </section>
 
-      <!-- 6. OBRAZOVKA: FINANČNÉ TRHY & KRYPTO -->
+      <!-- 7. OBRAZOVKA: FINANČNÉ TRHY & KRYPTO -->
       <section id="tScrFinance" class="tab hide">
         <div class="screen-hero">
           <div class="hero-title">
             <h2>📈 <span data-i18n="scrFinanceHdr">Finančné trhy, Akcie & Krypto</span></h2>
           </div>
           <div class="hero-actions">
-            <button type="button" class="btn-live" onclick="goScreen(5)">
+            <button type="button" class="btn-live" onclick="goScreen(6)">
               ▶ <span data-i18n="btnShowOnDisp">Zobraziť na displeji</span>
             </button>
           </div>
@@ -537,8 +615,8 @@ td:first-child{color:var(--mut);width:45%}
               <button type="button" class="sec" onclick="addFinPreset('SOL-USD')" style="padding:4px 8px;font-size:11.5px;">◎ Solana (SOL-USD)</button>
               <button type="button" class="sec" onclick="addFinPreset('^GSPC')" style="padding:4px 8px;font-size:11.5px;">📈 S&P 500 (^GSPC)</button>
               <button type="button" class="sec" onclick="addFinPreset('^IXIC')" style="padding:4px 8px;font-size:11.5px;">📊 Nasdaq (^IXIC)</button>
-              <button type="button" class="sec" onclick="addFinPreset('GC=F')" style="padding:4px 8px;font-size:11.5px;">🥇 Zlato (GC=F)</button>
-              <button type="button" class="sec" onclick="addFinPreset('CL=F')" style="padding:4px 8px;font-size:11.5px;">🛢️ Ropa WTI (CL=F)</button>
+              <button type="button" class="sec" onclick="addFinPreset('GC=F')" style="padding:4px 8px;font-size:11.5px;">🥇 <span data-i18n="finGold">Zlato</span> (GC=F)</button>
+              <button type="button" class="sec" onclick="addFinPreset('CL=F')" style="padding:4px 8px;font-size:11.5px;">🛢️ <span data-i18n="finOil">Ropa WTI</span> (CL=F)</button>
               <button type="button" class="sec" onclick="addFinPreset('NVDA')" style="padding:4px 8px;font-size:11.5px;">💻 Nvidia (NVDA)</button>
               <button type="button" class="sec" onclick="addFinPreset('AAPL')" style="padding:4px 8px;font-size:11.5px;">🍏 Apple (AAPL)</button>
             </div>
@@ -548,14 +626,14 @@ td:first-child{color:var(--mut);width:45%}
         </div>
       </section>
 
-      <!-- 6. OBRAZOVKA: ISS TRACKER -->
+      <!-- 8. OBRAZOVKA: ISS TRACKER -->
       <section id="tScrIss" class="tab hide">
         <div class="screen-hero">
           <div class="hero-title">
             <h2>🛰️ <span data-i18n="scrIssHdr">ISS Tracker (Medzinárodná vesmírna stanica)</span></h2>
           </div>
           <div class="hero-actions">
-            <button type="button" class="btn-live" onclick="goScreen(6)">
+            <button type="button" class="btn-live" onclick="goScreen(7)">
               ▶ <span data-i18n="btnShowOnDisp">Zobraziť na displeji</span>
             </button>
           </div>
@@ -573,6 +651,14 @@ td:first-child{color:var(--mut);width:45%}
               <input type="checkbox" id="issAlert">
               <span data-i18n="issAlertLbl">🔊 Zvuková výstraha pri prelete stanice nad obzorom (v dosahu / nad hlavou)</span>
             </label>
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <label class="lbl" for="issViewMode" data-i18n="issViewModeLbl">Režim zobrazenia mapy:</label>
+            <select id="issViewMode" style="flex:1 1 240px;">
+              <option value="0" data-i18n="issView3dIss">🌍 3D Glóbus (Centrovaný na ISS)</option>
+              <option value="1" data-i18n="issView3dHome">📍 3D Glóbus (Centrovaný na Domov)</option>
+              <option value="2" data-i18n="issView2dMap">🗺️ 2D Plochá mapa sveta</option>
+            </select>
           </div>
         </div>
 
@@ -594,14 +680,14 @@ td:first-child{color:var(--mut);width:45%}
         </div>
       </section>
 
-      <!-- 7. OBRAZOVKA: YOUTUBE -->
+      <!-- 9. OBRAZOVKA: YOUTUBE -->
       <section id="tScrYouTube" class="tab hide">
         <div class="screen-hero">
           <div class="hero-title">
             <h2>▶️ <span data-i18n="scrYtHdr">YouTube Kanál Analytics</span></h2>
           </div>
           <div class="hero-actions">
-            <button type="button" class="btn-live" onclick="goScreen(7)">
+            <button type="button" class="btn-live" onclick="goScreen(8)">
               ▶ <span data-i18n="btnShowOnDisp">Zobraziť na displeji</span>
             </button>
           </div>
@@ -629,6 +715,15 @@ td:first-child{color:var(--mut);width:45%}
             <input type="text" id="ytChan" placeholder="@mkbhd alebo UC..." style="flex:1 1 280px;">
           </div>
           <p class="hint" data-i18n="ytChanHint">Zadajte YouTube handle (napr. @mkbhd) alebo Channel ID (napr. UCbjqrq...).</p>
+
+          <div class="row" style="margin-top:10px;">
+            <label class="lbl" for="ytVideoMode" data-i18n="ytVideoModeLbl">Zobrazené video:</label>
+            <select id="ytVideoMode" style="flex:1 1 280px;">
+              <option value="0" data-i18n="ytModeLatest">🆕 Najnovšie vydané video</option>
+              <option value="1" data-i18n="ytModeMostViews">🔥 Najsledovanejšie video (Top Views)</option>
+            </select>
+          </div>
+          <p class="hint" data-i18n="ytVideoModeHint">Vyberte, či sa má na karte videa zobrazovať najnovšie vydané video alebo najúspešnejšie video kanála podľa počtu pozretí.</p>
         </div>
       </section>
 
@@ -717,14 +812,14 @@ td:first-child{color:var(--mut);width:45%}
         </div>
       </section>
 
-      <!-- 9. OBRAZOVKA: INFO & ŠTATISTIKY -->
+      <!-- 10. OBRAZOVKA: INFO & ŠTATISTIKY -->
       <section id="tScrInfo" class="tab hide">
         <div class="screen-hero">
           <div class="hero-title">
             <h2>ℹ️ <span data-i18n="scrInfoHdr">Info & Denná štatistika letov</span></h2>
           </div>
           <div class="hero-actions">
-            <button type="button" class="btn-live" onclick="goScreen(8)">
+            <button type="button" class="btn-live" onclick="goScreen(9)">
               ▶ <span data-i18n="btnShowOnDisp">Zobraziť na displeji</span>
             </button>
           </div>
@@ -874,6 +969,7 @@ td:first-child{color:var(--mut);width:45%}
             <label class="chk"><input type="checkbox" id="bzPrecip"><span data-i18n="bzPrecip">🌧️ Blížiace sa zrážky (Nowcasting alert)</span></label>
             <label class="chk"><input type="checkbox" id="bzNightMute"><span data-i18n="bzNightMute">🌙 Nočný kľud (stíšiť bzučiak v noci)</span></label>
             <label class="chk"><input type="checkbox" id="bzPet"><span data-i18n="bzPet">🐾 DigiCat virtuálne zvieratko (pradenie, štebotanie)</span></label>
+            <label class="chk"><input type="checkbox" id="bzSonar"><span data-i18n="bzSonar">🟢 Sonar ping (akustický pulz pri otáčke)</span></label>
           </div>
           <div style="margin-top:12px;">
             <button type="button" class="sec" onclick="testBuzzer()" data-i18n="btnTestBuzzer">🔊 Otestovať bzučiak</button>
@@ -891,7 +987,7 @@ td:first-child{color:var(--mut);width:45%}
 
         <!-- 5. Orientácia, Kompas & Jednotky -->
         <div class="card">
-          <h2 data-i18n="planesView">🧭 Orientácia, Kompas & Jednotky</h2>
+          <h2 data-i18n="planesView">🧭 Orientácia & Jednotky</h2>
           <div class="row"><label data-i18n="topBearing">Smer hore na radare</label>
             <select id="topBearing">
               <option value="0" data-i18n="tb0">Sever (Sever hore / North-Up)</option>
@@ -905,11 +1001,9 @@ td:first-child{color:var(--mut);width:45%}
             </select>
           </div>
           <div class="grid" style="margin-top:10px;">
-            <label class="chk"><input type="checkbox" id="rCompassCommon" onchange="$('rCompass').checked=this.checked;autoSave('rCompass',this.checked)"><span data-i18n="rCompass">Elektronický kompas (miniatúra na mape)</span></label>
             <label class="chk"><input type="checkbox" id="metric"><span data-i18n="metric">Metrické jednotky (km, km/h, m namiesto NM, kt, ft)</span></label>
           </div>
           <p class="hint" data-i18n="planesViewHint">Nastavte smer podľa toho, kam smeruje váš výhľad. Meteoradar sa zámerne orientuje na sever.</p>
-          <p class="hint" data-i18n="compassHint" style="margin-top:6px;">Elektronický kompas zobrazuje miniatúru kompasu v rohu mapy s ručičkou smerujúcou na sever.</p>
         </div>
 
         <!-- 6. Časové pásmo & Posun GMT -->
@@ -1053,20 +1147,28 @@ td:first-child{color:var(--mut);width:45%}
         <div class="row" id="scrBtns" style="justify-content:center;gap:5px;margin-top:10px;"></div>
       </div>
 
-      <!-- Snímka displeja -->
+      <!-- Snímka displeja (Virtual Cockpit Display) -->
       <div class="card" id="cardScreenshot">
-        <h2 data-i18n="scrShotHdr">📸 Snímka displeja</h2>
-        <div style="text-align:center;margin:10px 0;">
-          <div id="scrShotWrap" style="position:relative;display:inline-block;margin:0 auto;">
-            <img id="scrShotImg" class="hide" style="width:200px;height:200px;border-radius:50%;border:2px solid var(--acc);background:#000;margin:0 auto;box-shadow:0 4px 16px rgba(0,0,0,0.6);object-fit:cover;" alt="Display Screenshot">
-            <div id="scrShotPlaceholder" style="width:200px;height:200px;border-radius:50%;border:2px dashed var(--line);display:flex;align-items:center;justify-content:center;margin:0 auto;color:var(--mut);font-size:13px;" data-i18n="scrShotNone">Kliknite pre zachytenie</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <h2 data-i18n="scrShotHdr" style="margin:0;">📸 Snímka displeja</h2>
+          <span id="liveMirrorBadge" class="pill" style="font-size:11px;padding:2px 8px;display:none;">LIVE</span>
+        </div>
+        <div style="text-align:center;margin:12px 0;">
+          <div id="scrShotWrap" style="position:relative;display:inline-block;margin:0 auto;padding:6px;border-radius:50%;background:radial-gradient(circle, #1e293b 60%, #0f172a 100%);box-shadow:0 0 0 1px rgba(56,189,248,0.25), 0 8px 24px rgba(0,0,0,0.7), inset 0 0 12px rgba(0,0,0,0.9);cursor:pointer;" onclick="onMirrorClick(event)" title="Klepnutím na displej prepnete detaily letov a legendu" data-i18n-title="scrShotHint">
+            <img id="scrShotImg" class="hide" style="width:204px;height:204px;border-radius:50%;border:2px solid var(--acc);background:#000;display:block;margin:0 auto;box-shadow:0 0 15px rgba(56,189,248,0.3);object-fit:cover;transition:transform 0.15s ease;" alt="Display Screenshot">
+            <div id="scrShotPlaceholder" style="width:204px;height:204px;border-radius:50%;border:2px dashed var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;margin:0 auto;color:var(--mut);font-size:12px;gap:6px;" data-i18n="scrShotNone">
+              <span style="font-size:24px;">🎛️</span>
+              <span>Kliknite pre načítanie</span>
+            </div>
           </div>
+          <div style="font-size:11px;color:var(--mut);margin-top:6px;" data-i18n="scrShotHint">Klepnutím na displej prepnete detaily / legendu</div>
         </div>
-        <div style="display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap;">
-          <button type="button" class="sec" id="btnScrShot" onclick="takeScreenshot()" data-i18n="btnTakeScrShot" style="flex:1;">📸 Zachytiť obrazovku</button>
-          <a id="scrShotDl" href="/api/screenshot.bmp" download="screenshot.bmp" class="hide" style="text-decoration:none;"><button type="button" class="sec" data-i18n="btnDlScrShot">💾 Stiahnuť</button></a>
+        <div style="display:flex;gap:6px;justify-content:center;margin-top:10px;flex-wrap:wrap;">
+          <button type="button" class="sec" id="btnLiveToggle" onclick="toggleLiveMirror()" style="flex:1;background:rgba(56,189,248,0.08);border-color:rgba(56,189,248,0.3);color:var(--acc);" data-i18n="btnLiveMirror">🔴 Živý náhľad</button>
+          <button type="button" class="sec" id="btnScrShot" onclick="takeScreenshot(false)" data-i18n="btnTakeScrShot" style="flex:1;">📸 Obnoviť</button>
+          <a id="scrShotDl" href="/api/screenshot.bmp" download="screenshot.bmp" class="hide" style="text-decoration:none;"><button type="button" class="sec" data-i18n="btnDlScrShot">💾 BMP</button></a>
         </div>
-        <div id="scrShotSpin" class="hide" style="text-align:center;font-size:12px;color:var(--mut);margin-top:6px;">⏳ Generujem snímku...</div>
+        <div id="scrShotSpin" class="hide" style="text-align:center;font-size:12px;color:var(--mut);margin-top:6px;" data-i18n="scrShotSpin">⏳ Generujem snímku...</div>
       </div>
 
       <!-- ESP32-S3 CPU & Teplota -->
@@ -1142,7 +1244,7 @@ td:first-child{color:var(--mut);width:45%}
 
       <!-- Podpora projektu -->
       <div class="card" style="text-align:center; padding:20px 16px;">
-        <h2 style="justify-content:center; border:none; margin-bottom:16px;">☕ Podporiť projekt</h2>
+        <h2 style="justify-content:center; border:none; margin-bottom:16px;" data-i18n="supportProject">☕ Podporiť projekt</h2>
         <stripe-buy-button
           buy-button-id="buy_btn_1UI5iNQplpQY7KFTu1mwo8UY"
           publishable-key="pk_live_51UI3XaQplpQY7KFTrrcPgwncD5NybMDWp0hkPxN9W6KbndIvEoqtSEyOLHTprr3hw6nYR3DrzyiLOHVNM32SIVLH00Jeyo2iVM"
@@ -1171,12 +1273,12 @@ const D={
   remote:"🎮 Dálkové ovládání",rangeLbl:"Měřítko:",
   btnPrev:"← Předchozí",btnDblTap:"🔄 Legenda",btnNext:"Následující →",btnDec:"Přiblížit (− km)",btnInc:"Oddálit (+ km)",
   btnPetShow:"🐾 Zobrazit DigiCat (Pet)",btnPetHide:"🐾 Skrýt DigiCat (Pet)",btnPetTitle:"Zobrazit / Skrýt DigiCat (Pet)",
-  remoteHint:"Rozsah se mění na obrazovkách Letadla, Meteoradar a Taktický radar. Zásah pozastaví automatické střídání.",
+  remoteHint:"Rozsah se mění na obrazovkách Letadla, Meteoradar, Taktický radar a Sonar. Zásah pozastaví automatické střídání.",
   location:"📍 Domovská poloha",findCity:"Vyhledat město",search:"Hledat",found:"Nalezené výsledky",lat:"Zeměpisná šířka (°N)",lon:"Zeměpisná délka (°E)",
   locHint:"Změna polohy vyžaduje restart pro přepočet map a předpovědi.",
   tzHdr:"🕒 Časové pásmo & Posun GMT",tzSelectLbl:"Časové pásmo / Posun GMT",btnDetectTz:"🌐 Zjistit z prohlížeče",
   tzHint:"Určuje posun času vůči UTC pro hodiny, radarové snímky a předpověď počasí. Pro ČR a SR zvolte CET/CEST (automatický letní a zimní čas).",
-  planesView:"🧭 Orientace, Kompas & Jednotky",topBearing:"Směr nahoře na radaru",metric:"Metrické jednotky (km, km/h, m místo NM, kt, ft)",
+  planesView:"🧭 Orientace & Jednotky",topBearing:"Směr nahoře na radaru",metric:"Metrické jednotky (km, km/h, m místo NM, kt, ft)",
   tb0:"Sever (Sever nahoře / North-Up)",tb45:"Severovýchod (45°)",tb90:"Východ (90°)",tb135:"Jihovýchod (135°)",tb180:"Jih (180°)",tb225:"Jihozápad (225°)",tb270:"Západ (270°)",tb315:"Severozápad (315°)",
   planesViewHint:"Nastavte směr podle toho, kam se díváte z okna. Meteoradar je orientován na sever.",
   compassHint:"Elektronický kompas zobrazuje miniaturu kompasu v rohu mapy s ručičkou ukazující na sever.",
@@ -1195,15 +1297,23 @@ const D={
   tfHeavy:"🛫 Těžké obří letouny (A380, B747, Beluga...)",tfGlider:"🪂 Větroně a kluzáky (Gliders)",
   buzzerHdr:"🔊 Zvukové výstrahy & Bzučák",buzzerHint:"Nastavení vestavěného bzučáku na desce pro radarové výstrahy a odezvu.",
   bzMaster:"Povolit bzučák (hlavní vypínač)",bzEmergency:"🚨 Nouzový squawk (7700 / 7600 / 7500)",bzWatch:"⭐ Sledovaný let (vstup do dosahu)",
-  bzTouch:"👆 Akustická odezva na dotyk displeje",bzHourly:"🕒 Pípnutí v celou hodinu (chime)",bzNightMute:"🌙 Noční klid (ztlumit bzučák v noci)",bzPet:"🐾 DigiCat virtuální zvířátko (zvuky, předení, švitoření)",btnTestBuzzer:"🔊 Otestovat bzučák",
+  bzTouch:"👆 Akustická odezva na dotyk displeje",bzHourly:"🕒 Pípnutí v celou hodinu (chime)",bzNightMute:"🌙 Noční klid (ztlumit bzučák v noci)",bzPet:"🐾 DigiCat virtuální zvířátko (zvuky, předení, švitoření)",bzSonar:"🟢 Sonar ping (akustický pulz při otočce)",bzSonarLbl:"Akustický sonarový ping při každé otočce radarového paprsku",btnTestBuzzer:"🔊 Otestovat bzučák",
   brightness:"☀️ Jas displeje & Noční režim",briDay:"Denní jas",briNight:"Noční jas",nightAuto:"Přepínat noční režim automaticky podle slunce",
-  nightOffset:"Posun proti východu/západu (minuty)",clockHdr:"🕒 Ciferník hodin",secStyle:"Styl vteřinového prstence",
-  secOff:"Vypnuto",secDots:"Tečky (Dots)",secLine:"Plná čára (Line)",secComet:"Kometa (Comet)",
-  secRadar:"Radarový paprsek (Sweep)",secTicks:"Hodinářské indexy (Ticks)",secOrbit:"Satelit na orbitě (Orbit)",
-  clockColor:"Barva číslic hodin",secColor:"Barva vteřinového prstence",
-  clockStyle:"Styl ciferníku",clkDigital:"Digitální klasický",clkAnalog:"Letecký kokpitový analog (Aviator)",clkOrbital:"Planetární prstence (Orbital Gauges)",clkRegulator:"Astronomický regulátor (Régulateur)",clkStacked:"Vertikální typografie (Stacked Bold)",clkMinimal:"Minimalistický moderní (Nordic)",
-  clockWidgets:"Prvky na obrazovce hodin",cDate:"Datum",cWx:"Počasí & teplota",cWind:"Rychlost větru",cMoon:"Fáze měsíce",cAstro:"24h solární prstenec",nightClockOnly:"V noci pouze Hodiny (zastavit radary)",
-  radarWidgets:"Prvky radarových map",rTrails:"Trajektorie letadel (Trails)",rNearest:"Vektor k nejbližšímu letadlu",rAirports:"Letiště (Runway ikony)",rRings:"Kilometrové kružnice dosahu",rCompass:"Elektronický kompas (miniatura na mapě)",
+  nightOffset:"Posun proti východu/západu (minuty)",clockHdr:"🕒 Ciferník hodin",
+  clockAstrolabeFeatures:"✨ Integrované komplikace orloje",
+  descAstroRing:"Plynulý 24h prstenec soumraku (astronomický, nautický, občanský), zlatá hodinka, reálná pozice Slunce a symboly východu/západu.",
+  descMoonComp:"Sub-ciferník s detailní texturou měsíčních kráterů, výpočtem osvětlení v % a přesným lunárním terminátorem.",
+  descWxSub:"Kruhový přístroj ve spodní části s aktuální teplotou a dynamickou 24-hodinovou křivkou vývoje teploty.",
+  descSecBead:"Plynulá subpixelová elektricky modrá fosforová kulička obíhající po vnitřní lunetě ciferníku s plynulým 30 FPS pohybem.",
+  clockWidgets:"Prvky a upozornění na obrazovce hodin",cDate:"Datum (zobrazeno pod Měsícem)",nightClockOnly:"V noci pouze Hodiny (zastavit radary)",
+  radarWidgets:"Prvky radarové mapy letadel",mapProvider:"Zdroj mapového podkladu",mapProvVector:"Vektorová offline mapa (hranice + města)",mapProvEsri:"Esri World Dark Gray (tmavý podklad)",mapProvOsm:"OpenStreetMap Standard (cesty, terén a města)",
+  rBlipStyle:"Styl cílů na radaru",blipChevrons:"Směrové vektorové šipky (Chevrons + vektor rychlosti)",blipSilhouettes:"Siluety letadel podle typu",
+  rCompass:"360° Kompasová růžice (obvodový azimut)",rCompassTac:"360° Kompasová růžice (obvodový azimut)",
+  rTrails:"Trajektorie letadel (Trails)",rNearest:"Vektor k nejbližšímu letadlu",rAirports:"Letiště (Runway ikony)",rRings:"Kilometrové kružnice dosahu",
+  radarAvionicsFeatures:"✈️ Avionika letového displeje (Glass Cockpit)",radarAvionicsDesc:"Letový radar využívá moderní avionické uspořádání inspirované Garmin G1000 a Collins Aerospace:",
+  avFeat1:"Přímá de-clutter vizualizace: Štítky letadel a letišť plují přímo nad mapovým podkladem bez rušivých černých rámečků.",
+  avFeat2:"Inteligentní náhrada volacího znaku: U známé trasy letu se zobrazuje zkratka linky (např. TIA>WAW), což šetří místo na mapě.",
+  avFeat3:"Kompaktní dvouřádková telemetrie: Výška a rychlost jsou zmenšené a zarovnané doleva s automatickým respektováním zvolených metrických (m, km/h) nebo imperiálních (FL, kts) jednotek.",
   tacticalHdr:"🎯 Taktické zobrazení",tacticalDesc:"Kombinovaný taktický radar spojuje ADS-B lety a bouřkové radarové odrazy do jedné společné obrazovky v reálném čase.",tacticalHint:"Filtry výšky a volacích znaků se přebírají z nastavení Letadel, zdroj srážek z Meteoradaru.",
   forecastHdr:"⛅ Předpověď počasí",forecastDesc:"Předpověď počasí se automaticky stahuje ze služby Open-Meteo pro vaši domovskou polohu.",btnGoLocSettings:"📍 Nastavit domovskou polohu ve Společných nastaveních",
   hwRtc:"⏱️ Systémový čas & RTC (PCF85063)",hwLocalTimeLbl:"Místní čas:",hwTzLbl:"Pásmo / Posun:",hwRtcLbl:"Stav RTC čipu:",hwRtcTimeLbl:"Čas v RTC čipu:",btnSyncNtp:"🌐 NTP sync",btnSyncBrowser:"💻 Z prohlížeče",hwI2c:"🔍 I2C Sběrnice (Bus Inspector)",
@@ -1232,13 +1342,15 @@ const D={
   otaDownloading:"Stahování a zápis firmwaru...",otaSuccess:"Aktualizace úspěšná! Restartuji...",otaErr:"Chyba aktualizace",
   otaNoAsset:"Vydání neobsahuje soubor OTA (-ota.bin)",otaConfirm:"Opravdu spustit aktualizaci firmwaru na verzi",
   scrClock:"Hodiny & Astro",scrPlanes:"Letadla radar",scrMeteo:"Meteoradar",scrTactical:"Taktický radar",scrForecast:"Předpověď počasí",scrInfo:"Info & Statistiky",scrFinance:"Trhy & Krypto",scrYouTube:"YouTube",scrSettings:"Nastavení",
-  finSlotsHdr:"📈 Sledované trhy & aktiva (4 pozice)",finGraphTypeLbl:"Typ hlavního grafu:",finGraphLine:"📈 Čárový graf (Line)",finGraphCandle:"🕯️ Svíčkový graf (Candlestick)",finGraphHint:"Svíčkový graf zobrazuje barevné svíčky (zelená růstová, červená klesající) s knoty (High/Low) a tělem (Open/Close).",finSlot1:"1. Hlavní trh (Hero graf)",finSlot1Sub:"Velký reálný graf + kurz",finSlot2:"2. Sledovaný trh",finSlot3:"3. Sledovaný trh",finSlot4:"4. Sledovaný trh",finSlotWatchlist:"Karta v dolním přehledu",finPresets:"⚡ Rychlé přidání populárních aktiv:",finClear:"Vymazat",financeHint:"1. pozice má velký graf (Hero), pozice 2–4 se zobrazují v dolním přehledu. Podporuje evropské ETF fondy (Amundi CW8.PA, 500.PA, Vanguard VWCE.DE), krypto, indexy, komodity i světové akcie z Yahoo Finance.",
+  tabScrYouTube:"▶️ YouTube",scrYtHdr:"YouTube Kanál Analytics",scrYtActive:"Zahrnout obrazovku do automatického střídání",ytConfigHdr:"⚙️ Nastavení YouTube API",ytKeyLbl:"YouTube Data API klíč:",ytKeyHint:"Bezplatný API klíč z Google Cloud Console (YouTube Data API v3).",ytChanLbl:"Kanál (Handle nebo ID):",ytChanHint:"Zadejte YouTube handle (např. @mkbhd) nebo Channel ID (např. UCbjqrq...).",ytVideoModeLbl:"Zobrazené video:",ytVideoModeHint:"Vyberte, zda se má zobrazovat nejnovější vydané video nebo nejúspěšnější video kanálu podle počtu zhlédnutí.",ytModeLatest:"🆕 Nejnovější vydané video",ytModeMostViews:"🔥 Nejsledovanější video (Top Views)",
+  finSlotsHdr:"📈 Sledované trhy & aktiva (4 pozice)",finGraphTypeLbl:"Typ hlavního grafu:",finGraphLine:"📈 Čárový graf (Line)",finGraphCandle:"🕯️ Svíčkový graf (Candlestick)",finGraphHint:"Svíčkový graf zobrazuje barevné svíčky (zelená růstová, červená klesající) s knoty (High/Low) a tělem (Open/Close).",finSlot1:"1. Hlavní trh (Hero graf)",finSlot1Sub:"Velký reálný graf + kurz",finSlot2:"2. Sledovaný trh",finSlot3:"3. Sledovaný trh",finSlot4:"4. Sledovaný trh",finSlotWatchlist:"Karta v dolním přehledu",finPresets:"⚡ Rychlé přidání populárních aktiv:",finClear:"Vymazat",finGold:"Zlato",finOil:"Ropa WTI",financeHint:"1. pozice má velký graf (Hero), pozice 2–4 se zobrazují v dolním přehledu. Podporuje evropské ETF fondy (Amundi CW8.PA, 500.PA, Vanguard VWCE.DE), krypto, indexy, komodity i světové akcie z Yahoo Finance.",
   ultraNight:"🌙 Ultra Night režim (hluboká červená / spánkový monochróm, min. jas)",
   tabScrInfo:"ℹ️ Info & Statistiky",scrInfoHdr:"Info & Denní statistika letů",scrInfoActive:"Zahrnout obrazovku do automatického střídání",
+  tabScrSonar:"🟢 Sonar",scrSonarHdr:"Akustický sonarový radar",scrSonarActive:"Zahrnout obrazovku do automatického střídání",scrSonar:"Sonar",sonarViewHdr:"🎯 Režim zobrazení sonaru",sonarViewModeLbl:"Pohled radaru:",sonarViewPpi:"🎯 Klasický kruhový PPI radar",sonarViewSplit:"⚡ Rozdělený (Split PPI + Vodopád BTR)",sonarViewWaterfall:"🌊 Plný akustický vodopád (Waterfall Spectrogram)",sonarViewHint:"Akustický vodopád (Bearing-Time Record) zaznamenává historii detekcí v čase s Dopplerovým barevným kódováním (azurová přibližování, jantarová vzdalování, fosforová zelená tangenciální přelet).",sonarPingHdr:"🔊 Akustický sonarový ping",sonarPingHint:"Test autentického akustického pingu sonaru přes piezo bzučák.",btnSonarPing:"🔊 Přehrát Sonar Ping",supportProject:"☕ Podpořit projekt",
   statsTrafficHdr:"✈️ Dnešní letecká statistika",btnResetStats:"🔄 Resetovat",statsFilterLbl:"Rozsah započítávání letadel do statistik:",statsOptAll:"Všechna přijatá letadla (celý ADS-B feed)",statsOptZoom:"Pouze v nastaveném rozsahu obrazovky Letadla (Zoom)",stUniqueZoom:"Unikátní letadla (Zoom ",stUniqueAll:"Unikátní letadla (Všechna):",stUnique:"Unikátní letadla dnes:",stTopSpeed:"Nejvyšší rychlost:",stMaxDist:"Maximální vzdálenost:",stAltSpan:"Rozpětí výšek:",stReports:"Přijaté ADS-B zprávy:",statsHint:"Statistika se automaticky nuluje o půlnoci a uchovává se v paměti PSRAM.",confirmResetStats:"Opravdu resetovat dnešní statistiku letů?",statsResetOk:"Statistiky byly resetovány",
   cOver:"✈️ Let nad hlavou (Overhead widget)",ovRad:"Poloměr přeletu nad hlavou (km)",bzOverhead:"🔊 Přelet nad hlavou (Overhead výstraha)",
    cPrecip:"🌧️ Výstraha blížících se srážek",bzPrecip:"🔊 Pípnutí při blížících se srážkách",precipTrackerHdr:"🌧️ Detekce blížících se srážek (Nowcasting)",precipHint:"Vektorová analýza pohybu frontu (TREC). Upozorní na déšť, kroupy nebo sníh, pouze pokud srážky směřují přímo k vaší poloze.",precipLiveHdr:"Aktuální stav nowcastingu:",
-  scrShotHdr:"📸 Snímek displeje",scrShotNone:"Klikněte pro zachycení",btnTakeScrShot:"📸 Zachytit obrazovku",btnDlScrShot:"💾 Stáhnout BMP",scrShotOk:"Snímek úspěšně načten",scrShotErr:"Chyba načtení snímku",
+  scrShotHdr:"📸 Snímek displeje",scrShotNone:"Klikněte pro načtení",btnTakeScrShot:"📸 Obnovit",btnDlScrShot:"💾 BMP",scrShotOk:"Snímek načten",scrShotErr:"Chyba načtení snímku",scrShotSpin:"⏳ Generuji snímek...",btnLiveMirror:"🔴 Živý náhled",btnLiveMirrorOff:"⚪ Zastavit náhled",scrShotHint:"Klepnutím na displej přepnete detaily letů a legendu",
   tabScrIss:"🛰️ ISS Tracker",scrIssHdr:"ISS Tracker (Mezinárodní vesmírná stanice)",scrIssActive:"Zahrnout obrazovku do automatického střídání",scrIss:"ISS Tracker",issAlertLbl:"🔊 Zvuková výstraha při přeletu stanice nad obzorem (v dosahu / nad hlavou)",issTelemetryHdr:"🛰️ Živá telemetrie stanice ISS",issStateLbl:"Aktuální stav:",issLatLonLbl:"Poloha (Lat / Lon):",issAltLbl:"Výška letu:",issVelLbl:"Rychlost:",issDistLbl:"Vzdálenost:",issElLbl:"Elevace / Azimut:",issSunLbl:"Osvětlení:",issSunlit:"☀️ Na denním světle",issEclipsed:"🌑 Ve stínu Země",issInRange:"🛰️ V dosahu přímé viditelnosti",issOverhead:"⭐ PŘÍMO NAD HLAVOU (> 45°)",issOutRange:"Mimo dosah horizontu",btnIssRefresh:"🔄 Aktualizovat telemetrii",issHint:"Sledování přeletu Mezinárodní vesmírné stanice ISS v reálném čase (API WhereTheISS). Zobrazuje mapu světa se dnem/nocí, orbitální dráhu, horizont přímé viditelnosti (~2200 km) a odpočet dalšího přeletu.",
    tabSerial:"📟 Sériový monitor",serialHdr:"Sériový monitor (Live Web Console)",btnSerialStart:"Spustit monitor",btnSerialPause:"Pozastavit monitor",serialActive:"Aktivní (Live)",serialPaused:"Pozastaveno",serialAutoScroll:"Automatický posun",btnSerialCopy:"📋 Kopírovat",btnSerialDl:"💾 Stáhnout",btnSerialClear:"🧹 Vymazat",btnSerialSend:"Odeslat ↵",serialCopied:"Výpis zkopírován do schránky",serialCleared:"Konzole vymazána",serialHint:"Streamování výstupů sériového portu přes WiFi bez nutnosti USB kabelu. Při odchodu ze záložky se přenos automaticky pozastaví.",
   tabScrPet:"🐾 Mazlíček",scrPetHdr:"AI Radar Companion (Virtuální mazlíček)",
@@ -1270,12 +1382,12 @@ const D={
   remote:"🎮 Diaľkový ovládač",rangeLbl:"Mierka:",
   btnPrev:"← Predchádzajúca",btnDblTap:"🔄 Legenda",btnNext:"Nasledujúca →",btnDec:"Priblížiť (− km)",btnInc:"Oddialiť (+ km)",
   btnPetShow:"🐾 Zobraziť DigiCat (Pet)",btnPetHide:"🐾 Skryť DigiCat (Pet)",btnPetTitle:"Zobraziť / Skryť DigiCat (Pet)",
-  remoteHint:"Rozsah sa mení na obrazovkách Lietadlá, Meteoradar a Taktický radar. Zásah pozastaví automatické striedanie.",
+  remoteHint:"Rozsah sa mení na obrazovkách Lietadlá, Meteoradar, Taktický radar a Sonar. Zásah pozastaví automatické striedanie.",
   location:"📍 Domovská poloha",findCity:"Vyhľadať mesto",search:"Hľadať",found:"Nájdené výsledky",lat:"Zemepisná šírka (°N)",lon:"Zemepisná dĺžka (°E)",
   locHint:"Zmena polohy vyžaduje reštart pre prepočet máp a predpovede.",
   tzHdr:"🕒 Časové pásmo & Posun GMT",tzSelectLbl:"Časové pásmo / Posun GMT",btnDetectTz:"🌐 Zistiť z prehliadača",
   tzHint:"Určuje posun času voči UTC pre hodiny, radarové snímky a predpoveď počasia. Pre Slovensko a Česko zvoľte CET/CEST (automatický letný a zimný čas).",
-  planesView:"🧭 Orientácia, Kompas & Jednotky",topBearing:"Smer hore na radare",metric:"Metrické jednotky (km, km/h, m namiesto NM, kt, ft)",
+  planesView:"🧭 Orientácia & Jednotky",topBearing:"Smer hore na radare",metric:"Metrické jednotky (km, km/h, m namiesto NM, kt, ft)",
   tb0:"Sever (Sever hore / North-Up)",tb45:"Severovýchod (45°)",tb90:"Východ (90°)",tb135:"Juhovýchod (135°)",tb180:"Juh (180°)",tb225:"Juhozápad (225°)",tb270:"Západ (270°)",tb315:"Severozápad (315°)",
   planesViewHint:"Nastavte smer podľa toho, kam smeruje váš výhľad. Meteoradar sa zámerne orientuje na sever.",
   compassHint:"Elektronický kompas zobrazuje miniatúru kompasu v rohu mapy s ručičkou smerujúcou na sever.",
@@ -1294,15 +1406,23 @@ const D={
   tfHeavy:"🛫 Ťažké nákladné obry (A380, B747, Beluga...)",tfGlider:"🪂 Vetrone a klzáky (Gliders)",
   buzzerHdr:"🔊 Zvukové výstrahy & Bzučiak",buzzerHint:"Nastavenie vstavaného bzučiaka na doske pre radarové výstrahy a odozvu.",
   bzMaster:"Povoliť bzučiak (hlavný vypínač)",bzEmergency:"🚨 Núdzový squawk (7700 / 7600 / 7500)",bzWatch:"⭐ Sledovaný let (vstup do dosahu)",
-  bzTouch:"👆 Akustická odozva na dotyk displeja",bzHourly:"🕒 Pípnutie na celú hodinu (chime)",bzNightMute:"🌙 Nočný kľud (stíšiť bzučiak v noci)",bzPet:"🐾 DigiCat virtuálne zvieratko (zvuky, pradenie, štebot)",btnTestBuzzer:"🔊 Otestovať bzučiak",
-  brightness:"☀️ Jas displeja & Nočný režim",briDay:"Denný jas",briNight:"Nočný jas",nightAuto:"Prepínať nočný režim automaticky podľa západu/východu slnka",
-  nightOffset:"Posun voči východu/západu (minúty)",clockHdr:"🕒 Ciferník hodín",secStyle:"Štýl sekundového prstenca",
-  secOff:"Vypnuté",secDots:"Bodky (Dots)",secLine:"Plná čiara (Line)",secComet:"Kométa (Comet)",
-  secRadar:"Radarový lúč (Sweep)",secTicks:"Hodinárske indexy (Ticks)",secOrbit:"Satelit na orbite (Orbit)",
-  clockColor:"Farba číslic hodín",secColor:"Farba sekundového prstenca",
-  clockStyle:"Štýl ciferníka",clkDigital:"Digitálny klasický",clkAnalog:"Moderný analógový",clkOrbital:"Moderný digitálny",clkRegulator:"Retro LCD",
-  clockWidgets:"Prvky na obrazovke hodín",cDate:"Dátum",cWx:"Počasie & teplota",cWind:"Rychlosť vetra",cMoon:"Fáza mesiaca",cAstro:"24h solárny prstenec",nightClockOnly:"V noci iba Hodiny (zastavit radary)",
-  radarWidgets:"Prvky radarových máp",rTrails:"Trajektórie lietadiel (Trails)",rNearest:"Vektor k najbližšiemu lietadlu",rAirports:"Letiská (Runway ikony)",rRings:"Kilometrové kružnice dosahu",rCompass:"Elektronický kompas (miniatúra na mape)",
+  bzTouch:"👆 Akustická odozva na dotyk displeja",bzHourly:"🕒 Pípnutie na celú hodinu (chime)",bzNightMute:"🌙 Nočný kľud (stíšiť bzučiak v noci)",bzPet:"🐾 DigiCat virtuálne zvieratko (zvuky, pradenie, štebot)",bzSonar:"🟢 Sonar ping (akustický pulz pri otáčke)",bzSonarLbl:"Akustický sonarový ping pri každej otáčke radarového lúča",btnTestBuzzer:"🔊 Otestovať bzučiak",
+  brightness:"☀️ Jas displeje & Nočný režim",briDay:"Denný jas",briNight:"Nočný jas",nightAuto:"Prepínať nočný režim automaticky podľa západu/východu slnka",
+  nightOffset:"Posun voči východu/západu (minúty)",clockHdr:"🕒 Ciferník hodín",
+  clockAstrolabeFeatures:"✨ Integrované komplikácie orloja",
+  descAstroRing:"Plynulý 24h prstenec súmraku (astronomický, nautický, občiansky), zlatá hodinka, reálna pozícia Slnka a symboly východu/západu.",
+  descMoonComp:"Sub-ciferník s detailnou textúrou mesačných kráterov, výpočtom osvetlenia v % a presným lunárnym terminátorom.",
+  descWxSub:"Kruhový prístroj v spodnej časti s aktuálnou teplotou a dynamickou 24-hodinovou sparkline krivkou vývoja teploty.",
+  descSecBead:"Plynulá subpixelová elektricky modrá fosforová guľôčka obiehajúca po vnútornej lunete ciferníka s plynulým 30 FPS pohybom.",
+  clockWidgets:"Prvky a upozornenia na obrazovke hodín",cDate:"Dátum (zobrazený pod Mesiacom)",nightClockOnly:"V noci iba Hodiny (zastaviť radary)",
+  radarWidgets:"Prvky radarovej mapy lietadiel",mapProvider:"Zdroj mapového podkladu",mapProvVector:"Vektorová offline mapa (hranice + mestá)",mapProvEsri:"Esri World Dark Gray (tmavý podklad)",mapProvOsm:"OpenStreetMap Standard (cesty, terén a mestá)",
+  rBlipStyle:"Štýl cieľov na radare",blipChevrons:"Smerové vektorové šípky (Chevrons + vektor rýchlosti)",blipSilhouettes:"Siluety lietadiel podľa typu",
+  rCompass:"360° Kompasová ružica (obvodový azimut)",rCompassTac:"360° Kompasová ružica (obvodový azimut)",
+  rTrails:"Trajektórie lietadiel (Trails)",rNearest:"Vektor k najbližšiemu lietadlu",rAirports:"Letiská (Runway ikony)",rRings:"Kilometrové kružnice dosahu",
+  radarAvionicsFeatures:"✈️ Avionika letového displeja (Glass Cockpit)",radarAvionicsDesc:"Letový radar využíva moderné avionické usporiadanie inšpirované Garmin G1000 a Collins Aerospace:",
+  avFeat1:"Priama de-clutter vizualizácia: Štítky lietadiel a letísk plávajú priamo nad mapovým podkladom bez rušivých čiernych rámčekov.",
+  avFeat2:"Inteligentná náhrada volacieho znaku: Pri známej trase letu sa zobrazuje skratka linky (napr. TIA>WAW), čím šetrí miesto na mape.",
+  avFeat3:"Kompaktná dvojriadková telemetria: Výška a rýchlosť sú zmenšené a zarovnané doľava s automatickým rešpektovaním zvolených metrických (m, km/h) alebo imperiálnych (FL, kts) jednotiek.",
   tacticalHdr:"🎯 Taktické zobrazenie",tacticalDesc:"Kombinovaný taktický radar spája ADS-B lety a búrkové radarové odrazy do jednej spoločnej obrazovky v reálnom čase.",tacticalHint:"Filtre výšky a volacích znakov sa preberajú z nastavení Lietadiel, zdroj zrážok z Meteoradaru.",
   forecastHdr:"⛅ Predpoveď počasia",forecastDesc:"Predpoveď počasia sa automaticky sťahuje zo služby Open-Meteo pre vašu domovskú polohu.",btnGoLocSettings:"📍 Nastaviť domovskú polohu v Spoločných nastaveniach",
   hwRtc:"⏱️ Systémový čas & RTC (PCF85063)",hwLocalTimeLbl:"Miestny čas:",hwTzLbl:"Pásmo / Posun:",hwRtcLbl:"Stav RTC čipu:",hwRtcTimeLbl:"Čas v RTC čipe:",btnSyncNtp:"🌐 NTP sync",btnSyncBrowser:"💻 Z prehliadača",hwI2c:"🔍 I2C Zbernica (Bus Inspector)",
@@ -1316,7 +1436,7 @@ const D={
   delWifiConfirm:"Naozaj chcete zabudnúť WiFi sieť",activeNet:"(aktívna)",btnForgetNet:"Zmazať",noSavedWifi:"Žiadne uložené siete",
   netHostLbl:"Názov v sieti (Hostname):",netIpLbl:"IP adresa:",netRssiLbl:"Sila signálu (RSSI):",netMacLbl:"MAC adresa:",
   wifiHint:"Po uložení sa zariadenie pripojí a prístupový bod zmizne.",
-  wifiHintSta:"Zmena siete preruší spojenie. Pri neúspěchu zariadenie vytvorí vlastnú sieť MeteoPlaneRadar.",
+  wifiHintSta:"Zmena siete preruší spojenie. Pri neúspechu zariadenie vytvorí vlastnú sieť MeteoPlaneRadar.",
   wifiNow:"Pripojené k sieti",system:"🔒 Zabezpečenie správcu",adminPass:"Súčasné heslo",newPass:"Nové heslo",
   passHint:"Súčasné heslo je potrebné pre aktualizáciu, import, reset aj pre zmenu hesla. Prázdne nové heslo nič nemení; jedna medzera ochranu zruší.",
   statusHdr:"🛠️ Údržba & Záloha",fwUpdate:"Aktualizácia firmvéru",export:"Export nastavení",import:"Import nastavení",reboot:"Reštartovať",factory:"Továrenský reset",save:"💾 Uložiť nastavenia",
@@ -1331,14 +1451,16 @@ const D={
   otaDownloading:"Sťahovanie a zápis firmvéru...",otaSuccess:"Aktualizácia úspešná! Reštartujem...",otaErr:"Chyba aktualizácie",
   otaNoAsset:"Vydanie neobsahuje súbor OTA (-ota.bin)",otaConfirm:"Naozaj spustiť aktualizáciu firmvéru na verziu",
   scrClock:"Hodiny & Astro",scrPlanes:"Lietadlá radar",scrMeteo:"Meteoradar",scrTactical:"Taktický radar",scrForecast:"Predpoveď počasia",scrInfo:"Info & Štatistiky",scrFinance:"Trhy & Krypto",scrYouTube:"YouTube",scrSettings:"Nastavenia",
-  finSlotsHdr:"📈 Sledované trhy & aktíva (4 pozície)",finGraphTypeLbl:"Typ hlavného grafu:",finGraphLine:"📈 Čiarový graf (Line)",finGraphCandle:"🕯️ Sviečkový graf (Candlestick)",finGraphHint:"Sviečkový graf zobrazuje farebné sviečky (zelená rastová, červená klesajúca) s knôtmi (High/Low) a telom (Open/Close).",finSlot1:"1. Hlavný trh (Hero graf)",finSlot1Sub:"Veľký reálny graf + kurz",finSlot2:"2. Sledovaný trh",finSlot3:"3. Sledovaný trh",finSlot4:"4. Sledovaný trh",finSlotWatchlist:"Karta v spodnom zozname",finPresets:"⚡ Rýchle pridanie populárnych aktív:",finClear:"Vymazať",financeHint:"1. pozícia má veľký graf (Hero), pozície 2–4 sa zobrazujú v dolnom prehľade. Podporuje európske ETF fondy (Amundi CW8.PA, 500.PA, Vanguard VWCE.DE), krypto, indexy, komodity aj svetové akcie z Yahoo Finance.",
+  tabScrYouTube:"▶️ YouTube",scrYtHdr:"YouTube Kanál Analytics",scrYtActive:"Zahrnúť obrazovku do automatického striedania",ytConfigHdr:"⚙️ Nastavenie YouTube API",ytKeyLbl:"YouTube Data API kľúč:",ytKeyHint:"Bezplatný API kľúč z Google Cloud Console (YouTube Data API v3).",ytChanLbl:"Kanál (Handle alebo ID):",ytChanHint:"Zadajte YouTube handle (napr. @mkbhd) alebo Channel ID (napr. UCbjqrq...).",ytVideoModeLbl:"Zobrazené video:",ytVideoModeHint:"Vyberte, či sa má zobrazovať najnovšie vydané video alebo najúspešnejšie video kanála podľa počtu pozretí.",ytModeLatest:"🆕 Najnovšie vydané video",ytModeMostViews:"🔥 Najsledovanejšie video (Top Views)",
+  finSlotsHdr:"📈 Sledované trhy & aktíva (4 pozície)",finGraphTypeLbl:"Typ hlavného grafu:",finGraphLine:"📈 Čiarový graf (Line)",finGraphCandle:"🕯️ Sviečkový graf (Candlestick)",finGraphHint:"Sviečkový graf zobrazuje farebné sviečky (zelená rastová, červená klesajúca) s knôtmi (High/Low) a telom (Open/Close).",finSlot1:"1. Hlavný trh (Hero graf)",finSlot1Sub:"Veľký reálny graf + kurz",finSlot2:"2. Sledovaný trh",finSlot3:"3. Sledovaný trh",finSlot4:"4. Sledovaný trh",finSlotWatchlist:"Karta v spodnom zozname",finPresets:"⚡ Rýchle pridanie populárnych aktív:",finClear:"Vymazať",finGold:"Zlato",finOil:"Ropa WTI",financeHint:"1. pozícia má veľký graf (Hero), pozície 2–4 sa zobrazujú v dolnom prehľade. Podporuje európske ETF fondy (Amundi CW8.PA, 500.PA, Vanguard VWCE.DE), krypto, indexy, komodity aj svetové akcie z Yahoo Finance.",
   ultraNight:"🌙 Ultra Night režim (hlboká červená / spánkový monochróm, min. jas)",
   tabScrInfo:"ℹ️ Info & Štatistiky",scrInfoHdr:"Info & Denná štatistika letov",scrInfoActive:"Zahrnúť obrazovku do automatického striedania",
+  tabScrSonar:"🟢 Sonar",scrSonarHdr:"Akustický sonarový radar",scrSonarActive:"Zahrnúť obrazovku do automatického striedania",scrSonar:"Sonar",sonarViewHdr:"🎯 Režim zobrazenia sonaru",sonarViewModeLbl:"Pohľad radaru:",sonarViewPpi:"🎯 Klasický kruhový PPI radar",sonarViewSplit:"⚡ Rozdelený (Split PPI + Vodopád BTR)",sonarViewWaterfall:"🌊 Plný akustický vodopád (Waterfall Spectrogram)",sonarViewHint:"Akustický vodopád (Bearing-Time Record) zaznamenáva históriu detekcií v čase s Dopplerovým farebným kódovaním (azúrová približovanie, jantárová vzďaľovanie, fosforová zelená tangenciálny prelet).",sonarPingHdr:"🔊 Akustický sonarový ping",sonarPingHint:"Test autentického akustického pingu sonaru cez piezo bzučiak.",btnSonarPing:"🔊 Prehrať Sonar Ping",supportProject:"☕ Podporiť projekt",
   statsTrafficHdr:"✈️ Dnešná letecká štatistika",btnResetStats:"🔄 Resetovať",statsFilterLbl:"Rozsah započítavania lietadiel do štatistík:",statsOptAll:"Všetky prijaté lietadlá (celý ADS-B feed)",statsOptZoom:"Iba v nastavenom rozsahu obrazovky Lietadlá (Zoom)",stUniqueZoom:"Unikátne lietadlá (Zoom ",stUniqueAll:"Unikátne lietadlá (Všetky):",stUnique:"Unikátne lietadlá dnes:",stTopSpeed:"Najvyššia rýchlosť:",stMaxDist:"Maximálna vzdialenosť:",stAltSpan:"Rozpätie výšok:",stReports:"Prijaté ADS-B správy:",statsHint:"Štatistika sa automaticky nuluje o polnoci a uchováva sa v pamäti PSRAM.",confirmResetStats:"Naozaj resetovať dnešnú štatistiku letov?",statsResetOk:"Štatistiky boli resetované",
   cOver:"✈️ Prelet nad hlavou (Overhead widget)",ovRad:"Polomer preletu nad hlavou (km)",bzOverhead:"🔊 Prelet nad hlavou (Overhead výstraha)",
    cPrecip:"🌧️ Výstraha blížiacich sa zrážok",bzPrecip:"🔊 Pípnutie pri blížiacich sa zrážkach",precipTrackerHdr:"🌧️ Detekcia blížiacich sa zrážok (Nowcasting)",precipHint:"Vektorová analýza pohybu frontu (TREC). Upozorní na dážď, krúpy alebo sneh, iba ak zrážky smerujú priamo k vašej polohe.",precipLiveHdr:"Aktuálny stav nowcastingu:",
-  scrShotHdr:"📸 Snímka displeja",scrShotNone:"Kliknite pre zachytenie",btnTakeScrShot:"📸 Zachytiť obrazovku",btnDlScrShot:"💾 Stiahnuť BMP",scrShotOk:"Snímka úspešne načítaná",scrShotErr:"Chyba načítania snímky",
-  tabScrIss:"🛰️ ISS Tracker",scrIssHdr:"ISS Tracker (Medzinárodná vesmírna stanica)",scrIssActive:"Zahrnúť obrazovku do automatického striedania",scrIss:"ISS Tracker",issAlertLbl:"🔊 Zvuková výstraha pri prelete stanice nad obzorom (v dosahu / nad hlavou)",issTelemetryHdr:"🛰️ Živá telemetria stanice ISS",issStateLbl:"Aktuálny stav:",issLatLonLbl:"Poloha (Lat / Lon):",issAltLbl:"Výška letu:",issVelLbl:"Rýchlosť:",issDistLbl:"Vzdialenosť:",issElLbl:"Elevácia / Azimut:",issSunLbl:"Osvetlenie:",issSunlit:"☀️ Na dennom svetle",issEclipsed:"🌑 V tieni Zeme",issInRange:"🛰️ V dosahu priamej viditeľnosti",issOverhead:"⭐ PRIAMO NAD HLAVOU (> 45°)",issOutRange:"Mimo dosahu horizontu",btnIssRefresh:"🔄 Aktualizovať telemetriu",issHint:"Sledovanie preletu Medzinárodnej vesmírnej stanice ISS v reálnom čase (API WhereTheISS). Zobrazuje mapu sveta s dňom/nocou, orbitálnu dráhu, horizont priamej viditeľnosti (~2200 km) a časovač ďalšieho preletu.",
+  scrShotHdr:"📸 Snímka displeja",scrShotNone:"Kliknite pre načítanie",btnTakeScrShot:"📸 Obnoviť",btnDlScrShot:"💾 BMP",scrShotOk:"Snímka načítaná",scrShotErr:"Chyba načítania snímky",scrShotSpin:"⏳ Generujem snímku...",btnLiveMirror:"🔴 Živý náhľad",btnLiveMirrorOff:"⚪ Zastaviť náhľad",scrShotHint:"Klepnutím na displej prepnete detaily letov a legendu",
+  tabScrIss:"🛰️ ISS Tracker",scrIssHdr:"ISS Tracker (Medzinárodná vesmírna stanica)",scrIssActive:"Zahrnúť obrazovku do automatického striedania",scrIss:"ISS Tracker",issAlertLbl:"🔊 Zvuková výstraha pri prelete stanice nad obzorom (v dosahu / nad hlavou)",issViewModeLbl:"Režim zobrazenia mapy:",issView3dIss:"🌍 3D Glóbus (Centrovaný na ISS)",issView3dHome:"📍 3D Glóbus (Centrovaný na Domov)",issView2dMap:"🗺️ 2D Plochá mapa sveta",issTelemetryHdr:"🛰️ Živá telemetria stanice ISS",issStateLbl:"Aktuálny stav:",issLatLonLbl:"Poloha (Lat / Lon):",issAltLbl:"Výška letu:",issVelLbl:"Rýchlosť:",issDistLbl:"Vzdialenosť:",issElLbl:"Elevácia / Azimut:",issSunLbl:"Osvetlenie:",issSunlit:"☀️ Na dennom svetle",issEclipsed:"🌑 V tieni Zeme",issInRange:"🛰️ V dosahu priamej viditeľnosti",issOverhead:"⭐ PRIAMO NAD HLAVOU (> 45°)",issOutRange:"Mimo dosahu horizontu",btnIssRefresh:"🔄 Aktualizovať telemetriu",issHint:"Sledovanie preletu Medzinárodnej vesmírnej stanice ISS v reálnom čase (API WhereTheISS). Zobrazuje mapu sveta s dňom/nocou, orbitálnu dráhu, horizont priamej viditeľnosti (~2200 km) a časovač ďalšieho preletu.",
    tabSerial:"📟 Sériový monitor",serialHdr:"Sériový monitor (Live Web Console)",btnSerialStart:"Spustiť monitor",btnSerialPause:"Pozastaviť monitor",serialActive:"Aktívny (Live)",serialPaused:"Pozastavené",serialAutoScroll:"Automatický posun",btnSerialCopy:"📋 Kopírovať",btnSerialDl:"💾 Stiahnuť",btnSerialClear:"🧹 Vymazať",btnSerialSend:"Odoslať ↵",serialCopied:"Výpis skopírovaný do schránky",serialCleared:"Konzola vymazaná",serialHint:"Streamovanie výstupov sériového portu cez WiFi bez nutnosti USB kábla. Pri odchode zo záložky sa prenos automaticky pozastaví.",
   tabScrPet:"🐾 Zvieratko",scrPetHdr:"AI Radar Companion (Virtuálne zvieratko)",
   petSettingsHdr:"⚙️ Nastavenia zvieratka",petEnabledLbl:"Aktivovať AI zvieratko (potiahnutie od spodného okraja)",
@@ -1358,7 +1480,7 @@ const D={
   petTip1Hdr:"👆 Potiahnutie nahor:",petTip1Txt:"Potiahnutím prsta od spodného okraja obrazovky nahor kedykoľvek vyvoláte zvieratko.",
   petTip2Hdr:"❤️ Pohladkanie:",petTip2Txt:"Ťuknutie na zvieratko ho pohladká, zvýši šťastie a spustí radostnú animáciu.",
   petTip3Hdr:"🐟 Kŕmenie & Dvojklik:",petTip3Txt:"Dvojklik na zvieratko mu dá maškrtu, zníži hlad a doplní energiu.",
-  petTip4Hdr:"🧭 6-osí IMU senzor:",petTip4Txt:"Zvieratko reaguje na fyzické nakláňanie radarového zariadenia v priestore."
+  petTip4Hdr:"🧭 6-osový IMU senzor:",petTip4Txt:"Zvieratko reaguje na fyzické nakláňanie radarového zariadenia v priestore."
  },
  en:{
   tabScrClock:"🕒 Clock",tabScrPlanes:"✈️ Aircraft",tabScrMeteo:"🌧️ Weather Radar",tabScrTactical:"🎯 Tactical Radar",tabScrForecast:"⛅ Forecast",tabScrInfo:"ℹ️ Info & Stats",tabScrFinance:"📈 Markets & Crypto",tabCommon:"⚙️ Shared Settings",
@@ -1369,12 +1491,12 @@ const D={
   remote:"🎮 Remote Control",rangeLbl:"Radar Scale:",
   btnPrev:"← Previous",btnDblTap:"🔄 Legend",btnNext:"Next →",btnDec:"Zoom In (− km)",btnInc:"Zoom Out (+ km)",
   btnPetShow:"🐾 Show DigiCat (Pet)",btnPetHide:"🐾 Hide DigiCat (Pet)",btnPetTitle:"Show / Hide DigiCat (Pet)",
-  remoteHint:"Range applies to Aircraft, Weather and Tactical screens. Manual action pauses auto cycling.",
+  remoteHint:"Range applies to Aircraft, Weather, Tactical and Sonar screens. Manual action pauses auto cycling.",
   location:"📍 Home Location",findCity:"Search town",search:"Search",found:"Found results",lat:"Latitude (°N)",lon:"Longitude (°E)",
   locHint:"Changing location requires a reboot to recalculate maps and forecast.",
   tzHdr:"🕒 Timezone & GMT Offset",tzSelectLbl:"Timezone / GMT Offset",btnDetectTz:"🌐 Detect from browser",
   tzHint:"Sets the UTC time offset for clocks, radar frames, and weather forecasts. For Central Europe choose CET/CEST (automatic daylight saving time).",
-  planesView:"🧭 Orientation, Compass & Units",topBearing:"Radar top orientation",metric:"Metric units (km, km/h, m instead of NM, kt, ft)",
+  planesView:"🧭 Orientation & Units",topBearing:"Radar top orientation",metric:"Metric units (km, km/h, m instead of NM, kt, ft)",
   tb0:"North (North-Up)",tb45:"Northeast (45°)",tb90:"East (90°)",tb135:"Southeast (135°)",tb180:"South (180°)",tb225:"Southwest (225°)",tb270:"West (270°)",tb315:"Northwest (315°)",
   planesViewHint:"Set the bearing you are looking out of your window. Weather radar is North-Up.",
   compassHint:"Electronic compass displays a corner compass widget showing the North needle on the radar map.",
@@ -1393,15 +1515,23 @@ const D={
   tfHeavy:"🛫 Heavy Giants (A380, B747, Beluga...)",tfGlider:"🪂 Gliders & Sailplanes",
   buzzerHdr:"🔊 Acoustic Alerts & Buzzer",buzzerHint:"Configure onboard active buzzer for radar alerts and touch feedback.",
   bzMaster:"Enable buzzer (Master Switch)",bzEmergency:"🚨 Emergency squawk (7700 / 7600 / 7500)",bzWatch:"⭐ Watched flight (arrival in range)",
-  bzTouch:"👆 Touch feedback click",bzHourly:"🕒 Hourly chime",bzNightMute:"🌙 Night quiet mode (mute buzzer at night)",bzPet:"🐾 DigiCat virtual pet sounds (purr, chirp, sneeze)",btnTestBuzzer:"🔊 Test buzzer",
+  bzTouch:"👆 Touch feedback click",bzHourly:"🕒 Hourly chime",bzNightMute:"🌙 Night quiet mode (mute buzzer at night)",bzPet:"🐾 DigiCat virtual pet sounds (purr, chirp, sneeze)",bzSonar:"🟢 Sonar ping (acoustic sweep pulse)",bzSonarLbl:"Acoustic sonar ping on each revolution of radar beam",btnTestBuzzer:"🔊 Test buzzer",
   brightness:"☀️ Display Brightness & Night Mode",briDay:"Day brightness",briNight:"Night brightness",nightAuto:"Automatic night mode with sun position",
-  nightOffset:"Offset from sunset/sunrise (minutes)",clockHdr:"🕒 Clock Face",secStyle:"Seconds ring style",
-  secOff:"Off",secDots:"Dots",secLine:"Line",secComet:"Comet",
-  secRadar:"Radar sweep",secTicks:"Swiss ticks",secOrbit:"Orbiting satellite",
-  clockColor:"Clock digits colour",secColor:"Seconds ring colour",
-  clockStyle:"Clock face style",clkDigital:"Classic Digital",clkAnalog:"Modern Analog",clkOrbital:"Modern Digital",clkRegulator:"Retro LCD",
-  clockWidgets:"Clock screen widgets",cDate:"Date",cWx:"Weather & temp",cWind:"Wind speed",cMoon:"Moon phase",cAstro:"24h solar arc",nightClockOnly:"Night: Clock only (pause radars)",
-  radarWidgets:"Radar map widgets",rTrails:"Flight trails (breadcrumbs)",rNearest:"Vector to nearest aircraft",rAirports:"Airports (runway icons)",rRings:"Range rings",rCompass:"Electronic compass (map widget)",
+  nightOffset:"Offset from sunset/sunrise (minutes)",clockHdr:"🕒 Clock Face",
+  clockAstrolabeFeatures:"✨ Integrated Astrolabe Complications",
+  descAstroRing:"Continuous 24h twilight band (astronomical, nautical, civil), golden hour, real-time Sun position and sunrise/sunset glyphs.",
+  descMoonComp:"Sub-dial with high-resolution lunar crater textures, illumination % calculation and precision terminator line.",
+  descWxSub:"Lower dial gauge with real-time temperature and 24-hour dynamic sparkline thermal trend.",
+  descSecBead:"Electric cyan phosphor bead orbiting along the inner bezel with smooth 30 FPS subpixel motion.",
+  clockWidgets:"Clock screen widgets & alerts",cDate:"Date (displayed under Moon)",nightClockOnly:"Night: Clock only (pause radars)",
+  radarWidgets:"Aircraft radar map elements",mapProvider:"Map Underlay Provider",mapProvVector:"Offline Vector Map (Borders + Cities)",mapProvEsri:"Esri World Dark Gray (Dark Canvas)",mapProvOsm:"OpenStreetMap Standard (Roads, Terrain, Cities)",
+  rBlipStyle:"Target Icon Style",blipChevrons:"Tactical Directional Chevrons (TCAS vector)",blipSilhouettes:"Realistic Aircraft Silhouettes by type",
+  rCompass:"360° Compass Rose heading bezel",rCompassTac:"360° Compass Rose heading bezel",
+  rTrails:"Flight trails (breadcrumbs)",rNearest:"Vector to nearest aircraft",rAirports:"Airports (runway icons)",rRings:"Range rings",
+  radarAvionicsFeatures:"✈️ Glass Cockpit Flight Avionics",radarAvionicsDesc:"Flight radar symbology inspired by Garmin G1000 & Collins Aerospace Glass Cockpits:",
+  avFeat1:"Direct de-clutter visualization: Aircraft and airport tags float cleanly above the map canvas without dark bounding boxes.",
+  avFeat2:"Intelligent route replacement: Known flight origin & destination (e.g. TIA>WAW) replaces the callsign to conserve map space.",
+  avFeat3:"Compact two-line telemetry: Left-aligned altitude & speed badges respecting user-selected metric (m, km/h) or imperial (FL, kts) units.",
   tacticalHdr:"🎯 Tactical Display",tacticalDesc:"Tactical radar brings ADS-B aircraft traffic and real-time weather radar together onto one unified display.",tacticalHint:"Aircraft altitude/callsign filters are inherited from Aircraft radar, weather source from Weather radar.",
   forecastHdr:"⛅ Weather Forecast",forecastDesc:"Weather forecast is automatically fetched via Open-Meteo for your configured home location.",btnGoLocSettings:"📍 Set home location in Shared Settings",
   hwRtc:"⏱️ System Clock & RTC (PCF85063)",hwLocalTimeLbl:"Local time:",hwTzLbl:"Timezone / Offset:",hwRtcLbl:"RTC chip status:",hwRtcTimeLbl:"RTC hardware time:",btnSyncNtp:"🌐 NTP sync",btnSyncBrowser:"💻 Browser sync",hwI2c:"🔍 I2C Bus Inspector",
@@ -1430,14 +1560,16 @@ const D={
   otaDownloading:"Downloading & flashing firmware...",otaSuccess:"Update successful! Restarting...",otaErr:"Update failed",
   otaNoAsset:"Release missing OTA binary (-ota.bin)",otaConfirm:"Really install firmware update to version",
   scrClock:"Clock & Astro",scrPlanes:"Aircraft radar",scrMeteo:"Weather radar",scrTactical:"Tactical radar",scrForecast:"Weather forecast",scrInfo:"Info & Stats",scrFinance:"Markets & Crypto",scrYouTube:"YouTube",scrSettings:"Settings",
-  finSlotsHdr:"📈 Watched Markets & Assets (4 slots)",finGraphTypeLbl:"Primary Chart Style:",finGraphLine:"📈 Line Chart",finGraphCandle:"🕯️ Candlestick Chart",finGraphHint:"Candlestick chart renders colored candles (green bullish, red bearish) with wicks (High/Low) and bodies (Open/Close).",finSlot1:"1. Primary Market (Hero Chart)",finSlot1Sub:"Full sparkline chart + quote",finSlot2:"2. Watchlist Market",finSlot3:"3. Watchlist Market",finSlot4:"4. Watchlist Market",finSlotWatchlist:"Bottom watchlist card",finPresets:"⚡ Quick-add popular assets:",finClear:"Clear",financeHint:"Slot 1 features the large Hero sparkline chart; slots 2–4 appear in the bottom watchlist cards. Supports European ETFs (Amundi CW8.PA, 500.PA, Vanguard VWCE.DE), crypto, indices, commodities and global equities via Yahoo Finance.",
+  tabScrYouTube:"▶️ YouTube",scrYtHdr:"YouTube Channel Analytics",scrYtActive:"Include screen in auto-rotation cycle",ytConfigHdr:"⚙️ YouTube API Settings",ytKeyLbl:"YouTube Data API key:",ytKeyHint:"Free API key from Google Cloud Console (YouTube Data API v3).",ytChanLbl:"Channel (Handle or ID):",ytChanHint:"Enter YouTube handle (e.g. @mkbhd) or Channel ID (e.g. UCbjqrq...).",ytVideoModeLbl:"Displayed Video:",ytVideoModeHint:"Choose whether to feature the channel's latest video or the all-time most viewed video.",ytModeLatest:"🆕 Latest Released Video",ytModeMostViews:"🔥 Most Viewed Video (Top Views)",
+  finSlotsHdr:"📈 Watched Markets & Assets (4 slots)",finGraphTypeLbl:"Primary Chart Style:",finGraphLine:"📈 Line Chart",finGraphCandle:"🕯️ Candlestick Chart",finGraphHint:"Candlestick chart renders colored candles (green bullish, red bearish) with wicks (High/Low) and bodies (Open/Close).",finSlot1:"1. Primary Market (Hero Chart)",finSlot1Sub:"Full sparkline chart + quote",finSlot2:"2. Watchlist Market",finSlot3:"3. Watchlist Market",finSlot4:"4. Watchlist Market",finSlotWatchlist:"Bottom watchlist card",finPresets:"⚡ Quick-add popular assets:",finClear:"Clear",finGold:"Gold",finOil:"Crude Oil WTI",financeHint:"Slot 1 features the large Hero sparkline chart; slots 2–4 appear in the bottom watchlist cards. Supports European ETFs (Amundi CW8.PA, 500.PA, Vanguard VWCE.DE), crypto, indices, commodities and global equities via Yahoo Finance.",
   ultraNight:"🌙 Ultra Night mode (deep red sleep monochrome, min. brightness)",
   tabScrInfo:"ℹ️ Info & Stats",scrInfoHdr:"Info & Daily Flight Statistics",scrInfoActive:"Include screen in automatic cycling",
+  tabScrSonar:"🟢 Sonar",scrSonarHdr:"Acoustic Sonar Radar",scrSonarActive:"Include screen in automatic cycling",scrSonar:"Sonar",sonarViewHdr:"🎯 Sonar Display Mode",sonarViewModeLbl:"Radar Presentation:",sonarViewPpi:"🎯 Classic Circular PPI Radar",sonarViewSplit:"⚡ Split (Upper PPI + Lower Waterfall BTR)",sonarViewWaterfall:"🌊 Full Acoustic Waterfall Spectrogram (BTR)",sonarViewHint:"Bearing-Time Record (BTR) waterfall displays historical contacts over time with Doppler velocity shift color coding (cyan closing, amber opening, phosphor green cross-track).",sonarPingHdr:"🔊 Acoustic Sonar Ping",sonarPingHint:"Test authentic acoustic sonar ping through the built-in piezo buzzer.",btnSonarPing:"🔊 Play Sonar Ping",supportProject:"☕ Support the Project",
   statsTrafficHdr:"✈️ Flight Traffic Today",btnResetStats:"🔄 Reset",statsFilterLbl:"Aircraft statistics counting scope:",statsOptAll:"All received aircraft (full ADS-B feed)",statsOptZoom:"Only within Aircraft screen zoom range",stUniqueZoom:"Unique aircraft (Zoom ",stUniqueAll:"Unique aircraft (All):",stUnique:"Unique aircraft today:",stTopSpeed:"Top speed:",stMaxDist:"Max distance:",stAltSpan:"Altitude span:",stReports:"ADS-B reports received:",statsHint:"Statistics auto-reset at midnight and are kept in PSRAM.",confirmResetStats:"Really reset today's flight statistics?",statsResetOk:"Statistics reset successfully",
   cOver:"✈️ Overhead aircraft widget",ovRad:"Overhead radius (km)",bzOverhead:"🔊 Overhead aircraft alert",
    cPrecip:"🌧️ Approaching precipitation alert",bzPrecip:"🔊 Approaching precipitation alert chime",precipTrackerHdr:"🌧️ Approaching Precipitation Detection (Nowcasting)",precipHint:"Vector motion analysis (TREC). Alerts on incoming rain, hail, or snow only when heading towards your location.",precipLiveHdr:"Current nowcasting status:",
-  scrShotHdr:"📸 Screen Capture",scrShotNone:"Click to capture",btnTakeScrShot:"📸 Capture Screen",btnDlScrShot:"💾 Download BMP",scrShotOk:"Screenshot captured successfully",scrShotErr:"Failed to capture screenshot",
-  tabScrIss:"🛰️ ISS Tracker",scrIssHdr:"ISS Tracker (International Space Station)",scrIssActive:"Include screen in automatic cycling",scrIss:"ISS Tracker",issAlertLbl:"🔊 Acoustic alert when ISS is in range / overhead",issTelemetryHdr:"🛰️ Live ISS Telemetry",issStateLbl:"Current status:",issLatLonLbl:"Coordinates (Lat / Lon):",issAltLbl:"Altitude:",issVelLbl:"Velocity:",issDistLbl:"Slant range:",issElLbl:"Elevation / Azimuth:",issSunLbl:"Illumination:",issSunlit:"☀️ Daylight (Sunlit)",issEclipsed:"🌑 Earth Shadow (Eclipsed)",issInRange:"🛰️ In line of sight",issOverhead:"⭐ OVERHEAD PASS (> 45°)",issOutRange:"Out of line of sight",btnIssRefresh:"🔄 Refresh Telemetry",issHint:"Real-time orbital tracking of the International Space Station (WhereTheISS API). Displays world day/night terminator, ground track orbit, line-of-sight visibility footprint (~2,200 km) and countdown to the next overhead pass.",
+  scrShotHdr:"📸 Screen Capture",scrShotNone:"Click to load",btnTakeScrShot:"📸 Refresh",btnDlScrShot:"💾 BMP",scrShotOk:"Screenshot captured",scrShotErr:"Failed to capture screenshot",scrShotSpin:"⏳ Capturing screenshot...",btnLiveMirror:"🔴 Live Mirror",btnLiveMirrorOff:"⚪ Pause Live Mirror",scrShotHint:"Click display to toggle flight details & legend",
+  tabScrIss:"🛰️ ISS Tracker",scrIssHdr:"ISS Tracker (International Space Station)",scrIssActive:"Include screen in automatic cycling",scrIss:"ISS Tracker",issAlertLbl:"🔊 Acoustic alert when ISS is in range / overhead",issViewModeLbl:"Map Projection Mode:",issView3dIss:"🌍 3D Earth Globe (Centered on ISS)",issView3dHome:"📍 3D Earth Globe (Centered on Home)",issView2dMap:"🗺️ 2D Equirectangular Map",issTelemetryHdr:"🛰️ Live ISS Telemetry",issStateLbl:"Current status:",issLatLonLbl:"Coordinates (Lat / Lon):",issAltLbl:"Altitude:",issVelLbl:"Velocity:",issDistLbl:"Slant range:",issElLbl:"Elevation / Azimuth:",issSunLbl:"Illumination:",issSunlit:"☀️ Daylight (Sunlit)",issEclipsed:"🌑 Earth Shadow (Eclipsed)",issInRange:"🛰️ In line of sight",issOverhead:"⭐ OVERHEAD PASS (> 45°)",issOutRange:"Out of line of sight",btnIssRefresh:"🔄 Refresh Telemetry",issHint:"Real-time orbital tracking of the International Space Station (WhereTheISS API). Displays world day/night terminator, ground track orbit, line-of-sight visibility footprint (~2,200 km) and countdown to the next overhead pass.",
    tabSerial:"📟 Serial Monitor",serialHdr:"Serial Monitor (Live Web Console)",btnSerialStart:"Start Monitor",btnSerialPause:"Pause Monitor",serialActive:"Active (Live)",serialPaused:"Paused",serialAutoScroll:"Auto-scroll",btnSerialCopy:"📋 Copy",btnSerialDl:"💾 Download",btnSerialClear:"🧹 Clear",btnSerialSend:"Send ↵",serialCopied:"Log copied to clipboard",serialCleared:"Console cleared",serialHint:"Real-time serial output streaming over WiFi without needing a USB cable. Polling automatically pauses when switching tabs.",
   tabScrPet:"🐾 Pet Companion",scrPetHdr:"AI Radar Companion (Virtual Pet)",
   petSettingsHdr:"⚙️ Pet Settings",petEnabledLbl:"Enable AI Pet Companion (swipe up from bottom edge)",
@@ -1484,7 +1616,7 @@ function setLang(v){
    const t=D[L][k];
    if(t!==undefined) e.title=t;
  });
- pwState();status();updateHardware();
+ pwState();status();updateHardware();initFinPresets();
 }
 
 function showTab(id){
@@ -1501,7 +1633,7 @@ document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>showTab(b.dat
 
 function msg(t,c){$("msg").textContent=t;$("msg").className=c||"";setTimeout(()=>{$("msg").textContent=""},4000);}
 
-const SCR=[["scrClock",0],["scrPlanes",1],["scrMeteo",2],["scrTactical",3],["scrForecast",4],["scrFinance",5],["scrIss",6],["scrYouTube",7],["scrInfo",8],["scrSettings",9]];
+const SCR=[["scrClock",0],["scrPlanes",1],["scrMeteo",2],["scrTactical",3],["scrSonar",4],["scrForecast",5],["scrFinance",6],["scrIss",7],["scrYouTube",8],["scrInfo",9],["scrSettings",10]];
 function drawScrBtns(cur,enabled){
  if(!$("scrBtns")) return;
  $("scrBtns").innerHTML=SCR.map(([k,i])=>{
@@ -1684,26 +1816,19 @@ const AUTO = [
  ["nightAuto","change","nightAuto",e=>e.checked],
  ["ultraNight","change","ultraNight",e=>e.checked],
  ["nightOffset","change","nightOffset",e=>+e.value],
- ["secStyle","change","secStyle",e=>+e.value],
- ["clockColor","change","clockColor",e=>hexToRgb565(e.value)],
- ["secColor","change","secColor",e=>hexToRgb565(e.value)],
+ ["rBlipStyle","change","rBlipStyle",e=>+e.value],
+ ["rCompass","change","rCompass",e=>{ if($("rCompassTac")) $("rCompassTac").checked=e.checked; return e.checked; }],
+ ["rCompassTac","change","rCompass",e=>{ if($("rCompass")) $("rCompass").checked=e.checked; return e.checked; }],
  ["showLegends","change","showLegends",e=>{ if($("showLegendsMeteo")) $("showLegendsMeteo").checked=e.checked; return e.checked; }],
  ["showLegendsMeteo","change","showLegends",e=>{ if($("showLegends")) $("showLegends").checked=e.checked; return e.checked; }],
  ["smoothRadar","change","smoothRadar",e=>e.checked],
- ["clockStyle","change","clockStyle",e=>+e.value],
  ["cDate","change","cDate",e=>e.checked],
- ["cWx","change","cWx",e=>e.checked],
- ["cWind","change","cWind",e=>e.checked],
- ["cMoon","change","cMoon",e=>e.checked],
- ["cAstro","change","cAstro",e=>e.checked],
  ["nightClockOnly","change","nightClockOnly",e=>e.checked],
+ ["mapProvider","change","mapProvider",e=>+e.value],
  ["rTrails","change","rTrails",e=>{ if($("rTrailsTac")) $("rTrailsTac").checked=e.checked; return e.checked; }],
  ["rNearest","change","rNearest",e=>{ if($("rNearestTac")) $("rNearestTac").checked=e.checked; return e.checked; }],
  ["rAirports","change","rAirports",e=>{ if($("rAirportsMeteo")) $("rAirportsMeteo").checked=e.checked; if($("rAirportsTac")) $("rAirportsTac").checked=e.checked; return e.checked; }],
  ["rRings","change","rRings",e=>{ if($("rRingsMeteo")) $("rRingsMeteo").checked=e.checked; if($("rRingsTac")) $("rRingsTac").checked=e.checked; return e.checked; }],
- ["rCompass","change","rCompass",e=>{ if($("rCompassTac")) $("rCompassTac").checked=e.checked; if($("rCompassCommon")) $("rCompassCommon").checked=e.checked; return e.checked; }],
- ["rCompassTac","change","rCompass",e=>{ if($("rCompass")) $("rCompass").checked=e.checked; if($("rCompassCommon")) $("rCompassCommon").checked=e.checked; return e.checked; }],
- ["rCompassCommon","change","rCompass",e=>{ if($("rCompass")) $("rCompass").checked=e.checked; if($("rCompassTac")) $("rCompassTac").checked=e.checked; return e.checked; }],
  ["statsScope","change","statsScope",e=>+e.value],
  ["timezone","change","timezone",e=>{ applyTzNow(e.value); return e.value; }],
  ["tfAirliner","change","typeAirliner",e=>e.checked],
@@ -1735,78 +1860,87 @@ const AUTO = [
  ["sTactical","change","screens",()=>getScreensObj()],
  ["sForecast","change","screens",()=>getScreensObj()],
  ["sInfo","change","screens",()=>getScreensObj()],
+ ["sSonar","change","screens",()=>getScreensObj()],
  ["sFinance","change","screens",()=>getScreensObj()],
  ["financeTickers","change","financeTickers",e=>e.value.trim()],
  ["finGraphType","change","financeGraph",e=>parseInt(e.value,10)||0],
  ["sIss","change","screens",()=>getScreensObj()],
  ["issAlert","change","issAlert",e=>e.checked],
+ ["issViewMode","change","issViewMode",e=>parseInt(e.value,10)||0],
+ ["sonarViewMode","change","sonarViewMode",e=>parseInt(e.value,10)||0],
  ["sYt","change","screens",()=>getScreensObj()],
  ["ytKey","change","youtubeKey",e=>e.value.trim()],
  ["ytChan","change","youtubeChannel",e=>e.value.trim()],
+ ["ytVideoMode","change","youtubeVideoMode",e=>parseInt(e.value,10)||0],
  ["petEnabled","change","petEnabled",e=>e.checked],
  ["petCharacter","change","petCharacter",e=>parseInt(e.value,10)||0],
  ["geminiKey","change","geminiKey",e=>e.value.trim()],
  ["bzNightMute","change","buzzerNightMute",e=>e.checked],
  ["bzPet","change","buzzerPet",e=>{ if($("bzPetPetSettings")) $("bzPetPetSettings").checked=e.checked; return e.checked; }],
  ["bzPetPetSettings","change","buzzerPet",e=>{ if($("bzPet")) $("bzPet").checked=e.checked; return e.checked; }],
+ ["bzSonar","change","buzzerSonar",e=>{ if($("bzSonarSonarSettings")) $("bzSonarSonarSettings").checked=e.checked; return e.checked; }],
+ ["bzSonarSonarSettings","change","buzzerSonar",e=>{ if($("bzSonar")) $("bzSonar").checked=e.checked; return e.checked; }],
  ["hostname","change","hostname",e=>{ if($("netHost")) $("netHost").textContent=e.value+".local"; return e.value.trim(); }],
 ];
 
-const FIN_PRESETS = [
-  { group: "Európske ETF fondy (Amundi, Vanguard, iShares)", items: [
-    { v: "CW8.PA", l: "🇪🇺 Amundi MSCI World (CW8.PA)" },
-    { v: "500.PA", l: "🇪🇺 Amundi S&P 500 (500.PA)" },
-    { v: "C50.PA", l: "🇪🇺 Amundi Euro Stoxx 50 (C50.PA)" },
-    { v: "C6E.PA", l: "🇪🇺 Amundi Stoxx Europe 600 (C6E.PA)" },
-    { v: "VWCE.DE", l: "🌍 Vanguard FTSE All-World (VWCE.DE)" },
-    { v: "SXR8.DE", l: "🇺🇸 iShares Core S&P 500 (SXR8.DE)" },
-    { v: "EUNL.DE", l: "🌍 iShares Core MSCI World (EUNL.DE)" },
-    { v: "EQQQ.DE", l: "💻 Invesco EQQQ Nasdaq 100 (EQQQ.DE)" }
-  ]},
-  { group: "Kryptomeny / Crypto", items: [
-    { v: "BTC-USD", l: "₿ Bitcoin (BTC-USD)" },
-    { v: "ETH-USD", l: "Ξ Ethereum (ETH-USD)" },
-    { v: "SOL-USD", l: "◎ Solana (SOL-USD)" },
-    { v: "XRP-USD", l: "✕ Ripple (XRP-USD)" },
-    { v: "DOGE-USD", l: "Ð Dogecoin (DOGE-USD)" }
-  ]},
-  { group: "Akciové indexy / Indices", items: [
-    { v: "^GSPC", l: "📈 S&P 500 (^GSPC)" },
-    { v: "^IXIC", l: "📊 Nasdaq Composite (^IXIC)" },
-    { v: "^DJI", l: "🏛️ Dow Jones (^DJI)" },
-    { v: "^GDAXI", l: "🇩🇪 DAX 40 Germany (^GDAXI)" },
-    { v: "^FTSE", l: "🇬🇧 FTSE 100 London (^FTSE)" }
-  ]},
-  { group: "Komodity / Commodities", items: [
-    { v: "GC=F", l: "🥇 Zlato / Gold (GC=F)" },
-    { v: "SI=F", l: "🥈 Striebro / Silver (SI=F)" },
-    { v: "CL=F", l: "🛢️ Ropa WTI Crude (CL=F)" },
-    { v: "BZ=F", l: "🛢️ Ropa Brent (BZ=F)" },
-    { v: "NG=F", l: "🔥 Zemný plyn (NG=F)" },
-    { v: "HG=F", l: "🧱 Meď / Copper (HG=F)" }
-  ]},
-  { group: "Svetové akcie / Equities", items: [
-    { v: "NVDA", l: "💻 Nvidia (NVDA)" },
-    { v: "AAPL", l: "🍏 Apple (AAPL)" },
-    { v: "MSFT", l: "🪟 Microsoft (MSFT)" },
-    { v: "TSLA", l: "🚗 Tesla (TSLA)" },
-    { v: "AMZN", l: "📦 Amazon (AMZN)" },
-    { v: "GOOGL", l: "🔍 Alphabet Google (GOOGL)" },
-    { v: "META", l: "♾️ Meta Platforms (META)" }
-  ]},
-  { group: "Meny & Forex", items: [
-    { v: "EURUSD=X", l: "💶 EUR / USD (EURUSD=X)" },
-    { v: "CZK=X", l: "💵 USD / CZK (CZK=X)" },
-    { v: "EURCZK=X", l: "💶 EUR / CZK (EURCZK=X)" }
-  ]}
-];
-
 function initFinPresets() {
+  const isEn = (L === "en"), isCs = (L === "cs");
+  const presets = [
+    { group: isEn ? "European ETFs (Amundi, Vanguard, iShares)" : (isCs ? "Evropské ETF fondy (Amundi, Vanguard, iShares)" : "Európske ETF fondy (Amundi, Vanguard, iShares)"), items: [
+      { v: "CW8.PA", l: "🇪🇺 Amundi MSCI World (CW8.PA)" },
+      { v: "500.PA", l: "🇪🇺 Amundi S&P 500 (500.PA)" },
+      { v: "C50.PA", l: "🇪🇺 Amundi Euro Stoxx 50 (C50.PA)" },
+      { v: "C6E.PA", l: "🇪🇺 Amundi Stoxx Europe 600 (C6E.PA)" },
+      { v: "VWCE.DE", l: "🌍 Vanguard FTSE All-World (VWCE.DE)" },
+      { v: "SXR8.DE", l: "🇺🇸 iShares Core S&P 500 (SXR8.DE)" },
+      { v: "EUNL.DE", l: "🌍 iShares Core MSCI World (EUNL.DE)" },
+      { v: "EQQQ.DE", l: "💻 Invesco EQQQ Nasdaq 100 (EQQQ.DE)" }
+    ]},
+    { group: isEn ? "Crypto" : (isCs ? "Kryptoměny" : "Kryptomeny"), items: [
+      { v: "BTC-USD", l: "₿ Bitcoin (BTC-USD)" },
+      { v: "ETH-USD", l: "Ξ Ethereum (ETH-USD)" },
+      { v: "SOL-USD", l: "◎ Solana (SOL-USD)" },
+      { v: "XRP-USD", l: "✕ Ripple (XRP-USD)" },
+      { v: "DOGE-USD", l: "Ð Dogecoin (DOGE-USD)" }
+    ]},
+    { group: isEn ? "Stock Indices" : (isCs ? "Akciové indexy" : "Akciové indexy"), items: [
+      { v: "^GSPC", l: "📈 S&P 500 (^GSPC)" },
+      { v: "^IXIC", l: "📊 Nasdaq Composite (^IXIC)" },
+      { v: "^DJI", l: "🏛️ Dow Jones (^DJI)" },
+      { v: "^GDAXI", l: "🇩🇪 DAX 40 Germany (^GDAXI)" },
+      { v: "^FTSE", l: "🇬🇧 FTSE 100 London (^FTSE)" }
+    ]},
+    { group: isEn ? "Commodities" : (isCs ? "Komodity" : "Komodity"), items: [
+      { v: "GC=F", l: isEn ? "🥇 Gold (GC=F)" : "🥇 Zlato (GC=F)" },
+      { v: "SI=F", l: isEn ? "🥈 Silver (SI=F)" : (isCs ? "🥈 Stříbro (SI=F)" : "🥈 Striebro (SI=F)") },
+      { v: "CL=F", l: isEn ? "🛢️ Crude Oil WTI (CL=F)" : "🛢️ Ropa WTI (CL=F)" },
+      { v: "BZ=F", l: isEn ? "🛢️ Brent Crude Oil (BZ=F)" : "🛢️ Ropa Brent (BZ=F)" },
+      { v: "NG=F", l: isEn ? "🔥 Natural Gas (NG=F)" : (isCs ? "🔥 Zemní plyn (NG=F)" : "🔥 Zemný plyn (NG=F)") },
+      { v: "HG=F", l: isEn ? "🧱 Copper (HG=F)" : (isCs ? "🧱 Měď (HG=F)" : "🧱 Meď (HG=F)") }
+    ]},
+    { group: isEn ? "Global Equities" : (isCs ? "Světové akcie" : "Svetové akcie"), items: [
+      { v: "NVDA", l: "💻 Nvidia (NVDA)" },
+      { v: "AAPL", l: "🍏 Apple (AAPL)" },
+      { v: "MSFT", l: "🪟 Microsoft (MSFT)" },
+      { v: "TSLA", l: "🚗 Tesla (TSLA)" },
+      { v: "AMZN", l: "📦 Amazon (AMZN)" },
+      { v: "GOOGL", l: "🔍 Alphabet Google (GOOGL)" },
+      { v: "META", l: "♾️ Meta Platforms (META)" }
+    ]},
+    { group: isEn ? "Currencies & Forex" : (isCs ? "Měny & Forex" : "Meny & Forex"), items: [
+      { v: "EURUSD=X", l: "💶 EUR / USD (EURUSD=X)" },
+      { v: "CZK=X", l: "💵 USD / CZK (CZK=X)" },
+      { v: "EURCZK=X", l: "💶 EUR / CZK (EURCZK=X)" }
+    ]}
+  ];
+
+  const defaultOpt = isEn ? "-- Custom / Preset --" : (isCs ? "-- Vlastní / Předvolba --" : "-- Vlastný / Predvoľba --");
   for (let i = 1; i <= 4; i++) {
     const sel = $("finSel" + i);
-    if (!sel || sel.options.length > 1) continue;
-    sel.innerHTML = '<option value="">-- Vlastný / Presets --</option>';
-    FIN_PRESETS.forEach(g => {
+    if (!sel) continue;
+    const curVal = sel.value;
+    sel.innerHTML = '<option value="">' + defaultOpt + '</option>';
+    presets.forEach(g => {
       const grp = document.createElement("optgroup");
       grp.label = g.group;
       g.items.forEach(it => {
@@ -1817,6 +1951,7 @@ function initFinPresets() {
       });
       sel.appendChild(grp);
     });
+    if (curVal) sel.value = curVal;
   }
 }
 
@@ -1911,30 +2046,33 @@ async function load(){
  $("sClock").checked=CFG.screens.clock;$("sPlanes").checked=CFG.screens.planes;
  $("sMeteo").checked=CFG.screens.meteo;$("sTactical").checked=CFG.screens.tactical;$("sForecast").checked=CFG.screens.forecast;
  if($("sInfo")) $("sInfo").checked=CFG.screens.info!==false;
+ if($("sSonar")) $("sSonar").checked=CFG.screens.sonar!==false;
  if($("sFinance")) $("sFinance").checked=CFG.screens.finance!==false;
  if($("sIss")) $("sIss").checked=CFG.screens.iss!==false;
  if($("sYt")) $("sYt").checked=CFG.screens.youtube!==false;
  if($("ytKey")) $("ytKey").value=CFG.youtubeKey||"";
  if($("ytChan")) $("ytChan").value=CFG.youtubeChannel||"";
+ if($("ytVideoMode") && CFG.youtubeVideoMode!==undefined) $("ytVideoMode").value=CFG.youtubeVideoMode;
  if($("petEnabled")) $("petEnabled").checked=CFG.petEnabled!==false;
  if($("petCharacter") && CFG.petCharacter!==undefined) $("petCharacter").value=CFG.petCharacter;
  if($("geminiKey")) $("geminiKey").value=CFG.geminiKey||"";
  if($("issAlert")) $("issAlert").checked=!!CFG.issAlert;
+ if($("issViewMode") && CFG.issViewMode!==undefined) $("issViewMode").value=CFG.issViewMode;
+ if($("sonarViewMode") && CFG.sonarViewMode!==undefined) $("sonarViewMode").value=CFG.sonarViewMode;
  if(CFG.financeTickers !== undefined) loadFinanceTickers(CFG.financeTickers);
  if($("finGraphType") && CFG.financeGraph !== undefined) $("finGraphType").value = CFG.financeGraph;
  $("autoRotate").value=CFG.autoRotate;$("radarSrc").value=CFG.radarSrc;
+ if($("mapProvider") && CFG.mapProvider!==undefined) $("mapProvider").value=CFG.mapProvider;
  if($("showLegends")) $("showLegends").checked=!!CFG.showLegends;
  if($("showLegendsMeteo")) $("showLegendsMeteo").checked=!!CFG.showLegends;
  if($("smoothRadar")) $("smoothRadar").checked=CFG.smoothRadar!==false;
  $("briDay").value=CFG.briDay;$("briNight").value=CFG.briNight;
  $("nightAuto").checked=CFG.nightAuto;$("nightOffset").value=CFG.nightOffset;
- $("secStyle").value=CFG.secStyle;$("metric").checked=CFG.metric;$("topBearing").value=CFG.topBearing;
- if($("clockStyle")) $("clockStyle").value=CFG.clockStyle||0;
+ $("metric").checked=CFG.metric;$("topBearing").value=CFG.topBearing;
+ if($("rBlipStyle") && CFG.rBlipStyle!==undefined) $("rBlipStyle").value=CFG.rBlipStyle;
+ if($("rCompass")) $("rCompass").checked=CFG.rCompass!==false;
+ if($("rCompassTac")) $("rCompassTac").checked=CFG.rCompass!==false;
  if($("cDate")) $("cDate").checked=CFG.cDate!==false;
- if($("cWx")) $("cWx").checked=CFG.cWx!==false;
- if($("cWind")) $("cWind").checked=CFG.cWind!==false;
- if($("cMoon")) $("cMoon").checked=CFG.cMoon!==false;
- if($("cAstro")) $("cAstro").checked=CFG.cAstro!==false;
  if($("cOver")) $("cOver").checked=CFG.cOver!==false;
  if($("ovRad")) $("ovRad").value=CFG.ovRad||10;
  if($("nightClockOnly")) $("nightClockOnly").checked=!!CFG.nightClockOnly;
@@ -1949,9 +2087,6 @@ async function load(){
  if($("rRings")) $("rRings").checked=CFG.rRings!==false;
  if($("rRingsMeteo")) $("rRingsMeteo").checked=CFG.rRings!==false;
  if($("rRingsTac")) $("rRingsTac").checked=CFG.rRings!==false;
- if($("rCompass")) $("rCompass").checked=CFG.rCompass!==false;
- if($("rCompassTac")) $("rCompassTac").checked=CFG.rCompass!==false;
- if($("rCompassCommon")) $("rCompassCommon").checked=CFG.rCompass!==false;
  if($("statsScope")) $("statsScope").value=(CFG.statsScope!==undefined)?CFG.statsScope:(CFG.statsFilterRange?2:0);
  if($("timezone") && CFG.timezone) $("timezone").value=CFG.timezone;
  if($("tfAirliner")) $("tfAirliner").checked=CFG.typeAirliner!==false;
@@ -1978,7 +2113,8 @@ async function load(){
  if($("bzNightMute")) $("bzNightMute").checked=CFG.buzzerNightMute!==false;
  if($("bzPet")) $("bzPet").checked=CFG.buzzerPet!==false;
  if($("bzPetPetSettings")) $("bzPetPetSettings").checked=CFG.buzzerPet!==false;
-   $("clockColor").value=rgb565ToHex(CFG.clockColor);$("secColor").value=rgb565ToHex(CFG.secColor);
+ if($("bzSonar")) $("bzSonar").checked=CFG.buzzerSonar!==false;
+ if($("bzSonarSonarSettings")) $("bzSonarSonarSettings").checked=CFG.buzzerSonar!==false;
    $("altMin").value=CFG.altMin;$("altMax").value=CFG.altMax;
    pwState();
    $("onlyCallsign").checked=CFG.onlyCallsign;$("squawkAlert").checked=CFG.squawkAlert;$("watch").value=CFG.watch||"";
@@ -1986,7 +2122,7 @@ async function load(){
    if($("hostname")) $("hostname").value=CFG.hostname||"MeteoPlaneRadar";
    if($("netHost")) $("netHost").textContent=(CFG.hostname||"MeteoPlaneRadar")+".local";
    renderSavedWifi(CFG.wifiNetworks);
-   bri();wireAutoSave();status();updateHardware();
+   bri();wireAutoSave();status();updateHardware();setTimeout(()=>takeScreenshot(true),800);
 }
 
 function pwState(){
@@ -2001,6 +2137,13 @@ $("briDay").addEventListener("input",bri);$("briNight").addEventListener("input"
 async function status(){
  try{
   const s=await(await fetch("/api/status")).json();
+  if(s.lang !== undefined){
+    const devL = (s.lang==1||s.lang=="en")?"en":((s.lang==0||s.lang=="cs")?"cs":"sk");
+    if(L !== devL){
+      setLang(s.lang);
+      return;
+    }
+  }
   drawScrBtns(s.screen,s.enabled);
   if(!CFG.apMode&&$("wifiNow")) $("wifiNow").textContent=D[L].wifiNow+" "+s.ssid+" ("+s.rssi+" dBm).";
   const hasR=(s.range&&s.range.length>0);
@@ -2008,7 +2151,7 @@ async function status(){
   if($("rMinus")){ $("rMinus").disabled=!hasR; $("rMinus").style.opacity=hasR?"1":".4"; }
   if($("rPlus")){ $("rPlus").disabled=!hasR; $("rPlus").style.opacity=hasR?"1":".4"; }
   
-  const scrKeys=["scrClock","scrPlanes","scrMeteo","scrTactical","scrForecast","scrFinance","scrIss","scrInfo","scrSettings"];
+  const scrKeys=["scrClock","scrPlanes","scrMeteo","scrTactical","scrSonar","scrForecast","scrFinance","scrIss","scrYouTube","scrInfo","scrSettings"];
   const curKey = scrKeys[s.screen] || "scrClock";
   let curName = (D[L] && D[L][curKey]) ? D[L][curKey] : ("Screen " + s.screen);
   if(s.petOpen) curName += " + 🐾 DigiCat";
@@ -2058,32 +2201,30 @@ async function status(){
  }catch(e){}
 }
 setInterval(status,4000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)status();});
+window.addEventListener("focus",status);
 
 function body(){return{
  lat:parseFloat($("lat").value),lon:parseFloat($("lon").value),
  lang:parseInt($("uiLang").value),metric:$("metric").checked,
  briDay:+$("briDay").value,briNight:+$("briNight").value,nightAuto:$("nightAuto").checked,
- nightOffset:+$("nightOffset").value,secStyle:+$("secStyle").value,
- clockColor:hexToRgb565($("clockColor").value),secColor:hexToRgb565($("secColor").value),
+ nightOffset:+$("nightOffset").value,
  topBearing:+$("topBearing").value,
  altMin:+$("altMin").value,altMax:+$("altMax").value,onlyCallsign:$("onlyCallsign").checked,
  squawkAlert:$("squawkAlert").checked,watch:$("watch").value.trim(),
  autoRotate:+$("autoRotate").value,radarSrc:+$("radarSrc").value,
+ mapProvider:$("mapProvider")?+$("mapProvider").value:0,
+ rBlipStyle:$("rBlipStyle")?+$("rBlipStyle").value:0,
  showLegends:$("showLegends")?$("showLegends").checked:true,
  smoothRadar:$("smoothRadar")?$("smoothRadar").checked:true,
- clockStyle:$("clockStyle")?+$("clockStyle").value:0,
  cDate:$("cDate")?$("cDate").checked:true,
- cWx:$("cWx")?$("cWx").checked:true,
- cWind:$("cWind")?$("cWind").checked:true,
- cMoon:$("cMoon")?$("cMoon").checked:true,
- cAstro:$("cAstro")?$("cAstro").checked:true,
  nightClockOnly:$("nightClockOnly")?$("nightClockOnly").checked:false,
  ultraNight:$("ultraNight")?$("ultraNight").checked:false,
  rTrails:$("rTrails")?$("rTrails").checked:true,
  rNearest:$("rNearest")?$("rNearest").checked:true,
  rAirports:$("rAirports")?$("rAirports").checked:true,
  rRings:$("rRings")?$("rRings").checked:true,
- rCompass:$("rCompass")?$("rCompass").checked:true,
+ rCompass:$("rCompass")?$("rCompass").checked:(CFG.rCompass!==undefined?CFG.rCompass:true),
  statsScope:$("statsScope")?+$("statsScope").value:(($("statsFilterRange")?(+$("statsFilterRange").value===1?2:0):0)),
  statsFilterRange:$("statsScope")?(+$("statsScope").value>0):false,
  timezone:$("timezone")?$("timezone").value:undefined,
@@ -2104,12 +2245,21 @@ function body(){return{
  buzzerNightMute:$("bzNightMute")?$("bzNightMute").checked:true,
   buzzerPet:($("bzPet")?$("bzPet").checked:($("bzPetPetSettings")?$("bzPetPetSettings").checked:true)),
  hostname:$("hostname")?$("hostname").value.trim():undefined,
+ buzzerSonar:($("bzSonar")?$("bzSonar").checked:($("bzSonarSonarSettings")?$("bzSonarSonarSettings").checked:true)),
  cOver:$("cOver")?$("cOver").checked:true,
  ovRad:$("ovRad")?parseFloat($("ovRad").value)||10:10,
- screens:{clock:$("sClock").checked,planes:$("sPlanes").checked,meteo:$("sMeteo").checked,tactical:$("sTactical").checked,forecast:$("sForecast").checked,finance:$("sFinance")?$("sFinance").checked:true,iss:$("sIss")?$("sIss").checked:true,youtube:$("sYt")?$("sYt").checked:true,info:$("sInfo")?$("sInfo").checked:true},
+ screens:{clock:$("sClock").checked,planes:$("sPlanes").checked,meteo:$("sMeteo").checked,tactical:$("sTactical").checked,sonar:$("sSonar")?$("sSonar").checked:true,forecast:$("sForecast").checked,finance:$("sFinance")?$("sFinance").checked:true,iss:$("sIss")?$("sIss").checked:true,youtube:$("sYt")?$("sYt").checked:true,info:$("sInfo")?$("sInfo").checked:true},
  issAlert:$("issAlert")?$("issAlert").checked:false,
+ issViewMode:$("issViewMode")?parseInt($("issViewMode").value,10)||0:0,
+ sonarViewMode:$("sonarViewMode")?parseInt($("sonarViewMode").value,10)||0:0,
  financeTickers:$("financeTickers")?$("financeTickers").value.trim():undefined,
- financeGraph:$("finGraphType")?parseInt($("finGraphType").value,10)||0:0
+ financeGraph:$("finGraphType")?parseInt($("finGraphType").value,10)||0:0,
+ youtubeKey:$("ytKey")?$("ytKey").value.trim():undefined,
+ youtubeChannel:$("ytChan")?$("ytChan").value.trim():undefined,
+ youtubeVideoMode:$("ytVideoMode")?parseInt($("ytVideoMode").value,10)||0:0,
+ petEnabled:$("petEnabled")?$("petEnabled").checked:true,
+ petCharacter:$("petCharacter")?parseInt($("petCharacter").value,10)||0:0,
+ geminiKey:$("geminiKey")?$("geminiKey").value.trim():undefined
 };}
 
 function getScreensObj(){
@@ -2118,6 +2268,7 @@ function getScreensObj(){
   planes: $("sPlanes") ? $("sPlanes").checked : true,
   meteo: $("sMeteo") ? $("sMeteo").checked : true,
   tactical: $("sTactical") ? $("sTactical").checked : true,
+  sonar: $("sSonar") ? $("sSonar").checked : true,
   forecast: $("sForecast") ? $("sForecast").checked : true,
   finance: $("sFinance") ? $("sFinance").checked : true,
   iss: $("sIss") ? $("sIss").checked : true,
@@ -2173,10 +2324,15 @@ async function resetStats(){
  msg((D[L]&&D[L].statsResetOk)?D[L].statsResetOk:"Štatistiky boli resetované","ok");
 }
 
-function takeScreenshot(){
+let g_liveMirrorTimer = null;
+let g_screenshotBusy = false;
+
+function takeScreenshot(silent){
+ if(g_screenshotBusy) return;
  const img=$("scrShotImg"),ph=$("scrShotPlaceholder"),dl=$("scrShotDl"),spin=$("scrShotSpin"),btn=$("btnScrShot");
- if(spin)spin.classList.remove("hide");
- if(btn)btn.disabled=true;
+ if(!silent && spin) spin.classList.remove("hide");
+ if(!silent && btn) btn.disabled=true;
+ g_screenshotBusy = true;
  const url="/api/screenshot.bmp?t="+Date.now();
  const pre=new Image();
  pre.onload=()=>{
@@ -2185,16 +2341,62 @@ function takeScreenshot(){
   img.style.display="block";
   if(ph){ph.classList.add("hide");ph.style.display="none";}
   if(dl){dl.href=url;dl.classList.remove("hide");dl.style.display="inline-block";}
-  if(spin)spin.classList.add("hide");
-  if(btn)btn.disabled=false;
-  msg((D[L]&&D[L].scrShotOk)?D[L].scrShotOk:"Snímka načítaná","ok");
+  if(!silent && spin) spin.classList.add("hide");
+  if(!silent && btn) btn.disabled=false;
+  if(!silent) msg((D[L]&&D[L].scrShotOk)?D[L].scrShotOk:"Snímka načítaná","ok");
+  g_screenshotBusy = false;
  };
  pre.onerror=()=>{
-  if(spin)spin.classList.add("hide");
-  if(btn)btn.disabled=false;
-  msg((D[L]&&D[L].scrShotErr)?D[L].scrShotErr:"Chyba načítania","err");
+  if(!silent && spin) spin.classList.add("hide");
+  if(!silent && btn) btn.disabled=false;
+  if(!silent) msg((D[L]&&D[L].scrShotErr)?D[L].scrShotErr:"Chyba načítania","err");
+  g_screenshotBusy = false;
  };
  pre.src=url;
+}
+
+function toggleLiveMirror(){
+ const btn = $("btnLiveToggle");
+ const badge = $("liveMirrorBadge");
+ if(g_liveMirrorTimer){
+  clearInterval(g_liveMirrorTimer);
+  g_liveMirrorTimer = null;
+  if(btn){
+   btn.classList.remove("on");
+   btn.style.background = "rgba(56,189,248,0.08)";
+   btn.style.borderColor = "rgba(56,189,248,0.3)";
+   btn.style.color = "var(--acc)";
+   btn.textContent = (D[L] && D[L].btnLiveMirror) ? D[L].btnLiveMirror : "🔴 Živý náhľad";
+  }
+  if(badge) badge.style.display = "none";
+ } else {
+  takeScreenshot(true);
+  g_liveMirrorTimer = setInterval(() => {
+   if(!document.hidden) takeScreenshot(true);
+  }, 3500);
+  if(btn){
+   btn.classList.add("on");
+   btn.style.background = "rgba(239,68,68,0.2)";
+   btn.style.borderColor = "var(--err)";
+   btn.style.color = "#fca5a5";
+   btn.textContent = (D[L] && D[L].btnLiveMirrorOff) ? D[L].btnLiveMirrorOff : "⚪ Zastaviť náhľad";
+  }
+  if(badge){
+   badge.className = "pill pill-warn";
+   badge.textContent = "LIVE";
+   badge.style.display = "inline-block";
+  }
+ }
+}
+
+async function onMirrorClick(e){
+ const img = $("scrShotImg");
+ if(img){
+  img.style.transform = "scale(0.96)";
+  setTimeout(() => { img.style.transform = "scale(1)"; }, 150);
+ }
+ await toggleLegendsRemote();
+ setTimeout(() => takeScreenshot(true), 400);
 }
 
 async function testBuzzer(){

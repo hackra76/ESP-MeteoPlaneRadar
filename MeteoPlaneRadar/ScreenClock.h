@@ -10,10 +10,7 @@
 //  Project: MeteoPlaneRadar - live aircraft radar on a round touchscreen
 // =============================================================================
 #pragma once
-#include <Arduino.h>
+#include <lvgl.h>
 
-void ScreenClock_Enter();
-void ScreenClock_Draw();
-bool ScreenClock_Tick();                  // true = needs a redraw
-bool ScreenClock_HandleTap(int x, int y); // toggles night mode when auto is off
-void ScreenClock_ChangeStyle(int dir);    // swipe up/down: change watchface
+void ScreenClock_Init(lv_obj_t* parent);
+

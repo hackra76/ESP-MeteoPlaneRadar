@@ -260,3 +260,47 @@ void Astro_DrawSolarArc(int cx, int cy, int r, int thickness, double lat, double
   gfx->fillCircle(sunX, sunY, 3, C_YELLOW);
   gfx->fillCircle(sunX, sunY, 1, C_WHITE);
 }
+
+// -----------------------------------------------------------------------------
+//  Astro_DrawSolarLabels
+//  Overlay three coloured tick-mark dots onto the solar arc ring at the exact
+//  positions of sunrise, start of golden hour, and sunset.
+//  Call AFTER Astro_DrawSolarArc() so the dots sit on top of the arc paint.
+// -----------------------------------------------------------------------------
+void Astro_DrawSolarLabels(int cx, int cy, int r, double lat, double lon, time_t now) {
+  if (!gfx || r <= 0) return;
+
+  SolarTimes st = Astro_GetSolar(lat, lon, now);
+  if (!st.valid) return;
+
+  struct tm sr, ss, gh;
+  localtime_r(&st.sunrise,         &sr);
+  localtime_r(&st.sunset,          &ss);
+  localtime_r(&st.goldenHourStart, &gh);
+
+  // Convert minute-of-day to (x, y) on the arc circle.
+  // Arc convention: 0 min (midnight) = bottom (180 deg), 720 min (noon) = top.
+  struct Mark { int min; uint16_t outer; uint16_t inner; int rOuter; int rInner; };
+  Mark marks[3] = {
+    { sr.tm_hour * 60 + sr.tm_min, 0xFD20,   C_WHITE, 5, 2 },  // sunrise  – amber
+    { gh.tm_hour * 60 + gh.tm_min, C_YELLOW,  C_WHITE, 4, 2 },  // golden hour – yellow
+    { ss.tm_hour * 60 + ss.tm_min, 0xFC60,   C_WHITE, 5, 2 },  // sunset   – orange
+  };
+
+  for (int i = 0; i < 3; i++) {
+    float deg = ((float)marks[i].min / 1440.0f) * 360.0f + 180.0f;
+    float rad = deg * DEG2RAD;
+    float sa  = sinf(rad), ca = cosf(rad);
+
+    // Outer dot on the ring surface
+    int ox = cx + (int)(r * sa);
+    int oy = cy - (int)(r * ca);
+    // Inward tick endpoint (8 px inside the ring)
+    int ix = cx + (int)((r - 9) * sa);
+    int iy = cy - (int)((r - 9) * ca);
+
+    gfx->drawLine(ox, oy, ix, iy, marks[i].outer);   // radial tick line
+    gfx->fillCircle(ox, oy, marks[i].rOuter, marks[i].outer);
+    gfx->fillCircle(ox, oy, marks[i].rInner, marks[i].inner);
+  }
+}

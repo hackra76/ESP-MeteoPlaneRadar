@@ -17,11 +17,13 @@
 #include "Forecast.h"
 #include "Route.h"
 #include "PlanePhoto.h"
+#include "MapTiles.h"
 #include "Outside.h"
 #include "WebConfig.h"
 #include "WiFiPortal.h"
 #include "NightMode.h"
 #include "Watchdog.h"
+#include "NetSink.h"
 #include "GithubOTA.h"
 #include "FinanceData.h"
 #include "IssData.h"
@@ -29,6 +31,8 @@
 #include "PetBrain.h"
 #include "ScreenWeather.h"
 #include <WiFi.h>
+#include <freertos/idf_additions.h>
+#include <esp_heap_caps.h>
 
 static SemaphoreHandle_t s_mtxSettings = NULL;
 static SemaphoreHandle_t s_mtxAdsb     = NULL;
@@ -69,23 +73,23 @@ static volatile bool s_reqPetThought = false;
 void Async_LockSettings()  { if (s_mtxSettings) xSemaphoreTake(s_mtxSettings, pdMS_TO_TICKS(200)); }
 void Async_UnlockSettings(){ if (s_mtxSettings) xSemaphoreGive(s_mtxSettings); }
 
-void Async_LockAdsb()      { if (s_mtxAdsb) xSemaphoreTake(s_mtxAdsb, pdMS_TO_TICKS(200)); }
-void Async_UnlockAdsb()    { if (s_mtxAdsb) xSemaphoreGive(s_mtxAdsb); }
+void Async_LockAdsb()      { if (s_mtxAdsb)     { if (xSemaphoreTake(s_mtxAdsb,     pdMS_TO_TICKS(300)) != pdTRUE) Serial.println("AsyncCore: ADSB mutex timeout!"); } }
+void Async_UnlockAdsb()    { if (s_mtxAdsb)     xSemaphoreGive(s_mtxAdsb); }
 
-void Async_LockRadar()     { if (s_mtxRadar) xSemaphoreTake(s_mtxRadar, pdMS_TO_TICKS(200)); }
-void Async_UnlockRadar()   { if (s_mtxRadar) xSemaphoreGive(s_mtxRadar); }
+void Async_LockRadar()     { if (s_mtxRadar)    { if (xSemaphoreTake(s_mtxRadar,    pdMS_TO_TICKS(300)) != pdTRUE) Serial.println("AsyncCore: Radar mutex timeout!"); } }
+void Async_UnlockRadar()   { if (s_mtxRadar)    xSemaphoreGive(s_mtxRadar); }
 
-void Async_LockForecast()  { if (s_mtxForecast) xSemaphoreTake(s_mtxForecast, pdMS_TO_TICKS(200)); }
+void Async_LockForecast()  { if (s_mtxForecast) { if (xSemaphoreTake(s_mtxForecast, pdMS_TO_TICKS(300)) != pdTRUE) Serial.println("AsyncCore: Forecast mutex timeout!"); } }
 void Async_UnlockForecast(){ if (s_mtxForecast) xSemaphoreGive(s_mtxForecast); }
 
-void Async_LockFinance()   { if (s_mtxFinance) xSemaphoreTake(s_mtxFinance, pdMS_TO_TICKS(200)); }
-void Async_UnlockFinance() { if (s_mtxFinance) xSemaphoreGive(s_mtxFinance); }
+void Async_LockFinance()   { if (s_mtxFinance)  { if (xSemaphoreTake(s_mtxFinance,  pdMS_TO_TICKS(300)) != pdTRUE) Serial.println("AsyncCore: Finance mutex timeout!"); } }
+void Async_UnlockFinance() { if (s_mtxFinance)  xSemaphoreGive(s_mtxFinance); }
 
-void Async_LockIss()       { if (s_mtxIss) xSemaphoreTake(s_mtxIss, pdMS_TO_TICKS(200)); }
-void Async_UnlockIss()     { if (s_mtxIss) xSemaphoreGive(s_mtxIss); }
+void Async_LockIss()       { if (s_mtxIss)      { if (xSemaphoreTake(s_mtxIss,      pdMS_TO_TICKS(300)) != pdTRUE) Serial.println("AsyncCore: ISS mutex timeout!"); } }
+void Async_UnlockIss()     { if (s_mtxIss)      xSemaphoreGive(s_mtxIss); }
 
-void Async_LockRoute()     { if (s_mtxRoute) xSemaphoreTake(s_mtxRoute, pdMS_TO_TICKS(200)); }
-void Async_UnlockRoute()   { if (s_mtxRoute) xSemaphoreGive(s_mtxRoute); }
+void Async_LockRoute()     { if (s_mtxRoute)    { if (xSemaphoreTake(s_mtxRoute,    pdMS_TO_TICKS(300)) != pdTRUE) Serial.println("AsyncCore: Route mutex timeout!"); } }
+void Async_UnlockRoute()   { if (s_mtxRoute)    xSemaphoreGive(s_mtxRoute); }
 
 static SemaphoreHandle_t s_mtxI2c = NULL;
 void Async_LockI2C()       { if (s_mtxI2c) xSemaphoreTakeRecursive(s_mtxI2c, pdMS_TO_TICKS(150)); }
@@ -100,9 +104,13 @@ void Async_SetActiveScreen(uint8_t screenIdx) {
 }
 
 void Async_SetAdsbTarget(double lat, double lon, float rangeKm) {
-  s_targetLat = lat;
-  s_targetLon = lon;
+  // Settings lock required: double is 8 bytes, written as two 32-bit stores
+  // on Xtensa LX7. Without the lock, Core 0 can read a torn lat/lon value.
+  Async_LockSettings();
+  s_targetLat     = lat;
+  s_targetLon     = lon;
   s_targetRangeKm = rangeKm;
+  Async_UnlockSettings();
 }
 
 void Async_RequestAdsb()     { s_reqAdsb = true; }
@@ -176,9 +184,9 @@ static void asyncWorkerTask(void* param) {
       continue;
     }
 
-    // 1. Serve Web Server and WiFi Portal
+    // 1. Serve Web Server only. WiFi reconnect/AP handling runs on Core 1
+    //    (main.cpp loop) to avoid concurrent WiFi stack calls from two cores.
     WebConfig_Loop();
-    WiFi_Loop();
 
     // While a firmware update is running, suspend all background network/TLS operations
     if (WebConfig_UpdateBusy()) {
@@ -192,7 +200,7 @@ static void asyncWorkerTask(void* param) {
       static bool s_firstTimeReseed = false;
 
       const uint8_t curScr = s_activeScreen;
-      const bool planesActive = (curScr == SCREEN_PLANES_I || curScr == SCREEN_TACTICAL_I);
+      const bool planesActive = (curScr == SCREEN_PLANES_I || curScr == SCREEN_TACTICAL_I || curScr == SCREEN_SONAR_I);
       const bool rvBusy = RainViewer_Busy();
 
       // Clear background route lookup queue and photo when leaving aircraft screens
@@ -214,17 +222,33 @@ static void asyncWorkerTask(void* param) {
         lastTlsTime = millis();
       }
 
+      bool mtBusy = MapTiles_Busy();
+
       // Background silent OTA release check (first check 45s after boot, then every 12 hours)
       static unsigned long s_lastOtaAutoCheck = 0;
       if (((s_lastOtaAutoCheck == 0 && now >= 45000UL) ||
            (s_lastOtaAutoCheck > 0 && (now - s_lastOtaAutoCheck >= 12UL * 3600UL * 1000UL))) &&
-          !GithubOTA_IsBusy() && GithubOTA_GetState() != GH_OTA_CHECKING && !rvBusy) {
-        s_lastOtaAutoCheck = now;
-        GithubOTA_CheckAsync();
+          !GithubOTA_IsBusy() && GithubOTA_GetState() != GH_OTA_CHECKING && !rvBusy && !mtBusy) {
+        if (Net_HeapOk("GH_OTA")) {
+          s_lastOtaAutoCheck = now;
+          GithubOTA_CheckAsync();
+        }
       }
 
-      // 1. Radar Tile Download (RainViewer background stepping - highest priority when on radar)
-      if (rvBusy) {
+      // 1. Online Map Tiles (background stepping for aircraft radar underlay)
+      if (mtBusy && (now - lastTlsTime >= 350)) {
+        Watchdog_Feed();
+        s_core0NetBusy = true;
+        if (MapTiles_Step()) {
+          s_adsbUpdated = true;
+        }
+        s_core0NetBusy = false;
+        Watchdog_Feed();
+        lastTlsTime = millis();
+        vTaskDelay(pdMS_TO_TICKS(30));
+      }
+      // 2. Radar Tile Download (RainViewer background stepping - highest priority when on radar)
+      else if (rvBusy) {
         Watchdog_Feed();
         s_core0NetBusy = true;
         if (RainViewer_Step()) {
@@ -235,13 +259,20 @@ static void asyncWorkerTask(void* param) {
         lastTlsTime = millis();
         vTaskDelay(pdMS_TO_TICKS(15));
       }
-      else if (now - lastTlsTime >= 600) {
+      else if (now - lastTlsTime >= 1000) {
         if (ScreenWeather_IsLoading()) {
           vTaskDelay(pdMS_TO_TICKS(50));
           continue;
         }
 
         s_core0NetBusy = true;
+        // RAII guard: ensures s_core0NetBusy is always cleared even if a called
+        // function returns early or the WiFi condition changes mid-chain.
+        struct NetBusyGuard {
+          ~NetBusyGuard() { s_core0NetBusy = false; }
+        } _guard;
+        (void)_guard;
+
         unsigned long adsbPeriod = (s_targetRangeKm <= ADSB_NEAR_KM) ? ADSB_PERIOD_NEAR_MS :
                                    (s_targetRangeKm <= ADSB_MID_KM)  ? ADSB_PERIOD_MID_MS  : ADSB_PERIOD_FAR_MS;
 
@@ -342,7 +373,7 @@ static void asyncWorkerTask(void* param) {
             }
           }
         }
-        s_core0NetBusy = false;
+        // (s_core0NetBusy = false handled by NetBusyGuard destructor above)
       }
     }
 
@@ -361,11 +392,15 @@ void Async_Begin() {
   if (!s_mtxRoute)    s_mtxRoute    = xSemaphoreCreateMutex();
   if (!s_mtxI2c)      s_mtxI2c      = xSemaphoreCreateRecursiveMutex();
 
-  // Create background network worker task on Core 0 with 24KB stack
+  MapTiles_Init();
+
+  // Create background network worker task on Core 0 with 16KB stack in internal SRAM
+  // (Internal SRAM required because flash cache disable operations check stack sanity)
+  // 16 KB gives headroom for peak TLS handshake + ArduinoJson + PNGdec call chains
   BaseType_t res = xTaskCreatePinnedToCore(
     asyncWorkerTask,
     "AsyncNetWorker",
-    24576, // 24KB stack (safe for deep mbedTLS handshake + JSON parsing)
+    16384, // 16KB stack (TLS + JSON peak can reach 13-14KB on LX7)
     NULL,
     1, // Priority 1 (idle is 0, UI on Core 1 is 1)
     &s_netTaskHandle,

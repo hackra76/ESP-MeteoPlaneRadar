@@ -17,9 +17,11 @@
 #include "GithubOTA.h"
 #include "WebConfig.h"
 #include "Buzzer.h"
+#include "MapTiles.h"
 
 #include <WiFi.h>
 #include <math.h>
+#include <lvgl.h>
 
 // Rows down the middle of the circle. The self-test in Layout.cpp checks the
 // shared bands; these are local to this screen and are spaced so that nothing
@@ -29,27 +31,16 @@
 #define ROW_WIFI    156     // SSID                 (size 2)
 #define ROW_IP      178     // IP address           (size 2)
 #define ROW_WEB     202     // where to find the web UI (size 1)
-#define ROT_Y       232     // "top of the map" row
-#define ROT_H        40
 
 #define SL_X  90
 #define SL_W  300
 #define SL_H  24
 
-#define ROT_MINUS_X  240
-#define ROT_BTN_W     42
-#define ROT_VAL_X    288
-#define ROT_VAL_W     56
-#define ROT_PLUS_X   350
-
-#define COMPASS_CX    56
-#define COMPASS_CY   252
-#define COMPASS_R     24
-
 #define BTN_L_X   75
 #define BTN_R_X  245
 #define BTN_W    160
 #define BTN_H     36
+#define BTN_R0_Y 238        // Row 0: Trails toggle (centered)
 #define BTN_R1_Y 286        // Row 1: Units (left) & Smooth (right)
 #define BTN_R2_Y 334        // Row 2: Language (left) & Forget WiFi (right)
 
@@ -103,17 +94,7 @@ bool ScreenSettings_Tick() {
   return false;
 }
 
-// Short compass label for the eight main directions. Anything that is not a
-// multiple of 45 deg (possible if MAP_ROT_STEP_DEG is changed) falls back to
-// plain degrees, so the row never shows nonsense.
-static const char* bearingLabel(uint16_t deg, char* buf, size_t len) {
-  static const char* N8_CZ[8] = { "S", "SV", "V", "JV", "J", "JZ", "Z", "SZ" };
-  static const char* N8_EN[8] = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" };
-  if (deg % 45 == 0) return (Lang_Get() == LANG_EN) ? N8_EN[(deg / 45) % 8]
-                                                    : N8_CZ[(deg / 45) % 8];
-  snprintf(buf, len, "%u\xC2\xB0", (unsigned)deg);
-  return buf;
-}
+
 
 bool ScreenSettings_HandleTap(int x, int y) {
   // Modal touch handling
@@ -177,37 +158,37 @@ bool ScreenSettings_HandleTap(int x, int y) {
     if (pct > 100) pct = 100;
     Settings_SetBacklight((uint8_t)pct);
     Set_Backlight((uint8_t)pct);
-    return true;
-  }
-  // Which bearing is at the top. "+" walks clockwise: S -> SV -> V -> JV ...
-  if (y >= ROT_Y && y <= ROT_Y + ROT_H) {
-    int top = (int)Settings_TopBearing();
-    if (x >= ROT_MINUS_X && x <= ROT_MINUS_X + ROT_BTN_W) {
-      Settings_SetTopBearing((uint16_t)((top - MAP_ROT_STEP_DEG + 360) % 360));
-      return true;
-    }
-    if (x >= ROT_PLUS_X && x <= ROT_PLUS_X + ROT_BTN_W) {
-      Settings_SetTopBearing((uint16_t)((top + MAP_ROT_STEP_DEG) % 360));
-      return true;
-    }
-  }
-
-  // Tap on small compass preview (toggle radar compass on/off)
-  if (x >= COMPASS_CX - COMPASS_R - 10 && x <= COMPASS_CX + COMPASS_R + 10 &&
-      y >= COMPASS_CY - COMPASS_R - 10 && y <= COMPASS_CY + COMPASS_R + 10) {
-    Settings_SetRadarShowCompass(!Settings_RadarShowCompass());
     Buzzer_Play(BEEP_CLICK);
     return true;
+  }
+
+
+  // Row 0: Map Provider (left) & Trails toggle (right)
+  if (y >= BTN_R0_Y && y <= BTN_R0_Y + BTN_H) {
+    if (x >= BTN_L_X && x <= BTN_L_X + BTN_W) {
+      uint8_t cur = Settings_MapProvider();
+      uint8_t next = (cur + 1) % 3;
+      Settings_SetMapProvider(next);
+      Buzzer_Play(BEEP_CLICK);
+      return true;
+    }
+    if (x >= BTN_R_X && x <= BTN_R_X + BTN_W) {
+      Settings_SetRadarShowTrails(!Settings_RadarShowTrails());
+      Buzzer_Play(BEEP_CLICK);
+      return true;
+    }
   }
 
   // Row 1: Units (left) & Smooth (right)
   if (y >= BTN_R1_Y && y <= BTN_R1_Y + BTN_H) {
     if (x >= BTN_L_X && x <= BTN_L_X + BTN_W) {
       Settings_SetMetricUnits(!Settings_MetricUnits());
+      Buzzer_Play(BEEP_CLICK);
       return true;
     }
     if (x >= BTN_R_X && x <= BTN_R_X + BTN_W) {
       Settings_SetSmoothRadar(!Settings_SmoothRadar());
+      Buzzer_Play(BEEP_CLICK);
       return true;
     }
   }
@@ -218,10 +199,12 @@ bool ScreenSettings_HandleTap(int x, int y) {
       uint8_t cur = Lang_Get();
       uint8_t nextLang = (cur == LANG_CZ) ? LANG_SK : ((cur == LANG_SK) ? LANG_EN : LANG_CZ);
       Settings_SetLanguage(nextLang);
+      Buzzer_Play(BEEP_CLICK);
       return true;
     }
     if (x >= BTN_R_X && x <= BTN_R_X + BTN_W) {
       s_wantsWifiReset = true;
+      Buzzer_Play(BEEP_CLICK);
       return true;
     }
   }
@@ -261,11 +244,11 @@ static void drawOtaModal() {
                       MODAL_X, MODAL_W, MODAL_Y + 130, C_GRAY, 1);
 
     gfx->fillRoundRect(MODAL_X + 115, MODAL_Y + 195, 150, 42, 10, C_DKGRAY);
-    UI_TextCenteredIn((lang == LANG_EN) ? "Cancel" : "Zrusit",
-                      MODAL_X + 115, 150, MODAL_Y + 208, C_WHITE, 2);
+    UI_TextCenteredBox((lang == LANG_EN) ? "Cancel" : "Zrusit",
+                       MODAL_X + 115, MODAL_Y + 195, 150, 42, C_WHITE, 2);
   }
   else if (st == GH_OTA_UP_TO_DATE) {
-    UI_TextCenteredIn("✓", MODAL_X, MODAL_W, MODAL_Y + 80, C_GREEN, 3);
+    UI_TextCenteredIn("OK", MODAL_X, MODAL_W, MODAL_Y + 80, C_GREEN, 3);
     const char* upMsg = (lang == LANG_EN) ? "Firmware is up to date"
                       : ((lang == LANG_SK) ? "Mate najnovsiu verziu" : "Mate nejnovejsi verzi");
     UI_TextCenteredIn(upMsg, MODAL_X, MODAL_W, MODAL_Y + 118, C_WHITE, 2);
@@ -275,12 +258,12 @@ static void drawOtaModal() {
     UI_TextCenteredIn(relBuf, MODAL_X, MODAL_W, MODAL_Y + 148, C_GRAY, 1);
 
     gfx->fillRoundRect(MODAL_X + 25, MODAL_Y + 195, 155, 42, 10, C_DKGRAY);
-    UI_TextCenteredIn((lang == LANG_EN) ? "Check again" : "Znova",
-                      MODAL_X + 25, 155, MODAL_Y + 208, C_WHITE, 2);
+    UI_TextCenteredBox((lang == LANG_EN) ? "Check again" : "Znova",
+                       MODAL_X + 25, MODAL_Y + 195, 155, 42, C_WHITE, 2);
 
     gfx->fillRoundRect(MODAL_X + 200, MODAL_Y + 195, 155, 42, 10, C_CYAN);
-    UI_TextCenteredIn((lang == LANG_EN) ? "Close" : ((lang == LANG_SK) ? "Zavriet" : "Zavrit"),
-                      MODAL_X + 200, 155, MODAL_Y + 208, C_BLACK, 2);
+    UI_TextCenteredBox((lang == LANG_EN) ? "Close" : ((lang == LANG_SK) ? "Zavriet" : "Zavrit"),
+                       MODAL_X + 200, MODAL_Y + 195, 155, 42, C_BLACK, 2);
   }
   else if (st == GH_OTA_AVAILABLE) {
     const char* avMsg = (lang == LANG_EN) ? "New version available!"
@@ -297,12 +280,12 @@ static void drawOtaModal() {
     gfx->fillRoundRect(MODAL_X + 25, MODAL_Y + 195, 155, 44, 10, 0x05E0);
     const char* updTxt = (lang == LANG_EN) ? "Update"
                        : ((lang == LANG_SK) ? "Aktualizovat" : "Aktualizovat");
-    UI_TextCenteredIn(updTxt, MODAL_X + 25, 155, MODAL_Y + 208, C_BLACK, 2);
+    UI_TextCenteredBox(updTxt, MODAL_X + 25, MODAL_Y + 195, 155, 44, C_BLACK, 2);
 
     gfx->fillRoundRect(MODAL_X + 200, MODAL_Y + 195, 155, 44, 10, C_DKGRAY);
     const char* canTxt = (lang == LANG_EN) ? "Cancel"
                        : ((lang == LANG_SK) ? "Zrusit" : "Zrusit");
-    UI_TextCenteredIn(canTxt, MODAL_X + 200, 155, MODAL_Y + 208, C_WHITE, 2);
+    UI_TextCenteredBox(canTxt, MODAL_X + 200, MODAL_Y + 195, 155, 44, C_WHITE, 2);
   }
   else if (st == GH_OTA_DOWNLOADING || st == GH_OTA_FLASHING) {
     const char* stTxt = (st == GH_OTA_FLASHING)
@@ -335,7 +318,7 @@ static void drawOtaModal() {
     UI_TextCenteredIn(pwrWarn, MODAL_X, MODAL_W, MODAL_Y + 195, C_ORANGE, 2);
   }
   else if (st == GH_OTA_SUCCESS) {
-    UI_TextCenteredIn("✓", MODAL_X, MODAL_W, MODAL_Y + 76, C_GREEN, 3);
+    UI_TextCenteredIn("OK", MODAL_X, MODAL_W, MODAL_Y + 76, C_GREEN, 3);
     const char* scTxt = (lang == LANG_EN) ? "Update Successful!"
                       : ((lang == LANG_SK) ? "Aktualizacia uspesna!" : "Aktualizace uspesna!");
     UI_TextCenteredIn(scTxt, MODAL_X, MODAL_W, MODAL_Y + 115, C_GREEN, 2);
@@ -354,8 +337,8 @@ static void drawOtaModal() {
     UI_TextCenteredIn(errReason, MODAL_X, MODAL_W, MODAL_Y + 115, C_YELLOW, 1);
 
     gfx->fillRoundRect(MODAL_X + 115, MODAL_Y + 195, 150, 42, 10, C_DKGRAY);
-    UI_TextCenteredIn((lang == LANG_EN) ? "Close" : ((lang == LANG_SK) ? "Zavriet" : "Zavrit"),
-                      MODAL_X + 115, 150, MODAL_Y + 208, C_WHITE, 2);
+    UI_TextCenteredBox((lang == LANG_EN) ? "Close" : ((lang == LANG_SK) ? "Zavriet" : "Zavrit"),
+                       MODAL_X + 115, MODAL_Y + 195, 150, 42, C_WHITE, 2);
   }
 }
 
@@ -409,62 +392,49 @@ void ScreenSettings_Draw() {
     UI_Text(T(S_NOT_CONNECTED), SL_X + wLabel, ROW_WIFI, C_YELLOW, 1);
   }
 
-  // --- Which bearing is at the top ---
-  UI_Text(T(S_TOP), SL_X, ROT_Y + 12, C_GRAY, 2);
-
-  uint16_t top = Settings_TopBearing();
-  gfx->fillRoundRect(ROT_MINUS_X, ROT_Y, ROT_BTN_W, ROT_H, 8, C_DKGRAY);
-  UI_TextCenteredIn("-", ROT_MINUS_X, ROT_BTN_W, ROT_Y + 12, C_WHITE, 2);
-  gfx->fillRoundRect(ROT_PLUS_X, ROT_Y, ROT_BTN_W, ROT_H, 8, C_DKGRAY);
-  UI_TextCenteredIn("+", ROT_PLUS_X, ROT_BTN_W, ROT_Y + 12, C_WHITE, 2);
-  { char rb[8];
-    UI_TextCenteredIn(bearingLabel(top, rb, sizeof(rb)),
-                      ROT_VAL_X, ROT_VAL_W, ROT_Y + 12, C_YELLOW, 2); }
-
-  // Small compass preview: a ring, a needle and "S" for north. North sits at
-  // screen angle (0 - top), the same rule the radar uses.
-  {
-    bool showCmp = Settings_RadarShowCompass();
-    gfx->drawCircle(COMPASS_CX, COMPASS_CY, COMPASS_R, showCmp ? C_CYAN : C_DKGRAY);
-    if (showCmp) {
-      float a = -(float)top * 0.0174532925f;
-      int nx = COMPASS_CX + (int)((COMPASS_R - 6) * sinf(a));
-      int ny = COMPASS_CY - (int)((COMPASS_R - 6) * cosf(a));
-      gfx->drawLine(COMPASS_CX, COMPASS_CY, nx, ny, C_WHITE);
-      gfx->fillCircle(COMPASS_CX, COMPASS_CY, 2, C_GRAY);
-      int lx = COMPASS_CX + (int)(COMPASS_R * sinf(a)) - 2;
-      int ly = COMPASS_CY - (int)(COMPASS_R * cosf(a)) - 3;
-      UI_Text(Lang_Get() == LANG_EN ? "N" : "S", lx, ly, C_WHITE, 1);
-    } else {
-      // Disabled indicator (red cross)
-      gfx->drawLine(COMPASS_CX - 10, COMPASS_CY - 10, COMPASS_CX + 10, COMPASS_CY + 10, C_RED);
-      gfx->drawLine(COMPASS_CX - 10, COMPASS_CY + 10, COMPASS_CX + 10, COMPASS_CY - 10, C_RED);
-    }
+  // --- Row 0: Map Provider (left) & Trails toggle (right) ---
+  uint8_t prov = Settings_MapProvider();
+  uint16_t provCol = (prov == MAP_PROV_ESRI_DARK) ? 0x2A9A : ((prov == MAP_PROV_OSM) ? 0x1B86 : C_DKGRAY);
+  gfx->fillRoundRect(BTN_L_X, BTN_R0_Y, BTN_W, BTN_H, 10, provCol);
+  gfx->drawRoundRect(BTN_L_X, BTN_R0_Y, BTN_W, BTN_H, 10, (prov != MAP_PROV_VECTOR) ? C_CYAN : 0x4A69);
+  const char* provName = (prov == MAP_PROV_ESRI_DARK) ? "Map: Esri"
+                       : ((prov == MAP_PROV_OSM) ? "Map: OSM" : "Map: Vector");
+  if (Lang_Get() == LANG_SK || Lang_Get() == LANG_CZ) {
+    provName = (prov == MAP_PROV_ESRI_DARK) ? "Mapa: Esri"
+             : ((prov == MAP_PROV_OSM) ? "Mapa: OSM" : "Mapa: Vektor");
   }
+  UI_TextCenteredBox(provName, BTN_L_X, BTN_R0_Y, BTN_W, BTN_H, C_WHITE, 2);
+
+  bool tr = Settings_RadarShowTrails();
+  gfx->fillRoundRect(BTN_R_X, BTN_R0_Y, BTN_W, BTN_H, 10, tr ? 0x05E0 : C_DKGRAY);
+  const char* trBtn = (Lang_Get() == LANG_EN) ? (tr ? "Trails: ON" : "Trails: OFF")
+                    : ((Lang_Get() == LANG_SK) ? (tr ? "Stopy: ZAP" : "Stopy: VYP")
+                                               : (tr ? "Stopy: ZAP" : "Stopy: VYP"));
+  UI_TextCenteredBox(trBtn, BTN_R_X, BTN_R0_Y, BTN_W, BTN_H, tr ? C_BLACK : C_WHITE, 2);
 
   // --- Buttons (2x2 grid to preserve ample room above H4CKR4) ---
   // Row 1: Units & Radar Smoothing
   gfx->fillRoundRect(BTN_L_X, BTN_R1_Y, BTN_W, BTN_H, 10, C_GRAY);
-  UI_TextCenteredIn(Settings_MetricUnits() ? T(S_UNITS_METRIC) : T(S_UNITS_AVIA),
-                    BTN_L_X, BTN_W, BTN_R1_Y + BTN_H / 2 - 8, C_BLACK, 2);
+  UI_TextCenteredBox(Settings_MetricUnits() ? T(S_UNITS_METRIC) : T(S_UNITS_AVIA),
+                     BTN_L_X, BTN_R1_Y, BTN_W, BTN_H, C_BLACK, 2);
 
   bool sm = Settings_SmoothRadar();
   gfx->fillRoundRect(BTN_R_X, BTN_R1_Y, BTN_W, BTN_H, 10, sm ? 0x05E0 : C_DKGRAY);
   const char* smBtn = (Lang_Get() == LANG_EN) ? (sm ? "Smooth: ON" : "Smooth: OFF")
                     : ((Lang_Get() == LANG_SK) ? (sm ? "Vyhlad.: ZAP" : "Vyhlad.: VYP")
                                                : (sm ? "Vyhlaz.: ZAP" : "Vyhlaz.: VYP"));
-  UI_TextCenteredIn(smBtn, BTN_R_X, BTN_W, BTN_R1_Y + BTN_H / 2 - 8, sm ? C_BLACK : C_WHITE, 2);
+  UI_TextCenteredBox(smBtn, BTN_R_X, BTN_R1_Y, BTN_W, BTN_H, sm ? C_BLACK : C_WHITE, 2);
 
   // Row 2: Language & Forget WiFi
   gfx->fillRoundRect(BTN_L_X, BTN_R2_Y, BTN_W, BTN_H, 10, C_CYAN);
   const char* langBtn = (Lang_Get() == LANG_EN) ? "English"
                       : ((Lang_Get() == LANG_SK) ? "Slovencina" : "Cestina");
-  UI_TextCenteredIn(langBtn, BTN_L_X, BTN_W, BTN_R2_Y + BTN_H / 2 - 8, C_BLACK, 2);
+  UI_TextCenteredBox(langBtn, BTN_L_X, BTN_R2_Y, BTN_W, BTN_H, C_BLACK, 2);
 
   gfx->fillRoundRect(BTN_R_X, BTN_R2_Y, BTN_W, BTN_H, 10, C_ORANGE);
   const char* forgetWifiBtn = (Lang_Get() == LANG_EN) ? "Reset WiFi"
                             : ((Lang_Get() == LANG_SK) ? "Reset WiFi" : "Reset WiFi");
-  UI_TextCenteredIn(forgetWifiBtn, BTN_R_X, BTN_W, BTN_R2_Y + BTN_H / 2 - 8, C_BLACK, 2);
+  UI_TextCenteredBox(forgetWifiBtn, BTN_R_X, BTN_R2_Y, BTN_W, BTN_H, C_BLACK, 2);
 
   // --- OTA Check Button ---
   if (!s_otaModalOpen) {
@@ -475,29 +445,28 @@ void ScreenSettings_Draw() {
       const char* fmt = (Lang_Get() == LANG_EN) ? "New: %s (Tap to update)"
                       : ((Lang_Get() == LANG_SK) ? "Nova: %s (Aktualizovat)" : "Nova: %s (Aktualizovat)");
       snprintf(buf, sizeof(buf), fmt, GithubOTA_GetLatestVersion());
-      UI_TextCenteredIn(buf, BTN_OTA_X, BTN_OTA_W, BTN_OTA_Y + BTN_OTA_H / 2 - 8, C_BLACK, 2);
+      UI_TextCenteredBox(buf, BTN_OTA_X, BTN_OTA_Y, BTN_OTA_W, BTN_OTA_H, C_BLACK, 2);
     } else if (st == GH_OTA_CHECKING) {
       gfx->fillRoundRect(BTN_OTA_X, BTN_OTA_Y, BTN_OTA_W, BTN_OTA_H, 8, 0x18E3);
       const char* chkTxt = (Lang_Get() == LANG_EN) ? "Checking GitHub..."
                          : ((Lang_Get() == LANG_SK) ? "Kontrolujem GitHub..." : "Kontroluji GitHub...");
-      UI_TextCenteredIn(chkTxt, BTN_OTA_X, BTN_OTA_W, BTN_OTA_Y + BTN_OTA_H / 2 - 8, C_YELLOW, 2);
+      UI_TextCenteredBox(chkTxt, BTN_OTA_X, BTN_OTA_Y, BTN_OTA_W, BTN_OTA_H, C_YELLOW, 2);
     } else if (st == GH_OTA_DOWNLOADING || st == GH_OTA_FLASHING) {
       gfx->fillRoundRect(BTN_OTA_X, BTN_OTA_Y, BTN_OTA_W, BTN_OTA_H, 8, 0x2104);
       char buf[32];
       snprintf(buf, sizeof(buf), "OTA: %d%%", GithubOTA_GetProgress());
-      UI_TextCenteredIn(buf, BTN_OTA_X, BTN_OTA_W, BTN_OTA_Y + BTN_OTA_H / 2 - 8, C_GREEN, 2);
+      UI_TextCenteredBox(buf, BTN_OTA_X, BTN_OTA_Y, BTN_OTA_W, BTN_OTA_H, C_GREEN, 2);
     } else if (st == GH_OTA_UP_TO_DATE) {
       gfx->fillRoundRect(BTN_OTA_X, BTN_OTA_Y, BTN_OTA_W, BTN_OTA_H, 8, 0x10A2);
       gfx->drawRoundRect(BTN_OTA_X, BTN_OTA_Y, BTN_OTA_W, BTN_OTA_H, 8, 0x2965);
-      const char* curTxt = (Lang_Get() == LANG_EN) ? "✓ Firmware is up to date"
-                         : ((Lang_Get() == LANG_SK) ? "✓ Verzia je aktualna" : "✓ Verze je aktualni");
-      UI_TextCenteredIn(curTxt, BTN_OTA_X, BTN_OTA_W, BTN_OTA_Y + BTN_OTA_H / 2 - 8, 0x8FE0, 2);
+      UI_TextCenteredBox((Lang_Get() == LANG_EN) ? "Up to date" : ((Lang_Get() == LANG_SK) ? "Verzia je aktualna" : "Verze je aktualni"),
+                         BTN_OTA_X, BTN_OTA_Y, BTN_OTA_W, BTN_OTA_H, 0x8FE0, 2);
     } else {
       gfx->fillRoundRect(BTN_OTA_X, BTN_OTA_Y, BTN_OTA_W, BTN_OTA_H, 8, C_DKGRAY);
       gfx->drawRoundRect(BTN_OTA_X, BTN_OTA_Y, BTN_OTA_W, BTN_OTA_H, 8, 0x4208);
       const char* btnTxt = (Lang_Get() == LANG_EN) ? "Check for update"
                          : ((Lang_Get() == LANG_SK) ? "Overit aktualizaciu" : "Overit aktualizaci");
-      UI_TextCenteredIn(btnTxt, BTN_OTA_X, BTN_OTA_W, BTN_OTA_Y + BTN_OTA_H / 2 - 8, C_WHITE, 2);
+      UI_TextCenteredBox(btnTxt, BTN_OTA_X, BTN_OTA_Y, BTN_OTA_W, BTN_OTA_H, C_WHITE, 2);
     }
 
     UI_TextCentered("H4CKR4", LY_FOOTER, C_GREEN, 2);
@@ -507,5 +476,70 @@ void ScreenSettings_Draw() {
   if (s_otaModalOpen) {
     drawOtaModal();
   }
+}
+
+// -----------------------------------------------------------------------------
+//  LVGL Integration
+// -----------------------------------------------------------------------------
+static lv_obj_t* s_screenObj = nullptr;
+static lv_timer_t* s_timer = nullptr;
+
+static void ScreenSettings_DrawMainCb(lv_event_t* e) {
+  lv_layer_t* layer = lv_event_get_layer(e);
+  gfx->layer = layer;
+  ScreenSettings_Draw();
+  gfx->layer = nullptr;
+}
+
+static void ScreenSettings_EventCb(lv_event_t* e) {
+  lv_event_code_t code = lv_event_get_code(e);
+  lv_indev_t* indev = lv_indev_active();
+  if (!indev || lv_indev_get_type(indev) != LV_INDEV_TYPE_POINTER) return;
+
+  lv_point_t p;
+  lv_indev_get_point(indev, &p);
+
+  if (code == LV_EVENT_CLICKED) {
+    if (UI_IsSwipeActive()) return;
+    if (ScreenSettings_HandleTap(p.x, p.y)) {
+      if (s_screenObj) lv_obj_invalidate(s_screenObj);
+    }
+  } else if (code == LV_EVENT_PRESSING || code == LV_EVENT_PRESSED) {
+    // Continuous drag on brightness slider
+    if (p.y >= SL_Y - 25 && p.y <= SL_Y + SL_H + 25 && p.x >= SL_X - 15 && p.x <= SL_X + SL_W + 15) {
+      int pct = (p.x - SL_X) * 100 / SL_W;
+      if (pct < 10) pct = 10;
+      if (pct > 100) pct = 100;
+      if (Settings_Backlight() != (uint8_t)pct) {
+        Settings_SetBacklight((uint8_t)pct);
+        Set_Backlight((uint8_t)pct);
+        if (s_screenObj) lv_obj_invalidate(s_screenObj);
+      }
+    }
+  }
+}
+
+static void ScreenSettings_TimerCb(lv_timer_t* timer) {
+  if (UI_GetActiveScreen() != SCREEN_SETTINGS_I) return;
+  if (ScreenSettings_Tick()) {
+    lv_obj_invalidate(s_screenObj);
+  }
+}
+
+void ScreenSettings_Init(lv_obj_t* parent) {
+  s_screenObj = parent;
+  lv_obj_set_size(s_screenObj, LCD_WIDTH, LCD_HEIGHT);
+  lv_obj_set_style_bg_color(s_screenObj, lv_color_black(), 0);
+  lv_obj_set_style_border_width(s_screenObj, 0, 0);
+  lv_obj_set_style_radius(s_screenObj, 0, 0);
+  
+  lv_obj_set_scrollable(s_screenObj, false);
+  
+  lv_obj_add_event_cb(s_screenObj, ScreenSettings_DrawMainCb, LV_EVENT_DRAW_MAIN, NULL);
+  lv_obj_add_event_cb(s_screenObj, ScreenSettings_EventCb, LV_EVENT_CLICKED, NULL);
+  lv_obj_add_event_cb(s_screenObj, ScreenSettings_EventCb, LV_EVENT_PRESSING, NULL);
+  lv_obj_add_event_cb(s_screenObj, ScreenSettings_EventCb, LV_EVENT_PRESSED, NULL);
+
+  s_timer = lv_timer_create(ScreenSettings_TimerCb, 100, NULL);
 }
 

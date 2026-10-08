@@ -23,7 +23,8 @@ enum PetMood {
   PET_MOOD_SLEEPY,     // Night mode or late hours
   PET_MOOD_RAIN,       // Rain / storm detected
   PET_MOOD_THINKING,   // Fetching Gemini thought
-  PET_MOOD_SCARED      // Steep tilt, tumbling, or clinging
+  PET_MOOD_SCARED,     // Steep tilt, tumbling, or clinging
+  PET_MOOD_MILITARY    // Military intercept / Top Gun combat alert
 };
 
 struct PetStats {

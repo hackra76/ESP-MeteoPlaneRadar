@@ -8,6 +8,7 @@
 #include "ScreenPlanes.h"
 #include "ScreenWeather.h"
 #include "ScreenTactical.h"
+#include "ScreenSonar.h"
 #include "Settings.h"
 #include "Status.h"
 #include "Version.h"
@@ -36,6 +37,7 @@
 #include "PlanePhoto.h"
 #include "Route.h"
 #include "PetDrawer.h"
+#include "QuickControl.h"
 #include <Wire.h>
 
 #include <WiFi.h>
@@ -43,10 +45,12 @@
 #include <DNSServer.h>
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
+#include "SpiRamAllocator.h"
 #include <Update.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <esp_heap_caps.h>
+#include <esp_attr.h>
 #include <esp_system.h>
 #include <math.h>
 
@@ -79,6 +83,9 @@ void WebConfig_RequestRedraw()  { s_reqRedraw = true; }
 bool WebConfig_TakeSelectPlane() { bool r = s_reqSelectPlane; s_reqSelectPlane = false; return r; }
 bool WebConfig_TakePetToggle()   { bool r = s_reqPetToggle;   s_reqPetToggle = false; return r; }
 void WebConfig_RequestPetToggle() { s_reqPetToggle = true; }
+static bool s_reqQuickControlToggle = false;
+bool WebConfig_TakeQuickControlToggle()   { bool r = s_reqQuickControlToggle;   s_reqQuickControlToggle = false; return r; }
+void WebConfig_RequestQuickControlToggle() { s_reqQuickControlToggle = true; }
 
 // --- Helpers ----------------------------------------------------------------
 static void sendJson(int code, JsonDocument& doc) {
@@ -170,14 +177,6 @@ static void handlePostConfig() {
 
   const double oldLat = Settings_Lat(), oldLon = Settings_Lon();
   const uint8_t oldSrc = Settings_RadarSource();
-  const uint16_t oldMask = (Settings_ScreenEnabled(SCREEN_CLOCK_I) << 0) |
-                           (Settings_ScreenEnabled(SCREEN_PLANES_I) << 1) |
-                           (Settings_ScreenEnabled(SCREEN_METEO_I) << 2) |
-                           (Settings_ScreenEnabled(SCREEN_TACTICAL_I) << 3) |
-                           (Settings_ScreenEnabled(SCREEN_FORECAST_I) << 4) |
-                           (Settings_ScreenEnabled(SCREEN_FINANCE_I) << 5) |
-                           (Settings_ScreenEnabled(SCREEN_ISS_I) << 6) |
-                           (Settings_ScreenEnabled(SCREEN_INFO_I) << 7);
 
   Settings_FromJson(doc.as<JsonObjectConst>());
   s_reqRedraw = true;
@@ -193,15 +192,6 @@ static void handlePostConfig() {
   if (!doc["financeGraph"].isNull()) {
     WebConfig_RequestRedraw();
   }
-
-  const uint16_t newMask = (Settings_ScreenEnabled(SCREEN_CLOCK_I) << 0) |
-                           (Settings_ScreenEnabled(SCREEN_PLANES_I) << 1) |
-                           (Settings_ScreenEnabled(SCREEN_METEO_I) << 2) |
-                           (Settings_ScreenEnabled(SCREEN_TACTICAL_I) << 3) |
-                           (Settings_ScreenEnabled(SCREEN_FORECAST_I) << 4) |
-                           (Settings_ScreenEnabled(SCREEN_FINANCE_I) << 5) |
-                           (Settings_ScreenEnabled(SCREEN_ISS_I) << 6) |
-                           (Settings_ScreenEnabled(SCREEN_INFO_I) << 7);
   const bool moved = (fabs(oldLat - Settings_Lat()) > 1e-6) ||
                      (fabs(oldLon - Settings_Lon()) > 1e-6);
   if (moved) Forecast_Invalidate();
@@ -288,13 +278,15 @@ static void handleStatus() {
 
   // What the device is showing right now, so the remote control can highlight
   // the active screen and print the range instead of guessing.
-  const uint8_t scr = Settings_Screen();
+  const uint8_t scr = UI_GetActiveScreen();
   doc["screen"] = scr;
   doc["petOpen"] = PetDrawer_IsOpen();
+  doc["lang"] = Settings_Language();
   char rb[24] = "";
   if      (scr == SCREEN_PLANES_I)   ScreenPlanes_RangeText(rb, sizeof(rb));
   else if (scr == SCREEN_METEO_I)    ScreenWeather_RangeText(rb, sizeof(rb));
   else if (scr == SCREEN_TACTICAL_I) ScreenTactical_RangeText(rb, sizeof(rb));
+  else if (scr == SCREEN_SONAR_I)    ScreenSonar_RangeText(rb, sizeof(rb));
   doc["range"] = rb;                       // empty on screens without one
 
   JsonArray en = doc["enabled"].to<JsonArray>();
@@ -350,7 +342,7 @@ static void handleRefreshIss() {
 }
 
 static void handleHardware() {
-  JsonDocument doc;
+  JsonDocument doc(SpiRamAllocator::instance());
   doc["cpuFreq"] = getCpuFrequencyMhz();
   doc["cpuModel"] = ESP.getChipModel();
   doc["cpuRev"] = ESP.getChipRevision();
@@ -366,8 +358,14 @@ static void handleHardware() {
   doc["heapTotal"] = heapTotal;
   doc["psramFree"] = psramFree;
   doc["psramTotal"] = psramTotal;
-  doc["flashSize"] = (uint32_t)ESP.getFlashChipSize();
-  doc["flashSpeed"] = (uint32_t)ESP.getFlashChipSpeed();
+  static uint32_t s_flashSize = 0;
+  static uint32_t s_flashSpeed = 0;
+  if (s_flashSize == 0) {
+    s_flashSize = (uint32_t)ESP.getFlashChipSize();
+    s_flashSpeed = (uint32_t)ESP.getFlashChipSpeed();
+  }
+  doc["flashSize"] = s_flashSize;
+  doc["flashSpeed"] = s_flashSpeed;
 
   doc["ssid"] = s_apMode ? String(AP_SSID) : WiFi.SSID();
   doc["rssi"] = s_apMode ? 0 : WiFi.RSSI();
@@ -413,14 +411,8 @@ static void handleHardware() {
   int offHours = offsetSec / 3600;
   int offMins = abs((offsetSec % 3600) / 60);
   char offStr[40];
-  const char* tzAbbr = tzname[localTm.tm_isdst > 0 ? 1 : 0];
-  if (tzAbbr && *tzAbbr) {
-    snprintf(offStr, sizeof(offStr), "UTC%+03d:%02d (%s%s)",
-             offHours, offMins, tzAbbr, localTm.tm_isdst > 0 ? " - letný čas" : "");
-  } else {
-    snprintf(offStr, sizeof(offStr), "UTC%+03d:%02d%s",
-             offHours, offMins, localTm.tm_isdst > 0 ? " (letný čas)" : "");
-  }
+  snprintf(offStr, sizeof(offStr), "UTC%+03d:%02d%s",
+           offHours, offMins, localTm.tm_isdst > 0 ? " (letný čas)" : "");
   doc["tzOffset"] = offStr;
   doc["isDst"] = (localTm.tm_isdst > 0);
 
@@ -570,7 +562,7 @@ static void handleGeocode() {
 
 
 static void handleToggleLegends() {
-  if (Settings_Screen() == SCREEN_CLOCK_I) {
+  if (UI_GetActiveScreen() == SCREEN_CLOCK_I) {
     // Double tap on clock does not change watchface anymore
   } else {
     Settings_ToggleLegends();
@@ -587,7 +579,7 @@ static void handleInput() {
   if (!readBody(doc)) { s_srv.send(400, "application/json", "{\"error\":\"json\"}"); return; }
   const char* cmd = doc["cmd"] | "";
   if (strcmp(cmd, "toggle_legends") == 0 || strcmp(cmd, "dbl_tap") == 0) {
-    if (Settings_Screen() == SCREEN_CLOCK_I) {
+    if (UI_GetActiveScreen() == SCREEN_CLOCK_I) {
       // Double tap on clock does not change watchface anymore
     } else {
       Settings_ToggleLegends();
@@ -602,6 +594,24 @@ static void handleInput() {
     s_reqScreenStep = -1;
   } else if (strcmp(cmd, "select_plane") == 0) {
     s_reqSelectPlane = true;
+  } else if (strcmp(cmd, "quick_control") == 0 || strcmp(cmd, "qc_toggle") == 0) {
+    WebConfig_RequestQuickControlToggle();
+  } else if (strcmp(cmd, "pet_tap") == 0) {
+    int tx = doc["x"] | 240;
+    int ty = doc["y"] | 200;
+    PetDrawer_HandleTap(tx, ty);
+  } else if (strcmp(cmd, "tap") == 0) {
+    int tx = doc["x"] | 240;
+    int ty = doc["y"] | 100;
+    if (UI_GetActiveScreen() == SCREEN_PLANES_I) {
+      ScreenPlanes_HandleTap(tx, ty);
+    } else if (UI_GetActiveScreen() == SCREEN_TACTICAL_I) {
+      ScreenTactical_HandleTap(tx, ty);
+    }
+    UI_InvalidateActiveScreen();
+  } else if (strcmp(cmd, "fullscreen_photo") == 0) {
+    UI_SetPhotoFullscreen(doc["enable"] | true);
+    UI_InvalidateActiveScreen();
   }
   JsonDocument res; res["ok"] = true;
   res["legends"] = Settings_ShowLegends();
@@ -622,12 +632,20 @@ static void handlePetToggle() {
   sendJson(200, res);
 }
 
+static void handleControlToggle() {
+  WebConfig_RequestQuickControlToggle();
+  JsonDocument res;
+  res["ok"] = true;
+  res["qcOpen"] = !QuickControl_IsOpen();
+  sendJson(200, res);
+}
+
 static void handleSerialRead() {
   uint32_t since = 0;
   if (s_srv.hasArg("since")) {
     since = (uint32_t)strtoul(s_srv.arg("since").c_str(), nullptr, 10);
   }
-  static char s_serialReadBuf[16384];
+  static EXT_RAM_BSS_ATTR char s_serialReadBuf[16384];
   uint32_t nextOffset = 0;
   bool overflow = false;
   SerialLog_Read(since, s_serialReadBuf, sizeof(s_serialReadBuf), &nextOffset, &overflow);
@@ -682,6 +700,14 @@ static void handleScreenshot() {
   const uint32_t imageSize = rowSize * height;
   const uint32_t fileSize = 54 + imageSize;
 
+  // Take an instantaneous snapshot in PSRAM to eliminate any screen-tearing or concurrent animation overwrites
+  const uint32_t fbBytes = width * height * sizeof(uint16_t);
+  uint16_t* snap = (uint16_t*)ps_malloc(fbBytes);
+  if (snap) {
+    memcpy(snap, fb, fbBytes);
+    fb = snap;
+  }
+
   uint8_t header[54];
   memset(header, 0, 54);
   header[0] = 'B';
@@ -730,6 +756,10 @@ static void handleScreenshot() {
     }
     client.write(rowBuf, rowSize);
     if ((y & 15) == 0) Watchdog_Feed();
+  }
+
+  if (snap) {
+    free(snap);
   }
 }
 
@@ -1092,12 +1122,16 @@ static void handleUpdateUpload() {
       if (up.buf && up.currentSize > 0) {
         if (s_ramOtaLen + up.currentSize > s_ramOtaCap) {
           size_t newCap = s_ramOtaCap + 524288;
-          uint8_t* newBuf = (uint8_t*)heap_caps_realloc(s_ramOtaBuf, newCap, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+          uint8_t* newBuf = (uint8_t*)heap_caps_malloc(newCap, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
           if (!newBuf) {
-            s_updErr = "PSRAM realloc failed";
+            s_updErr = "PSRAM alloc failed";
             UI_DrawOtaProgress("Web OTA", 0, s_ramOtaLen, s_updExpectedSize, s_updErr.c_str());
             otaEnd(false);
             return;
+          }
+          if (s_ramOtaBuf) {
+            memcpy(newBuf, s_ramOtaBuf, s_ramOtaLen);
+            heap_caps_free(s_ramOtaBuf);
           }
           s_ramOtaBuf = newBuf;
           s_ramOtaCap = newCap;
@@ -1246,7 +1280,19 @@ void WebConfig_Begin(bool apMode) {
   s_srv.on("/api/rtc/sync_browser", HTTP_POST, handleRtcSyncBrowser);
   s_srv.on("/api/toggle-legends", HTTP_POST, handleToggleLegends);
   s_srv.on("/api/buzzer/test", HTTP_POST, handleBuzzerTest);
+  s_srv.on("/api/buzzer/test_sonar", HTTP_POST, [](){
+    Buzzer_Play(BEEP_SONAR_PING, true);
+    s_srv.send(200, "application/json", "{\"ok\":true}");
+  });
   s_srv.on("/api/pet/toggle", HTTP_POST, handlePetToggle);
+  s_srv.on("/api/pet/debug", HTTP_POST, [](){
+    JsonDocument doc;
+    if (!readBody(doc)) { s_srv.send(400, "application/json", "{\"error\":\"json\"}"); return; }
+    if (!doc["weather"].isNull()) PetDrawer_DebugSetWeather(doc["weather"].as<int>());
+    if (doc["military"].as<bool>()) PetDrawer_DebugToggleMilitary();
+    s_srv.send(200, "application/json", "{\"ok\":true}");
+  });
+  s_srv.on("/api/control/toggle", HTTP_POST, handleControlToggle);
   s_srv.on("/api/input", HTTP_POST, handleInput);
   s_srv.on("/api/screen", HTTP_POST, handleScreen);
   s_srv.on("/api/display/resync", HTTP_POST, [](){

@@ -18,6 +18,8 @@ struct YouTubeStats {
   uint64_t latestVideoViews;
   char     uploadsPlaylistId[48];
   char     latestVideoId[24];
+  char     channelId[32];
+  uint8_t  videoMode;
   unsigned long lastUpdatedMs;
   bool     valid;
   bool     fetching;

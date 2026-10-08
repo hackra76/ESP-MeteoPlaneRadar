@@ -49,10 +49,8 @@ static const ToneStep PATTERN_WATCHED[] = {
 };
 
 static const ToneStep PATTERN_SONAR_PING[] = {
-  { 35,  true  },
-  { 110, false },
-  { 55,  true  },
-  { 0,   false }
+  { 8, true },
+  { 0, false }
 };
 
 static const ToneStep PATTERN_EMERGENCY[] = {
@@ -164,8 +162,10 @@ void Buzzer_Play(BuzzerTone tone, bool force) {
         if (!Settings_BuzzerPrecip()) return;
         break;
       case BEEP_WATCHED:
-      case BEEP_SONAR_PING:
         if (!Settings_BuzzerWatch()) return;
+        break;
+      case BEEP_SONAR_PING:
+        if (!Settings_SonarPing()) return;
         break;
       case BEEP_EMERGENCY:
       case BEEP_MORSE_SOS:
@@ -186,11 +186,11 @@ void Buzzer_Play(BuzzerTone tone, bool force) {
     return;
   }
 
-  // BEEP_CLICK is a tactile click (12 ms). Generating it synchronously ensures
-  // it is crisp and never gets extended by screen transitions or frame rendering.
+  // BEEP_CLICK is a tactile click (18 ms). Generating it synchronously ensures
+  // it is crisp, clearly audible, and never extended by frame rendering.
   if (tone == BEEP_CLICK) {
     TCA9554_SetPin(EXIO_BUZZER, true);
-    delay(12);
+    delay(18);
     TCA9554_SetPin(EXIO_BUZZER, false);
     return;
   }
@@ -211,7 +211,9 @@ void Buzzer_Play(BuzzerTone tone, bool force) {
     default: return;
   }
 
-  Serial.printf("[Buzzer] Playing tone %u (forced=%d)\n", (unsigned)tone, (int)(force || tone == BEEP_TEST));
+  if (tone != BEEP_SONAR_PING) {
+    Serial.printf("[Buzzer] Playing tone %u (forced=%d)\n", (unsigned)tone, (int)(force || tone == BEEP_TEST));
+  }
 
   s_activeTone = tone;
   s_currPattern = pat;

@@ -5,11 +5,15 @@
 //  Board: Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)
 // =============================================================================
 #include "ScreenFinance.h"
+
+static lv_obj_t* s_screenObj = nullptr;
+static lv_timer_t* s_timer = nullptr;
 #include "FinanceData.h"
 #include "Display_ST7701.h"
 #include "Layout.h"
 #include "Lang.h"
 #include "UI.h"
+#include "PetDrawer.h"
 #include "Config.h"
 #include "Buzzer.h"
 #include "NightMode.h"
@@ -23,21 +27,9 @@
 static unsigned long s_lastDrawTick = 0;
 static unsigned long s_lastTapTime = 0;
 
-void ScreenFinance_Enter() {
-  Async_RequestFinance();
-}
 
-bool ScreenFinance_Tick() {
-  if (Async_TakeFinanceUpdated()) {
-    return true;
-  }
-  unsigned long now = millis();
-  if (now - s_lastDrawTick >= 2000) {
-    s_lastDrawTick = now;
-    return true;
-  }
-  return false;
-}
+
+
 
 static void formatPrice(float val, const char* cur, char* out, size_t cap) {
   if (val <= 0.00001f) {
@@ -45,9 +37,9 @@ static void formatPrice(float val, const char* cur, char* out, size_t cap) {
     return;
   }
   const char* sym = "$";
-  if (strcmp(cur, "EUR") == 0) sym = "€";
-  else if (strcmp(cur, "GBP") == 0) sym = "£";
-  else if (strcmp(cur, "CZK") == 0) sym = "Kc";
+  if (strcmp(cur, "EUR") == 0) sym = "EUR ";
+  else if (strcmp(cur, "GBP") == 0) sym = "GBP ";
+  else if (strcmp(cur, "CZK") == 0) sym = "CZK ";
 
   if (val >= 10000.0f) {
     int whole = (int)val;
@@ -189,7 +181,7 @@ static void drawCandlestick(int x, int y, int w, int h, const FinanceCandle* dat
   }
 }
 
-void ScreenFinance_Draw() {
+static void ScreenFinance_Draw() {
   gfx->fillScreen(C_BLACK);
   Layout_Begin();
   Layout_ReserveBand(LY_DOTS - 6, 12);
@@ -240,7 +232,7 @@ void ScreenFinance_Draw() {
   symDisplay[sizeof(symDisplay) - 1] = '\0';
   if (symDisplay[0] == '^') memmove(symDisplay, symDisplay + 1, strlen(symDisplay));
 
-  UI_Text(symDisplay, cardX + 12, hY + 10, C_CYAN, 2);
+  UI_TextCenteredBox(symDisplay, cardX + 12, hY + 10, Layout_TextW(symDisplay, 2), 16, C_CYAN, 2);
 
   // Category badge
   const char* cat = "ASSET";
@@ -254,7 +246,7 @@ void ScreenFinance_Draw() {
   int catX = cardX + cardW - 12 - catW;
   gfx->fillRoundRect(catX, hY + 10, catW, 16, 4, 0x1146);
   gfx->drawRoundRect(catX, hY + 10, catW, 16, 4, 0x29E8);
-  UI_Text(cat, catX + 5, hY + 14, 0x863F, 1);
+  UI_TextCenteredBox(cat, catX, hY + 10, catW, 16, 0x863F, 1);
 
   // Short Name
   if (activeItem->shortName[0]) {
@@ -270,7 +262,7 @@ void ScreenFinance_Draw() {
   // Row 2: Price & Change Pill
   char priceBuf[24];
   formatPrice(activeItem->price, activeItem->currency, priceBuf, sizeof(priceBuf));
-  UI_Text(priceBuf, cardX + 12, hY + 46, C_WHITE, 2);
+  UI_TextCenteredBox(priceBuf, cardX + 12, hY + 46, Layout_TextW(priceBuf, 2), 18, C_WHITE, 2);
 
   // Percentage badge
   char chgBuf[16];
@@ -285,7 +277,7 @@ void ScreenFinance_Draw() {
 
   gfx->fillRoundRect(chgX, hY + 46, chgW, 18, 5, pillBg);
   gfx->drawRoundRect(chgX, hY + 46, chgW, 18, 5, pillBorder);
-  UI_Text(chgBuf, chgX + 6, hY + 51, pillFg, 1);
+  UI_TextCenteredBox(chgBuf, chgX, hY + 46, chgW, 18, pillFg, 1);
 
   // Divider line
   gfx->drawLine(cardX + 10, hY + 70, cardX + cardW - 10, hY + 70, 0x1945);
@@ -353,9 +345,9 @@ void ScreenFinance_Draw() {
     uint16_t rPillFg = rPos ? C_GREEN : 0xF986;
 
     gfx->fillRoundRect(rChgX, rY + 14, rChgW, 18, 4, rPillBg);
-    UI_Text(rChg, rChgX + 4, rY + 19, rPillFg, 1);
+    UI_TextCenteredBox(rChg, rChgX, rY + 14, rChgW, 18, rPillFg, 1);
 
-    UI_Text(rPrice, rChgX - prW - 8, rY + 19, C_LTGRAY, 1);
+    UI_TextCenteredBox(rPrice, rChgX - prW - 8, rY + 14, prW, 18, C_LTGRAY, 1);
 
     shownCount++;
   }
@@ -367,7 +359,7 @@ void ScreenFinance_Draw() {
   UI_TextCentered(hint, 420, C_DKGRAY, 1);
 }
 
-bool ScreenFinance_HandleTap(int x, int y) {
+static bool ScreenFinance_HandleTap(int x, int y) {
   unsigned long now = millis();
 
   // Double tap (within 350ms) forces refresh
@@ -375,6 +367,7 @@ bool ScreenFinance_HandleTap(int x, int y) {
     Finance_RequestFetch();
     Buzzer_Play(BEEP_CLICK);
     s_lastTapTime = 0;
+    if(s_screenObj) lv_obj_invalidate(s_screenObj);
     return true;
   }
   s_lastTapTime = now;
@@ -383,6 +376,7 @@ bool ScreenFinance_HandleTap(int x, int y) {
   if (count <= 1) {
     Finance_RequestFetch();
     Buzzer_Play(BEEP_CLICK);
+    if(s_screenObj) lv_obj_invalidate(s_screenObj);
     return true;
   }
 
@@ -409,4 +403,49 @@ bool ScreenFinance_HandleTap(int x, int y) {
   Finance_NextActive();
   Buzzer_Play(BEEP_CLICK);
   return true;
+}
+
+static void ScreenFinance_TimerCb(lv_timer_t* t) {
+  if (UI_GetActiveScreen() != SCREEN_FINANCE_I) return;
+  if (Async_TakeFinanceUpdated()) {
+    lv_obj_invalidate(s_screenObj);
+    return;
+  }
+  unsigned long now = millis();
+  if (now - s_lastDrawTick >= 2000) {
+    s_lastDrawTick = now;
+    lv_obj_invalidate(s_screenObj);
+  }
+}
+
+static void ScreenFinance_EventCb(lv_event_t* e) {
+  lv_event_code_t code = lv_event_get_code(e);
+  if (code == LV_EVENT_DRAW_MAIN) {
+    lv_layer_t* layer = lv_event_get_layer(e);
+    gfx->setLayer(layer);
+    ScreenFinance_Draw();
+    gfx->setLayer(nullptr);
+  } else if (code == LV_EVENT_CLICKED) {
+    if (UI_IsSwipeActive()) return;
+    lv_indev_t* indev = lv_indev_active();
+    if (indev) {
+      lv_point_t pt;
+      lv_indev_get_point(indev, &pt);
+      ScreenFinance_HandleTap(pt.x, pt.y);
+    }
+  } else if (code == LV_EVENT_SCREEN_LOAD_START) {
+    Async_RequestFinance();
+  }
+}
+
+void ScreenFinance_Init(lv_obj_t* parent) {
+  s_screenObj = parent;
+  lv_obj_set_size(s_screenObj, 480, 480);
+  lv_obj_center(s_screenObj);
+  lv_obj_set_scrollable(s_screenObj, false);
+  lv_obj_set_clickable(s_screenObj, true);
+
+  lv_obj_add_event_cb(s_screenObj, ScreenFinance_EventCb, LV_EVENT_ALL, nullptr);
+
+  s_timer = lv_timer_create(ScreenFinance_TimerCb, 500, nullptr);
 }

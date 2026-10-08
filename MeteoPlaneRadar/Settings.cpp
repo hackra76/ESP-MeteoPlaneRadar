@@ -38,16 +38,20 @@ static bool    s_metric = false;
 static uint8_t s_lang   = LANG_EN;
 static char    s_tz[64] = TZ_INFO;
 
-// Bit per data screen (bit 0 = clock ... bit 9 = settings).
+// Bit per data screen (bit 0 = clock ... bit 10 = settings).
 static uint16_t s_scrMask = (1 << SCREEN_CLOCK_I) | (1 << SCREEN_PLANES_I) |
                             (1 << SCREEN_METEO_I) | (1 << SCREEN_TACTICAL_I) |
-                            (1 << SCREEN_FORECAST_I) | (1 << SCREEN_FINANCE_I) |
-                            (1 << SCREEN_ISS_I) | (1 << SCREEN_YOUTUBE_I) | (1 << SCREEN_INFO_I);
+                            (1 << SCREEN_SONAR_I) | (1 << SCREEN_FORECAST_I) |
+                            (1 << SCREEN_FINANCE_I) | (1 << SCREEN_ISS_I) |
+                            (1 << SCREEN_YOUTUBE_I) | (1 << SCREEN_INFO_I);
 static char     s_finTickers[128] = DEFAULT_FINANCE_TICKERS;
 static uint8_t  s_finGraphType = FIN_GRAPH_LINE;
 static bool     s_issAlert = true;
+static uint8_t  s_issViewMode = ISS_VIEW_3D_ISS;
+static uint8_t  s_sonarViewMode = SONAR_VIEW_PPI;
 static char     s_ytApiKey[64] = "";
 static char     s_ytChannel[64] = "";
+static uint8_t  s_ytVideoMode = YT_MODE_LATEST;
 static bool     s_petEnabled = true;
 static uint8_t  s_petChar = 0;
 static char     s_geminiApiKey[128] = "";
@@ -75,6 +79,8 @@ static bool     s_radShowNearest = true;
 static bool     s_radShowAirports= true;
 static bool     s_radShowRings   = true;
 static bool     s_radShowCompass = true;
+static uint8_t  s_mapProv        = 0;
+static uint8_t  s_radBlipStyle   = RADAR_BLIP_CHEVRON;
 
 // --- Aircraft filters ---
 static uint16_t s_altMin = 0;
@@ -94,6 +100,7 @@ static bool     s_bzTouch  = false;
 static bool     s_bzHour   = false;
 static bool     s_bzNMute  = true;
 static bool     s_bzPet    = true;
+static bool     s_bzSonar  = true;
 static bool     s_precipAlert = true;
 
 // --- UI state ---
@@ -186,6 +193,7 @@ void Settings_Begin() {
   bool migrateFinScr = false;
   bool migrateIssScr = false;
   bool migrateYtScr = false;
+  bool migrateSonarScr = false;
   if (prefs.begin(NS, true)) {
     s_lat    = prefs.getDouble("lat", DEFAULT_LAT);
     s_lon    = prefs.getDouble("lon", DEFAULT_LON);
@@ -219,13 +227,45 @@ void Settings_Begin() {
       s_scrMask |= (1 << SCREEN_YOUTUBE_I);
       migrateYtScr = true;
     }
+    migrateSonarScr = false;
+    if (!prefs.isKey("sonarScrInit")) {
+      s_scrMask |= (1 << SCREEN_SONAR_I);
+      migrateSonarScr = true;
+    }
+    if (!prefs.isKey("scrOrderV2")) {
+      uint16_t oldMask = s_scrMask;
+      uint16_t newMask = oldMask & 0x0F; // Clock(0), Planes(1), Meteo(2), Tactical(3) unchanged
+      bool oldSonarOn    = (oldMask & (1 << 9)) != 0;
+      bool oldForecastOn = (oldMask & (1 << 4)) != 0;
+      bool oldFinanceOn  = (oldMask & (1 << 5)) != 0;
+      bool oldIssOn      = (oldMask & (1 << 6)) != 0;
+      bool oldYtOn       = (oldMask & (1 << 7)) != 0;
+      bool oldInfoOn     = (oldMask & (1 << 8)) != 0;
+
+      if (oldSonarOn)    newMask |= (1 << SCREEN_SONAR_I);
+      if (oldForecastOn) newMask |= (1 << SCREEN_FORECAST_I);
+      if (oldFinanceOn)  newMask |= (1 << SCREEN_FINANCE_I);
+      if (oldIssOn)      newMask |= (1 << SCREEN_ISS_I);
+      if (oldYtOn)       newMask |= (1 << SCREEN_YOUTUBE_I);
+      if (oldInfoOn)     newMask |= (1 << SCREEN_INFO_I);
+
+      s_scrMask = newMask;
+      prefs.putUShort("scrm", s_scrMask);
+      prefs.putBool("scrOrderV2", true);
+    }
     s_issAlert = prefs.getBool("issAlert", true);
+    s_issViewMode = prefs.getUChar("issVMode", ISS_VIEW_3D_ISS);
+    if (s_issViewMode > ISS_VIEW_2D_MAP) s_issViewMode = ISS_VIEW_3D_ISS;
+    s_sonarViewMode = prefs.getUChar("sonVMode", SONAR_VIEW_PPI);
+    if (s_sonarViewMode > SONAR_VIEW_WATERFALL) s_sonarViewMode = SONAR_VIEW_PPI;
     if (prefs.isKey("ytKey")) {
       prefs.getString("ytKey", s_ytApiKey, sizeof(s_ytApiKey));
     }
     if (prefs.isKey("ytChan")) {
       prefs.getString("ytChan", s_ytChannel, sizeof(s_ytChannel));
     }
+    s_ytVideoMode = prefs.getUChar("ytVMode", YT_MODE_LATEST);
+    if (s_ytVideoMode > YT_MODE_MOST_VIEWED) s_ytVideoMode = YT_MODE_LATEST;
     if (prefs.isKey("finTk")) {
       prefs.getString("finTk", s_finTickers, sizeof(s_finTickers));
     }
@@ -267,6 +307,10 @@ void Settings_Begin() {
     s_radShowAirports= prefs.getBool("rAirp", true);
     s_radShowRings   = prefs.getBool("rRng", true);
     s_radShowCompass = prefs.getBool("rCmp", true);
+    s_mapProv        = prefs.getUChar("mapProv", 0);
+    if (s_mapProv > 2) s_mapProv = 0;
+    s_radBlipStyle   = prefs.getUChar("rBlip", RADAR_BLIP_CHEVRON);
+    if (s_radBlipStyle > 1) s_radBlipStyle = RADAR_BLIP_CHEVRON;
     s_altMin = prefs.getUShort("altLo", 0);
     s_altMax = prefs.getUShort("altHi", 60000);
     s_onlyCs = prefs.getBool("onlyCs", false);
@@ -281,12 +325,13 @@ void Settings_Begin() {
     s_bzHour  = prefs.getBool("bzHour", false);
     s_bzNMute = prefs.getBool("bzNMute", true);
     s_bzPet   = prefs.getBool("bzPet", true);
+    s_bzSonar = prefs.getBool("bzSonar", true);
     s_precipAlert = prefs.getBool("cPrecip", true);
     if (prefs.isKey("watch")) prefs.getString("watch", s_watch, sizeof(s_watch));
     s_rngP   = prefs.getUChar("rngP", 1);
     s_rngM   = prefs.getUChar("rngM", 1);
     s_rngT   = prefs.getUChar("rngT", 1);
-    s_scr    = prefs.getUChar("scr", SCREEN_PLANES_I);
+    s_scr    = prefs.getUChar("scr", SCREEN_CLOCK_I);
     s_top    = prefs.getUShort("topb", 0);
     s_showLegends = prefs.getBool("sLeg", true);
     s_statsScope = prefs.getUChar("stScope", 0);
@@ -354,6 +399,12 @@ void Settings_Begin() {
   }
   if (migrateIssScr && prefs.begin(NS, false)) {
     prefs.putBool("issScrInit", true);
+    prefs.putUChar("scrM", (uint8_t)s_scrMask);
+    prefs.putUShort("scrM16", s_scrMask);
+    prefs.end();
+  }
+  if (migrateSonarScr && prefs.begin(NS, false)) {
+    prefs.putBool("sonarScrInit", true);
     prefs.putUChar("scrM", (uint8_t)s_scrMask);
     prefs.putUShort("scrM16", s_scrMask);
     prefs.end();
@@ -656,6 +707,21 @@ void Settings_SetIssAlert(bool on) {
   s_issAlert = on;
   putBool("issAlert", on);
 }
+uint8_t Settings_IssViewMode() { return s_issViewMode; }
+void Settings_SetIssViewMode(uint8_t mode) {
+  if (mode > ISS_VIEW_2D_MAP) mode = ISS_VIEW_3D_ISS;
+  if (s_issViewMode == mode) return;
+  s_issViewMode = mode;
+  putU8("issVMode", mode);
+}
+
+uint8_t Settings_SonarView() { return s_sonarViewMode; }
+void Settings_SetSonarView(uint8_t mode) {
+  if (mode > SONAR_VIEW_WATERFALL) mode = SONAR_VIEW_PPI;
+  if (s_sonarViewMode == mode) return;
+  s_sonarViewMode = mode;
+  putU8("sonVMode", mode);
+}
 
 const char* Settings_YouTubeApiKey() { return s_ytApiKey; }
 void Settings_SetYouTubeApiKey(const char* key) {
@@ -675,6 +741,15 @@ void Settings_SetYouTubeChannel(const char* ch) {
   s_ytChannel[sizeof(s_ytChannel) - 1] = '\0';
   putStr("ytChan", s_ytChannel);
 }
+
+uint8_t Settings_YouTubeVideoMode() { return s_ytVideoMode; }
+void Settings_SetYouTubeVideoMode(uint8_t mode) {
+  if (mode > YT_MODE_MOST_VIEWED) mode = YT_MODE_LATEST;
+  if (s_ytVideoMode == mode) return;
+  s_ytVideoMode = mode;
+  putU8("ytVMode", mode);
+}
+
 
 // --- AI Pet Companion -------------------------------------------------------
 bool Settings_PetEnabled() { return s_petEnabled; }
@@ -763,6 +838,18 @@ bool     Settings_RadarShowRings() { return s_radShowRings; }
 void     Settings_SetRadarShowRings(bool on) { s_radShowRings = on; putBool("rRng", on); }
 bool     Settings_RadarShowCompass() { return s_radShowCompass; }
 void     Settings_SetRadarShowCompass(bool on) { s_radShowCompass = on; putBool("rCmp", on); }
+uint8_t  Settings_MapProvider() { return s_mapProv; }
+void     Settings_SetMapProvider(uint8_t prov) {
+  if (prov > 2) prov = 0;
+  s_mapProv = prov;
+  putU8("mapProv", prov);
+}
+uint8_t  Settings_RadarBlipStyle() { return s_radBlipStyle; }
+void     Settings_SetRadarBlipStyle(uint8_t style) {
+  if (style > 1) style = RADAR_BLIP_CHEVRON;
+  s_radBlipStyle = style;
+  putU8("rBlip", style);
+}
 
 // --- Aircraft filters -------------------------------------------------------
 uint16_t Settings_AltMinFt() { return s_altMin; }
@@ -821,6 +908,8 @@ bool Settings_BuzzerNightMute() { return s_bzNMute; }
 void Settings_SetBuzzerNightMute(bool on) { s_bzNMute = on; putBool("bzNMute", on); }
 bool Settings_BuzzerPet() { return s_bzPet; }
 void Settings_SetBuzzerPet(bool on) { s_bzPet = on; putBool("bzPet", on); }
+bool Settings_SonarPing() { return s_bzSonar; }
+void Settings_SetSonarPing(bool on) { s_bzSonar = on; putBool("bzSonar", on); }
 
 bool Settings_PrecipAlert() { return s_precipAlert; }
 void Settings_SetPrecipAlert(bool on) { s_precipAlert = on; putBool("cPrecip", on); }
@@ -930,6 +1019,9 @@ void Settings_ToJson(JsonObject o) {
   o["rAirports"] = s_radShowAirports;
   o["rRings"] = s_radShowRings;
   o["rCompass"] = s_radShowCompass;
+  o["mapProvider"] = s_mapProv;
+  o["mapProv"] = s_mapProv;
+  o["rBlipStyle"] = s_radBlipStyle;
   o["statsScope"] = s_statsScope;
   o["statsFilterRange"] = (s_statsScope > 0);
   o["altMin"] = s_altMin;
@@ -952,6 +1044,8 @@ void Settings_ToJson(JsonObject o) {
   o["buzzerHourly"]    = s_bzHour;
   o["buzzerNightMute"] = s_bzNMute;
   o["buzzerPet"]       = s_bzPet;
+  o["buzzerSonar"]     = s_bzSonar;
+  o["sonarPing"]       = s_bzSonar;
   o["cPrecip"]         = s_precipAlert;
   o["showLegends"] = s_showLegends;
   o["hasPassword"] = Settings_HasAdminPassword();
@@ -970,16 +1064,20 @@ void Settings_ToJson(JsonObject o) {
   scr["planes"]   = Settings_ScreenEnabled(SCREEN_PLANES_I);
   scr["meteo"]    = Settings_ScreenEnabled(SCREEN_METEO_I);
   scr["tactical"] = Settings_ScreenEnabled(SCREEN_TACTICAL_I);
+  scr["sonar"]    = Settings_ScreenEnabled(SCREEN_SONAR_I);
   scr["forecast"] = Settings_ScreenEnabled(SCREEN_FORECAST_I);
-  scr["info"]     = Settings_ScreenEnabled(SCREEN_INFO_I);
   scr["finance"]  = Settings_ScreenEnabled(SCREEN_FINANCE_I);
   scr["iss"]      = Settings_ScreenEnabled(SCREEN_ISS_I);
   scr["youtube"]  = Settings_ScreenEnabled(SCREEN_YOUTUBE_I);
+  scr["info"]     = Settings_ScreenEnabled(SCREEN_INFO_I);
   o["financeTickers"] = s_finTickers;
   o["financeGraph"]   = s_finGraphType;
   o["issAlert"]   = s_issAlert;
+  o["issViewMode"] = s_issViewMode;
+  o["sonarViewMode"] = s_sonarViewMode;
   o["youtubeKey"] = (s_ytApiKey[0] != '\0') ? "***" : "";
   o["youtubeChannel"] = s_ytChannel;
+  o["youtubeVideoMode"] = s_ytVideoMode;
   o["petEnabled"]     = s_petEnabled;
   o["petCharacter"]   = s_petChar;
   o["geminiKey"]      = (s_geminiApiKey[0] != '\0') ? "***" : "";
@@ -1031,6 +1129,9 @@ bool Settings_FromJson(JsonObjectConst in) {
   setIf("hostname",     [](JsonVariantConst v){ Settings_SetHostname(v.as<const char*>()); });
   setIf("rRings",       [](JsonVariantConst v){ Settings_SetRadarShowRings(v.as<bool>()); });
   setIf("rCompass",     [](JsonVariantConst v){ Settings_SetRadarShowCompass(v.as<bool>()); });
+  setIf("mapProvider",  [](JsonVariantConst v){ Settings_SetMapProvider(v.as<uint8_t>()); });
+  setIf("mapProv",      [](JsonVariantConst v){ Settings_SetMapProvider(v.as<uint8_t>()); });
+  setIf("rBlipStyle",   [](JsonVariantConst v){ Settings_SetRadarBlipStyle(v.as<uint8_t>()); });
   setIf("statsScope",   [](JsonVariantConst v){ Settings_SetStatsScope(v.as<uint8_t>()); });
   setIf("statsFilterRange", [](JsonVariantConst v){ if (!v.as<bool>()) Settings_SetStatsScope(0); else if (Settings_StatsScope() == 0) Settings_SetStatsScope(2); });
   setIf("showLegends",  [](JsonVariantConst v){ Settings_SetShowLegends(v.as<bool>()); });
@@ -1054,12 +1155,18 @@ bool Settings_FromJson(JsonObjectConst in) {
   setIf("buzzerNightMute", [](JsonVariantConst v){ Settings_SetBuzzerNightMute(v.as<bool>()); });
   setIf("buzzerPet",       [](JsonVariantConst v){ Settings_SetBuzzerPet(v.as<bool>()); });
   setIf("bzPet",           [](JsonVariantConst v){ Settings_SetBuzzerPet(v.as<bool>()); });
+  setIf("buzzerSonar",     [](JsonVariantConst v){ Settings_SetSonarPing(v.as<bool>()); });
+  setIf("sonarPing",       [](JsonVariantConst v){ Settings_SetSonarPing(v.as<bool>()); });
+  setIf("bzSonar",         [](JsonVariantConst v){ Settings_SetSonarPing(v.as<bool>()); });
   setIf("cPrecip",         [](JsonVariantConst v){ Settings_SetPrecipAlert(v.as<bool>()); });
   setIf("financeTickers",  [](JsonVariantConst v){ Settings_SetFinanceTickers(v.as<const char*>()); });
   setIf("financeGraph",    [](JsonVariantConst v){ Settings_SetFinanceGraphType(v.as<uint8_t>()); });
   setIf("issAlert",        [](JsonVariantConst v){ Settings_SetIssAlert(v.as<bool>()); });
+  setIf("issViewMode",     [](JsonVariantConst v){ Settings_SetIssViewMode(v.as<uint8_t>()); });
+  setIf("sonarViewMode",   [](JsonVariantConst v){ Settings_SetSonarView(v.as<uint8_t>()); });
   setIf("youtubeKey",      [](JsonVariantConst v){ Settings_SetYouTubeApiKey(v.as<const char*>()); });
   setIf("youtubeChannel",  [](JsonVariantConst v){ Settings_SetYouTubeChannel(v.as<const char*>()); });
+  setIf("youtubeVideoMode",[](JsonVariantConst v){ Settings_SetYouTubeVideoMode(v.as<uint8_t>()); });
   setIf("petEnabled",      [](JsonVariantConst v){ Settings_SetPetEnabled(v.as<bool>()); });
   setIf("petCharacter",    [](JsonVariantConst v){ Settings_SetPetCharacter(v.as<uint8_t>()); });
   setIf("geminiKey",       [](JsonVariantConst v){ Settings_SetGeminiApiKey(v.as<const char*>()); });
@@ -1078,6 +1185,7 @@ bool Settings_FromJson(JsonObjectConst in) {
       { "planes",   SCREEN_PLANES_I },
       { "meteo",    SCREEN_METEO_I },
       { "tactical", SCREEN_TACTICAL_I },
+      { "sonar",    SCREEN_SONAR_I },
       { "forecast", SCREEN_FORECAST_I },
       { "finance",  SCREEN_FINANCE_I },
       { "iss",      SCREEN_ISS_I },
@@ -1116,8 +1224,9 @@ void Settings_ClearAll() {
   s_metric = false; s_lang = LANG_EN; Lang_Set(s_lang);
   s_scrMask = (1 << SCREEN_CLOCK_I) | (1 << SCREEN_PLANES_I) |
               (1 << SCREEN_METEO_I) | (1 << SCREEN_TACTICAL_I) |
-              (1 << SCREEN_FORECAST_I) | (1 << SCREEN_FINANCE_I) |
-              (1 << SCREEN_ISS_I) | (1 << SCREEN_INFO_I);
+              (1 << SCREEN_SONAR_I) | (1 << SCREEN_FORECAST_I) |
+              (1 << SCREEN_FINANCE_I) | (1 << SCREEN_ISS_I) |
+              (1 << SCREEN_YOUTUBE_I) | (1 << SCREEN_INFO_I);
   s_issAlert = true;
   strncpy(s_finTickers, DEFAULT_FINANCE_TICKERS, sizeof(s_finTickers) - 1);
   s_autoRot = 0; s_radarSrc = RADAR_SRC_CHMU; s_smoothRadar = true;
@@ -1127,7 +1236,7 @@ void Settings_ClearAll() {
   s_altMin = 0; s_altMax = 60000; s_onlyCs = false; s_sqAlert = true; s_watch[0] = '\0';
   s_statsScope = 0;
   s_typeFilterMask = 0x3F;
-  s_bzOn = true; s_bzEm = true; s_bzWatch = true; s_bzOverhead = false; s_bzPrecip = false; s_bzTouch = false; s_bzHour = false; s_bzNMute = true;
+  s_bzOn = true; s_bzEm = true; s_bzWatch = true; s_bzOverhead = false; s_bzPrecip = false; s_bzTouch = false; s_bzHour = false; s_bzNMute = true; s_bzPet = true; s_bzSonar = true;
   s_rngP = 1; s_rngM = 1; s_rngT = 1; s_scr = SCREEN_CLOCK_I; s_top = 0;
   s_pw[0] = '\0';
   s_ssid[0] = '\0'; s_wpass[0] = '\0';

@@ -10,6 +10,6 @@
 #pragma once
 #include <Arduino.h>
 
-void ScreenForecast_Enter();
-void ScreenForecast_Draw();
-bool ScreenForecast_Tick();
+#include <lvgl.h>
+
+void ScreenForecast_Init(lv_obj_t* parent);

@@ -6,7 +6,6 @@
 #pragma once
 #include <Arduino.h>
 
-void ScreenInfo_Enter();
-void ScreenInfo_Draw();
-bool ScreenInfo_Tick();
-bool ScreenInfo_HandleTap(int x, int y);
+#include <lvgl.h>
+
+void ScreenInfo_Init(lv_obj_t* parent);

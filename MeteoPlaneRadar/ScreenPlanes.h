@@ -7,6 +7,9 @@
 // =============================================================================
 #pragma once
 #include <Arduino.h>
+#include <lvgl.h>
+
+void ScreenPlanes_Init(lv_obj_t* parent);
 
 void ScreenPlanes_Enter();
 void ScreenPlanes_Draw();

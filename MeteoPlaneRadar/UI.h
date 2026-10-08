@@ -9,6 +9,18 @@
 #include <Arduino_GFX_Library.h>
 #include "FontEngine.h"
 
+
+void UI_Init();
+void UI_SwitchScreen(int screenIdx);
+void UI_SwitchScreenStep(int step);
+int UI_GetActiveScreen();
+lv_obj_t* UI_GetScreenObj(int screenIdx);
+void UI_InvalidateActiveScreen();
+void UI_SetScreensHidden(bool hidden);
+
+void UI_ShowConnecting(const char* ssid);
+void UI_ShowAP(const char* ssid, const char* pass);
+
 // Colours (RGB565)
 #define C_BLACK  0x0000
 #define C_BLUE   0x001F
@@ -35,6 +47,10 @@ void UI_TextCentered(const char* text, int cy, uint16_t color, uint8_t size);
 // Text centred inside the rectangle [x, x+w) - used for labels above the map.
 void UI_TextCenteredIn(const char* text, int x, int w, int cy,
                        uint16_t color, uint8_t size);
+
+// Text perfectly centered horizontally and vertically in rectangle [x, y, w, h]
+void UI_TextCenteredBox(const char* text, int x, int y, int w, int h,
+                        uint16_t color, uint8_t size);
 
 // Render UTF-8 text at (x, y) with top-left anchor.
 void UI_Text(const char* text, int x, int y, uint16_t color, uint8_t size = 1);
@@ -67,6 +83,9 @@ void UI_DrawRangeIndicator(const char* text, int activeIdx, int totalCount, bool
 // Unified home position marker (cyan outer ring, yellow inner ring, white center dot, crosshair)
 void UI_DrawHomeMarker(int x, int y);
 
+// Modern 360-degree aviation compass rose bezel (degrees ticks and heading labels)
+void UI_DrawCompassRose(int cx, int cy, int radius, float topHeadingDeg = 0.0f);
+
 struct Aircraft;
 struct RouteInfo;
 
@@ -83,6 +102,19 @@ void UI_DrawOtaProgress(const char* sourceName, int percent, size_t bytesWritten
 // Dedicated fullscreen static text display for flash writing phase (zero redrawing, rock-solid)
 void UI_DrawOtaWritingStaticScreen(const char* sourceName, const char* customMsg = nullptr);
 
-// Renders an authentic electronic gyrocompass dial with rotating North needle & digital heading
-void UI_DrawCompassWidget(int cx, int cy, int radius, float headingDeg, uint16_t primaryCol, bool showCard = true);
+// Returns true if a swipe gesture was fired or a screen transition is in progress
+bool UI_IsSwipeActive();
 
+// Screen carousel / auto-rotation ticker called from loop()
+void UI_AutoRotate_Tick();
+
+// Translucent zoom controls on the right side of selectable screens
+bool UI_IsZoomScreen(int screen);
+bool UI_IsZoomControlsVisible();
+void UI_ShowZoomControls();
+void UI_HideZoomControls();
+void UI_DrawZoomControls();
+void UI_ZoomTick();
+
+// Postpones auto-rotation due to user interaction (touch, gesture, etc.)
+void UI_NotifyInteraction();

@@ -191,9 +191,11 @@ static bool bodyReserve(size_t need) {
   size_t cap = need + 2048;
   // PSRAM only. Hundreds of kB out of the internal heap would either fail
   // anyway or succeed and starve the ~45 kB every TLS handshake needs after it.
-  char* nb = (char*)heap_caps_realloc(s_body, cap, MALLOC_CAP_SPIRAM);
+  char* nb = (char*)heap_caps_malloc(cap, MALLOC_CAP_SPIRAM);
   if (!nb) return false;
-  s_body = nb; s_bodyCap = cap;
+  if (s_body) heap_caps_free(s_body);
+  s_body = nb; 
+  s_bodyCap = cap;
   return true;
 }
 
@@ -222,26 +224,7 @@ static long readBody(HTTPClient& http) {
   return Net_ReadBody(http, (uint8_t*)s_body, s_bodyCap, "ADSB", s_poll);
 }
 
-// Custom allocator directing ArduinoJson memory allocations directly to PSRAM,
-// preserving internal SRAM for network buffers and mbedTLS handshakes.
-class SpiRamAllocator : public ArduinoJson::Allocator {
- public:
-  void* allocate(size_t size) override {
-    void* p = heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    return p ? p : malloc(size);
-  }
-  void deallocate(void* ptr) override {
-    free(ptr);
-  }
-  void* reallocate(void* ptr, size_t new_size) override {
-    void* p = heap_caps_realloc(ptr, new_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    return p ? p : realloc(ptr, new_size);
-  }
-  static SpiRamAllocator* instance() {
-    static SpiRamAllocator s_alloc;
-    return &s_alloc;
-  }
-};
+#include "SpiRamAllocator.h"
 
 // Filter document: only the keys we actually use are kept, so the parsed
 // JsonDocument stays small no matter how much adsb.fi sends. alt_baro MUST stay

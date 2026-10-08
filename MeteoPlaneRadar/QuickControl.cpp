@@ -15,19 +15,85 @@
 #include "RainViewer.h"
 #include "ScreenWeather.h"
 #include "FinanceData.h"
+#include "ScreenSonar.h"
+#include "YouTubeData.h"
 #include "Buzzer.h"
 #include "Config.h"
-
-extern void gotoScreen(int idx);
+#include <lvgl.h>
 
 static bool s_open = false;
 static int  s_pickingSlot = -1; // 0..3 when asset picker is open, -1 when closed
 static int  s_catIdx = 0;       // 0..5 active category in asset picker
+static lv_obj_t* s_qcObj = nullptr;
 
 bool QuickControl_IsOpen() { return s_open; }
-void QuickControl_Open()   { s_open = true; s_pickingSlot = -1; }
-void QuickControl_Close()  { s_open = false; s_pickingSlot = -1; }
-void QuickControl_Toggle() { s_open = !s_open; s_pickingSlot = -1; }
+
+static void QuickControl_EventCb(lv_event_t* e) {
+  lv_event_code_t code = lv_event_get_code(e);
+  if (code == LV_EVENT_DRAW_MAIN) {
+    lv_layer_t* layer = lv_event_get_layer(e);
+    gfx->setLayer(layer);
+    QuickControl_Draw(UI_GetActiveScreen());
+    gfx->setLayer(nullptr);
+  } else if (code == LV_EVENT_CLICKED) {
+    lv_indev_t* indev = lv_indev_active();
+    if (indev) {
+      lv_point_t pt;
+      lv_indev_get_point(indev, &pt);
+      QuickControl_HandleTap(pt.x, pt.y, UI_GetActiveScreen());
+      if (!s_open) {
+        QuickControl_Close();
+      } else {
+        lv_obj_invalidate(s_qcObj);
+      }
+    }
+  } else if (code == LV_EVENT_GESTURE) {
+    lv_indev_t* indev = lv_indev_active();
+    if (indev) {
+      lv_dir_t dir = lv_indev_get_gesture_dir(indev);
+      if (dir == LV_DIR_TOP) {
+        QuickControl_Close();
+      }
+    }
+  }
+}
+
+void QuickControl_Init() {
+  if (s_qcObj) return;
+  s_qcObj = lv_obj_create(NULL);
+  lv_obj_remove_style_all(s_qcObj);
+  lv_obj_set_size(s_qcObj, LCD_WIDTH, LCD_HEIGHT);
+  lv_obj_set_pos(s_qcObj, 0, 0);
+  lv_obj_set_style_bg_color(s_qcObj, lv_color_black(), 0);
+  lv_obj_set_style_bg_opa(s_qcObj, LV_OPA_COVER, 0);
+  lv_obj_set_scrollable(s_qcObj, false);
+  lv_obj_set_clickable(s_qcObj, true);
+  lv_obj_add_event_cb(s_qcObj, QuickControl_EventCb, LV_EVENT_ALL, nullptr);
+}
+
+void QuickControl_Open() {
+  s_open = true;
+  s_pickingSlot = -1;
+  if (s_qcObj) {
+    lv_screen_load(s_qcObj);
+    lv_obj_invalidate(s_qcObj);
+  }
+}
+
+void QuickControl_Close() {
+  s_open = false;
+  s_pickingSlot = -1;
+  lv_obj_t* baseScr = UI_GetScreenObj(UI_GetActiveScreen());
+  if (baseScr) {
+    lv_screen_load(baseScr);
+    lv_obj_invalidate(baseScr);
+  }
+}
+
+void QuickControl_Toggle() {
+  if (s_open) QuickControl_Close();
+  else        QuickControl_Open();
+}
 
 static const int CW_W = 360;
 static const int CW_H = 276;
@@ -196,7 +262,7 @@ static void drawSelectBox(int x, int y, int w, int h, int slotNum, const char* t
   else snprintf(numStr, sizeof(numStr), "%d", slotNum);
   uint16_t numBg = isHero ? 0x02EC : 0x31A6;
   gfx->fillRoundRect(x + 5, y + 5, 22, h - 10, 4, numBg);
-  UI_TextCenteredIn(numStr, x + 5, 22, y + h / 2 - 4, C_WHITE, 1);
+  UI_TextCenteredBox(numStr, x + 5, y + 5, 22, h - 10, C_WHITE, 1);
 
   // Draw ticker symbol
   char disp[20];
@@ -260,7 +326,7 @@ static void drawAssetPickerModal() {
     gfx->drawRoundRect(tx, ty, tabW, tabH, 6, border);
 
     const char* cName = (lang == LANG_EN) ? PRESET_CATS[c].nameEn : PRESET_CATS[c].nameSk;
-    UI_TextCenteredIn(cName, tx, tabW, ty + tabH / 2 - 4, fg, 1);
+    UI_TextCenteredBox(cName, tx, ty, tabW, tabH, fg, 1);
   }
 
   // Divider
@@ -315,13 +381,13 @@ static void drawAssetPickerModal() {
   gfx->fillRoundRect(PK_X + 10, btnY, itW, btnH, 6, 0x3000);
   gfx->drawRoundRect(PK_X + 10, btnY, itW, btnH, 6, 0x8183);
   const char* clrTxt = (lang == LANG_EN) ? "Clear Slot" : "Vymazat slot";
-  UI_TextCenteredIn(clrTxt, PK_X + 10, itW, btnY + btnH / 2 - 4, 0xF986, 1);
+  UI_TextCenteredBox(clrTxt, PK_X + 10, btnY, itW, btnH, 0xF986, 1);
 
   // Back button
   gfx->fillRoundRect(PK_X + 172, btnY, itW, btnH, 6, 0x2104);
   gfx->drawRoundRect(PK_X + 172, btnY, itW, btnH, 6, C_GRAY);
   const char* bckTxt = (lang == LANG_EN) ? "Back" : ((lang == LANG_SK) ? "Spat" : "Zpet");
-  UI_TextCenteredIn(bckTxt, PK_X + 172, itW, btnY + btnH / 2 - 4, C_WHITE, 1);
+  UI_TextCenteredBox(bckTxt, PK_X + 172, btnY, itW, btnH, C_WHITE, 1);
 
   // Bottom swipe hint
   UI_TextCenteredIn((lang == LANG_EN) ? "^ swipe up to close ^" : "^ potiahnutim zatvorite ^",
@@ -402,12 +468,14 @@ static void drawButton(int x, int y, int w, int h, const char* label, bool activ
   uint16_t fg = active ? C_BLACK   : C_WHITE;
   gfx->fillRoundRect(x, y, w, h, 8, bg);
   gfx->drawRoundRect(x, y, w, h, 8, active ? C_WHITE : C_GRAY);
-  UI_TextCenteredIn(label, x, w, y + h / 2 - 7, fg, 1);
+  UI_TextCenteredBox(label, x, y, w, h, fg, 1);
 }
 
 
 void QuickControl_Draw(int currentScreen) {
   if (!s_open) return;
+
+  gfx->fillScreen(C_BLACK);
 
   if (s_pickingSlot >= 0 && currentScreen == SCREEN_FINANCE_I) {
     drawAssetPickerModal();
@@ -460,12 +528,18 @@ void QuickControl_Draw(int currentScreen) {
     const char* ringOff = (Lang_Get() == LANG_EN) ? "Rings: OFF" : "Okruhy: VYP";
     const char* legOn = (Lang_Get() == LANG_EN) ? "Labels: ON" : "Popisy: ZAP";
     const char* legOff = (Lang_Get() == LANG_EN) ? "Labels: OFF" : "Popisy: VYP";
-    const char* compOn = (Lang_Get() == LANG_EN) ? "Compass: ON" : "Kompas: ZAP";
-    const char* compOff = (Lang_Get() == LANG_EN) ? "Compass: OFF" : "Kompas: VYP";
+    const char* trOn = (Lang_Get() == LANG_EN) ? "Trails: ON" : "Trasy: ZAP";
+    const char* trOff = (Lang_Get() == LANG_EN) ? "Trails: OFF" : "Trasy: VYP";
     drawButton(CW_X + 16,  y3, 158, 34, Settings_RadarShowAirports() ? airOn : airOff, Settings_RadarShowAirports());
     drawButton(CW_X + 186, y3, 158, 34, Settings_RadarShowRings()    ? ringOn : ringOff,  Settings_RadarShowRings());
     drawButton(CW_X + 16,  y4, 158, 34, Settings_ShowLegends()       ? legOn : legOff,  Settings_ShowLegends());
-    drawButton(CW_X + 186, y4, 158, 34, Settings_RadarShowCompass()  ? compOn : compOff,  Settings_RadarShowCompass());
+    drawButton(CW_X + 186, y4, 158, 34, Settings_RadarShowTrails()   ? trOn : trOff,    Settings_RadarShowTrails());
+
+    const int y5 = CW_Y + 200;
+    const bool isSil = (Settings_RadarBlipStyle() == RADAR_BLIP_SILHOUETTE);
+    const char* blipLabel = isSil ? ((Lang_Get() == LANG_EN) ? "Aircraft: Symbols" : ((Lang_Get() == LANG_CZ) ? "Letadla: Siluety" : "Lietadlá: Siluety"))
+                                  : ((Lang_Get() == LANG_EN) ? "Aircraft: Chevrons" : ((Lang_Get() == LANG_CZ) ? "Letadla: Šipky (Chevrons)" : "Lietadlá: Šípky (Chevrons)"));
+    drawButton(CW_X + 16, y5, CW_W - 32, 34, blipLabel, true, isSil ? 0x07E0 : 0x05FF);
   } else if (currentScreen == SCREEN_TACTICAL_I) {
     const char* trOn = (Lang_Get() == LANG_EN) ? "Trails: ON" : "Trasy: ZAP";
     const char* trOff = (Lang_Get() == LANG_EN) ? "Trails: OFF" : "Trasy: VYP";
@@ -478,6 +552,12 @@ void QuickControl_Draw(int currentScreen) {
     const char* airOn = (Lang_Get() == LANG_EN) ? "Airports: ON" : "Letiská: ZAP";
     const char* airOff = (Lang_Get() == LANG_EN) ? "Airports: OFF" : "Letiská: VYP";
     drawButton(CW_X + 186, y4, 158, 34, Settings_RadarShowAirports() ? airOn : airOff, Settings_RadarShowAirports());
+
+    const int y5 = CW_Y + 200;
+    const bool isSil = (Settings_RadarBlipStyle() == RADAR_BLIP_SILHOUETTE);
+    const char* blipLabel = isSil ? ((Lang_Get() == LANG_EN) ? "Aircraft: Symbols" : ((Lang_Get() == LANG_CZ) ? "Letadla: Siluety" : "Lietadlá: Siluety"))
+                                  : ((Lang_Get() == LANG_EN) ? "Aircraft: Chevrons" : ((Lang_Get() == LANG_CZ) ? "Letadla: Šipky (Chevrons)" : "Lietadlá: Šípky (Chevrons)"));
+    drawButton(CW_X + 16, y5, CW_W - 32, 34, blipLabel, true, isSil ? 0x07E0 : 0x05FF);
   } else if (currentScreen == SCREEN_METEO_I) {
     const char* mSrc = (Settings_RadarSource() == RADAR_SRC_SHMU) ? ((Lang_Get() == LANG_EN) ? "Source: SHMU" : "Zdroj: SHMU") :
                        (Settings_RadarSource() == RADAR_SRC_RAINVIEWER) ? ((Lang_Get() == LANG_EN) ? "Source: RainViewer" : "Zdroj: RainViewer") : ((Lang_Get() == LANG_EN) ? "Source: CHMU" : "Zdroj: CHMU");
@@ -487,18 +567,15 @@ void QuickControl_Draw(int currentScreen) {
     const char* swSrc = (Lang_Get() == LANG_EN) ? "Switch Radar Source" : ((Lang_Get() == LANG_CZ) ? "Prepnout radarovy zdroj" : "Prepnúť radarový zdroj");
     drawButton(CW_X + 16,  y4, CW_W - 32, 34, swSrc, true, 0x07E0);
   } else if (currentScreen == SCREEN_CLOCK_I) {
-    const char* cStyle = (Lang_Get() == LANG_EN) ? "Clock: Digital" : "Ciferník: Digitálny";
-    switch (Settings_ClockStyle()) {
-      case 0: cStyle = (Lang_Get() == LANG_EN) ? "Clock: Digital" : "Ciferník: Digitálny"; break;
-      case 1: cStyle = (Lang_Get() == LANG_EN) ? "Clock: Modern Analog" : "Ciferník: Moderný Analógový"; break;
-      case 2: cStyle = (Lang_Get() == LANG_EN) ? "Clock: Modern Digital" : "Ciferník: Moderný Digitálny"; break;
-      case 3: cStyle = (Lang_Get() == LANG_EN) ? "Clock: Retro LCD" : "Ciferník: Retro LCD"; break;
-    }
-    drawButton(CW_X + 16,  y3, CW_W - 32, 34, cStyle, false);
+    const char* secRing = Settings_SecondsStyle() != SEC_STYLE_OFF ?
+        ((Lang_Get() == LANG_EN) ? "Seconds Ring: ON" : ((Lang_Get() == LANG_SK) ? "Sekundový kruh: ZAP" : "Vteřinový prstenec: ZAP")) :
+        ((Lang_Get() == LANG_EN) ? "Seconds Ring: OFF" : ((Lang_Get() == LANG_SK) ? "Sekundový kruh: VYP" : "Vteřinový prstenec: VYP"));
+    drawButton(CW_X + 16,  y3, CW_W - 32, 34, secRing, Settings_SecondsStyle() != SEC_STYLE_OFF);
     
     const char* sArc = (Lang_Get() == LANG_EN) ? 
         (Settings_ClockShowAstro() ? "Solar Arc: ON" : "Solar Arc: OFF") :
-        (Settings_ClockShowAstro() ? "Solárny oblúk: ZAP" : "Solárny oblúk: VYP");
+        (Settings_ClockShowAstro() ? ((Lang_Get() == LANG_SK) ? "Solárny oblúk: ZAP" : "Solární oblouk: ZAP") :
+                                     ((Lang_Get() == LANG_SK) ? "Solárny oblúk: VYP" : "Solární oblouk: VYP"));
     drawButton(CW_X + 16,  y4, CW_W - 32, 34, sArc, Settings_ClockShowAstro());
   } else if (currentScreen == SCREEN_FORECAST_I) {
     const char* uMet = (Lang_Get() == LANG_EN) ? "Units: Metric" : "Jednotky: Metrické";
@@ -510,8 +587,16 @@ void QuickControl_Draw(int currentScreen) {
     const char* aLblOn = (Lang_Get() == LANG_EN) ? "Flyover Alert: ON" : "Výstraha preletu: ZAP";
     const char* aLblOff = (Lang_Get() == LANG_EN) ? "Flyover Alert: OFF" : "Výstraha preletu: VYP";
     drawButton(CW_X + 16,  y3, CW_W - 32, 34, Settings_IssAlert() ? aLblOn : aLblOff, Settings_IssAlert(), 0x07E0);
+
+    uint8_t ivm = Settings_IssViewMode();
+    const char* ivStr = (ivm == ISS_VIEW_3D_ISS) ? ((Lang_Get() == LANG_EN) ? "View: 3D Globe (ISS)" : "Pohľad: 3D Glóbus (ISS)") :
+                        (ivm == ISS_VIEW_3D_HOME) ? ((Lang_Get() == LANG_EN) ? "View: 3D Globe (Home)" : "Pohľad: 3D Glóbus (Domov)") :
+                                                    ((Lang_Get() == LANG_EN) ? "View: 2D World Map" : "Pohľad: 2D Plochá mapa");
+    drawButton(CW_X + 16,  y4, CW_W - 32, 34, ivStr, true, 0x05FF);
+
+    const int y5 = CW_Y + 200;
     const char* updIss = (Lang_Get() == LANG_EN) ? "Update ISS Location" : ((Lang_Get() == LANG_CZ) ? "Aktualizovat polohu ISS" : "Aktualizovať polohu ISS");
-    drawButton(CW_X + 16,  y4, CW_W - 32, 34, updIss, true, 0x07E0);
+    drawButton(CW_X + 16,  y5, CW_W - 32, 34, updIss, true, 0x07E0);
   } else if (currentScreen == SCREEN_FINANCE_I) {
     char slots[4][16];
     getFinanceSlotTickers(slots);
@@ -521,7 +606,7 @@ void QuickControl_Draw(int currentScreen) {
     drawSelectBox(CW_X + 16,  y4, 158, 32, 3, slots[2], false, actIdx == 2);
     drawSelectBox(CW_X + 186, y4, 158, 32, 4, slots[3], false, actIdx == 3);
 
-    const int y5 = CW_Y + 194;
+    const int y5 = CW_Y + 200;
     const bool isCandle = (Settings_FinanceGraphType() == FIN_GRAPH_CANDLESTICK);
     const char* grpLabel = isCandle ? "Graf: Svieckovy" : "Graf: Ciarovy";
     if (Lang_Get() == LANG_EN) {
@@ -530,6 +615,31 @@ void QuickControl_Draw(int currentScreen) {
       grpLabel = isCandle ? "Graf: Svíckový" : "Graf: Cárový";
     }
     drawButton(CW_X + 16, y5, CW_W - 32, 32, grpLabel, isCandle, 0x07E0);
+  } else if (currentScreen == SCREEN_SONAR_I) {
+    char rStr[32];
+    snprintf(rStr, sizeof(rStr), (Lang_Get() == LANG_EN) ? "Cycle Range" : "Zmenit rozsah");
+    drawButton(CW_X + 16, y3, CW_W - 32, 34, rStr, true, 0x07E0);
+
+    uint8_t svm = Settings_SonarView();
+    const char* svStr = (svm == SONAR_VIEW_PPI) ? ((Lang_Get() == LANG_EN) ? "View: PPI Radar" : "Pohľad: PPI Radar") :
+                        (svm == SONAR_VIEW_SPLIT) ? ((Lang_Get() == LANG_EN) ? "View: Split PPI+Waterfall" : "Pohľad: Split PPI+Vodopád") :
+                                                    ((Lang_Get() == LANG_EN) ? "View: Waterfall BTR" : "Pohľad: Akustický vodopád");
+    drawButton(CW_X + 16, y4, CW_W - 32, 34, svStr, true, 0x05FF);
+
+    const int y5 = CW_Y + 200;
+    const bool pingOn = Settings_SonarPing();
+    char pingStr[36];
+    snprintf(pingStr, sizeof(pingStr), (Lang_Get() == LANG_EN) ? (pingOn ? "Sonar Ping: ON" : "Sonar Ping: OFF")
+                                                               : (pingOn ? "Sonar Ping: ZAP" : "Sonar Ping: VYP"));
+    drawButton(CW_X + 16, y5, CW_W - 32, 34, pingStr, pingOn, pingOn ? 0x05FF : C_GRAY);
+  } else if (currentScreen == SCREEN_YOUTUBE_I) {
+    const uint8_t lang = Lang_Get();
+    const bool isMostViews = (Settings_YouTubeVideoMode() == YT_MODE_MOST_VIEWED);
+    const char* modeLabel = isMostViews ? ((lang == LANG_EN) ? "Video: Most Views" : ((lang == LANG_SK) ? "Video: Najsledovanejšie" : "Video: Nejsledovanější"))
+                                        : ((lang == LANG_EN) ? "Video: Latest" : ((lang == LANG_SK) ? "Video: Najnovšie" : "Video: Nejnovější"));
+    drawButton(CW_X + 16, y3, CW_W - 32, 34, modeLabel, isMostViews, isMostViews ? RGB565(255, 185, 0) : 0x07E0);
+    const char* updYt = (lang == LANG_EN) ? "Refresh YouTube Analytics" : ((lang == LANG_SK) ? "Aktualizovať YouTube" : "Aktualizovat YouTube");
+    drawButton(CW_X + 16, y4, CW_W - 32, 34, updYt, true, 0x07E0);
   }
 
   // Bottom pull-up hint
@@ -613,8 +723,8 @@ bool QuickControl_HandleTap(int x, int y, int currentScreen) {
       return true;
     }
     if (x >= CW_X + 186 && x <= CW_X + 344) {
-      s_open = false;
-      gotoScreen(SCREEN_SETTINGS_I);
+      QuickControl_Close();
+      UI_SwitchScreen(SCREEN_SETTINGS_I);
       return true;
     }
   }
@@ -640,7 +750,16 @@ bool QuickControl_HandleTap(int x, int y, int currentScreen) {
         return true;
       }
       if (x >= CW_X + 186 && x <= CW_X + 344) {
-        Settings_SetRadarShowCompass(!Settings_RadarShowCompass());
+        Settings_SetRadarShowTrails(!Settings_RadarShowTrails());
+        return true;
+      }
+    }
+    const int y5 = CW_Y + 200;
+    if (y >= y5 && y <= y5 + 34) {
+      if (x >= CW_X + 16 && x <= CW_X + CW_W - 16) {
+        uint8_t cur = Settings_RadarBlipStyle();
+        Settings_SetRadarBlipStyle(cur == RADAR_BLIP_CHEVRON ? RADAR_BLIP_SILHOUETTE : RADAR_BLIP_CHEVRON);
+        Buzzer_Play(BEEP_CLICK);
         return true;
       }
     }
@@ -665,6 +784,15 @@ bool QuickControl_HandleTap(int x, int y, int currentScreen) {
         return true;
       }
     }
+    const int y5 = CW_Y + 200;
+    if (y >= y5 && y <= y5 + 34) {
+      if (x >= CW_X + 16 && x <= CW_X + CW_W - 16) {
+        uint8_t cur = Settings_RadarBlipStyle();
+        Settings_SetRadarBlipStyle(cur == RADAR_BLIP_CHEVRON ? RADAR_BLIP_SILHOUETTE : RADAR_BLIP_CHEVRON);
+        Buzzer_Play(BEEP_CLICK);
+        return true;
+      }
+    }
   } else if (currentScreen == SCREEN_METEO_I) {
     if (y >= y3 && y <= y3 + 34) {
       if (x >= CW_X + 16 && x <= CW_X + 174) {
@@ -682,8 +810,8 @@ bool QuickControl_HandleTap(int x, int y, int currentScreen) {
     }
   } else if (currentScreen == SCREEN_CLOCK_I) {
     if (y >= y3 && y <= y3 + 34) {
-      uint8_t nextSt = (Settings_ClockStyle() + 1) % (CLOCK_STYLE_MAX + 1);
-      Settings_SetClockStyle(nextSt);
+      uint8_t nextSec = (Settings_SecondsStyle() + 1) % (SEC_STYLE_MAX + 1);
+      Settings_SetSecondsStyle(nextSec);
       return true;
     }
     if (y >= y4 && y <= y4 + 34) {
@@ -701,6 +829,13 @@ bool QuickControl_HandleTap(int x, int y, int currentScreen) {
       return true;
     }
     if (y >= y4 && y <= y4 + 34) {
+      uint8_t nextMode = (Settings_IssViewMode() + 1) % 3;
+      Settings_SetIssViewMode(nextMode);
+      Buzzer_Play(BEEP_CLICK);
+      return true;
+    }
+    const int y5 = CW_Y + 200;
+    if (y >= y5 && y <= y5 + 34) {
       Async_RequestIss();
       return true;
     }
@@ -725,7 +860,7 @@ bool QuickControl_HandleTap(int x, int y, int currentScreen) {
         return true;
       }
     }
-    const int y5 = CW_Y + 194;
+    const int y5 = CW_Y + 200;
     if (y >= y5 && y <= y5 + 34) {
       if (x >= CW_X + 16 && x <= CW_X + CW_W - 16) {
         uint8_t cur = Settings_FinanceGraphType();
@@ -733,6 +868,41 @@ bool QuickControl_HandleTap(int x, int y, int currentScreen) {
         Buzzer_Play(BEEP_CLICK);
         return true;
       }
+    }
+  } else if (currentScreen == SCREEN_SONAR_I) {
+    if (y >= y3 && y <= y3 + 34) {
+      ScreenSonar_ChangeRange(1);
+      return true;
+    }
+    if (y >= y4 && y <= y4 + 34) {
+      uint8_t nextMode = (Settings_SonarView() + 1) % 3;
+      Settings_SetSonarView(nextMode);
+      Buzzer_Play(BEEP_CLICK);
+      return true;
+    }
+    const int y5 = CW_Y + 200;
+    if (y >= y5 && y <= y5 + 34) {
+      bool nextState = !Settings_SonarPing();
+      Settings_SetSonarPing(nextState);
+      if (nextState) Buzzer_Play(BEEP_SONAR_PING, true);
+      else Buzzer_Play(BEEP_CLICK, true);
+      return true;
+    }
+  } else if (currentScreen == SCREEN_YOUTUBE_I) {
+    if (y >= y3 && y <= y3 + 34) {
+      uint8_t cur = Settings_YouTubeVideoMode();
+      uint8_t nextMode = (cur == YT_MODE_MOST_VIEWED) ? YT_MODE_LATEST : YT_MODE_MOST_VIEWED;
+      Settings_SetYouTubeVideoMode(nextMode);
+      Buzzer_Play(BEEP_CLICK);
+      YouTube_RequestFetch();
+      Async_RequestYouTube();
+      return true;
+    }
+    if (y >= y4 && y <= y4 + 34) {
+      Buzzer_Play(BEEP_CLICK);
+      YouTube_RequestFetch();
+      Async_RequestYouTube();
+      return true;
     }
   }
 

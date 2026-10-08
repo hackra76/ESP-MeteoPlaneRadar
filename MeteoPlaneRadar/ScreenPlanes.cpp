@@ -15,7 +15,9 @@
 #include "PlanePhoto.h"
 #include "EuBorder.h"
 #include "Airports.h"
+#include "MapTiles.h"
 #include "UI.h"
+#include "PetDrawer.h"
 #include "Layout.h"
 #include "Lang.h"
 #include "Status.h"
@@ -26,6 +28,57 @@
 #include <WiFi.h>
 #include <math.h>
 #include <string.h>   // strncpy / strcmp for the hex-based selection
+#include <lvgl.h>
+
+static lv_obj_t* s_screenObj = nullptr;
+static lv_timer_t* s_tickTimer = nullptr;
+
+static void draw_event_cb(lv_event_t * e) {
+    lv_layer_t * layer = lv_event_get_layer(e);
+    gfx->setLayer(layer);
+    ScreenPlanes_Draw();
+    gfx->setLayer(nullptr);
+}
+
+static void tick_timer_cb(lv_timer_t * timer) {
+    if (UI_GetActiveScreen() != SCREEN_PLANES_I) return;
+    if (ScreenPlanes_Tick()) {
+        if (s_screenObj) {
+            lv_obj_invalidate(s_screenObj);
+        }
+    }
+}
+
+static void touch_event_cb(lv_event_t * e) {
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_CLICKED) {
+        if (UI_IsSwipeActive()) return;
+        lv_indev_t * indev = lv_indev_active();
+        if (!indev) return;
+        lv_point_t p;
+        lv_indev_get_point(indev, &p);
+        if (ScreenPlanes_HandleTap(p.x, p.y)) {
+            if (s_screenObj) lv_obj_invalidate(s_screenObj);
+        }
+    }
+}
+
+void ScreenPlanes_Init(lv_obj_t* parent) {
+    s_screenObj = parent;
+    lv_obj_set_size(s_screenObj, LCD_WIDTH, LCD_HEIGHT);
+    lv_obj_set_scrollbar_mode(s_screenObj, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_style_bg_color(s_screenObj, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(s_screenObj, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(s_screenObj, 0, 0);
+    lv_obj_set_style_pad_all(s_screenObj, 0, 0);
+    lv_obj_set_scrollable(s_screenObj, false);
+
+    lv_obj_add_event_cb(s_screenObj, draw_event_cb, LV_EVENT_DRAW_MAIN, NULL);
+    lv_obj_add_event_cb(s_screenObj, touch_event_cb, LV_EVENT_CLICKED, NULL);
+
+    // Start tick timer (runs every 100ms)
+    s_tickTimer = lv_timer_create(tick_timer_cb, 100, NULL);
+}
 
 // Round panel - radar centred on the middle of the screen.
 // R_RADIUS = 230 px maps the selected range onto the radar circle.
@@ -115,43 +168,25 @@ static void selectHex(const char* hex) {
 #endif
 }
 
-// Convert an aircraft's lat/lon into screen coordinates (north up).
-// --- Map orientation -------------------------------------------------------
-// The user picks WHICH COMPASS BEARING IS AT THE TOP of the screen, i.e. the
-// direction they are looking out of the window. Everything then follows:
-//
-//     screen angle of bearing b  =  b - topBearing      (0 = up, clockwise)
-// Borders and cities go through the same project(), so they follow along for
-// free; only the aircraft icons need their heading corrected separately.
-static float s_rotSin = 0.0f, s_rotCos = 1.0f;   // cached sin/cos of the angle
-static uint16_t s_topDeg = 0;                    // bearing shown at the top
-
-static void refreshRotation() {
-  uint16_t deg = Settings_TopBearing();
-  if (deg == s_topDeg) return;
-  s_topDeg = deg;
-  float r = (float)deg * 0.0174532925f;
-  s_rotSin = sinf(r);
-  s_rotCos = cosf(r);
-}
-
+// North is always at the top. No rotation.
 static void project(float lat, float lon, double clat, double clon,
                     float rangeKm, int* sx, int* sy) {
   float latr = clat * 0.0174532925f;
   float dxKm = (lon - clon) * 111.0f * cosf(latr);
   float dyKm = (lat - clat) * 111.0f;
-  // Rotate the local east/north vector so that the chosen bearing ends up at
-  // the top: with top = 90 (looking east) a target due east appears up.
-  float rx = dxKm * s_rotCos - dyKm * s_rotSin;
-  float ry = dxKm * s_rotSin + dyKm * s_rotCos;
-  float scale = (float)R_RADIUS / rangeKm;   // px per km
-  *sx = R_CX + (int)(rx * scale);
-  *sy = R_CY - (int)(ry * scale);
+  float scale = (float)R_RADIUS / rangeKm;
+  *sx = R_CX + (int)(dxKm * scale);
+  *sy = R_CY - (int)(dyKm * scale);
 }
 
 static double s_viewLat = 0.0, s_viewLon = 0.0;
 static void cityProject(float lat, float lon, int* sx, int* sy) {
-  project(lat, lon, s_viewLat, s_viewLon, currentRange(), sx, sy);
+  uint8_t prov = Settings_MapProvider();
+  if (prov != MAP_PROV_VECTOR && MapTiles_IsReady()) {
+    MapTiles_Project(lat, lon, sx, sy);
+  } else {
+    project(lat, lon, s_viewLat, s_viewLon, currentRange(), sx, sy);
+  }
 }
 
 // --- Altitude colour bands ---
@@ -212,6 +247,10 @@ void ScreenPlanes_Enter() {
   Async_SetActiveScreen(SCREEN_PLANES_I);
   Async_SetAdsbTarget(Settings_Lat(), Settings_Lon(), currentRange());
   Async_RequestAdsb();
+  uint8_t prov = Settings_MapProvider();
+  if (prov != MAP_PROV_VECTOR) {
+    MapTiles_Begin(prov, Settings_Lat(), Settings_Lon(), currentRange());
+  }
   s_nextFetch = 0;
   if (ADSB_IsFresh()) {
     s_dataOk = true;
@@ -229,8 +268,10 @@ bool ScreenPlanes_Tick() {
     if (!photoDone && s_selCacheOk && pState == PHOTO_IDLE) {
       photoDone = true;
     }
-    // The timeout counter begins once photo is resolved or timeout reached
-    if (s_detailOpenMs == 0) {
+    // Automatically close aircraft detail after timeout (inhibited while viewing fullscreen photo)
+    if (UI_IsPhotoFullscreen()) {
+      s_detailOpenMs = millis();
+    } else if (s_detailOpenMs == 0) {
       if (photoDone || (millis() - s_detailSelectMs >= 15000UL)) {
         s_detailOpenMs = millis();
       }
@@ -240,6 +281,15 @@ bool ScreenPlanes_Tick() {
         return true;
       }
     }
+  }
+
+  static uint8_t s_lastProv = 0xFF;
+  uint8_t curProv = Settings_MapProvider();
+  bool provChanged = (curProv != s_lastProv);
+  if (provChanged) {
+    s_lastProv = curProv;
+    MapTiles_Begin(curProv, Settings_Lat(), Settings_Lon(), currentRange());
+    return true;
   }
 
   bool routeChanged = Async_TakeRouteUpdated() || Route_TakeChanged() || PlanePhoto_TakeChanged();
@@ -272,22 +322,20 @@ bool ScreenPlanes_HandleTap(int x, int y) {
     return true;
   }
   if (ScreenPlanes_DetailOpen()) {
-    // If photo is loaded and tap is on the photo box -> open fullscreen photo
-    if (PlanePhoto_GetState() == PHOTO_OK && x >= 130 && x <= 350 && y >= 40 && y <= 195) {
-      UI_SetPhotoFullscreen(true);
-      s_detailOpenMs = millis();
-      return true;
+    // Tap on photo box
+    if (x >= 130 && x <= 350 && y >= 40 && y <= 195) {
+      if (PlanePhoto_GetState() == PHOTO_OK) {
+        UI_SetPhotoFullscreen(true);
+        s_detailOpenMs = millis();
+        return true;
+      }
+      // Photo is still downloading or not available; do not close the detail panel
+      return false;
     }
     selectNone("tap mimo panel");
     return true;
   }
 
-  // Tap on Compass widget (top-right corner, 390, 85): toggle compass display
-  if (Settings_RadarShowCompass() && x >= 360 && x <= 425 && y >= 55 && y <= 125) {
-    Settings_SetRadarShowCompass(false);
-    Buzzer_Play(BEEP_CLICK);
-    return true;
-  }
   // Find the aircraft nearest the tap (within 30 px), then remember *which
   // aircraft* it was, not where it happened to sit in the list.
   int best = -1;
@@ -315,6 +363,10 @@ void ScreenPlanes_ChangeRange(int dir) {
   Serial.printf("ADSB range: %.0f km\n", currentRange());
   Async_SetAdsbTarget(Settings_Lat(), Settings_Lon(), currentRange());
   Async_RequestAdsb();
+  uint8_t prov = Settings_MapProvider();
+  if (prov != MAP_PROV_VECTOR) {
+    MapTiles_Begin(prov, Settings_Lat(), Settings_Lon(), currentRange());
+  }
 }
 
 void ScreenPlanes_RangeText(char* out, size_t cap) {
@@ -351,10 +403,20 @@ void ScreenPlanes_SelectFirst() {
 }
 
 void ScreenPlanes_Draw() {
-  gfx->fillScreen(C_BLACK);
-  Layout_Begin();
-  refreshRotation();           // pick up a changed rotation setting
+  uint8_t prov = Settings_MapProvider();
   float range = currentRange();
+
+  if (prov != MAP_PROV_VECTOR) {
+    if (MapTiles_IsReady()) {
+      MapTiles_Draw(gfx);
+    } else {
+      gfx->fillScreen(C_BLACK);
+    }
+  } else {
+    gfx->fillScreen(C_BLACK);
+  }
+
+  Layout_Begin();
 
   // Reserve the chrome BEFORE the map is drawn. City labels and callsigns are
   // placed by data rather than by design, so they have to lose the argument -
@@ -413,10 +475,14 @@ void ScreenPlanes_Draw() {
   const float  lat0 = clat - dLat, lat1 = clat + dLat;
   const float  lon0 = clon - dLon, lon1 = clon + dLon;
 
-  EuBorder_Draw(cityProject, C_GRAY, lat0, lat1, lon0, lon1);
+  if (prov == MAP_PROV_VECTOR || !MapTiles_IsReady()) {
+    EuBorder_Draw(cityProject, C_GRAY, lat0, lat1, lon0, lon1);
+  }
 
   // Cities as an underlay (below the aircraft, so it is clear where they are).
-  {
+  // Esri Dark has no baked city labels, so EuBorder_DrawCities is rendered.
+  // OSM has all city labels pre-rendered into the PNG tiles, so we skip it to prevent double-text.
+  if (prov != MAP_PROV_OSM || !MapTiles_IsReady()) {
     int rad = LCD_WIDTH / 2 - 4;
     bool showFull = (range <= 25.0f);    // full names only at close range
     uint8_t maxTier;
@@ -438,6 +504,9 @@ void ScreenPlanes_Draw() {
     gfx->drawCircle(R_CX, R_CY, LCD_WIDTH / 2 - 2, C_DKGRAY);
     gfx->drawCircle(R_CX, R_CY, LCD_WIDTH / 4, C_DKGRAY);
   }
+
+  // Modern 360-degree aviation compass rose bezel (underlay)
+  UI_DrawCompassRose(R_CX, R_CY, R_RADIUS);
   if (emergIdx < 0) {
     UI_DrawHomeMarker(R_CX, R_CY);
   } else {
@@ -501,7 +570,7 @@ void ScreenPlanes_Draw() {
 
     if (!em && !watched && !passesFilter(list[i])) continue;
     int sx, sy;
-    project(list[i].lat, list[i].lon, clat, clon, range, &sx, &sy);
+    cityProject(list[i].lat, list[i].lon, &sx, &sy);
     int dx = sx - R_CX, dy = sy - R_CY;
     if (dx * dx + dy * dy > R_RADIUS * R_RADIUS) continue;   // outside the circle
     s_planeX[i] = sx; s_planeY[i] = sy;
@@ -531,77 +600,159 @@ void ScreenPlanes_Draw() {
       PlaneTrail_Draw(list[i].hex, cityProject, col, sx, sy);
     }
 
-    float screenTrack = list[i].track - (float)s_topDeg;
+    float screenTrack = list[i].track;
     while (screenTrack < 0.0f) screenTrack += 360.0f;
-    drawPlane(sx, sy, screenTrack, list[i].hasTrack, col, iconType);
+    if (Settings_RadarBlipStyle() == RADAR_BLIP_CHEVRON) {
+      Aircraft_DrawChevron(gfx, sx, sy, screenTrack, list[i].hasTrack, col, iconType, (i == selIdx), isMil);
+    } else {
+      drawPlane(sx, sy, screenTrack, list[i].hasTrack, col, iconType);
+    }
 
-    // Label with smart multi-positioning and size fallback
+    // Forward velocity vector leader line (1-minute projected flight track)
+    if (list[i].hasTrack && list[i].gsKt > 25.0f) {
+      float vDistKm = (list[i].gsKt * 1.852f / 60.0f);
+      float vLen = vDistKm * ((float)R_RADIUS / range);
+      if (vLen < 6.0f) vLen = 6.0f;
+      if (vLen > 28.0f) vLen = 28.0f;
+      float vRad = (screenTrack - 90.0f) * 0.0174532925f;
+      int vx = sx + (int)roundf(cosf(vRad) * vLen);
+      int vy = sy + (int)roundf(sinf(vRad) * vLen);
+      gfx->drawLine(sx, sy, vx, vy, col);
+      gfx->drawPixel(vx, vy, C_WHITE);
+    }
+
+    // Stacked avionics callout tags (CALLSIGN, FLxxx +vs, Speed / Route)
     if (Settings_ShowLegends() && emergIdx < 0) {
-      char label[24];
       const char* rawLabel = list[i].callsign[0] ? list[i].callsign : list[i].hex;
       if (rawLabel[0]) {
-        if (list[i].baroRate > 300.0f) {
-          snprintf(label, sizeof(label), "%s^", rawLabel);
-        } else if (list[i].baroRate < -300.0f) {
-          snprintf(label, sizeof(label), "%sv", rawLabel);
+        const RouteInfo* rt = list[i].callsign[0] ? Route_GetCached(list[i].callsign) : nullptr;
+        char l1[16];
+        bool hasRoute = (rt && rt->iataFrom[0] && rt->iataTo[0]);
+        if (hasRoute) {
+          snprintf(l1, sizeof(l1), "%s>%s", rt->iataFrom, rt->iataTo);
         } else {
-          strncpy(label, rawLabel, sizeof(label) - 1);
-          label[sizeof(label) - 1] = '\0';
+          strncpy(l1, rawLabel, sizeof(l1) - 1);
+          l1[sizeof(l1) - 1] = '\0';
         }
 
-        uint16_t lCol = em ? C_RED : (watched ? C_GREEN : C_WHITE);
-        // Smart placement: try below (size 2), above (size 2), right (size 2), then size 1 fallbacks
-        struct Cand { int dx; int dy; uint8_t size; };
-        const Cand cands[] = {
-          { 0,  18, 2 },   // Centered below (Size 2)
-          { 0, -20, 2 },   // Centered above (Size 2)
-          { 14, -6, 2 },   // To the right (Size 2)
-          { 0,  16, 1 },   // Centered below (Size 1)
-          { 0, -14, 1 },   // Centered above (Size 1)
-          { 12, -4, 1 }    // To the right (Size 1)
+        const bool metric = Settings_MetricUnits();
+        char l2[24] = "";
+        if (altKnown) {
+          if (metric) {
+            int altM = (int)roundf(list[i].altFt * 0.3048f);
+            int vsM = (int)roundf(fabsf(list[i].baroRate) * 0.00508f);
+            if (list[i].baroRate > 300.0f) {
+              snprintf(l2, sizeof(l2), "%dm +%dm/s", altM, vsM);
+            } else if (list[i].baroRate < -300.0f) {
+              snprintf(l2, sizeof(l2), "%dm -%dm/s", altM, vsM);
+            } else {
+              snprintf(l2, sizeof(l2), "%dm", altM);
+            }
+          } else {
+            int fl = (int)roundf(list[i].altFt / 100.0f);
+            int vs = (int)roundf(fabsf(list[i].baroRate) / 100.0f);
+            if (list[i].baroRate > 300.0f) {
+              if (fl >= 100) snprintf(l2, sizeof(l2), "FL%d +%02d", fl, vs);
+              else          snprintf(l2, sizeof(l2), "%dft +%02d", (int)list[i].altFt, vs);
+            } else if (list[i].baroRate < -300.0f) {
+              if (fl >= 100) snprintf(l2, sizeof(l2), "FL%d -%02d", fl, vs);
+              else          snprintf(l2, sizeof(l2), "%dft -%02d", (int)list[i].altFt, vs);
+            } else {
+              if (fl >= 100) snprintf(l2, sizeof(l2), "FL%d", fl);
+              else          snprintf(l2, sizeof(l2), "%dft", (int)list[i].altFt);
+            }
+          }
+        }
+
+        char l3[24] = "";
+        if (list[i].gsKt > 20.0f) {
+          if (metric) {
+            int spdKmh = (int)roundf(list[i].gsKt * 1.852f);
+            snprintf(l3, sizeof(l3), "%dkm/h", spdKmh);
+          } else {
+            int spdKt = (int)roundf(list[i].gsKt);
+            snprintf(l3, sizeof(l3), "%dkts", spdKt);
+          }
+        }
+
+        if (list[i].callsign[0] && !rt) {
+          bool shouldQueue = (dGnd <= 35.0f) || (i == closestIdx) || (selIdx >= 0 && i == selIdx);
+          if (shouldQueue) {
+            Route_Queue(list[i].callsign, list[i].lat, list[i].lon);
+          }
+        }
+
+        uint16_t lCol = em ? C_RED : (watched ? C_GREEN : (isMil ? C_RED : (hasRoute ? C_YELLOW : (scat != SPEC_NONE ? sCol : col))));
+
+        int w1 = Layout_TextW(l1, FONT_SMALL);
+        int w2 = l2[0] ? Layout_TextW(l2, FONT_TINY) : 0;
+        int w3 = l3[0] ? Layout_TextW(l3, FONT_TINY) : 0;
+        int bw = w1;
+        if (w2 > bw) bw = w2;
+        if (w3 > bw) bw = w3;
+
+        const int h1 = 13;
+        const int hSub = 10;
+        int bh = h1 + (l2[0] ? hSub : 0) + (l3[0] ? hSub : 0);
+
+        auto inGlass = [](int x, int y) {
+          long dx = x - 240, dy = y - 240;
+          return (dx * dx + dy * dy) <= (228L * 228L);
         };
 
-        for (const auto& c : cands) {
-          int tw = Layout_TextW(label, c.size);
-          int th = LY_CHAR_H(c.size);
-          int tx = (c.dx == 0) ? (sx - tw / 2) : (sx + c.dx);
-          int ty = sy + c.dy;
-          auto inGlass = [](int x, int y) {
-            long dx = x - 240, dy = y - 240;
-            return (dx * dx + dy * dy) <= (228L * 228L);
-          };
-          if (!inGlass(tx, ty) || !inGlass(tx + tw, ty) || !inGlass(tx, ty + th) || !inGlass(tx + tw, ty + th)) continue;
-          if (Layout_Claim(tx - 2, ty - 1, tw + 4, th + 2)) {
-            UI_Text(label, tx, ty, lCol, c.size);
+        struct Cand { int dx; int dy; };
+        const Cand cands[] = {
+          { 15, -bh / 2 },          // Preferred: to the right
+          { -bw - 15, -bh / 2 },    // To the left
+          { -bw / 2, 16 },          // Centered below
+          { -bw / 2, -bh - 16 }     // Centered above
+        };
 
-            // Route label (e.g. "VIE>LHR") on the line below the callsign
-            if (list[i].callsign[0]) {
-              const RouteInfo* rt = Route_GetCached(list[i].callsign);
-              if (rt && rt->iataFrom[0] && rt->iataTo[0]) {
-                char rl[12];
-                snprintf(rl, sizeof(rl), "%s>%s", rt->iataFrom, rt->iataTo);
-                int rw = Layout_TextW(rl, 1);
-                int rh = LY_CHAR_H(1);
-                int rx = (c.dx == 0) ? (sx - rw / 2) : tx;
-                int ry = ty + th + 1;
-                if (inGlass(rx, ry) && inGlass(rx + rw, ry) && inGlass(rx, ry + rh) && inGlass(rx + rw, ry + rh)) {
-                  if (Layout_Claim(rx - 1, ry, rw + 2, rh + 1)) {
-                    UI_Text(rl, rx, ry, C_YELLOW, 1);
-                  }
-                }
-              } else if (!rt) {
-                // Only queue background route for close aircraft (<= 35 km), the nearest one, or selected
-                bool shouldQueue = (dGnd <= 35.0f) || (i == closestIdx) || (selIdx >= 0 && i == selIdx);
-                if (shouldQueue) {
-                  Route_Queue(list[i].callsign, list[i].lat, list[i].lon);
-                }
+        bool placed = false;
+        for (const auto& c : cands) {
+          int tx = sx + c.dx;
+          int ty = sy + c.dy;
+          if (!inGlass(tx - 3, ty - 2) || !inGlass(tx + bw + 3, ty - 2) ||
+              !inGlass(tx - 3, ty + bh + 2) || !inGlass(tx + bw + 3, ty + bh + 2)) continue;
+
+          if (Layout_Claim(tx - 3, ty - 2, bw + 6, bh + 4)) {
+            UI_Text(l1, tx, ty, lCol, FONT_SMALL);
+            int curY = ty + h1;
+            if (l2[0]) {
+              UI_Text(l2, tx, curY, RGB565(225, 235, 245), FONT_TINY);
+              curY += hSub;
+            }
+            if (l3[0]) {
+              uint16_t sCol = (rt && rt->iataFrom[0]) ? C_YELLOW : RGB565(0, 215, 250);
+              UI_Text(l3, tx, curY, sCol, FONT_TINY);
+            }
+
+            placed = true;
+            break;
+          }
+        }
+
+        if (!placed) {
+          int tw = w1;
+          int th = LY_CHAR_H(1);
+          struct MiniCand { int dx; int dy; };
+          const MiniCand mCands[] = {
+            { 14, -4 }, { -tw - 14, -4 }, { -tw / 2, 14 }, { -tw / 2, -14 }
+          };
+          for (const auto& mc : mCands) {
+            int tx = sx + mc.dx;
+            int ty = sy + mc.dy;
+            if (inGlass(tx - 2, ty - 1) && inGlass(tx + tw + 2, ty + th + 1)) {
+              if (Layout_Claim(tx - 2, ty - 1, tw + 4, th + 2)) {
+                UI_Text(l1, tx, ty, lCol, 1);
+                break;
               }
             }
-            break;
           }
         }
       }
     }
+
     shown++;
   }
 
@@ -633,8 +784,10 @@ void ScreenPlanes_Draw() {
                                                                : T(S_EMERGENCY);
     snprintf(sub, sizeof(sub), "! %s  %s !", alertCode, what);
     int tw = Layout_TextW(sub, 2);
-    gfx->fillRoundRect(LCD_WIDTH / 2 - tw / 2 - 8, LY_SUB - 4, tw + 16, 20, 5, C_RED);
-    UI_TextCentered(sub, LY_SUB - 1, C_WHITE, 2);
+    int pillW = tw + 16;
+    int pillX = LCD_WIDTH / 2 - pillW / 2;
+    gfx->fillRoundRect(pillX, LY_SUB - 4, pillW, 20, 5, C_RED);
+    UI_TextCenteredBox(sub, pillX, LY_SUB - 4, pillW, 20, C_WHITE, 2);
 
     // Emergency Telemetry HUD Card
     const int boxW = 320;
@@ -677,8 +830,10 @@ void ScreenPlanes_Draw() {
                                                                : T(S_EMERGENCY);
     snprintf(sub, sizeof(sub), "%s  %s", alertCode, what);
     int tw = Layout_TextW(sub, 2);
-    gfx->fillRoundRect(LCD_WIDTH / 2 - tw / 2 - 6, LY_SUB - 4, tw + 12, 20, 5, C_RED);
-    UI_TextCentered(sub, LY_SUB - 1, C_WHITE, 2);
+    int pillW = tw + 12;
+    int pillX = LCD_WIDTH / 2 - pillW / 2;
+    gfx->fillRoundRect(pillX, LY_SUB - 4, pillW, 20, 5, C_RED);
+    UI_TextCenteredBox(sub, pillX, LY_SUB - 4, pillW, 20, C_WHITE, 2);
   } else if (WiFi.status() != WL_CONNECTED) {
     UI_TextCentered(T(S_WIFI_WAIT), LY_SUB, C_YELLOW, 1);
   } else if (!s_dataOk || !ADSB_IsFresh()) {
@@ -703,10 +858,19 @@ void ScreenPlanes_Draw() {
   }
 
   // --- Altitude legend ---
-  // Five swatches in a continuous bar, with band boundaries (2 / 5 / 9 / 12 km).
+  // Five swatches in a continuous bar, with band boundaries (2 / 5 / 9 / 12 km or 65 / 165 / 300 / 400 FL).
   if (Settings_ShowLegends()) {
     const uint16_t cols[5] = {0x2FE6, 0xFDE0, 0x07FF, 0x3BDF, 0xF81F};
-    const char*    bounds[4] = {"2", "5", "9", "12"};   // km boundaries
+    const bool metric = Settings_MetricUnits();
+    const char* bounds[4];
+    const char* unitStr;
+    if (metric) {
+      bounds[0] = "2"; bounds[1] = "5"; bounds[2] = "9"; bounds[3] = "12";
+      unitStr = "km";
+    } else {
+      bounds[0] = "65"; bounds[1] = "165"; bounds[2] = "300"; bounds[3] = "400";
+      unitStr = "FL";
+    }
     const int sw = 22;                 // swatch width
     const int barW = 5 * sw;
     const int lx = R_CX - barW / 2;
@@ -723,40 +887,16 @@ void ScreenPlanes_Draw() {
       UI_Text(bounds[i], edge - tw / 2, ly + 10, C_GRAY, 1);
     }
     // Unit, just past the right end of the bar.
-    UI_Text("km", lx + barW + 4, ly + 10, C_GRAY, 1);
-  }
-
-  // --- Compass marks ---
-  // Bearing b appears on screen at angle (b - rotation), 0 = up, clockwise.
-  // --- Compass marks ---
-  // Bearing b appears on screen at angle (b - rotation), 0 = up, clockwise.
-  // Small size-1 letters at r = 205 slot in between the screen dots (y=18),
-  // the status line (y=30), the aircraft count (y=52) and the range row.
-  {
-    const int   cr = 205;
-    static const char* const LBL_EN[4] = { "N", "E", "S", "W" };
-    static const char* const LBL_CZ[4] = { "S", "V", "J", "Z" };
-    const char* const* lbl = (Lang_Get() == LANG_EN) ? LBL_EN : LBL_CZ;
-    const int   brg[4] = { 0, 90, 180, 270 };
-    for (int i = 0; i < 4; i++) {
-      // Bearing b shows up at screen angle (b - topBearing).
-      float a = (brg[i] - (int)s_topDeg) * 0.0174532925f;
-      int cxp = R_CX + (int)(cr * sinf(a)) - 3;   // -3/-4 centres the glyph
-      int cyp = R_CY - (int)(cr * cosf(a)) - 4;
-      UI_Text(lbl[i], cxp, cyp, C_GRAY, 1);
-    }
-  }
-
-  // --- Compass Widget (top right) ---
-  if (Settings_RadarShowCompass() && !ScreenPlanes_DetailOpen()) {
-    float needleAngle = 360.0f - (float)s_topDeg;
-    while (needleAngle < 0.0f) needleAngle += 360.0f;
-    UI_DrawCompassWidget(390, 85, 16, needleAngle, 0x2FE6, true);
+    UI_Text(unitStr, lx + barW + 4, ly + 10, C_GRAY, 1);
   }
 
   // Range indicator at the bottom
   char rbuf[16];
-  snprintf(rbuf, sizeof(rbuf), "%.0f km", range);
+  if (Settings_MetricUnits()) {
+    snprintf(rbuf, sizeof(rbuf), "%.0f km", range);
+  } else {
+    snprintf(rbuf, sizeof(rbuf), "%.0f NM", range * 0.539957f);
+  }
   UI_DrawRangeIndicator(rbuf, s_rangeIdx, RANGE_COUNT, true);
 
   // --- Detail of the selected aircraft (overlay) ---

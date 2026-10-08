@@ -10,6 +10,7 @@
 #include "Settings.h"
 #include <WiFi.h>
 #include <ArduinoJson.h>
+#include "SpiRamAllocator.h"
 
 static YouTubeStats s_ytData;
 static bool s_ytBusy = false;
@@ -97,13 +98,14 @@ bool YouTube_Step() {
   }
 
   JsonDocument chFilter;
+  chFilter["items"][0]["id"] = true;
   chFilter["items"][0]["snippet"]["title"] = true;
   chFilter["items"][0]["statistics"]["subscriberCount"] = true;
   chFilter["items"][0]["statistics"]["viewCount"] = true;
   chFilter["items"][0]["statistics"]["videoCount"] = true;
   chFilter["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"] = true;
 
-  JsonDocument chDoc;
+  JsonDocument chDoc(SpiRamAllocator::instance());
   DeserializationError err = deserializeJson(chDoc, body, DeserializationOption::Filter(chFilter));
   if (err || !chDoc["items"] || chDoc["items"].size() == 0) {
     Serial.printf("YouTube: JSON error or empty items: %s\n", err ? err.c_str() : "No channel items");
@@ -114,13 +116,18 @@ bool YouTube_Step() {
   }
 
   JsonObject item = chDoc["items"][0];
+  const char* chId = item["id"] | "";
   const char* title = item["snippet"]["title"] | "";
   const char* subsStr = item["statistics"]["subscriberCount"] | "0";
   const char* viewsStr = item["statistics"]["viewCount"] | "0";
   uint32_t vCount = item["statistics"]["videoCount"] | 0;
   const char* uploadsId = item["contentDetails"]["relatedPlaylists"]["uploads"] | "";
 
+  const uint8_t vMode = Settings_YouTubeVideoMode();
+
   Async_LockSettings();
+  strncpy(s_ytData.channelId, chId, sizeof(s_ytData.channelId) - 1);
+  s_ytData.channelId[sizeof(s_ytData.channelId) - 1] = '\0';
   strncpy(s_ytData.channelTitle, title, sizeof(s_ytData.channelTitle) - 1);
   s_ytData.channelTitle[sizeof(s_ytData.channelTitle) - 1] = '\0';
   s_ytData.subscriberCount = strtoull(subsStr, nullptr, 10);
@@ -128,10 +135,39 @@ bool YouTube_Step() {
   s_ytData.videoCount = vCount;
   strncpy(s_ytData.uploadsPlaylistId, uploadsId, sizeof(s_ytData.uploadsPlaylistId) - 1);
   s_ytData.uploadsPlaylistId[sizeof(s_ytData.uploadsPlaylistId) - 1] = '\0';
+  s_ytData.videoMode = vMode;
   Async_UnlockSettings();
 
-  // 2. Fetch Latest Uploaded Video (if uploads playlist exists)
-  if (strlen(uploadsId) > 0) {
+  bool videoFound = false;
+  String targetVideoId = "";
+  String targetVideoTitle = "";
+
+  // 2. Fetch Video (Most Viewed via search OR Latest via uploads playlist)
+  if (vMode == YT_MODE_MOST_VIEWED && strlen(chId) > 0) {
+    String searchUrl = "https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=" +
+                       urlEncode(chId) + "&order=viewCount&type=video&maxResults=1&key=" + urlEncode(apiKey);
+    String searchBody;
+    if (Net_GetString(searchUrl.c_str(), searchBody, "YouTube-Search")) {
+      JsonDocument sFilter;
+      sFilter["items"][0]["snippet"]["title"] = true;
+      sFilter["items"][0]["id"]["videoId"] = true;
+
+      JsonDocument sDoc(SpiRamAllocator::instance());
+      if (!deserializeJson(sDoc, searchBody, DeserializationOption::Filter(sFilter))) {
+        if (sDoc["items"] && sDoc["items"].size() > 0) {
+          JsonObject vidItem = sDoc["items"][0];
+          targetVideoTitle = (const char*)(vidItem["snippet"]["title"] | "");
+          targetVideoId = (const char*)(vidItem["id"]["videoId"] | "");
+          if (targetVideoId.length() > 0) {
+            videoFound = true;
+          }
+        }
+      }
+    }
+  }
+
+  // Fallback to Latest Video via uploads playlist if not found or if vMode == YT_MODE_LATEST
+  if (!videoFound && strlen(uploadsId) > 0) {
     String plUrl = "https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=" +
                    urlEncode(uploadsId) + "&maxResults=1&key=" + urlEncode(apiKey);
     String plBody;
@@ -140,39 +176,42 @@ bool YouTube_Step() {
       plFilter["items"][0]["snippet"]["title"] = true;
       plFilter["items"][0]["snippet"]["resourceId"]["videoId"] = true;
 
-      JsonDocument plDoc;
+      JsonDocument plDoc(SpiRamAllocator::instance());
       if (!deserializeJson(plDoc, plBody, DeserializationOption::Filter(plFilter))) {
         if (plDoc["items"] && plDoc["items"].size() > 0) {
           JsonObject vidItem = plDoc["items"][0];
-          const char* vTitle = vidItem["snippet"]["title"] | "";
-          const char* vId = vidItem["snippet"]["resourceId"]["videoId"] | "";
-
-          Async_LockSettings();
-          strncpy(s_ytData.latestVideoTitle, vTitle, sizeof(s_ytData.latestVideoTitle) - 1);
-          s_ytData.latestVideoTitle[sizeof(s_ytData.latestVideoTitle) - 1] = '\0';
-          strncpy(s_ytData.latestVideoId, vId, sizeof(s_ytData.latestVideoId) - 1);
-          s_ytData.latestVideoId[sizeof(s_ytData.latestVideoId) - 1] = '\0';
-          Async_UnlockSettings();
-
-          // 3. Fetch Views for this latest video
-          if (strlen(vId) > 0) {
-            String vidUrl = "https://www.googleapis.com/youtube/v3/videos?part=statistics&id=" +
-                            urlEncode(vId) + "&key=" + urlEncode(apiKey);
-            String vidBody;
-            if (Net_GetString(vidUrl.c_str(), vidBody, "YouTube-Vid")) {
-              JsonDocument vidFilter;
-              vidFilter["items"][0]["statistics"]["viewCount"] = true;
-              JsonDocument vidDoc;
-              if (!deserializeJson(vidDoc, vidBody, DeserializationOption::Filter(vidFilter))) {
-                if (vidDoc["items"] && vidDoc["items"].size() > 0) {
-                  const char* vViewsStr = vidDoc["items"][0]["statistics"]["viewCount"] | "0";
-                  Async_LockSettings();
-                  s_ytData.latestVideoViews = strtoull(vViewsStr, nullptr, 10);
-                  Async_UnlockSettings();
-                }
-              }
-            }
+          targetVideoTitle = (const char*)(vidItem["snippet"]["title"] | "");
+          targetVideoId = (const char*)(vidItem["snippet"]["resourceId"]["videoId"] | "");
+          if (targetVideoId.length() > 0) {
+            videoFound = true;
           }
+        }
+      }
+    }
+  }
+
+  if (videoFound && targetVideoId.length() > 0) {
+    Async_LockSettings();
+    strncpy(s_ytData.latestVideoTitle, targetVideoTitle.c_str(), sizeof(s_ytData.latestVideoTitle) - 1);
+    s_ytData.latestVideoTitle[sizeof(s_ytData.latestVideoTitle) - 1] = '\0';
+    strncpy(s_ytData.latestVideoId, targetVideoId.c_str(), sizeof(s_ytData.latestVideoId) - 1);
+    s_ytData.latestVideoId[sizeof(s_ytData.latestVideoId) - 1] = '\0';
+    Async_UnlockSettings();
+
+    // 3. Fetch Views for this video
+    String vidUrl = "https://www.googleapis.com/youtube/v3/videos?part=statistics&id=" +
+                    urlEncode(targetVideoId.c_str()) + "&key=" + urlEncode(apiKey);
+    String vidBody;
+    if (Net_GetString(vidUrl.c_str(), vidBody, "YouTube-Vid")) {
+      JsonDocument vidFilter;
+      vidFilter["items"][0]["statistics"]["viewCount"] = true;
+      JsonDocument vidDoc(SpiRamAllocator::instance());
+      if (!deserializeJson(vidDoc, vidBody, DeserializationOption::Filter(vidFilter))) {
+        if (vidDoc["items"] && vidDoc["items"].size() > 0) {
+          const char* vViewsStr = vidDoc["items"][0]["statistics"]["viewCount"] | "0";
+          Async_LockSettings();
+          s_ytData.latestVideoViews = strtoull(vViewsStr, nullptr, 10);
+          Async_UnlockSettings();
         }
       }
     }

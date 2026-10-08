@@ -37,6 +37,9 @@
 #include <math.h>
 #include <string.h>
 #include <esp_heap_caps.h>
+#include <lvgl.h>
+#include "PlanePhoto.h"
+#include "Route.h"
 
 #define ANIM_FRAMES  CHMU_ANIM_MAX   // 6
 
@@ -52,6 +55,7 @@ static int s_rangeIdx = 1;
 static float currentRange() { return RANGES_KM[s_rangeIdx]; }
 
 static PNG* s_png = nullptr;
+static uint16_t* s_radarFb = nullptr;
 static bool ensurePngDecoder() {
   if (!s_png) {
     s_png = (PNG*)heap_caps_malloc(sizeof(PNG), MALLOC_CAP_SPIRAM);
@@ -81,6 +85,7 @@ static int       s_frameCap[ANIM_FRAMES] = {0};
 static uint16_t* s_crop565 = nullptr;    // current target (pngDraw) / source (blit)
 static void updatePrecipTracker();
 static int       s_frameCount = 0;
+static bool      s_downsampled = false;
 
 // Animation state.
 static int  s_curFrame = 0;
@@ -234,24 +239,39 @@ static int pngDraw(PNGDRAW* d) {
   int srcY = d->y;
   if (srcY < s_crop.y1 || srcY > s_crop.y2) return 1;
   if (!s_crop565 || !s_lineBuf || !s_png) return 1;
-  s_png->getLineAsRGB565(d, s_lineBuf, PNG_RGB565_LITTLE_ENDIAN, 0x00000000);
+  s_png->getLineAsRGB565(d, s_lineBuf, PNG_RGB565_LITTLE_ENDIAN, 0xffffffff);
   const int cw = cropW();
-  uint16_t* row = s_crop565 + (int64_t)(srcY - s_crop.y1) * cw;
+  const int ch = cropH();
   const bool isShmu = shmuMode();
-  for (int i = 0; i < cw; i++) {
-    int srcX = s_crop.x1 + i;
-    // Black for: past the edge of the image (the crop may now stick out), past
-    // the data area on the right (colour scale), above the data area (title).
+
+  auto getCol = [&](int srcX) -> uint16_t {
     bool have = (srcX >= 0 && srcX < s_imgW && srcX <= s_dataX1 && srcY >= s_dataY0);
     uint16_t col = have ? s_lineBuf[srcX] : 0x0000;
-    if (isShmu) {
-      // In SHMU PNG, the no-coverage areas outside radar range are light grey (RGB 216/230, indices 65/66).
-      // Filter out these greys and pure white so they remain black on our dark display.
+    if (isShmu && have) {
       if (col == 0xE71C || col == 0xD6DA || col == 0xE73C || col == 0xD69A || col == 0xFFFF) {
         col = 0x0000;
       }
     }
-    row[i] = col;
+    return col;
+  };
+
+  if (s_downsampled) {
+    int sy = srcY - s_crop.y1;
+    int dstY_start = (sy * LCD_HEIGHT) / ch;
+    int dstY_end   = ((sy + 1) * LCD_HEIGHT - 1) / ch;
+    for (int dy = dstY_start; dy <= dstY_end; dy++) {
+      if (dy < 0 || dy >= LCD_HEIGHT) continue;
+      uint16_t* row = s_crop565 + dy * LCD_WIDTH;
+      for (int dx = 0; dx < LCD_WIDTH; dx++) {
+        int sx = (dx * cw) / LCD_WIDTH;
+        row[dx] = getCol(s_crop.x1 + sx);
+      }
+    }
+  } else {
+    uint16_t* row = s_crop565 + (int64_t)(srcY - s_crop.y1) * cw;
+    for (int i = 0; i < cw; i++) {
+      row[i] = getCol(s_crop.x1 + i);
+    }
   }
   return 1;
 }
@@ -261,7 +281,12 @@ static int pngDraw(PNGDRAW* d) {
 // no scaling at all.
 static void blitRainViewer(const uint16_t* fb) {
   if (!fb) return;
+  if (!s_radarFb) {
+    s_radarFb = (uint16_t*)heap_caps_malloc((size_t)LCD_WIDTH * LCD_HEIGHT * sizeof(uint16_t), MALLOC_CAP_SPIRAM);
+    if (!s_radarFb) return;
+  }
   const long R2 = (long)DISP_R * DISP_R;
+  memset(s_radarFb, 0, (size_t)LCD_WIDTH * LCD_HEIGHT * sizeof(uint16_t));
   for (int dy = 0; dy < LCD_HEIGHT; dy++) {
     long ddy = dy - CY;
     long room = R2 - ddy * ddy;
@@ -271,8 +296,10 @@ static void blitRainViewer(const uint16_t* fb) {
     if (x0 < 0) x0 = 0;
     if (x1 > LCD_WIDTH - 1) x1 = LCD_WIDTH - 1;
     const uint16_t* row = fb + (int32_t)dy * LCD_WIDTH;
-    for (int dx = x0; dx <= x1; dx++) gfx->drawPixel(dx, dy, row[dx]);
+    uint16_t* dst = s_radarFb + dy * LCD_WIDTH;
+    memcpy(dst + x0, row + x0, (x1 - x0 + 1) * sizeof(uint16_t));
   }
+  gfx->draw16bitRGBBitmap(0, 0, s_radarFb, LCD_WIDTH, LCD_HEIGHT);
 }
 
 struct ScaleMapX {
@@ -288,12 +315,38 @@ static ScaleMapX s_mapX[LCD_WIDTH];
 static void blitCrop() {
   const uint16_t* srcBuf = s_crop565;
   if (!srcBuf || s_frameCount <= 0) return;
+  if (s_downsampled) {
+    blitRainViewer(srcBuf);
+    return;
+  }
   const int cw = cropW(), ch = cropH();
   if (cw <= 0 || ch <= 0) return;
+  if (!s_radarFb) {
+    s_radarFb = (uint16_t*)heap_caps_malloc((size_t)LCD_WIDTH * LCD_HEIGHT * sizeof(uint16_t), MALLOC_CAP_SPIRAM);
+    if (!s_radarFb) return;
+  }
   const long R2 = (long)DISP_R * DISP_R;
   const bool smooth = Settings_SmoothRadar() && (cw > 1) && (ch > 1);
 
-  if (!smooth) {
+  memset(s_radarFb, 0, (size_t)LCD_WIDTH * LCD_HEIGHT * sizeof(uint16_t));
+
+  if (s_downsampled) {
+    for (int dy = 0; dy < LCD_HEIGHT; dy++) {
+      long ddy = dy - CY;
+      long room = R2 - ddy * ddy;
+      if (room <= 0) continue;
+      int half = (int)sqrtf((float)room);
+      int x0 = CX - half, x1 = CX + half;
+      if (x0 < 0) x0 = 0;
+      if (x1 >= LCD_WIDTH) x1 = LCD_WIDTH - 1;
+
+      const uint16_t* row = srcBuf + dy * LCD_WIDTH;
+      uint16_t* dst = s_radarFb + dy * LCD_WIDTH;
+      for (int dx = x0; dx <= x1; dx++) {
+        dst[dx] = row[dx];
+      }
+    }
+  } else if (!smooth) {
     for (int dy = 0; dy < LCD_HEIGHT; dy++) {
       long ddy = dy - CY;
       long room = R2 - ddy * ddy;
@@ -305,92 +358,96 @@ static void blitCrop() {
 
       int srcRow = clampI((int)((int64_t)dy * ch / LCD_HEIGHT), 0, ch - 1);
       const uint16_t* row = srcBuf + (int64_t)srcRow * cw;
+      uint16_t* dst = s_radarFb + dy * LCD_WIDTH;
       for (int dx = x0; dx <= x1; dx++) {
         int srcCol = clampI((int)((int64_t)dx * cw / LCD_WIDTH), 0, cw - 1);
-        gfx->drawPixel(dx, dy, row[srcCol]);
+        dst[dx] = row[srcCol];
       }
     }
-    return;
-  }
+  } else {
+    // Bilinear interpolation
+    for (int dx = 0; dx < LCD_WIDTH; dx++) {
+      int fx = (int)(((int64_t)dx * (cw - 1) * 256 + (LCD_WIDTH / 2)) / (LCD_WIDTH - 1));
+      int x0 = fx >> 8;
+      if (x0 < 0) x0 = 0;
+      if (x0 >= cw) x0 = cw - 1;
+      int x1 = (x0 < cw - 1) ? x0 + 1 : x0;
+      s_mapX[dx].x0 = (uint16_t)x0;
+      s_mapX[dx].x1 = (uint16_t)x1;
+      s_mapX[dx].qx = (uint8_t)(fx & 0xFF);
+    }
 
-  // Bilinear interpolation
-  for (int dx = 0; dx < LCD_WIDTH; dx++) {
-    int fx = (int)(((int64_t)dx * (cw - 1) * 256 + (LCD_WIDTH / 2)) / (LCD_WIDTH - 1));
-    int x0 = fx >> 8;
-    if (x0 < 0) x0 = 0;
-    if (x0 >= cw) x0 = cw - 1;
-    int x1 = (x0 < cw - 1) ? x0 + 1 : x0;
-    s_mapX[dx].x0 = (uint16_t)x0;
-    s_mapX[dx].x1 = (uint16_t)x1;
-    s_mapX[dx].qx = (uint8_t)(fx & 0xFF);
-  }
+    for (int dy = 0; dy < LCD_HEIGHT; dy++) {
+      long ddy = dy - CY;
+      long room = R2 - ddy * ddy;
+      if (room <= 0) continue;
+      int half = (int)sqrtf((float)room);
+      int sx0 = CX - half, sx1 = CX + half;
+      if (sx0 < 0) sx0 = 0;
+      if (sx1 >= LCD_WIDTH) sx1 = LCD_WIDTH - 1;
 
-  for (int dy = 0; dy < LCD_HEIGHT; dy++) {
-    long ddy = dy - CY;
-    long room = R2 - ddy * ddy;
-    if (room <= 0) continue;
-    int half = (int)sqrtf((float)room);
-    int sx0 = CX - half, sx1 = CX + half;
-    if (sx0 < 0) sx0 = 0;
-    if (sx1 >= LCD_WIDTH) sx1 = LCD_WIDTH - 1;
+      int fy = (int)(((int64_t)dy * (ch - 1) * 256 + (LCD_HEIGHT / 2)) / (LCD_HEIGHT - 1));
+      int y0 = fy >> 8;
+      if (y0 < 0) y0 = 0;
+      if (y0 >= ch) y0 = ch - 1;
+      int y1 = (y0 < ch - 1) ? y0 + 1 : y0;
+      int qy = fy & 0xFF;
+      int wy0 = 256 - qy;
+      int wy1 = qy;
 
-    int fy = (int)(((int64_t)dy * (ch - 1) * 256 + (LCD_HEIGHT / 2)) / (LCD_HEIGHT - 1));
-    int y0 = fy >> 8;
-    if (y0 < 0) y0 = 0;
-    if (y0 >= ch) y0 = ch - 1;
-    int y1 = (y0 < ch - 1) ? y0 + 1 : y0;
-    int qy = fy & 0xFF;
-    int wy0 = 256 - qy;
-    int wy1 = qy;
+      const uint16_t* r0 = srcBuf + (int64_t)y0 * cw;
+      const uint16_t* r1 = srcBuf + (int64_t)y1 * cw;
+      uint16_t* dst = s_radarFb + dy * LCD_WIDTH;
 
-    const uint16_t* r0 = srcBuf + (int64_t)y0 * cw;
-    const uint16_t* r1 = srcBuf + (int64_t)y1 * cw;
+      for (int dx = sx0; dx <= sx1; dx++) {
+        int x0 = s_mapX[dx].x0;
+        int x1 = s_mapX[dx].x1;
+        int qx = s_mapX[dx].qx;
 
-    for (int dx = sx0; dx <= sx1; dx++) {
-      int x0 = s_mapX[dx].x0;
-      int x1 = s_mapX[dx].x1;
-      int qx = s_mapX[dx].qx;
+        uint16_t c00 = r0[x0];
+        uint16_t c10 = r0[x1];
+        uint16_t c01 = r1[x0];
+        uint16_t c11 = r1[x1];
 
-      uint16_t c00 = r0[x0];
-      uint16_t c10 = r0[x1];
-      uint16_t c01 = r1[x0];
-      uint16_t c11 = r1[x1];
+        uint16_t outCol;
+        if ((c00 | c10 | c01 | c11) == 0) {
+          outCol = 0x0000;
+        } else if (c00 == c10 && c00 == c01 && c00 == c11) {
+          outCol = c00;
+        } else {
+          int w00 = (wy0 * (256 - qx)) >> 8;
+          int w10 = (wy0 * qx) >> 8;
+          int w01 = (wy1 * (256 - qx)) >> 8;
+          int w11 = (wy1 * qx) >> 8;
 
-      uint16_t outCol;
-      if ((c00 | c10 | c01 | c11) == 0) {
-        outCol = 0x0000;
-      } else if (c00 == c10 && c00 == c01 && c00 == c11) {
-        outCol = c00;
-      } else {
-        int w00 = (wy0 * (256 - qx)) >> 8;
-        int w10 = (wy0 * qx) >> 8;
-        int w01 = (wy1 * (256 - qx)) >> 8;
-        int w11 = (wy1 * qx) >> 8;
+          uint32_t r = ((c00 >> 11) & 0x1F) * w00 +
+                       ((c10 >> 11) & 0x1F) * w10 +
+                       ((c01 >> 11) & 0x1F) * w01 +
+                       ((c11 >> 11) & 0x1F) * w11;
 
-        uint32_t r = ((c00 >> 11) & 0x1F) * w00 +
-                     ((c10 >> 11) & 0x1F) * w10 +
-                     ((c01 >> 11) & 0x1F) * w01 +
-                     ((c11 >> 11) & 0x1F) * w11;
+          uint32_t g = ((c00 >> 5) & 0x3F) * w00 +
+                       ((c10 >> 5) & 0x3F) * w10 +
+                       ((c01 >> 5) & 0x3F) * w01 +
+                       ((c11 >> 5) & 0x3F) * w11;
 
-        uint32_t g = ((c00 >> 5) & 0x3F) * w00 +
-                     ((c10 >> 5) & 0x3F) * w10 +
-                     ((c01 >> 5) & 0x3F) * w01 +
-                     ((c11 >> 5) & 0x3F) * w11;
+          uint32_t b = (c00 & 0x1F) * w00 +
+                       (c10 & 0x1F) * w10 +
+                       (c01 & 0x1F) * w01 +
+                       (c11 & 0x1F) * w11;
 
-        uint32_t b = (c00 & 0x1F) * w00 +
-                     (c10 & 0x1F) * w10 +
-                     (c01 & 0x1F) * w01 +
-                     (c11 & 0x1F) * w11;
-
-        r >>= 8;
-        g >>= 8;
-        b >>= 8;
-        if (r < 1 && g < 2 && b < 1) outCol = 0x0000;
-        else outCol = (uint16_t)((r << 11) | (g << 5) | b);
+          r >>= 8;
+          g >>= 8;
+          b >>= 8;
+          if (r < 1 && g < 2 && b < 1) outCol = 0x0000;
+          else outCol = (uint16_t)((r << 11) | (g << 5) | b);
+        }
+        dst[dx] = outCol;
       }
-      gfx->drawPixel(dx, dy, outCol);
     }
   }
+
+  // Draw the entire radar frame in ONE single LVGL image task!
+  gfx->draw16bitRGBBitmap(0, 0, s_radarFb, LCD_WIDTH, LCD_HEIGHT);
 }
 
 // -----------------------------------------------------------------------------
@@ -419,6 +476,7 @@ static bool rebuildCrops() {
   }
   int bufSize = s_png->getBufferSize();
   int pitch = (s_imgH > 0) ? bufSize / s_imgH : bufSize;
+  Serial.printf("SHMU debug: w=%d h=%d pitch=%d max_pixels=%d\n", s_imgW, s_imgH, pitch, (int)PNG_MAX_BUFFERED_PIXELS);
   s_png->close();
   if (2 * (pitch + 1) > (int)PNG_MAX_BUFFERED_PIXELS) { s_wide = true; s_frameCount = 0; return false; }
   s_wide = false;
@@ -431,19 +489,30 @@ static bool rebuildCrops() {
   }
   if (!s_lineBuf) { s_frameCount = 0; return false; }
 
-  // Size the buffers for the WIDEST range there is, not for the current one.
-  int need = 0;
-  for (int r = 0; r < RANGE_COUNT; r++) {
-    makeCrop(Settings_Lat(), Settings_Lon(), RANGES_KM[r]);
-    int sz = cropW() * cropH();
-    if (sz > need) need = sz;
+  makeCrop(Settings_Lat(), Settings_Lon(), currentRange());
+  int need = cropW() * cropH();
+  s_downsampled = false;
+  if (need > LCD_WIDTH * LCD_HEIGHT) {
+    need = LCD_WIDTH * LCD_HEIGHT;
+    s_downsampled = true;
   }
-  makeCrop(Settings_Lat(), Settings_Lon(), currentRange());   // back to the real one
+
+  // Pre-check if ANY frame needs reallocation, and if so, free them ALL to avoid fragmentation!
+  bool reallocNeeded = false;
+  for (int f = 0; f < cnt; f++) {
+    if (s_frameCap[f] < need) { reallocNeeded = true; break; }
+  }
+  if (reallocNeeded) {
+    for (int f = 0; f < ANIM_FRAMES; f++) {
+      if (s_frame565[f]) heap_caps_free(s_frame565[f]);
+      s_frame565[f] = nullptr;
+      s_frameCap[f] = 0;
+    }
+  }
 
   int okc = 0;
   for (int f = 0; f < cnt; f++) {
-    if (s_frameCap[f] < need) {
-      if (s_frame565[f]) heap_caps_free(s_frame565[f]);
+    if (!s_frame565[f]) {
       s_frame565[f] = (uint16_t*)heap_caps_malloc((size_t)need * 2, MALLOC_CAP_SPIRAM);
       if (!s_frame565[f]) s_frame565[f] = (uint16_t*)malloc((size_t)need * 2);
       s_frameCap[f] = s_frame565[f] ? need : 0;
@@ -491,6 +560,10 @@ static void updatePrecipTracker() {
 }
 
 void ScreenWeather_FreeBuffers() {
+  if (s_radarFb) {
+    heap_caps_free(s_radarFb);
+    s_radarFb = nullptr;
+  }
   for (int f = 0; f < ANIM_FRAMES; f++) {
     if (s_frame565[f]) {
       heap_caps_free(s_frame565[f]);
@@ -523,17 +596,21 @@ static void loadAndBuild() {
   ScreenWeather_Draw();          // last good frame + the note
   gfx->flush();
 
-  // If Core 0 is currently in the middle of a short network request (~100-300 ms),
-  // yield cooperatively and feed watchdog to avoid simultaneous dual-core TLS handshakes.
+  // Core 0 worker task needs to be paused while ScreenWeather downloads
+  // heavy multi-frame radar radar images from SHMU/CHMU on Core 1 to guarantee
+  // zero concurrent TLS handshakes.
   uint32_t waitStart = millis();
-  while (Async_IsNetBusy() && (millis() - waitStart < 1500)) {
+  while (Async_IsNetBusy() && (millis() - waitStart < 2000)) {
     Watchdog_Feed();
     delay(20);
   }
+  Async_Pause();
 
   const int prevCount = s_frameCount;   // what we already have on screen
   int n = shmuMode() ? SHMU_FetchAnim(ANIM_FRAMES) : CHMU_FetchAnim(ANIM_FRAMES);
   bool ok = (n > 0) && rebuildCrops();
+
+  Async_Resume();
 
   // rebuildCrops() zeroes the frame count when it gives up. If we had frames
   // before, put them back rather than leaving the screen empty.
@@ -604,7 +681,7 @@ static void drawOverlay() {
     const int lx = 30, ly = 142, boxW = 96, boxH = 22 + 6 * 13 + 2;
     gfx->fillRoundRect(lx - 4, ly - 4, boxW + 4, boxH + 4, 8, C_BLACK);   // unified rounded HUD backing
     gfx->drawRoundRect(lx - 4, ly - 4, boxW + 4, boxH + 4, 8, 0x2104);   // subtle slate border
-    const char* srcText = rv ? "RainViewer" : (shmu ? "SHMÚ" : "ČHMÚ");
+    const char* srcText = rv ? "RainViewer" : (shmu ? "SHMU" : "CHMU");
     uint16_t    srcCol  = rv ? C_CYAN : (shmu ? C_WHITE : C_GREEN);
     UI_Text(srcText, lx, ly, srcCol, 1);
     UI_Text("dBZ / mm/h", lx, ly + 10, C_GRAY, 1);
@@ -645,8 +722,12 @@ static void drawOverlay() {
                                   : nullptr;
     if (note) {
       int nw = Layout_TextW(note, 1);
-      gfx->fillRoundRect(CX - nw / 2 - 8, LY_NOTE - 2, nw + 16, 14, 4, C_BLACK);
-      UI_TextCenteredIn(note, 0, LCD_WIDTH, LY_NOTE, C_YELLOW, 1);
+      int pillW = nw + 16;
+      int pillH = 14;
+      int pillX = CX - pillW / 2;
+      int pillY = LY_NOTE - 2;
+      gfx->fillRoundRect(pillX, pillY, pillW, pillH, 4, C_BLACK);
+      UI_TextCenteredBox(note, pillX, pillY, pillW, pillH, C_YELLOW, 1);
     } else if (Settings_PrecipAlert()) {
       const PrecipAlert* pa = PrecipTracker_GetAlert();
       if (pa && (pa->status == PRECIP_STAT_APPROACHING || pa->status == PRECIP_STAT_CURRENTLY_ACTIVE)) {
@@ -658,7 +739,7 @@ static void drawOverlay() {
         const int bx = CX - bw / 2, by = LY_NOTE - 4;
         gfx->fillRoundRect(bx, by, bw, bh, 6, bg);
         gfx->drawRoundRect(bx, by, bw, bh, 6, bcol);
-        UI_TextCenteredIn(pbuf, bx, bw, by + 5, C_WHITE, 1);
+        UI_TextCenteredBox(pbuf, bx, by, bw, bh, C_WHITE, 1);
       }
     }
   }
@@ -684,8 +765,55 @@ void ScreenWeather_RangeText(char* out, size_t cap) {
   else               snprintf(out, cap, "%.0f %s", currentRange(), T(S_KM));
 }
 
+// -----------------------------------------------------------------------------
+//  LVGL Integration
+// -----------------------------------------------------------------------------
+static lv_obj_t* s_screenObj = nullptr;
+static lv_timer_t* s_timer = nullptr;
+
+static void ScreenWeather_DrawMainCb(lv_event_t* e) {
+  lv_layer_t* layer = lv_event_get_layer(e);
+  gfx->layer = layer; // Hook our translation layer
+  ScreenWeather_Draw();
+  gfx->layer = nullptr;
+}
+
+static void ScreenWeather_EventCb(lv_event_t* e) {
+  // Legacy weather screen didn't do anything on short taps, but we could add something here if needed.
+}
+
+static void ScreenWeather_TimerCb(lv_timer_t* timer) {
+  if (UI_GetActiveScreen() != SCREEN_METEO_I) return;
+  
+  if (ScreenWeather_Tick()) {
+    lv_obj_invalidate(s_screenObj);
+  }
+}
+
+void ScreenWeather_Init(lv_obj_t* parent) {
+  s_screenObj = parent;
+  lv_obj_set_size(s_screenObj, LCD_WIDTH, LCD_HEIGHT);
+  lv_obj_set_style_bg_color(s_screenObj, lv_color_black(), 0);
+  lv_obj_set_style_border_width(s_screenObj, 0, 0);
+  lv_obj_set_style_radius(s_screenObj, 0, 0);
+  
+  // Clear default scrollable flag
+  lv_obj_set_scrollable(s_screenObj, false);
+  
+  // Attach LVGL handlers
+  lv_obj_add_event_cb(s_screenObj, ScreenWeather_DrawMainCb, LV_EVENT_DRAW_MAIN, NULL);
+  // Note: tap/swipe handling is done globally in UI.cpp (global_screen_event_cb).
+  // Do NOT add a competing CLICKED handler here - it interferes with the global handler.
+
+  // Setup the refresh timer
+  s_timer = lv_timer_create(ScreenWeather_TimerCb, 100, NULL);
+}
+
 void ScreenWeather_Enter() {
   Async_SetActiveScreen(SCREEN_METEO_I);
+  PlanePhoto_ClearCache();
+  Route_ClearQueue();
+  Route_Clear();
   // Invalidate frames if the radar provider has changed
   static uint8_t s_enterLastSrc = 255;
   uint8_t curSrc = Settings_RadarSource();
@@ -809,10 +937,10 @@ static bool tickRainViewer() {
     return true;
   }
   if (s_gap) {
-    if (now - s_gapStart >= 5000UL) { s_gap = false; s_curFrame = 0; s_lastStep = now; return true; }
+    if (now - s_gapStart >= 800UL) { s_gap = false; s_curFrame = 0; s_lastStep = now; return true; }
     return false;
   }
-  if (now - s_lastStep >= 500UL) {
+  if (now - s_lastStep >= 180UL) {
     s_lastStep = now;
     s_curFrame++;
     if (s_curFrame >= n) { s_curFrame = n - 1; s_gap = true; s_gapStart = now; }
@@ -906,10 +1034,10 @@ bool ScreenWeather_Tick() {
 
   // Animation step.
   if (s_gap) {
-    if (now - s_gapStart >= 5000UL) { s_gap = false; s_curFrame = 0; s_lastStep = now; return true; }
+    if (now - s_gapStart >= 1200UL) { s_gap = false; s_curFrame = 0; s_lastStep = now; return true; }
     return false;
   }
-  if (now - s_lastStep >= 500UL) {
+  if (now - s_lastStep >= 300UL) {
     s_lastStep = now;
     s_curFrame++;
     if (s_curFrame >= s_frameCount) { s_curFrame = s_frameCount - 1; s_gap = true; s_gapStart = now; }
@@ -983,7 +1111,7 @@ void ScreenWeather_Draw() {
     const int bw = 260, bh = 54;
     gfx->fillRoundRect(CX - bw / 2, CY - bh / 2, bw, bh, 12, C_DKGRAY);
     gfx->drawRoundRect(CX - bw / 2, CY - bh / 2, bw, bh, 12, C_CYAN);
-    const char* prov = rvMode() ? "RainViewer" : (shmuMode() ? "SHMÚ" : "ČHMÚ");
+    const char* prov = rvMode() ? "RainViewer" : (shmuMode() ? "SHMU" : "CHMU");
     UI_TextCentered(prov, CY - 16, C_WHITE, 1);
     const char* msg = (s_loading || RainViewer_Busy()) ? T(S_LOADING)
                     : s_wide ? T(S_FRAME_WIDE)

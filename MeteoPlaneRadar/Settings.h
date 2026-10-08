@@ -99,14 +99,33 @@ uint8_t     Settings_FinanceGraphType();
 void        Settings_SetFinanceGraphType(uint8_t type);
 
 // --- ISS Tracker ------------------------------------------------------------
+#define ISS_VIEW_3D_ISS   0
+#define ISS_VIEW_3D_HOME  1
+#define ISS_VIEW_2D_MAP   2
+
 bool        Settings_IssAlert();
 void        Settings_SetIssAlert(bool on);
+uint8_t     Settings_IssViewMode();
+void        Settings_SetIssViewMode(uint8_t mode);
+
+// --- Sonar Radar ------------------------------------------------------------
+#define SONAR_VIEW_PPI       0
+#define SONAR_VIEW_SPLIT     1
+#define SONAR_VIEW_WATERFALL 2
+
+uint8_t     Settings_SonarView();
+void        Settings_SetSonarView(uint8_t mode);
 
 // --- YouTube Analytics ------------------------------------------------------
+#define YT_MODE_LATEST      0
+#define YT_MODE_MOST_VIEWED 1
+
 const char* Settings_YouTubeApiKey();
 void        Settings_SetYouTubeApiKey(const char* key);
 const char* Settings_YouTubeChannel();
 void        Settings_SetYouTubeChannel(const char* ch);
+uint8_t     Settings_YouTubeVideoMode();
+void        Settings_SetYouTubeVideoMode(uint8_t mode);
 
 // --- AI Pet Companion -------------------------------------------------------
 bool        Settings_PetEnabled();
@@ -163,6 +182,13 @@ bool     Settings_RadarShowRings();
 void     Settings_SetRadarShowRings(bool on);
 bool     Settings_RadarShowCompass();
 void     Settings_SetRadarShowCompass(bool on);
+uint8_t  Settings_MapProvider();
+void     Settings_SetMapProvider(uint8_t prov);
+
+#define RADAR_BLIP_CHEVRON    0
+#define RADAR_BLIP_SILHOUETTE 1
+uint8_t  Settings_RadarBlipStyle();
+void     Settings_SetRadarBlipStyle(uint8_t style);
 
 // --- Aircraft filters and alerts --------------------------------------------
 uint16_t Settings_AltMinFt();
@@ -198,6 +224,8 @@ bool     Settings_BuzzerNightMute();
 void     Settings_SetBuzzerNightMute(bool on);
 bool     Settings_BuzzerPet();
 void     Settings_SetBuzzerPet(bool on);
+bool     Settings_SonarPing();
+void     Settings_SetSonarPing(bool on);
 
 // --- Precipitation alert ---------------------------------------------------
 bool     Settings_PrecipAlert();

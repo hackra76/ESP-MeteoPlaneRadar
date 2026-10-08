@@ -56,3 +56,5 @@ void WebConfig_RequestRedraw();
 bool WebConfig_TakeSelectPlane();
 bool WebConfig_TakePetToggle();
 void WebConfig_RequestPetToggle();
+bool WebConfig_TakeQuickControlToggle();
+void WebConfig_RequestQuickControlToggle();

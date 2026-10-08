@@ -5,6 +5,9 @@
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)
 // =============================================================================
 #include "ScreenForecast.h"
+
+static lv_obj_t* s_screenObj = nullptr;
+static lv_timer_t* s_timer = nullptr;
 #include "AsyncCore.h"
 #include "Forecast.h"
 #include "Settings.h"
@@ -12,6 +15,7 @@
 #include "Layout.h"
 #include "Lang.h"
 #include "UI.h"
+#include "PetDrawer.h"
 #include "Display_ST7701.h"
 #include "Config.h"
 
@@ -39,26 +43,9 @@
 
 static unsigned long s_lastSeen = 0;
 
-void ScreenForecast_Enter() {
-  Async_SetActiveScreen(SCREEN_FORECAST_I);
-  Async_RequestForecast();
-  s_lastSeen = 0;
-}
 
-bool ScreenForecast_Tick() {
-  bool forecastUpdated = Async_TakeForecastUpdated();
-  static bool lastValid = false;
-  static int  lastHour  = -1;
-  bool valid = Forecast_Valid();
-  time_t now = time(nullptr);
-  struct tm lt; localtime_r(&now, &lt);
-  if (forecastUpdated || valid != lastValid || lt.tm_hour != lastHour) {
-    lastValid = valid;
-    lastHour = lt.tm_hour;
-    return true;
-  }
-  return false;
-}
+
+
 
 // One text field, claimed before it is drawn so it can never sit on top of a
 // neighbour that turned out wider than expected.
@@ -69,22 +56,26 @@ static void field(const char* s, int x, int y, uint8_t size, uint16_t col) {
   UI_Text(s, x, y, col, size);
 }
 
-// A number with its unit beside it. The pair claims its space together, so a
-// unit can never be drawn without the number it belongs to.
+// A number with its unit beside it. The value is right-aligned inside a fixed
+// slot (slotSample = widest expected value) so every unit lands at the same x
+// and the units form a straight column; both use the same font and top edge so
+// they share a baseline. The pair claims its space together.
 static void valueWithUnit(const char* val, const char* unit,
-                          int x, int y, uint16_t col) {
+                          int x, int y, uint16_t col, const char* slotSample) {
   if (!val || !*val) return;
-  const int vw  = Layout_TextW(val, 2);
-  const int uw  = (unit && *unit) ? Layout_TextW(unit, 1) : 0;
-  const int gap = uw ? 3 : 0;
-  const int tot = vw + gap + uw;
+  const int vw   = Layout_TextW(val, 2);
+  const int slot = Layout_TextW(slotSample, 2);
+  const int uw   = (unit && *unit) ? Layout_TextW(unit, 1) : 0;
+  const int gap  = uw ? 3 : 0;
+  const int vx   = x + (slot > vw ? slot - vw : 0);
+  const int tot  = (vx - x) + vw + gap + uw;
 
   if (!Layout_Claim(x - 2, y - 2, tot + 4, LY_CHAR_H(2) + 4)) return;
 
-  UI_Text(val, x, y, col, 2);
+  UI_Text(val, vx, y, col, 2);
 
   if (uw) {
-    UI_Text(unit, x + vw + gap, y + 4, C_GRAY, 1);
+    UI_Text(unit, vx + vw + gap, y, C_GRAY, 1);
   }
 }
 
@@ -99,17 +90,17 @@ static void drawHourRow(const FcHour& h, int y) {
     WxIcon_Draw(COL_ICON, y + 12, 11, h.code, false);
 
   snprintf(buf, sizeof(buf), "%d", (int)lroundf(h.temp));
-  valueWithUnit(buf, OUTSIDE_DEG_TEXT, COL_TEMP, y + 5, WxIcon_Color(h.code));
+  valueWithUnit(buf, OUTSIDE_DEG_TEXT, COL_TEMP, y + 5, WxIcon_Color(h.code), "-88");
 
   // Precipitation is only interesting when there is some - a column of "0.0"
   // is noise, and the space is better spent on nothing at all.
   if (h.precip >= 0.05f) {
     snprintf(buf, sizeof(buf), "%.1f", h.precip);
-    valueWithUnit(buf, "mm", COL_PRECIP, y + 5, C_CYAN);
+    valueWithUnit(buf, "mm", COL_PRECIP, y + 5, C_CYAN, "88.8");
   }
 
   snprintf(buf, sizeof(buf), "%d", (int)lroundf(h.wind));
-  valueWithUnit(buf, "km/h", COL_WIND, y + 5, C_GRAY);
+  valueWithUnit(buf, "km/h", COL_WIND, y + 5, C_GRAY, "88");
 }
 
 static void drawDayRow(const FcDay& d, int y) {
@@ -129,11 +120,11 @@ static void drawDayRow(const FcDay& d, int y) {
 
   if (d.precip >= 0.05f) {
     snprintf(buf, sizeof(buf), "%.1f", d.precip);
-    valueWithUnit(buf, "mm", COL_PRECIP, y + 9, C_CYAN);
+    valueWithUnit(buf, "mm", COL_PRECIP, y + 9, C_CYAN, "88.8");
   }
 
   snprintf(buf, sizeof(buf), "%d", (int)lroundf(d.wind));
-  valueWithUnit(buf, "km/h", COL_WIND, y + 9, C_GRAY);
+  valueWithUnit(buf, "km/h", COL_WIND, y + 9, C_GRAY, "88");
 }
 
 // European AQI bands, coloured the way the index itself is published.
@@ -180,7 +171,7 @@ static void aqRow(int y, const char* label, const char* value, uint16_t valCol) 
   UI_Text(value, x0 + lw + gap, y, valCol, 2);
 }
 
-void ScreenForecast_Draw() {
+static void ScreenForecast_Draw() {
   gfx->fillScreen(C_BLACK);
   Layout_Begin();
 
@@ -261,4 +252,45 @@ void ScreenForecast_Draw() {
       aqRow(AQ_Y0 + line * AQ_H, lbl, val, pollenColor(pollen));
     }
   }
+}
+
+static void ScreenForecast_TimerCb(lv_timer_t* t) {
+  if (UI_GetActiveScreen() != SCREEN_FORECAST_I) return;
+  bool forecastUpdated = Async_TakeForecastUpdated();
+  static bool lastValid = false;
+  static int  lastHour  = -1;
+  bool valid = Forecast_Valid();
+  time_t now = time(nullptr);
+  struct tm lt; localtime_r(&now, &lt);
+  if (forecastUpdated || valid != lastValid || lt.tm_hour != lastHour) {
+    lastValid = valid;
+    lastHour = lt.tm_hour;
+    lv_obj_invalidate(s_screenObj);
+  }
+}
+
+static void ScreenForecast_EventCb(lv_event_t* e) {
+  lv_event_code_t code = lv_event_get_code(e);
+  if (code == LV_EVENT_DRAW_MAIN) {
+    lv_layer_t* layer = lv_event_get_layer(e);
+    gfx->setLayer(layer);
+    ScreenForecast_Draw();
+    gfx->setLayer(nullptr);
+  } else if (code == LV_EVENT_SCREEN_LOAD_START) {
+    Async_SetActiveScreen(SCREEN_FORECAST_I);
+    Async_RequestForecast();
+    s_lastSeen = 0;
+  }
+}
+
+void ScreenForecast_Init(lv_obj_t* parent) {
+  s_screenObj = parent;
+  lv_obj_set_size(s_screenObj, 480, 480);
+  lv_obj_center(s_screenObj);
+  lv_obj_set_scrollable(s_screenObj, false);
+  lv_obj_set_clickable(s_screenObj, true);
+
+  lv_obj_add_event_cb(s_screenObj, ScreenForecast_EventCb, LV_EVENT_ALL, nullptr);
+
+  s_timer = lv_timer_create(ScreenForecast_TimerCb, 1000, nullptr);
 }

@@ -542,6 +542,66 @@ void Aircraft_DrawIcon(Arduino_GFX* g, int x, int y, float trackDeg, bool hasTra
   }
 }
 
+void Aircraft_DrawChevron(Arduino_GFX* g, int x, int y, float trackDeg, bool hasTrack, uint16_t col, AircraftIconType iconType, bool isSelected, bool isMil) {
+  if (!g) return;
+
+  if (!hasTrack) {
+    uint16_t ringCol = (isMil || iconType == ICON_MILITARY_JET) ? C_RED : col;
+    g->fillCircle(x, y, 7, RGB565(8, 12, 18));
+    g->drawCircle(x, y, 6, ringCol);
+    g->fillCircle(x, y, 2, ringCol);
+    return;
+  }
+
+  float a = trackDeg * 0.0174532925f;
+  float ca = cosf(a), sa = sinf(a);
+  auto rot = [&](float right, float fwd, int* ox, int* oy) {
+    *ox = x + (int)roundf(right * ca + fwd * sa);
+    *oy = y + (int)roundf(right * sa - fwd * ca);
+  };
+
+  int nx, ny, rx, ry, cx, cy, lx, ly;
+  rot( 0.0f, 10.0f, &nx, &ny); // nose tip
+  rot( 7.0f, -7.0f, &rx, &ry); // right wingtip
+  rot( 0.0f, -1.0f, &cx, &cy); // center notch
+  rot(-7.0f, -7.0f, &lx, &ly); // left wingtip
+
+  // Contrast dark underlay circle
+  g->fillCircle(x, y, 9, RGB565(8, 12, 18));
+
+  // Solid chevron wings
+  g->fillTriangle(nx, ny, rx, ry, cx, cy, col);
+  g->fillTriangle(nx, ny, cx, cy, lx, ly, col);
+
+  // Sharp leading edge glint in white
+  g->drawLine(nx, ny, rx, ry, C_WHITE);
+  g->drawLine(nx, ny, lx, ly, C_WHITE);
+
+  // Military jet / tactical bogey: secondary trailing chevron
+  if (isMil || iconType == ICON_MILITARY_JET) {
+    int m_nx, m_ny, m_rx, m_ry, m_cx, m_cy, m_lx, m_ly;
+    rot( 0.0f,  -3.0f, &m_nx, &m_ny);
+    rot( 6.0f, -12.0f, &m_rx, &m_ry);
+    rot( 0.0f,  -8.0f, &m_cx, &m_cy);
+    rot(-6.0f, -12.0f, &m_lx, &m_ly);
+
+    g->fillTriangle(m_nx, m_ny, m_rx, m_ry, m_cx, m_cy, C_RED);
+    g->fillTriangle(m_nx, m_ny, m_cx, m_cy, m_lx, m_ly, C_RED);
+    g->drawLine(m_nx, m_ny, m_rx, m_ry, C_WHITE);
+    g->drawLine(m_nx, m_ny, m_lx, m_ly, C_WHITE);
+  } else if (iconType == ICON_HELICOPTER) {
+    int hx, hy;
+    rot(0.0f, 1.0f, &hx, &hy);
+    g->fillCircle(hx, hy, 2, C_WHITE);
+  }
+
+  // Selected aircraft acquisition reticle
+  if (isSelected) {
+    g->drawCircle(x, y, 15, C_WHITE);
+    g->drawCircle(x, y, 16, col);
+  }
+}
+
 const char* Aircraft_GetCategoryName(AircraftIconType iconType) {
   uint8_t lang = Lang_Get();
   switch (iconType) {

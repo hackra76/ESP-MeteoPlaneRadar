@@ -42,7 +42,7 @@ static uint8_t s_tapCount = 0;
 // Tap detection parameters
 #include "AsyncCore.h"
 
-#define TAP_THRESHOLD_DIFF  0.42f   // Peak jerk difference in g
+#define TAP_THRESHOLD_DIFF  0.30f   // Peak jerk difference in g
 #define TAP_MIN_INTERVAL_MS 70      // Min time between tap 1 and tap 2 (debounces initial vibration)
 #define TAP_MAX_INTERVAL_MS 480     // Max window for second tap
 #define DOUBLE_TAP_LOCKOUT  550     // Lockout window after double-tap trigger

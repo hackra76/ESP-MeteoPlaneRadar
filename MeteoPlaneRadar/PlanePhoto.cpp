@@ -12,16 +12,39 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include "SpiRamAllocator.h"
 #include "esp_heap_caps.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "RainViewer.h"
+#include "CHMU.h"
+#include "SHMU.h"
+#include "ScreenWeather.h"
+#include "ScreenTactical.h"
 
 #define STB_IMAGE_STATIC
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_ONLY_JPEG
 #define STBI_NO_STDIO
+static void* stbi_realloc_safe(void* ptr, size_t new_size) {
+  if (new_size == 0) {
+    heap_caps_free(ptr);
+    return nullptr;
+  }
+  if (!ptr) {
+    return heap_caps_malloc(new_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  }
+  void* new_ptr = heap_caps_malloc(new_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  if (!new_ptr) return nullptr;
+  size_t old_size = heap_caps_get_allocated_size(ptr);
+  size_t copy_size = (old_size < new_size) ? old_size : new_size;
+  memcpy(new_ptr, ptr, copy_size);
+  heap_caps_free(ptr);
+  return new_ptr;
+}
+
 #define STBI_MALLOC(sz)      heap_caps_malloc(sz, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)
-#define STBI_REALLOC(p, sz)  heap_caps_realloc(p, sz, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)
+#define STBI_REALLOC(p, sz)  stbi_realloc_safe(p, sz)
 #define STBI_FREE(p)         heap_caps_free(p)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
@@ -134,24 +157,6 @@ void PlanePhoto_Clear() {
   lock();
   s_activeSlot = -1;
   s_pending = false;
-  if (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) < 1500000) {
-    for (int i = 0; i < PHOTO_CACHE_N; i++) {
-      if (s_cache[i].rgb565) {
-        heap_caps_free(s_cache[i].rgb565);
-        s_cache[i].rgb565 = nullptr;
-      }
-      s_cache[i].state = PHOTO_IDLE;
-    }
-    if (s_tempJpeg) {
-      heap_caps_free(s_tempJpeg);
-      s_tempJpeg = nullptr;
-    }
-  }
-  unlock();
-}
-
-void PlanePhoto_ClearCache() {
-  lock();
   for (int i = 0; i < PHOTO_CACHE_N; i++) {
     if (s_cache[i].rgb565) {
       heap_caps_free(s_cache[i].rgb565);
@@ -169,9 +174,11 @@ void PlanePhoto_ClearCache() {
     heap_caps_free(s_tempJpeg);
     s_tempJpeg = nullptr;
   }
-  s_activeSlot = -1;
-  s_pending = false;
   unlock();
+}
+
+void PlanePhoto_ClearCache() {
+  PlanePhoto_Clear();
 }
 
 bool PlanePhoto_HasPending() {
@@ -229,6 +236,7 @@ const uint16_t* PlanePhoto_GetRgb565(int* outW, int* outH) {
 // Perform query to Planespotters.net API
 static bool queryPlanespotters(const char* kind, const char* value, char* thumbUrl, size_t thumbUrlCap, char* photographer, size_t photogCap) {
   if (!value || !*value) return false;
+  if (!Net_HeapOk("PHOTO_META")) return false;
 
   char url[128];
   snprintf(url, sizeof(url), "https://api.planespotters.net/pub/photos/%s/%s", kind, value);
@@ -250,6 +258,7 @@ static bool queryPlanespotters(const char* kind, const char* value, char* thumbU
   Watchdog_Feed();
   int code = http.GET();
   if (code != 200) {
+    Serial.printf("PlanePhoto: Planespotters API HTTP %d for %s\n", code, url);
     while (client.available()) client.read();
     http.end();
     client.stop();
@@ -269,7 +278,7 @@ static bool queryPlanespotters(const char* kind, const char* value, char* thumbU
   filter["photos"][0]["thumbnail"]["src"] = true;
   filter["photos"][0]["photographer"] = true;
 
-  JsonDocument doc;
+  JsonDocument doc(SpiRamAllocator::instance());
   DeserializationError err = deserializeJson(doc, jsonBuf, DeserializationOption::Filter(filter));
 
   if (err || !doc["photos"].is<JsonArrayConst>() || doc["photos"].size() == 0) {
@@ -306,6 +315,7 @@ static bool downloadJpeg(const char* url, uint8_t* dstBuf, size_t* dstLen) {
   http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
 
   bool isHttps = (strncmp(url, "https://", 8) == 0);
+  if (isHttps && !Net_HeapOk("PHOTO_IMG")) return false;
   WiFiClientSecure clientSecure;
   WiFiClient clientPlain;
 
@@ -351,6 +361,7 @@ static bool downloadJpeg(const char* url, uint8_t* dstBuf, size_t* dstLen) {
     *dstLen = (size_t)got;
     return true;
   }
+  Serial.printf("PlanePhoto: downloadJpeg got invalid body (%ld B) for %s\n", got, url);
   return false;
 }
 
@@ -367,6 +378,18 @@ void PlanePhoto_Tick() {
   strncpy(hex, s_cache[slot].hex, sizeof(hex) - 1);
   unlock();
 
+  // Proactively free idle radar buffers if PSRAM is tight (< 1.2 MB free)
+  if (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) < 1200000) {
+    RainViewer_FreeBuffers();
+    CHMU_FreeBuffers();
+    SHMU_FreeBuffers();
+    ScreenWeather_FreeBuffers();
+    ScreenTactical_FreeBuffers();
+  }
+
+  Serial.printf("PlanePhoto: Fetching for reg='%s' hex='%s' (Free PSRAM: %u B)\n",
+                reg, hex, (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+
   char thumbUrl[256] = "";
   char photog[36] = "";
   bool found = false;
@@ -379,6 +402,15 @@ void PlanePhoto_Tick() {
   }
 
   if (found && thumbUrl[0]) {
+    lock();
+    bool aborted = (!s_pending || s_activeSlot != slot);
+    unlock();
+    if (aborted) {
+      if (s_tempJpeg) { heap_caps_free(s_tempJpeg); s_tempJpeg = nullptr; }
+      return;
+    }
+
+    Serial.printf("PlanePhoto: Found URL: %s (Photographer: %s)\n", thumbUrl, photog);
     if (!s_tempJpeg) {
       s_tempJpeg = (uint8_t*)heap_caps_malloc(PHOTO_BUF_MAX, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     }
@@ -397,9 +429,33 @@ void PlanePhoto_Tick() {
       size_t jpegLen = 0;
       if (downloadJpeg(fetchUrl, s_tempJpeg, &jpegLen) || downloadJpeg(thumbUrl, s_tempJpeg, &jpegLen)) {
         Watchdog_Feed();
+
+        lock();
+        aborted = (!s_pending || s_activeSlot != slot);
+        unlock();
+        if (aborted) {
+          if (s_tempJpeg) { heap_caps_free(s_tempJpeg); s_tempJpeg = nullptr; }
+          return;
+        }
+
         int w = 0, h = 0, channels = 0;
         stbi_uc* rgb = stbi_load_from_memory(s_tempJpeg, (int)jpegLen, &w, &h, &channels, 3);
+
+        // Immediately free temporary JPEG download buffer since decoding is done
+        if (s_tempJpeg) {
+          heap_caps_free(s_tempJpeg);
+          s_tempJpeg = nullptr;
+        }
+
         if (rgb && w > 0 && h > 0 && w <= 320 && h <= 240) {
+          lock();
+          aborted = (!s_pending || s_activeSlot != slot);
+          unlock();
+          if (aborted) {
+            stbi_image_free(rgb);
+            return;
+          }
+
           size_t pixelCount = (size_t)w * (size_t)h;
           uint16_t* rgb565 = (uint16_t*)heap_caps_malloc(pixelCount * sizeof(uint16_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
           if (rgb565) {
@@ -412,6 +468,11 @@ void PlanePhoto_Tick() {
             stbi_image_free(rgb);
 
             lock();
+            if (!s_pending || s_activeSlot != slot) {
+              unlock();
+              heap_caps_free(rgb565);
+              return;
+            }
             if (s_cache[slot].rgb565) heap_caps_free(s_cache[slot].rgb565);
             s_cache[slot].rgb565 = rgb565;
             s_cache[slot].width = w;
@@ -422,21 +483,33 @@ void PlanePhoto_Tick() {
             s_pending = false;
             s_changed = true;
             unlock();
+            Serial.printf("PlanePhoto: Photo loaded and decoded: %dx%d for %s\n", w, h, reg[0] ? reg : hex);
             return;
           }
           stbi_image_free(rgb);
         } else if (rgb) {
           stbi_image_free(rgb);
+        } else {
+          Serial.printf("PlanePhoto: stbi_load_from_memory failed for %s (len=%u, Free PSRAM=%u B)\n",
+                        reg[0] ? reg : hex, (unsigned)jpegLen, (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
         }
       }
     }
   }
 
+  if (s_tempJpeg) {
+    heap_caps_free(s_tempJpeg);
+    s_tempJpeg = nullptr;
+  }
+
   // No photo found or decode failed
+  Serial.printf("PlanePhoto: No photo available or decode failed for %s / %s\n", reg[0] ? reg : "-", hex[0] ? hex : "-");
   lock();
-  s_cache[slot].state = PHOTO_NONE;
-  s_cache[slot].stamp = millis();
-  s_pending = false;
-  s_changed = true;
+  if (s_pending && s_activeSlot == slot) {
+    s_cache[slot].state = PHOTO_NONE;
+    s_cache[slot].stamp = millis();
+    s_pending = false;
+    s_changed = true;
+  }
   unlock();
 }

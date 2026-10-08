@@ -157,9 +157,11 @@ static void FlightStats_Load() {
     prefs.getString(key, s_scopes[s].maxSpeedCallsign, sizeof(s_scopes[s].maxSpeedCallsign));
 
     snprintf(key, sizeof(key), "seen_%d", s);
-    size_t len = prefs.getBytesLength(key);
-    if (len > 0 && len <= MAX_SEEN_ICAO * sizeof(uint32_t) && s_scopes[s].seenIcao) {
-      prefs.getBytes(key, s_scopes[s].seenIcao, len);
+    if (prefs.isKey(key)) {
+      size_t len = prefs.getBytesLength(key);
+      if (len > 0 && len <= MAX_SEEN_ICAO * sizeof(uint32_t) && s_scopes[s].seenIcao) {
+        prefs.getBytes(key, s_scopes[s].seenIcao, len);
+      }
     }
   }
   prefs.end();

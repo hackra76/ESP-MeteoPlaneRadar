@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20SK%20%7C%20CZ-green.svg)
-![Release](https://img.shields.io/badge/Release-v2.0.9-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v3.0.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, ISS orbit tracking, YouTube channel analytics, financial market tickers, and an animated virtual pet companion on a round 2.1" IPS touchscreen.**  
@@ -36,12 +36,18 @@ Designed for the **Waveshare ESP32-S3-Touch-LCD-2.1** with smartphone-like touch
 </p>
 
 <p align="center">
-  <em>DigiCat v2.0.9 — Professional 64×64 ginger cat sprites (247 frames, 38 animation sequences, RGB565 PROGMEM, rendered at 3× scale / 192×192 px).</em>
+  <em>DigiCat v3.0.0 — Professional 64×64 ginger cat sprites (247 frames, 38 animation sequences, RGB565 PROGMEM, rendered at 3× scale / 192×192 px).</em>
 </p>
 
 ---
 
 ## 🌟 Features
+
+### 🚀 v3.0.0 Major Architectural Upgrade
+- **LVGL 9 Rendering Pipeline:** Replaced the legacy Arduino_GFX rendering with double-buffered LVGL 9.0, achieving buttery smooth animations and native anti-aliasing via DMA transfers.
+- **Sonar Screen Mode:** Added a brand new tactical phosphor sweep radar screen with animated fading trails and real-time aircraft blips.
+- **Zero PSRAM Fragmentation:** Complete overhaul of PNG memory allocation, ensuring stable 250km SHMU/CHMU weather radar playback without crashing.
+- **Gesture Overhaul:** Rebuilt touch handling for flawless swipes, screen transitions, and Quick Control panel drop-downs.
 
 ### 🕒 Clock Faces & Time
 6 selectable watchfaces (Stacked Bold, Aviator, Orbital, Régulateur, Nordic Minimal, Classic Digital) with forecast pills, moon phase, and a 24-hour solar arc. **7 seconds ring styles**: Off, Dot, Smooth Arc, Pulse, Radar Sweep, Swiss Ticks, Orbital Satellite.
@@ -69,7 +75,7 @@ Designed for the **Waveshare ESP32-S3-Touch-LCD-2.1** with smartphone-like touch
 - Hourly temperature, wind, and rain curves, 3-day forecast, AQI, PM2.5, and pollen (Open-Meteo).
 - **Deep-Red Night Mode** (0.5% backlight) and `nightClockOnly` mode (locks to clock face during sleep hours).
 
-### 🐾 DigiCat Virtual Pet (v2.0.9)
+### 🐾 DigiCat Virtual Pet (v3.0.0)
 Full-screen interactive companion (Swipe Up from any screen or Quick Control Center paw icon).
 
 - **247 frames · 38 animation sequences** — professional 64×64 RGBA ginger cat sprites, RGB565 PROGMEM, rendered at **3× scale (192×192 px)**.
@@ -152,9 +158,9 @@ Built for the **[Waveshare ESP32-S3-Touch-LCD-2.1](https://www.waveshare.com/esp
 
 ### Method A — Pre-built Binary (Easiest)
 Download from **[Releases](https://github.com/hackra76/ESP-MeteoPlaneRadar/releases)**:
-- `MeteoPlaneRadar-v2.0.9-factory.bin` — full image (bootloader + partitions + firmware).
+- `MeteoPlaneRadar-v3.0.0-factory.bin` — full image (bootloader + partitions + firmware).
 - Flash via [ESP Web Flasher](https://espressif.github.io/esptool-js/) at 921600 baud, address `0x00000000`.
-- Or: `esptool.py -p COM_PORT -b 921600 write_flash 0x0 MeteoPlaneRadar-v2.0.9-factory.bin`
+- Or: `esptool.py -p COM_PORT -b 921600 write_flash 0x0 MeteoPlaneRadar-v3.0.0-factory.bin`
 
 ### Method B — PlatformIO
 ```bash

@@ -11,6 +11,7 @@
 #include "Buzzer.h"
 #include <WiFi.h>
 #include <ArduinoJson.h>
+#include "SpiRamAllocator.h"
 #include <math.h>
 
 static IssData s_data;
@@ -179,7 +180,7 @@ bool Iss_Step() {
   filter["solar_lon"] = true;
   filter["timestamp"] = true;
 
-  JsonDocument doc;
+  JsonDocument doc(SpiRamAllocator::instance());
   DeserializationError err = deserializeJson(doc, body, DeserializationOption::Filter(filter));
   if (err) {
     Serial.printf("ISS: JSON parse error: %s\n", err.c_str());
@@ -238,7 +239,7 @@ bool Iss_Step() {
   if (s_data.inRange && !s_wasInRange) {
     if (Settings_IssAlert()) {
       Serial.println("ISS: Space Station entered visible range! Triggering alert.");
-      Buzzer_Play(BEEP_SONAR_PING);
+      Buzzer_Play(BEEP_OVERHEAD);
     }
   }
   s_wasInRange = s_data.inRange;

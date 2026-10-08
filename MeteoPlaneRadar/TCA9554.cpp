@@ -52,7 +52,8 @@ void TCA9554_Init() {
   writeReg(TCA9554_CONFIG_REG, 0x00);
   // Keep EXIO_LCD_RST (pin 1, bit 0) held LOW initially so display stays in
   // clean hardware reset until ST7701_Init() explicitly starts it up.
-  s_output = 0xFE;
+  // Set EXIO_BUZZER (pin 8, bit 7) LOW to prevent constant tone on boot.
+  s_output = 0x7E;
   writeReg(TCA9554_OUTPUT_REG, s_output);
 }
 

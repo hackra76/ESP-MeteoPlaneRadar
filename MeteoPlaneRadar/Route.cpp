@@ -10,6 +10,7 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include "SpiRamAllocator.h"
 #include <esp_heap_caps.h>
 #include <string.h>
 #include <ctype.h>
@@ -302,7 +303,7 @@ void Route_Tick() {
   ap["lat"]      = true;
   ap["lon"]      = true;
 
-  JsonDocument doc;
+  JsonDocument doc(SpiRamAllocator::instance());
   char url[160];
   snprintf(url, sizeof(url), "%s/%s/%.4f/%.4f",
            ROUTE_API_BASE, s_wantKey, s_wantLat, s_wantLon);

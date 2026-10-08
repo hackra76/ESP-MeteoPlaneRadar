@@ -12,6 +12,9 @@
 // =============================================================================
 #pragma once
 #include <Arduino.h>
+#include <lvgl.h>
+
+void ScreenSettings_Init(lv_obj_t* parent);
 
 void ScreenSettings_Enter();
 void ScreenSettings_Draw();

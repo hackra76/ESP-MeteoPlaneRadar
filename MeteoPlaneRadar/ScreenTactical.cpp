@@ -30,6 +30,7 @@
 #include <WiFi.h>
 #include <math.h>
 #include <string.h>
+#include <lvgl.h>
 
 #define R_CX (LCD_WIDTH / 2)
 #define R_CY (LCD_HEIGHT / 2)
@@ -61,8 +62,17 @@ static int   s_planeY[ADSB_MAX];
 static char  s_planeHex[ADSB_MAX][8];
 static int   s_planeN = 0;
 
-static float s_rotSin = 0.0f, s_rotCos = 1.0f;
-static uint16_t s_topDeg = 0;
+
+// North is always at the top. No rotation.
+static void project(float lat, float lon, double clat, double clon,
+                    float rangeKm, int* sx, int* sy) {
+  float latr = clat * 0.0174532925f;
+  float dxKm = (lon - clon) * 111.0f * cosf(latr);
+  float dyKm = (lat - clat) * 111.0f;
+  float scale = (float)R_RADIUS / rangeKm;
+  *sx = R_CX + (int)(dxKm * scale);
+  *sy = R_CY - (int)(dyKm * scale);
+}
 
 static bool rvMode()   { return Settings_RadarSource() == RADAR_SRC_RAINVIEWER; }
 static bool shmuMode() { return Settings_RadarSource() == RADAR_SRC_SHMU; }
@@ -94,15 +104,6 @@ static void selectHex(const char* hex) {
 
 void ScreenTactical_CloseDetail() { selectNone("manual"); }
 
-static void refreshRotation() {
-  uint16_t deg = Settings_TopBearing();
-  if (deg == s_topDeg) return;
-  s_topDeg = deg;
-  float r = (float)deg * 0.0174532925f;
-  s_rotSin = sinf(r);
-  s_rotCos = cosf(r);
-}
-
 // Compute whole country center and radius
 static void getWholeCountryView(double* outLat, double* outLon, float* outRadius, const char** outLabel) {
   double ulat = Settings_Lat(), ulon = Settings_Lon();
@@ -118,19 +119,6 @@ static void getWholeCountryView(double* outLat, double* outLon, float* outRadius
     if (outRadius) *outRadius = 240.0f;
     if (outLabel) *outLabel = T(S_WHOLE_CZ);
   }
-}
-
-// Map projection: lat/lon to display coordinates
-static void project(float lat, float lon, double clat, double clon,
-                    float rangeKm, int* sx, int* sy) {
-  float latr = clat * 0.0174532925f;
-  float dxKm = (lon - clon) * 111.0f * cosf(latr);
-  float dyKm = (lat - clat) * 111.0f;
-  float rx = dxKm * s_rotCos - dyKm * s_rotSin;
-  float ry = dxKm * s_rotSin + dyKm * s_rotCos;
-  float scale = (float)R_RADIUS / rangeKm;
-  *sx = R_CX + (int)(rx * scale);
-  *sy = R_CY - (int)(ry * scale);
 }
 
 static double s_tacViewLat = 0.0, s_tacViewLon = 0.0;
@@ -437,9 +425,15 @@ static inline uint16_t dimRadarPixel(uint16_t c) {
   return (uint16_t)((r << 11) | (g << 5) | b);
 }
 
+static uint16_t* s_dimBuf = nullptr;
 static void blitRainViewer(const uint16_t* fb) {
   if (!fb) return;
+  if (!s_dimBuf) {
+    s_dimBuf = (uint16_t*)heap_caps_malloc((size_t)LCD_WIDTH * LCD_HEIGHT * sizeof(uint16_t), MALLOC_CAP_SPIRAM);
+    if (!s_dimBuf) return;
+  }
   const long R2 = (long)DISP_R * DISP_R;
+  memset(s_dimBuf, 0, (size_t)LCD_WIDTH * LCD_HEIGHT * sizeof(uint16_t));
   for (int dy = 0; dy < LCD_HEIGHT; dy++) {
     long ddy = dy - R_CY;
     long room = R2 - ddy * ddy;
@@ -449,19 +443,20 @@ static void blitRainViewer(const uint16_t* fb) {
     if (x0 < 0) x0 = 0;
     if (x1 >= LCD_WIDTH) x1 = LCD_WIDTH - 1;
     const uint16_t* src = fb + (int32_t)dy * LCD_WIDTH;
+    uint16_t* dst = s_dimBuf + dy * LCD_WIDTH;
     for (int dx = x0; dx <= x1; dx++) {
       uint16_t c = src[dx];
       if (c != 0x0000) {
-        gfx->drawPixel(dx, dy, dimRadarPixel(c));
+        dst[dx] = dimRadarPixel(c);
       }
     }
   }
+  gfx->draw16bitRGBBitmap(0, 0, s_dimBuf, LCD_WIDTH, LCD_HEIGHT);
 }
 
 void ScreenTactical_Draw() {
   gfx->fillScreen(C_BLACK);
   Layout_Begin();
-  refreshRotation();
 
   // Chrome reservations to prevent aircraft labels from clobbering top/bottom UI
   Layout_ReserveBand(LY_DOTS - 6, 12);        // screen selector dots
@@ -542,6 +537,11 @@ void ScreenTactical_Draw() {
   if (Settings_RadarShowRings()) {
     gfx->drawCircle(R_CX, R_CY, R_RADIUS, C_DKGRAY);
     gfx->drawCircle(R_CX, R_CY, R_RADIUS / 2, C_DKGRAY);
+  }
+
+  // Modern 360-degree aviation compass rose bezel (underlay)
+  if (!isWholeCountry()) {
+    UI_DrawCompassRose(R_CX, R_CY, R_RADIUS);
   }
   if (emergIdx < 0 && !isWholeCountry()) {
     UI_DrawHomeMarker(R_CX, R_CY);
@@ -636,82 +636,160 @@ void ScreenTactical_Draw() {
       PlaneTrail_Draw(list[i].hex, cityProject, col, sx, sy);
     }
 
-    // High-contrast silhouette shadow disc behind aircraft icon
-    gfx->fillCircle(sx, sy, 8, C_BLACK);
-
-    float screenTrack = list[i].track - (float)s_topDeg;
+    float screenTrack = list[i].track;
     while (screenTrack < 0.0f) screenTrack += 360.0f;
-    drawPlane(sx, sy, screenTrack, list[i].hasTrack, col, iconType);
+    if (Settings_RadarBlipStyle() == RADAR_BLIP_CHEVRON) {
+      Aircraft_DrawChevron(gfx, sx, sy, screenTrack, list[i].hasTrack, col, iconType, (i == selIdx), isMil);
+    } else {
+      gfx->fillCircle(sx, sy, 8, C_BLACK);
+      drawPlane(sx, sy, screenTrack, list[i].hasTrack, col, iconType);
+    }
 
-    // Label with smart multi-positioning and size fallback
+    // Forward velocity vector leader line (1-minute projected flight track)
+    if (list[i].hasTrack && list[i].gsKt > 25.0f) {
+      float vDistKm = (list[i].gsKt * 1.852f / 60.0f);
+      float vLen = vDistKm * ((float)R_RADIUS / crng);
+      if (vLen < 6.0f) vLen = 6.0f;
+      if (vLen > 28.0f) vLen = 28.0f;
+      float vRad = (screenTrack - 90.0f) * 0.0174532925f;
+      int vx = sx + (int)roundf(cosf(vRad) * vLen);
+      int vy = sy + (int)roundf(sinf(vRad) * vLen);
+      gfx->drawLine(sx, sy, vx, vy, col);
+      gfx->drawPixel(vx, vy, C_WHITE);
+    }
+
+    // Stacked avionics callout tags (CALLSIGN, FLxxx +vs, Speed / Route)
     if (Settings_ShowLegends() && emergIdx < 0) {
-      char label[24];
       const char* rawLabel = list[i].callsign[0] ? list[i].callsign : list[i].hex;
       if (rawLabel[0]) {
-        if (list[i].baroRate > 300.0f) {
-          snprintf(label, sizeof(label), "%s^", rawLabel);
-        } else if (list[i].baroRate < -300.0f) {
-          snprintf(label, sizeof(label), "%sv", rawLabel);
+        const RouteInfo* rt = list[i].callsign[0] ? Route_GetCached(list[i].callsign) : nullptr;
+        char l1[16];
+        bool hasRoute = (rt && rt->iataFrom[0] && rt->iataTo[0]);
+        if (hasRoute) {
+          snprintf(l1, sizeof(l1), "%s>%s", rt->iataFrom, rt->iataTo);
         } else {
-          strncpy(label, rawLabel, sizeof(label) - 1);
-          label[sizeof(label) - 1] = '\0';
+          strncpy(l1, rawLabel, sizeof(l1) - 1);
+          l1[sizeof(l1) - 1] = '\0';
         }
 
-        uint16_t lCol = em ? C_RED : (watched ? C_GREEN : C_WHITE);
-        struct Cand { int dx; int dy; uint8_t size; };
-        const Cand cands[] = {
-          { 0,  18, 2 },   // Centered below (Size 2)
-          { 0, -20, 2 },   // Centered above (Size 2)
-          { 14, -6, 2 },   // To the right (Size 2)
-          { 0,  16, 1 },   // Centered below (Size 1)
-          { 0, -14, 1 },   // Centered above (Size 1)
-          { 12, -4, 1 }    // To the right (Size 1)
+        const bool metric = Settings_MetricUnits();
+        char l2[24] = "";
+        if (altKnown) {
+          if (metric) {
+            int altM = (int)roundf(list[i].altFt * 0.3048f);
+            int vsM = (int)roundf(fabsf(list[i].baroRate) * 0.00508f);
+            if (list[i].baroRate > 300.0f) {
+              snprintf(l2, sizeof(l2), "%dm +%dm/s", altM, vsM);
+            } else if (list[i].baroRate < -300.0f) {
+              snprintf(l2, sizeof(l2), "%dm -%dm/s", altM, vsM);
+            } else {
+              snprintf(l2, sizeof(l2), "%dm", altM);
+            }
+          } else {
+            int fl = (int)roundf(list[i].altFt / 100.0f);
+            int vs = (int)roundf(fabsf(list[i].baroRate) / 100.0f);
+            if (list[i].baroRate > 300.0f) {
+              if (fl >= 100) snprintf(l2, sizeof(l2), "FL%d +%02d", fl, vs);
+              else          snprintf(l2, sizeof(l2), "%dft +%02d", (int)list[i].altFt, vs);
+            } else if (list[i].baroRate < -300.0f) {
+              if (fl >= 100) snprintf(l2, sizeof(l2), "FL%d -%02d", fl, vs);
+              else          snprintf(l2, sizeof(l2), "%dft -%02d", (int)list[i].altFt, vs);
+            } else {
+              if (fl >= 100) snprintf(l2, sizeof(l2), "FL%d", fl);
+              else          snprintf(l2, sizeof(l2), "%dft", (int)list[i].altFt);
+            }
+          }
+        }
+
+        char l3[24] = "";
+        if (list[i].gsKt > 20.0f) {
+          if (metric) {
+            int spdKmh = (int)roundf(list[i].gsKt * 1.852f);
+            snprintf(l3, sizeof(l3), "%dkm/h", spdKmh);
+          } else {
+            int spdKt = (int)roundf(list[i].gsKt);
+            snprintf(l3, sizeof(l3), "%dkts", spdKt);
+          }
+        }
+
+        if (list[i].callsign[0] && !rt) {
+          bool shouldQueue = (dGnd <= 35.0f) || (i == closestIdx) || (selIdx >= 0 && i == selIdx);
+          if (shouldQueue) {
+            Route_Queue(list[i].callsign, list[i].lat, list[i].lon);
+          }
+        }
+
+        uint16_t lCol = em ? C_RED : (watched ? C_GREEN : (isMil ? C_RED : (hasRoute ? C_YELLOW : (scat != SPEC_NONE ? sCol : col))));
+
+        int w1 = Layout_TextW(l1, FONT_SMALL);
+        int w2 = l2[0] ? Layout_TextW(l2, FONT_TINY) : 0;
+        int w3 = l3[0] ? Layout_TextW(l3, FONT_TINY) : 0;
+        int bw = w1;
+        if (w2 > bw) bw = w2;
+        if (w3 > bw) bw = w3;
+
+        const int h1 = 13;
+        const int hSub = 10;
+        int bh = h1 + (l2[0] ? hSub : 0) + (l3[0] ? hSub : 0);
+
+        auto inGlass = [](int x, int y) {
+          long dx = x - 240, dy = y - 240;
+          return (dx * dx + dy * dy) <= (228L * 228L);
         };
 
-        for (const auto& c : cands) {
-          int tw = Layout_TextW(label, c.size);
-          int th = LY_CHAR_H(c.size);
-          int tx = (c.dx == 0) ? (sx - tw / 2) : (sx + c.dx);
-          int ty = sy + c.dy;
-          auto inGlass = [](int x, int y) {
-            long dx = x - 240, dy = y - 240;
-            return (dx * dx + dy * dy) <= (228L * 228L);
-          };
-          if (!inGlass(tx, ty) || !inGlass(tx + tw, ty) || !inGlass(tx, ty + th) || !inGlass(tx + tw, ty + th)) continue;
-          if (Layout_Claim(tx - 2, ty - 1, tw + 4, th + 2)) {
-            // High-contrast dark backing pill behind callsign
-            gfx->fillRoundRect(tx - 3, ty - 1, tw + 6, th + 2, 3, C_BLACK);
-            UI_Text(label, tx, ty, lCol, c.size);
+        struct Cand { int dx; int dy; };
+        const Cand cands[] = {
+          { 15, -bh / 2 },          // Preferred: to the right
+          { -bw - 15, -bh / 2 },    // To the left
+          { -bw / 2, 16 },          // Centered below
+          { -bw / 2, -bh - 16 }     // Centered above
+        };
 
-            // Route label (e.g. "VIE>LHR") on the line below the callsign
-            if (list[i].callsign[0]) {
-              const RouteInfo* rt = Route_GetCached(list[i].callsign);
-              if (rt && rt->iataFrom[0] && rt->iataTo[0]) {
-                char rl[12];
-                snprintf(rl, sizeof(rl), "%s>%s", rt->iataFrom, rt->iataTo);
-                int rw = Layout_TextW(rl, 1);
-                int rh = LY_CHAR_H(1);
-                int rx = (c.dx == 0) ? (sx - rw / 2) : tx;
-                int ry = ty + th + 1;
-                if (inGlass(rx, ry) && inGlass(rx + rw, ry) && inGlass(rx, ry + rh) && inGlass(rx + rw, ry + rh)) {
-                  if (Layout_Claim(rx - 1, ry, rw + 2, rh + 1)) {
-                    gfx->fillRoundRect(rx - 2, ry - 1, rw + 4, rh + 2, 2, C_BLACK);
-                    UI_Text(rl, rx, ry, C_YELLOW, 1);
-                  }
-                }
-              } else if (!rt) {
-                // Only queue background route for close aircraft (<= 35 km), the nearest one, or selected
-                bool shouldQueue = (dGnd <= 35.0f) || (i == closestIdx) || (selIdx >= 0 && i == selIdx);
-                if (shouldQueue) {
-                  Route_Queue(list[i].callsign, list[i].lat, list[i].lon);
-                }
+        bool placed = false;
+        for (const auto& c : cands) {
+          int tx = sx + c.dx;
+          int ty = sy + c.dy;
+          if (!inGlass(tx - 3, ty - 2) || !inGlass(tx + bw + 3, ty - 2) ||
+              !inGlass(tx - 3, ty + bh + 2) || !inGlass(tx + bw + 3, ty + bh + 2)) continue;
+
+          if (Layout_Claim(tx - 3, ty - 2, bw + 6, bh + 4)) {
+            UI_Text(l1, tx, ty, lCol, FONT_SMALL);
+            int curY = ty + h1;
+            if (l2[0]) {
+              UI_Text(l2, tx, curY, RGB565(225, 235, 245), FONT_TINY);
+              curY += hSub;
+            }
+            if (l3[0]) {
+              uint16_t sCol = (rt && rt->iataFrom[0]) ? C_YELLOW : RGB565(0, 215, 250);
+              UI_Text(l3, tx, curY, sCol, FONT_TINY);
+            }
+
+            placed = true;
+            break;
+          }
+        }
+
+        if (!placed) {
+          int tw = w1;
+          int th = LY_CHAR_H(1);
+          struct MiniCand { int dx; int dy; };
+          const MiniCand mCands[] = {
+            { 14, -4 }, { -tw - 14, -4 }, { -tw / 2, 14 }, { -tw / 2, -14 }
+          };
+          for (const auto& mc : mCands) {
+            int tx = sx + mc.dx;
+            int ty = sy + mc.dy;
+            if (inGlass(tx - 2, ty - 1) && inGlass(tx + tw + 2, ty + th + 1)) {
+              if (Layout_Claim(tx - 2, ty - 1, tw + 4, th + 2)) {
+                UI_Text(l1, tx, ty, lCol, 1);
+                break;
               }
             }
-            break;
           }
         }
       }
     }
+
     drawnCount++;
   }
 
@@ -740,13 +818,17 @@ void ScreenTactical_Draw() {
     Outside_StatusText(stTxt, sizeof(stTxt));
     if (stTxt[0]) {
       int twStatus = Font_TextWidth(stTxt, 2);
-      gfx->fillRoundRect(LCD_WIDTH / 2 - twStatus / 2 - 8, 23, twStatus + 16, 20, 5, C_BLACK);
-      Font_DrawCentered(stTxt, LCD_WIDTH / 2, 26, C_WHITE, 2);
+      int pillW = twStatus + 16;
+      int pillX = LCD_WIDTH / 2 - pillW / 2;
+      gfx->fillRoundRect(pillX, 23, pillW, 20, 5, C_BLACK);
+      UI_TextCenteredBox(stTxt, pillX, 23, pillW, 20, C_WHITE, 2);
     }
 
     int tw = Layout_TextW(sub, 2);
-    gfx->fillRoundRect(LCD_WIDTH / 2 - tw / 2 - 8, 48, tw + 16, 20, 5, C_RED);
-    UI_TextCentered(sub, 50, C_WHITE, 2);
+    int pillW = tw + 16;
+    int pillX = LCD_WIDTH / 2 - pillW / 2;
+    gfx->fillRoundRect(pillX, 48, pillW, 20, 5, C_RED);
+    UI_TextCenteredBox(sub, pillX, 48, pillW, 20, C_WHITE, 2);
 
     // Emergency Telemetry HUD Card
     const int boxW = 320;
@@ -793,13 +875,17 @@ void ScreenTactical_Draw() {
     Outside_StatusText(stTxt, sizeof(stTxt));
     if (stTxt[0]) {
       int twStatus = Font_TextWidth(stTxt, 2);
-      gfx->fillRoundRect(LCD_WIDTH / 2 - twStatus / 2 - 8, 23, twStatus + 16, 20, 5, C_BLACK);
-      Font_DrawCentered(stTxt, LCD_WIDTH / 2, 26, C_WHITE, 2);
+      int pillW = twStatus + 16;
+      int pillX = LCD_WIDTH / 2 - pillW / 2;
+      gfx->fillRoundRect(pillX, 23, pillW, 20, 5, C_BLACK);
+      UI_TextCenteredBox(stTxt, pillX, 23, pillW, 20, C_WHITE, 2);
     }
 
     int tw = Layout_TextW(sub, 2);
-    gfx->fillRoundRect(LCD_WIDTH / 2 - tw / 2 - 8, 48, tw + 16, 20, 5, C_RED);
-    UI_TextCentered(sub, 50, C_WHITE, 2);
+    int pillW = tw + 16;
+    int pillX = LCD_WIDTH / 2 - pillW / 2;
+    gfx->fillRoundRect(pillX, 48, pillW, 20, 5, C_RED);
+    UI_TextCenteredBox(sub, pillX, 48, pillW, 20, C_WHITE, 2);
   } else {
     // Non-emergency: build sub text
     uint16_t subCol = watchedSeen ? C_GREEN : C_CYAN;
@@ -855,7 +941,7 @@ void ScreenTactical_Draw() {
       int pillX = LCD_WIDTH / 2 - pillW / 2;
       gfx->fillRoundRect(pillX, 36, pillW, 20, 6, isSpecial ? 0x1800 : C_BLACK);
       if (isSpecial) gfx->drawRoundRect(pillX, 36, pillW, 20, 6, specialCol);
-      Font_DrawCentered(sub, LCD_WIDTH / 2, 40, subCol, 1);
+      UI_TextCenteredBox(sub, pillX, 36, pillW, 20, subCol, 1);
     }
   }
 
@@ -865,15 +951,12 @@ void ScreenTactical_Draw() {
     UI_DrawRangeIndicator(nullptr, s_rangeIdx, RANGE_COUNT, false);
   } else {
     char rbuf[16];
-    snprintf(rbuf, sizeof(rbuf), "%.0f km", crng);
+    if (Settings_MetricUnits()) {
+      snprintf(rbuf, sizeof(rbuf), "%.0f km", crng);
+    } else {
+      snprintf(rbuf, sizeof(rbuf), "%.0f NM", crng * 0.539957f);
+    }
     UI_DrawRangeIndicator(rbuf, s_rangeIdx, RANGE_COUNT, true);
-  }
-
-  // Compass Widget (top right)
-  if (Settings_RadarShowCompass() && !ScreenTactical_DetailOpen()) {
-    float needleAngle = 360.0f - (float)s_topDeg;
-    while (needleAngle < 0.0f) needleAngle += 360.0f;
-    UI_DrawCompassWidget(390, 85, 16, needleAngle, 0x2FE6, true);
   }
 
   // 6. Detail overlay
@@ -985,8 +1068,10 @@ bool ScreenTactical_Tick() {
     if (!photoDone && s_selCacheOk && pState == PHOTO_IDLE) {
       photoDone = true;
     }
-    // The timeout counter begins once photo is resolved or timeout reached
-    if (s_detailOpenMs == 0) {
+    // Automatically close aircraft detail after timeout (inhibited while viewing fullscreen photo)
+    if (UI_IsPhotoFullscreen()) {
+      s_detailOpenMs = millis();
+    } else if (s_detailOpenMs == 0) {
       if (photoDone || (millis() - s_detailSelectMs >= 15000UL)) {
         s_detailOpenMs = millis();
       }
@@ -1096,20 +1181,17 @@ bool ScreenTactical_HandleTap(int x, int y) {
     return true;
   }
   if (ScreenTactical_DetailOpen()) {
-    // If photo is loaded and tap is on the photo box -> open fullscreen photo
-    if (PlanePhoto_GetState() == PHOTO_OK && x >= 130 && x <= 350 && y >= 40 && y <= 195) {
-      UI_SetPhotoFullscreen(true);
-      s_detailOpenMs = millis();
-      return true;
+    // Tap on photo box
+    if (x >= 130 && x <= 350 && y >= 40 && y <= 195) {
+      if (PlanePhoto_GetState() == PHOTO_OK) {
+        UI_SetPhotoFullscreen(true);
+        s_detailOpenMs = millis();
+        return true;
+      }
+      // Photo is still downloading or not available; do not close the detail panel
+      return false;
     }
     selectNone("tap_outside");
-    return true;
-  }
-
-  // Tap on Compass widget (top-right corner, 390, 85): toggle compass display
-  if (Settings_RadarShowCompass() && x >= 360 && x <= 425 && y >= 55 && y <= 125) {
-    Settings_SetRadarShowCompass(false);
-    Buzzer_Play(BEEP_CLICK);
     return true;
   }
 
@@ -1130,6 +1212,10 @@ bool ScreenTactical_HandleTap(int x, int y) {
 }
 
 void ScreenTactical_FreeBuffers() {
+  if (s_dimBuf) {
+    heap_caps_free(s_dimBuf);
+    s_dimBuf = nullptr;
+  }
   if (s_radarFb) {
     heap_caps_free(s_radarFb);
     s_radarFb = nullptr;
@@ -1148,4 +1234,53 @@ void ScreenTactical_FreeBuffers() {
     heap_caps_free(s_png);
     s_png = nullptr;
   }
+}
+
+// -----------------------------------------------------------------------------
+//  LVGL Integration
+// -----------------------------------------------------------------------------
+static lv_obj_t* s_screenObj = nullptr;
+static lv_timer_t* s_timer = nullptr;
+
+static void ScreenTactical_DrawMainCb(lv_event_t* e) {
+  lv_layer_t* layer = lv_event_get_layer(e);
+  gfx->layer = layer;
+  ScreenTactical_Draw();
+  gfx->layer = nullptr;
+}
+
+static void ScreenTactical_EventCb(lv_event_t* e) {
+  lv_event_code_t code = lv_event_get_code(e);
+  if (code == LV_EVENT_CLICKED) {
+    if (UI_IsSwipeActive()) return;
+    lv_indev_t* indev = lv_indev_active();
+    if (indev && lv_indev_get_type(indev) == LV_INDEV_TYPE_POINTER) {
+      lv_point_t p;
+      lv_indev_get_point(indev, &p);
+      ScreenTactical_HandleTap(p.x, p.y);
+    }
+  }
+}
+
+static void ScreenTactical_TimerCb(lv_timer_t* timer) {
+  if (UI_GetActiveScreen() != SCREEN_TACTICAL_I) return;
+  
+  if (ScreenTactical_Tick()) {
+    lv_obj_invalidate(s_screenObj);
+  }
+}
+
+void ScreenTactical_Init(lv_obj_t* parent) {
+  s_screenObj = parent;
+  lv_obj_set_size(s_screenObj, LCD_WIDTH, LCD_HEIGHT);
+  lv_obj_set_style_bg_color(s_screenObj, lv_color_black(), 0);
+  lv_obj_set_style_border_width(s_screenObj, 0, 0);
+  lv_obj_set_style_radius(s_screenObj, 0, 0);
+  
+  lv_obj_set_scrollable(s_screenObj, false);
+  
+  lv_obj_add_event_cb(s_screenObj, ScreenTactical_DrawMainCb, LV_EVENT_DRAW_MAIN, NULL);
+  lv_obj_add_event_cb(s_screenObj, ScreenTactical_EventCb, LV_EVENT_CLICKED, NULL);
+
+  s_timer = lv_timer_create(ScreenTactical_TimerCb, 100, NULL);
 }

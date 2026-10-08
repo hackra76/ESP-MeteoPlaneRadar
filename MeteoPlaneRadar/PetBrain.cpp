@@ -16,6 +16,7 @@
 #include "Lang.h"
 #include "PetDrawer.h"
 #include <ArduinoJson.h>
+#include "SpiRamAllocator.h"
 #include <Preferences.h>
 #include <math.h>
 
@@ -139,6 +140,14 @@ static void generateOfflineThought(char* buf, size_t cap) {
     if (lang == LANG_SK) snprintf(buf, cap, "Vonku prší! Teplé pradenie a útulný radar v teple.");
     else if (lang == LANG_CZ) snprintf(buf, cap, "Venku prší! Teplé předení a útulný radar v teple.");
     else snprintf(buf, cap, "Rain outside! Warm purrs and cozy whiskers inside.");
+    return;
+  }
+
+  if (hasPlane && dummyType == PLANE_TYPE_FIGHTER && dist < 65.0f) {
+    s_mood = PET_MOOD_MILITARY;
+    if (lang == LANG_SK) snprintf(buf, cap, "Poplach! Stihacka %s na radare (%.0fkm)! DigiCat nasadzuje letecke okuliare!", cs, dist);
+    else if (lang == LANG_CZ) snprintf(buf, cap, "Poplach! Stihacka %s na radaru (%.0fkm)! DigiCat nasazuje letecke bryle!", cs, dist);
+    else snprintf(buf, cap, "Intercept alert! Fighter %s at %.0fkm! DigiCat locks tactical radar!", cs, dist);
     return;
   }
 
@@ -442,7 +451,7 @@ static bool discoverModel(const char* apiKey) {
     return false;
   }
 
-  JsonDocument doc;
+  JsonDocument doc(SpiRamAllocator::instance());
   DeserializationError err = deserializeJson(doc, body);
   if (err) {
     Serial.printf("PetBrain: Discovery JSON error: %s\n", err.c_str());
@@ -451,8 +460,7 @@ static bool discoverModel(const char* apiKey) {
 
   JsonArray models = doc["models"].as<JsonArray>();
   // Look for models supporting generateContent in preferred priority:
-  // 1. 3.5-flash-lite, 2. 3.1-flash-lite, 3. any flash-lite, 4. 3.6-flash, 5. 3.5-flash
-  const char* preferredPatterns[] = { "3.5-flash-lite", "3.1-flash-lite", "flash-lite", "3.6-flash", "3.5-flash", "flash" };
+  const char* preferredPatterns[] = { "3.8-flash", "3.5-flash-lite", "3.5-flash", "flash-lite", "flash" };
   for (const char* pat : preferredPatterns) {
     for (JsonObject m : models) {
       const char* name = m["name"] | "";
@@ -516,10 +524,9 @@ bool PetBrain_Step() {
     return true;
   }
 
-  // Auto-discover the working model name for this specific key
-  if (s_geminiModel[0] == '\0') {
-    discoverModel(apiKey);
-  }
+  // Ensure no lingering tile/weather session holds internal SRAM before making the LLM request
+  Net_SessionEnd();
+  delay(100);
 
   // Context preparation for Gemini
   const char* charName = "DigiCat";
@@ -551,6 +558,12 @@ bool PetBrain_Step() {
       "The user just lovingly petted and tapped you on the touchscreen! "
       "Say one very short, cute, loving or funny reaction (max 10 words) %s directly to the user. Plain text only, no quotes, no hashtags, no asterisks.",
       charName, PetBrain_GetStageTitle(), s_stats.happiness, s_stats.hunger, langDirective);
+  } else if (hasPlane && dummyType == PLANE_TYPE_FIGHTER && dist < 65.0f) {
+    snprintf(prompt, sizeof(prompt),
+      "You are %s, an elite Top-Gun combat cat co-pilot (%s, Happiness: %d%%). "
+      "A fast military supersonic fighter jet %s is intercepted at %.0fkm! "
+      "Say one very short, badass, cute military co-pilot line (max 10 words) %s with aviator sunglasses. Plain text only, no quotes, no hashtags, no asterisks.",
+      charName, PetBrain_GetStageTitle(), s_stats.happiness, cs, dist, langDirective);
   } else if (hasPlane && dist <= 10.0f) {
     snprintf(prompt, sizeof(prompt),
       "You are %s, an aviation cat pet (%s, Happiness: %d%%, Hunger: %d%%). Ambient: %s, rain=%s, night=%s. "
@@ -581,7 +594,7 @@ bool PetBrain_Step() {
   }
 
   // Build JSON request payload
-  JsonDocument reqDoc;
+  JsonDocument reqDoc(SpiRamAllocator::instance());
   JsonArray contents = reqDoc["contents"].to<JsonArray>();
   JsonObject part = contents.add<JsonObject>()["parts"].to<JsonArray>().add<JsonObject>();
   part["text"] = prompt;
@@ -593,14 +606,14 @@ bool PetBrain_Step() {
   String jsonBody;
   serializeJson(reqDoc, jsonBody);
 
-  // Candidate models list: prefer discovered model or official tested Google Gemini flash-lite models
-  const char* candidates[5];
+  // Candidate models list: prioritize gemini-3.5-flash-lite for instant response and quota stability
+  const char* candidates[6];
   int candCount = 0;
   if (s_geminiModel[0] != '\0') candidates[candCount++] = s_geminiModel;
   candidates[candCount++] = "gemini-3.5-flash-lite";
-  candidates[candCount++] = "gemini-3.1-flash-lite";
-  candidates[candCount++] = "gemini-3.6-flash";
+  candidates[candCount++] = "gemini-3.8-flash";
   candidates[candCount++] = "gemini-3.5-flash";
+  candidates[candCount++] = "gemini-2.5-flash";
 
   bool success = false;
   String respBody;
@@ -641,19 +654,37 @@ bool PetBrain_Step() {
         break; // Invalid key or permission, retrying other models won't help!
       } else if (statusCode == 404) {
         Serial.printf("PetBrain: Model %s not found (HTTP 404), trying next candidate\n", candidates[i]);
+      } else {
+        Serial.printf("PetBrain: Model %s request failed (HTTP %d)\n", candidates[i], statusCode);
+      }
+    }
+  }
+
+  // If candidate models all failed, try discoverModel as a fallback
+  if (!success && s_rateLimitedUntilMs <= millis()) {
+    delay(300);
+    if (discoverModel(apiKey)) {
+      delay(200);
+      String url = "https://generativelanguage.googleapis.com/v1beta/models/";
+      url += s_geminiModel;
+      url += ":generateContent?key=";
+      url += apiKey;
+      int statusCode = 0;
+      if (Net_PostJson(url.c_str(), jsonBody.c_str(), respBody, "GEMINI", &statusCode)) {
+        s_lastGeminiReqMs = millis();
+        success = true;
       }
     }
   }
 
   if (!success) {
-    Serial.println("PetBrain: All Gemini model requests failed, using offline fallback");
-    generateOfflineThought(s_thought, sizeof(s_thought));
+    Serial.println("PetBrain: All Gemini model requests failed, keeping current thought");
     s_isBusy = false;
     return false;
   }
 
   // Parse Gemini response
-  JsonDocument respDoc;
+  JsonDocument respDoc(SpiRamAllocator::instance());
   DeserializationError err = deserializeJson(respDoc, respBody);
   if (err) {
     Serial.printf("PetBrain: JSON error: %s\n", err.c_str());
@@ -677,6 +708,7 @@ bool PetBrain_Step() {
     if (len > sizeof(s_thought) - 1) len = sizeof(s_thought) - 1;
     strncpy(s_thought, src, len);
     s_thought[len] = '\0';
+    Serial.printf("PetBrain: AI thought updated: \"%s\"\n", s_thought);
     s_isBusy = false;
     return true;
   }

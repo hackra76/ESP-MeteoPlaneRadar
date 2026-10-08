@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-SK%20%7C%20CZ%20%7C%20EN-green.svg)
-![Release](https://img.shields.io/badge/Release-v2.0.9-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v3.0.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunkčná meteorologická stanica, živý ADS-B letecký radar, animovaný radar zrážok (SHMÚ, ČHMÚ, RainViewer), kombinovaný taktický radar, sledovanie dráhy ISS, analytika YouTube, finančné trhy a animovaný virtuálny spoločník na okrúhlom 2.1" IPS dotykovom displeji.**  
@@ -36,12 +36,18 @@ Vyvinuté pre **Waveshare ESP32-S3-Touch-LCD-2.1** s dotykovými gestami v štý
 </p>
 
 <p align="center">
-  <em>DigiCat v2.0.9 — Profesionálne 64×64 sprite animácie ryšavej mačky (247 snímok, 38 animačných sekvencií, RGB565 PROGMEM, škálované na 3× / 192×192 px).</em>
+  <em>DigiCat v3.0.0 — Profesionálne 64×64 sprite animácie ryšavej mačky (247 snímok, 38 animačných sekvencií, RGB565 PROGMEM, škálované na 3× / 192×192 px).</em>
 </p>
 
 ---
 
 ## 🌟 Funkcie
+
+### 🚀 v3.0.0 Hlavná architektonická aktualizácia
+- **Vykresľovanie cez LVGL 9:** Nahradenie starého Arduino_GFX systému za LVGL 9.0 s dvojitým bufferingom, čo prináša plynulé animácie a hardvérové vyhladzovanie hrán cez DMA.
+- **Nový Sonar Režim:** Pridaná úplne nová taktická obrazovka 'Sonar' so zeleným fosforovým skenovaním a doznievajúcimi stopami lietadiel.
+- **Nulová fragmentácia PSRAM:** Kompletné prepracovanie alokácie pamäte pre PNG súbory, čo zaisťuje stabilné prehrávanie SHMÚ/ČHMÚ radarov aj pri veľkom zoome bez pádov.
+- **Vylepšené gestá:** Prebudované dotykové ovládanie pre bezchybné posúvanie obrazoviek a sťahovacie menu rýchleho ovládania (Quick Control).
 
 ### 🕒 Ciferníky a čas
 6 voliteľných ciferníkov (Stacked Bold, Aviator, Orbital, Régulateur, Nordic Minimal, Classic Digital) s minipredpoveďou, fázou mesiaca a 24-hodinovým solárnym oblúkom. **7 štýlov sekundového prstenca**: Vypnutý, Bodka, Plynulý oblúk, Pulz, Radarový lúč, Hodinárske indexy, Satelit na orbite.
@@ -69,7 +75,7 @@ Vyvinuté pre **Waveshare ESP32-S3-Touch-LCD-2.1** s dotykovými gestami v štý
 - Hodinové krivky teploty, vetra a zrážok, 3-dňová predpoveď, AQI, PM2.5 a peľ (Open-Meteo).
 - **Ultra nočný režim** (0,5% jas) a `nightClockOnly` (zamkne displej na ciferníku v nočných hodinách).
 
-### 🐾 DigiCat — Virtuálny spoločník (v2.0.9)
+### 🐾 DigiCat — Virtuálny spoločník (v3.0.0)
 Celoobrazovková interaktívna zásuvka (Swipe Up z akejkoľvek obrazovky alebo ikona labky v Ovládacom centre).
 
 - **247 snímok · 38 animačných sekvencií** — profesionálne 64×64 RGBA sprite animácie ryšavej mačky, RGB565 PROGMEM, škálované na **3× (192×192 px)**.
@@ -152,9 +158,9 @@ Pre **[Waveshare ESP32-S3-Touch-LCD-2.1](https://www.waveshare.com/esp32-s3-touc
 
 ### Možnosť A — Predkompilovaná binárka (Najjednoduchšie)
 Stiahnite z **[Vydania (Releases)](https://github.com/hackra76/ESP-MeteoPlaneRadar/releases)**:
-- `MeteoPlaneRadar-v2.0.9-factory.bin` — kompletný obraz (bootloader + partície + firmvér).
+- `MeteoPlaneRadar-v3.0.0-factory.bin` — kompletný obraz (bootloader + partície + firmvér).
 - Flash cez [ESP Web Flasher](https://espressif.github.io/esptool-js/) pri 921600 baud od adresy `0x00000000`.
-- Alebo: `esptool.py -p COM_PORT -b 921600 write_flash 0x0 MeteoPlaneRadar-v2.0.9-factory.bin`
+- Alebo: `esptool.py -p COM_PORT -b 921600 write_flash 0x0 MeteoPlaneRadar-v3.0.0-factory.bin`
 
 ### Možnosť B — PlatformIO
 ```bash

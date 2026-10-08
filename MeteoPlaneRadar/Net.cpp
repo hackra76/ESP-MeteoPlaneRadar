@@ -12,6 +12,7 @@
 #include <HTTPClient.h>
 #include <esp_heap_caps.h>
 #include <string.h>
+#include <memory>
 
 // Kept open across a burst of tile requests - see Net.h.
 static WiFiClientSecure* s_sess = nullptr;
@@ -48,8 +49,9 @@ static size_t s_txtCap = 0;
 
 static bool txtReserve(size_t need) {
   if (need <= s_txtCap) return true;
-  char* nb = (char*)heap_caps_realloc(s_txt, need, MALLOC_CAP_SPIRAM);
+  char* nb = (char*)heap_caps_malloc(need, MALLOC_CAP_SPIRAM);
   if (!nb) { Serial.println("NET: body does not fit into PSRAM"); return false; }
+  if (s_txt) heap_caps_free(s_txt);
   s_txt = nb; s_txtCap = need;
   return true;
 }
@@ -180,42 +182,61 @@ bool Net_GetBinary(const char* url, uint8_t* buf, size_t cap, size_t* outLen,
   if (!buf || cap == 0) return false;
   if (WiFi.status() != WL_CONNECTED) return false;
 
-  // Inside a session the connection is already up, so the big handshake
-  // allocation is not about to happen and the heap guard would only get in the
-  // way. Outside one it still applies.
-  const bool sess = (s_sess != nullptr);
+  const bool tls = (strncmp(url, "http://", 7) != 0);
+  const bool sess = (s_sess != nullptr && tls);
+  if (sess && !s_sess->connected()) {
+    s_sess->stop();
+  }
   const bool connected = (sess && s_sess->connected());
-  if (!connected && !Net_HeapOk(tag)) return false;
+  if (tls && !connected && !Net_HeapOk(tag)) return false;
 
-  WiFiClientSecure  own;
-  WiFiClientSecure& client = sess ? *s_sess : own;
-  client.setInsecure();
-  client.setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
+  WiFiClient plain;
+  std::unique_ptr<WiFiClientSecure> own;
+  if (tls && !sess) {
+    own.reset(new WiFiClientSecure());
+    if (own) {
+      own->setInsecure();
+      own->setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
+    }
+  }
+  WiFiClient& client = tls ? (sess ? static_cast<WiFiClient&>(*s_sess)
+                                   : (own ? static_cast<WiFiClient&>(*own) : plain))
+                           : plain;
 
   HTTPClient http;
   http.setConnectTimeout(6000);
   http.setTimeout(10000);
   http.setReuse(sess);            // keep the socket open for the next tile
+  http.setUserAgent("ESP-MeteoPlaneRadar/2.0 (contact: admin@esp-meteoplane.local)");
   if (!http.begin(client, url)) return false;
   http.collectHeaders(DATE_HDR, 1);
 
   poll();
   int code = http.GET();
   poll();
-  if (code != HTTP_CODE_OK) { Serial.printf("%s: HTTP %d\n", tag, code); http.end(); return false; }
+  if (code != HTTP_CODE_OK) {
+    Serial.printf("%s: HTTP %d\n", tag, code);
+    http.end();
+    if (sess) s_sess->stop();
+    return false;
+  }
   if (http.hasHeader("Date")) Outside_NoteHttpDate(http.header("Date").c_str());
 
   int declared = http.getSize();
   if (declared > 0 && (size_t)declared > cap) {
     Serial.printf("%s: response %d B does not fit into %u B\n", tag, declared, (unsigned)cap);
     http.end();
+    if (sess) s_sess->stop();
     return false;
   }
 
   long got = Net_ReadBody(http, buf, cap, tag, s_poll);
   http.end();
   poll();
-  if (got <= 0) return false;
+  if (got <= 0) {
+    if (sess) s_sess->stop();
+    return false;
+  }
   if (outLen) *outLen = got;
   return true;
 }

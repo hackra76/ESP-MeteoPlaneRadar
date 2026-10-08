@@ -46,3 +46,7 @@ void Astro_DrawMoonIcon(int cx, int cy, int r, float phase);
 
 // Draw 24-Hour Solar Twilight Ring around the clock screen
 void Astro_DrawSolarArc(int cx, int cy, int r, int thickness, double lat, double lon, time_t now);
+
+// Draw coloured tick-mark dots at sunrise, golden-hour-start, and sunset
+// on the same arc ring (call after Astro_DrawSolarArc so the dots sit on top)
+void Astro_DrawSolarLabels(int cx, int cy, int r, double lat, double lon, time_t now);

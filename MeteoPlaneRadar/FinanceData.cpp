@@ -10,6 +10,7 @@
 #include "Settings.h"
 #include <WiFi.h>
 #include <ArduinoJson.h>
+#include "SpiRamAllocator.h"
 
 static FinanceItem s_items[FINANCE_MAX_ITEMS];
 static int s_itemCount = 0;
@@ -171,7 +172,7 @@ static bool fetchOneItem(int idx) {
   filter["chart"]["result"][0]["indicators"]["quote"][0]["low"] = true;
   filter["chart"]["result"][0]["indicators"]["quote"][0]["close"] = true;
 
-  JsonDocument doc;
+  JsonDocument doc(SpiRamAllocator::instance());
   DeserializationError err = deserializeJson(doc, body, DeserializationOption::Filter(filter));
   if (err) {
     Serial.printf("FINANCE: JSON parse error for %s: %s\n", s_items[idx].symbol, err.c_str());

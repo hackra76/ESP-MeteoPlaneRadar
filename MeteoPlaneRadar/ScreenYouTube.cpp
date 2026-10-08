@@ -5,11 +5,15 @@
 //  Board: Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)
 // =============================================================================
 #include "ScreenYouTube.h"
+
+static lv_obj_t* s_screenObj = nullptr;
+static lv_timer_t* s_timer = nullptr;
 #include "YouTubeData.h"
 #include "Display_ST7701.h"
 #include "Layout.h"
 #include "Lang.h"
 #include "UI.h"
+#include "PetDrawer.h"
 #include "Config.h"
 #include "Buzzer.h"
 #include "NightMode.h"
@@ -21,23 +25,11 @@
 static unsigned long s_lastDrawTick = 0;
 static unsigned long s_lastTapTime = 0;
 
-void ScreenYouTube_Enter() {
-  Async_RequestYouTube();
-}
 
-bool ScreenYouTube_Tick() {
-  if (Async_TakeYouTubeUpdated()) {
-    return true;
-  }
-  unsigned long now = millis();
-  if (now - s_lastDrawTick >= 1000) {
-    s_lastDrawTick = now;
-    return true;
-  }
-  return false;
-}
 
-bool ScreenYouTube_HandleTap(int x, int y) {
+
+
+static bool ScreenYouTube_HandleTap(int x, int y) {
   (void)x; (void)y;
   unsigned long now = millis();
   if (now - s_lastTapTime < 1000) return false;
@@ -46,6 +38,7 @@ bool ScreenYouTube_HandleTap(int x, int y) {
   if (Settings_BuzzerTouch()) Buzzer_Play(BEEP_CLICK);
   YouTube_RequestFetch();
   Async_RequestYouTube();
+  if(s_screenObj) lv_obj_invalidate(s_screenObj);
   return true;
 }
 
@@ -123,7 +116,7 @@ static void drawWrappedTitle(const char* title, int x, int w, int y) {
   UI_TextCenteredIn(line2, x, w, y + 13, C_WHITE, FONT_TINY);
 }
 
-void ScreenYouTube_Draw() {
+static void ScreenYouTube_Draw() {
   gfx->fillScreen(C_BLACK);
   Layout_Begin();
   Layout_ReserveBand(LY_DOTS - 6, 12);
@@ -144,7 +137,7 @@ void ScreenYouTube_Draw() {
   const int triX = badgeX + 14;
   const int triY = badgeY + 5;
   gfx->fillTriangle(triX, triY, triX, triY + 12, triX + 9, triY + 6, C_WHITE);
-  UI_TextCenteredIn("YOUTUBE", badgeX + 16, badgeW - 16, badgeY + 4, C_WHITE, FONT_SMALL);
+  UI_TextCenteredBox("YOUTUBE", badgeX + 22, badgeY, badgeW - 22, badgeH, C_WHITE, FONT_SMALL);
 
   // 2. Channel Title (y=64)
   const char* chTitle = (valid && strlen(yt.channelTitle) > 0) ? yt.channelTitle
@@ -156,15 +149,6 @@ void ScreenYouTube_Draw() {
     dispTitle[21] = '.'; dispTitle[22] = '.'; dispTitle[23] = '.'; dispTitle[24] = '\0';
   }
   UI_TextCentered(dispTitle, 64, C_WHITE, FONT_TITLE);
-
-  // Missing API key or error message
-  if (!valid) {
-    const char* hint = yt.statusMsg;
-    if (!Settings_YouTubeApiKey() || strlen(Settings_YouTubeApiKey()) == 0) {
-      hint = isEn ? "Configure API Key in Web UI" : (isSk ? "Nastavte API kluc vo Web UI" : "Nastavte API klic ve Web UI");
-    }
-    UI_TextCentered(hint, 84, RGB565(255, 185, 0), FONT_SMALL);
-  }
 
   char strBuf[64];
 
@@ -189,15 +173,23 @@ void ScreenYouTube_Draw() {
   } else {
     snprintf(strBuf, sizeof(strBuf), "---");
   }
-  // Prominent, large bold subscriber metric
-  UI_TextCenteredIn(strBuf, heroX, heroW, heroY + 34, C_WHITE, FONT_HERO);
+  // Prominent, large bold subscriber metric (54px)
+  UI_TextCenteredIn(strBuf, heroX, heroW, heroY + 28, C_WHITE, FONT_HERO);
 
-  // Exact subscriber count subtitle in subtle slate gray
+  // Exact subscriber count subtitle in subtle slate gray, or status hint if not valid
   if (valid && yt.subscriberCount > 0) {
     char exactBuf[32];
     formatSeparators(yt.subscriberCount, exactBuf, sizeof(exactBuf));
     snprintf(strBuf, sizeof(strBuf), "%s %s", exactBuf, isEn ? "total" : "spolu");
-    UI_TextCenteredIn(strBuf, heroX, heroW, heroY + 92, RGB565(130, 150, 175), FONT_SMALL);
+    UI_TextCenteredIn(strBuf, heroX, heroW, heroY + 96, RGB565(130, 150, 175), FONT_SMALL);
+  } else if (!valid) {
+    const char* hint = yt.statusMsg[0] ? yt.statusMsg : nullptr;
+    if (!Settings_YouTubeApiKey() || strlen(Settings_YouTubeApiKey()) == 0) {
+      hint = isEn ? "Configure API Key in Web UI" : (isSk ? "Nastavte API kluc vo Web UI" : "Nastavte API klic ve Web UI");
+    } else if (!hint) {
+      hint = isEn ? "Waiting for data..." : "Cakam na data...";
+    }
+    UI_TextCenteredIn(hint, heroX, heroW, heroY + 92, RGB565(255, 185, 0), FONT_SMALL);
   }
 
   // 4. Lower Cards: Total Views (Left) & Latest Video (Right)
@@ -237,24 +229,28 @@ void ScreenYouTube_Draw() {
     gfx->fillRoundRect(chipX, chipY, chipW, chipH, 5, 0x1146);
     gfx->drawRoundRect(chipX, chipY, chipW, chipH, 5, 0x29E8);
     snprintf(strBuf, sizeof(strBuf), "%u %s", yt.videoCount, isEn ? "VIDEOS" : "VIDEÍ");
-    UI_TextCenteredIn(strBuf, chipX, chipW, chipY + 4, RGB565(180, 205, 230), FONT_TINY);
+    UI_TextCenteredBox(strBuf, chipX, chipY, chipW, chipH, RGB565(180, 205, 230), FONT_TINY);
   }
 
   // --- Card B: Latest Video Views & Title ---
   gfx->fillRoundRect(card2X, cardY, cardW, cardH, 14, 0x0842);
   gfx->drawRoundRect(card2X, cardY, cardW, cardH, 14, 0x2187);
 
-  // Red "NEW" tag + header label without any overlap
+  const bool isTopVideo = (yt.videoMode == YT_MODE_MOST_VIEWED || Settings_YouTubeVideoMode() == YT_MODE_MOST_VIEWED);
+
+  // Badge tag: Red "NEW" or Gold "TOP" + header label without any overlap
   const int tagW = 32, tagH = 15;
   const int tagX = card2X + 12;
   const int tagY = cardY + 11;
-  gfx->fillRoundRect(tagX, tagY, tagW, tagH, 3, RGB565(230, 33, 23));
-  UI_TextCenteredIn("NEW", tagX, tagW, tagY + 2, C_WHITE, FONT_TINY);
+  gfx->fillRoundRect(tagX, tagY, tagW, tagH, 3, isTopVideo ? RGB565(210, 150, 0) : RGB565(230, 33, 23));
+  UI_TextCenteredBox(isTopVideo ? "TOP" : "NEW", tagX, tagY, tagW, tagH, C_WHITE, FONT_TINY);
 
-  const char* vHeadLabel = isEn ? "LATEST VIDEO" : "NOVÉ VIDEO";
-  UI_Text(vHeadLabel, card2X + 50, cardY + 12, RGB565(140, 160, 185), FONT_SMALL);
+  const char* vHeadLabel = isEn ? (isTopVideo ? "MOST VIEWS" : "LATEST VIDEO")
+                                : (isSk ? (isTopVideo ? "TOP VIDEO" : "NOVÉ VIDEO")
+                                        : (isTopVideo ? "TOP VIDEO" : "NOVÉ VIDEO"));
+  UI_Text(vHeadLabel, card2X + 48, cardY + 12, RGB565(140, 160, 185), FONT_SMALL);
 
-  // Latest Video Views counter
+  // Video Views counter
   if (valid && yt.latestVideoViews > 0) {
     formatMetric(yt.latestVideoViews, strBuf, sizeof(strBuf));
   } else if (valid) {
@@ -265,7 +261,7 @@ void ScreenYouTube_Draw() {
   UI_TextCenteredIn(strBuf, card2X, cardW, cardY + 36, RGB565(255, 215, 0), FONT_HUGE);
 
   // "views" label
-  UI_TextCenteredIn(isEn ? "views" : "pozretí", card2X, cardW, cardY + 74, RGB565(150, 165, 180), FONT_TINY);
+  UI_TextCenteredIn(isEn ? "views" : (isSk ? "pozretí" : "zhlédnutí"), card2X, cardW, cardY + 74, RGB565(150, 165, 180), FONT_TINY);
 
   // Latest Video Title with 2-line clean wrap contained strictly inside Card B
   if (valid && strlen(yt.latestVideoTitle) > 0) {
@@ -289,4 +285,49 @@ void ScreenYouTube_Draw() {
   } else {
     UI_TextCentered(isEn ? "Tap screen to refresh" : (isSk ? "Ťuknite pre obnovenie" : "Klepněte pro obnovení"), 394, RGB565(120, 140, 160), FONT_SMALL);
   }
+}
+
+static void ScreenYouTube_TimerCb(lv_timer_t* t) {
+  if (UI_GetActiveScreen() != SCREEN_YOUTUBE_I) return;
+  if (Async_TakeYouTubeUpdated()) {
+    lv_obj_invalidate(s_screenObj);
+    return;
+  }
+  unsigned long now = millis();
+  if (now - s_lastDrawTick >= 1000) {
+    s_lastDrawTick = now;
+    lv_obj_invalidate(s_screenObj);
+  }
+}
+
+static void ScreenYouTube_EventCb(lv_event_t* e) {
+  lv_event_code_t code = lv_event_get_code(e);
+  if (code == LV_EVENT_DRAW_MAIN) {
+    lv_layer_t* layer = lv_event_get_layer(e);
+    gfx->setLayer(layer);
+    ScreenYouTube_Draw();
+    gfx->setLayer(nullptr);
+  } else if (code == LV_EVENT_CLICKED) {
+    if (UI_IsSwipeActive()) return;
+    lv_indev_t* indev = lv_indev_active();
+    if (indev) {
+      lv_point_t pt;
+      lv_indev_get_point(indev, &pt);
+      ScreenYouTube_HandleTap(pt.x, pt.y);
+    }
+  } else if (code == LV_EVENT_SCREEN_LOAD_START) {
+    Async_RequestYouTube();
+  }
+}
+
+void ScreenYouTube_Init(lv_obj_t* parent) {
+  s_screenObj = parent;
+  lv_obj_set_size(s_screenObj, 480, 480);
+  lv_obj_center(s_screenObj);
+  lv_obj_set_scrollable(s_screenObj, false);
+  lv_obj_set_clickable(s_screenObj, true);
+
+  lv_obj_add_event_cb(s_screenObj, ScreenYouTube_EventCb, LV_EVENT_ALL, nullptr);
+
+  s_timer = lv_timer_create(ScreenYouTube_TimerCb, 500, nullptr);
 }

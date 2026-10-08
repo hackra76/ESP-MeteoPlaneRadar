@@ -53,7 +53,8 @@ void Airports_Draw(ProjectFn project, int cx, int cy, int radius,
     drawAirportIcon(sx, sy);
 
     // IATA label to the right; flip left if it would exit the circle.
-    int tw = strlen(ap.iata) * 6;   // size 1 char width = 6
+    int tw = Layout_TextW(ap.iata, 1);
+    if (tw <= 0) tw = strlen(ap.iata) * 6;
     int tx = sx + 8;
     int ty = sy - 4;
     if ((long)(tx + tw - cx) * (tx + tw - cx) + dy * dy > r2) {
@@ -63,14 +64,12 @@ void Airports_Draw(ProjectFn project, int cx, int cy, int radius,
     if (Settings_ShowLegends()) {
       // Check collision: prevent airport labels from colliding with cities or each other
       if (Layout_Claim(tx - 2, ty - 2, tw + 4, 12)) {
-        gfx->fillRoundRect(tx - 2, ty - 1, tw + 4, 11, 3, C_BLACK);
         UI_Text(ap.iata, tx, ty, C_CYAN, 1);
       } else {
         // Try opposite side if primary side collided
         int altX = (tx > sx) ? (sx - 8 - tw) : (sx + 8);
         if ((long)(altX + tw - cx) * (altX + tw - cx) + dy * dy <= r2) {
           if (Layout_Claim(altX - 2, ty - 2, tw + 4, 12)) {
-            gfx->fillRoundRect(altX - 2, ty - 1, tw + 4, 11, 3, C_BLACK);
             UI_Text(ap.iata, altX, ty, C_CYAN, 1);
           }
         }

@@ -1,155 +1,154 @@
-// =============================================================================
-//  MeteoPlaneRadar
-//  FontEngine.cpp - High-quality smooth UTF-8 typography engine using U8g2 fonts.
-//
-// =============================================================================
 #include "FontEngine.h"
-#include <Adafruit_GFX.h>
+#include <lvgl.h>
 
-// Bridge adapter allowing U8g2_for_Adafruit_GFX to draw directly into Arduino_GFX
-class ArduinoGfxAdapter : public Adafruit_GFX {
-public:
-  Arduino_GFX* target = nullptr;
-  ArduinoGfxAdapter() : Adafruit_GFX(480, 480) {}
-  void drawPixel(int16_t x, int16_t y, uint16_t color) override {
-    if (target) target->drawPixel(x, y, color);
-  }
-  void drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color) override {
-    if (target) target->drawFastHLine(x, y, w, color);
-  }
-  void drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color) override {
-    if (target) target->drawFastVLine(x, y, h, color);
-  }
-};
+static uint8_t s_fontSize = FONT_MEDIUM;
+static uint16_t s_fgColor = 0xFFFF;
 
-static ArduinoGfxAdapter       s_adapter;
-static U8G2_FOR_ADAFRUIT_GFX  s_u8g2;
-static uint8_t                s_curSize = 1;
-static uint16_t               s_curFg = 0xFFFF;
-static uint16_t               s_curBg = 0x0000;
-static bool                   s_initialized = false;
-
-static const uint8_t* getFontForSize(uint8_t size) {
-  switch (size) {
-    case FONT_TINY:   return u8g2_font_helvR08_te;
-    case FONT_SMALL:  return u8g2_font_helvB10_te;
-    case FONT_MEDIUM: return u8g2_font_helvB12_te;
-    case FONT_LARGE:  return u8g2_font_helvR14_te;
-    case FONT_TITLE:  return u8g2_font_helvR18_te;
-    case FONT_HUGE:   return u8g2_font_helvB24_te;
-    case FONT_HERO:   return u8g2_font_logisoso32_tr;
-    case FONT_CLOCK:  return u8g2_font_logisoso58_tn;
-    default:
-      if (size >= 8) return u8g2_font_logisoso58_tn;
-      if (size == 6) return u8g2_font_logisoso32_tr;
-      if (size <= 1) return u8g2_font_helvB10_te;
-      if (size == 2) return u8g2_font_helvB12_te;
-      if (size == 3) return u8g2_font_helvR14_te;
-      if (size == 5) return u8g2_font_helvB24_te;
-      return u8g2_font_helvR18_te;
-  }
-}
-
-void Font_Init(Arduino_GFX* gfx) {
-  s_adapter.target = gfx;
-  if (!s_initialized) {
-    s_u8g2.begin(s_adapter);
-    s_u8g2.setFontMode(1); // transparent
-    Font_SetSize(FONT_SMALL);
-    Font_SetColor(0xFFFF);
-    s_initialized = true;
-  }
+void Font_Init(Arduino_GFX* g) {
+    // Nothing needed for LVGL mock
 }
 
 void Font_SetSize(uint8_t size) {
-  s_curSize = size;
-  s_u8g2.setFont(getFontForSize(size));
+    s_fontSize = size;
 }
 
 void Font_SetColor(uint16_t fg, uint16_t bg, bool transparent) {
-  s_curFg = fg;
-  s_curBg = bg;
-  s_u8g2.setForegroundColor(fg);
-  if (!transparent) {
-    s_u8g2.setBackgroundColor(bg);
-    s_u8g2.setFontMode(0);
-  } else {
-    s_u8g2.setFontMode(1);
-  }
+    s_fgColor = fg;
 }
 
-void Font_Draw(const char* str, int16_t x, int16_t y) {
-  if (!str || !*str) return;
-  int16_t by = y + s_u8g2.getFontAscent();
-  s_u8g2.drawUTF8(x, by, str);
+extern const lv_font_t lv_font_clock_76;
+extern const lv_font_t lv_font_hero_54;
+extern const lv_font_t lv_font_montserrat_custom_10;
+extern const lv_font_t lv_font_montserrat_custom_14;
+extern const lv_font_t lv_font_montserrat_custom_20;
+extern const lv_font_t lv_font_montserrat_custom_28;
+
+static const lv_font_t* get_lv_font(uint8_t size) {
+    switch (size) {
+        case FONT_TINY:   return &lv_font_montserrat_custom_10;
+        case FONT_SMALL:  return &lv_font_montserrat_custom_14;
+        case FONT_MEDIUM: return &lv_font_montserrat_custom_14;
+        case FONT_LARGE:  return &lv_font_montserrat_custom_14;
+        case FONT_TITLE:  return &lv_font_montserrat_custom_20;
+        case FONT_HUGE:   return &lv_font_montserrat_custom_28;
+        case FONT_HERO:   return &lv_font_hero_54;
+        case FONT_CLOCK:  return &lv_font_clock_76;
+        default: return &lv_font_montserrat_custom_14;
+    }
+}
+
+static inline lv_color_t r565_to_lv(uint16_t c) {
+    uint8_t r = (c >> 11) & 0x1F; r = (r << 3) | (r >> 2);
+    uint8_t g = (c >> 5) & 0x3F;  g = (g << 2) | (g >> 4);
+    uint8_t b = c & 0x1F;         b = (b << 3) | (b >> 2);
+    uint32_t hex = (r << 16) | (g << 8) | b;
+    return lv_color_hex(hex);
+}
+
+static void sanitizeUtf8(const char* src, char* dst, size_t maxLen) {
+    size_t si = 0, di = 0;
+    while (src[si] && di + 1 < maxLen) {
+        uint8_t c = (uint8_t)src[si];
+        if (c >= 0xF0 && c <= 0xF4) {
+            int skip = 4;
+            while (skip-- > 0 && src[si]) si++;
+            continue;
+        }
+        dst[di++] = src[si++];
+    }
+    dst[di] = '\0';
 }
 
 void Font_Draw(const char* str, int16_t x, int16_t y, uint16_t color, uint8_t size) {
-  if (!str || !*str) return;
-  if (size != s_curSize) Font_SetSize(size);
-  if (color != s_curFg) Font_SetColor(color);
-  int16_t by = y + s_u8g2.getFontAscent();
-  s_u8g2.drawUTF8(x, by, str);
+    if (!gfx || !gfx->layer || !str || !str[0]) return;
+    
+    char clean[256];
+    sanitizeUtf8(str, clean, sizeof(clean));
+    if (!clean[0]) return;
+
+    lv_draw_label_dsc_t dsc;
+    lv_draw_label_dsc_init(&dsc);
+    dsc.color = r565_to_lv(color);
+    dsc.font = get_lv_font(size);
+    dsc.text = clean;
+    dsc.text_local = 1;
+    
+    lv_point_t size_res;
+    lv_text_get_size(&size_res, clean, dsc.font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+    
+    lv_area_t a;
+    lv_area_set(&a, x, y, x + size_res.x, y + size_res.y);
+    lv_draw_label(gfx->layer, &dsc, &a);
 }
 
-void Font_DrawCentered(const char* str, int16_t cx, int16_t y) {
-  if (!str || !*str) return;
-  int16_t tw = s_u8g2.getUTF8Width(str);
-  int16_t by = y + s_u8g2.getFontAscent();
-  s_u8g2.drawUTF8(cx - tw / 2, by, str);
+void Font_Draw(const char* str, int16_t x, int16_t y) {
+    Font_Draw(str, x, y, s_fgColor, s_fontSize);
 }
 
 void Font_DrawCentered(const char* str, int16_t cx, int16_t y, uint16_t color, uint8_t size) {
-  if (!str || !*str) return;
-  if (size != s_curSize) Font_SetSize(size);
-  if (color != s_curFg) Font_SetColor(color);
-  int16_t tw = s_u8g2.getUTF8Width(str);
-  int16_t by = y + s_u8g2.getFontAscent();
-  s_u8g2.drawUTF8(cx - tw / 2, by, str);
+    if (!gfx || !gfx->layer || !str || !str[0]) return;
+    
+    char clean[256];
+    sanitizeUtf8(str, clean, sizeof(clean));
+    if (!clean[0]) return;
+
+    lv_draw_label_dsc_t dsc;
+    lv_draw_label_dsc_init(&dsc);
+    dsc.color = r565_to_lv(color);
+    dsc.font = get_lv_font(size);
+    dsc.text = clean;
+    dsc.align = LV_TEXT_ALIGN_CENTER;
+    dsc.text_local = 1;
+    
+    lv_point_t size_res;
+    lv_text_get_size(&size_res, clean, dsc.font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+    
+    lv_area_t a;
+    lv_area_set(&a, cx - size_res.x / 2, y, cx + size_res.x / 2, y + size_res.y);
+    lv_draw_label(gfx->layer, &dsc, &a);
+}
+
+void Font_DrawCentered(const char* str, int16_t cx, int16_t y) {
+    Font_DrawCentered(str, cx, y, s_fgColor, s_fontSize);
 }
 
 void Font_DrawCenteredIn(const char* str, int16_t x, int16_t w, int16_t y, uint16_t color, uint8_t size) {
-  if (!str || !*str) return;
-  if (size != s_curSize) Font_SetSize(size);
-  if (color != s_curFg) Font_SetColor(color);
-  int16_t tw = s_u8g2.getUTF8Width(str);
-  int16_t by = y + s_u8g2.getFontAscent();
-  s_u8g2.drawUTF8(x + (w - tw) / 2, by, str);
+    Font_DrawCentered(str, x + w / 2, y, color, size);
+}
+
+void Font_DrawCenteredBox(const char* str, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color, uint8_t size) {
+    if (!gfx || !gfx->layer || !str || !str[0]) return;
+    char clean[256];
+    sanitizeUtf8(str, clean, sizeof(clean));
+    if (!clean[0]) return;
+
+    const lv_font_t* font = get_lv_font(size);
+    lv_point_t size_res;
+    lv_text_get_size(&size_res, clean, font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+
+    // Calculate vertical centering within the bounding box
+    int16_t textY = y + (h - size_res.y) / 2;
+    Font_DrawCentered(clean, x + w / 2, textY, color, size);
 }
 
 int16_t Font_TextWidth(const char* str, uint8_t size) {
-  if (!str || !*str) return 0;
-  if (size != 0 && size != s_curSize) {
-    const uint8_t* f = getFontForSize(size);
-    const uint8_t* old = s_u8g2.u8g2.font;
-    s_u8g2.setFont(f);
-    int16_t tw = s_u8g2.getUTF8Width(str);
-    s_u8g2.setFont(old);
-    return tw;
-  }
-  return s_u8g2.getUTF8Width(str);
+    if (!str || !str[0]) return 0;
+    char clean[256];
+    sanitizeUtf8(str, clean, sizeof(clean));
+    if (!clean[0]) return 0;
+    lv_point_t size_res;
+    lv_text_get_size(&size_res, clean, get_lv_font(size), 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+    return size_res.x;
 }
 
 int16_t Font_TextHeight(uint8_t size) {
-  if (size >= 8) return 58;
-  switch (size) {
-    case FONT_TINY:   return 8;
-    case FONT_SMALL:  return 10;
-    case FONT_MEDIUM: return 12;
-    case FONT_LARGE:  return 14;
-    case FONT_TITLE:  return 18;
-    case FONT_HUGE:   return 24;
-    case FONT_HERO:   return 32;
-    default:
-      if (size == 6) return 32;
-      if (size <= 1) return 10;
-      if (size == 2) return 12;
-      if (size == 3) return 14;
-      if (size == 5) return 24;
-      return 18;
-  }
+    return lv_font_get_line_height(get_lv_font(size));
 }
 
-U8G2_FOR_ADAFRUIT_GFX& Font_GetU8g2() {
-  return s_u8g2;
-}
+// Dummy object to satisfy linker if it expects U8g2 object
+class DummyU8G2 {
+public:
+    void nothing() {}
+};
+static DummyU8G2 dummy_u8g2;
+// U8G2_FOR_ADAFRUIT_GFX& Font_GetU8g2() { return *(U8G2_FOR_ADAFRUIT_GFX*)&dummy_u8g2; }

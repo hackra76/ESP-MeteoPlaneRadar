@@ -11,6 +11,7 @@
 #include "Lang.h"
 #include "Status.h"
 #include <ArduinoJson.h>
+#include "SpiRamAllocator.h"
 #include <WiFi.h>
 
 // --- Forecast state ---
@@ -101,7 +102,7 @@ static bool fetchForecast() {
   fd["precipitation_sum"] = true; fd["wind_speed_10m_max"] = true;
   fd["sunrise"] = true; fd["sunset"] = true;
 
-  JsonDocument doc;
+  JsonDocument doc(SpiRamAllocator::instance());
   DeserializationError err = deserializeJson(doc, body,
                                              DeserializationOption::Filter(filter));
   body = String();                 // free the payload before touching anything else
@@ -192,7 +193,7 @@ static bool fetchAirQuality() {
   fc["european_aqi"] = true; fc["pm2_5"] = true; fc["pm10"] = true;
   fc["alder_pollen"] = true; fc["birch_pollen"] = true; fc["grass_pollen"] = true;
 
-  JsonDocument doc;
+  JsonDocument doc(SpiRamAllocator::instance());
   DeserializationError err = deserializeJson(doc, body,
                                              DeserializationOption::Filter(filter));
   body = String();

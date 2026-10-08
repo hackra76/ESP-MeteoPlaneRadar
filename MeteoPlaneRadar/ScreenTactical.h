@@ -6,6 +6,9 @@
 // =============================================================================
 #pragma once
 #include <Arduino.h>
+#include <lvgl.h>
+
+void ScreenTactical_Init(lv_obj_t* parent);
 
 void ScreenTactical_Draw();
 void ScreenTactical_Enter();

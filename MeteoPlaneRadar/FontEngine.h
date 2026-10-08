@@ -8,7 +8,6 @@
 #pragma once
 #include <Arduino.h>
 #include <Arduino_GFX_Library.h>
-#include <U8g2_for_Adafruit_GFX.h>
 
 // Font size enumeration
 enum FontSize : uint8_t {
@@ -35,10 +34,10 @@ void Font_Draw(const char* str, int16_t x, int16_t y, uint16_t color, uint8_t si
 void Font_DrawCentered(const char* str, int16_t cx, int16_t y);
 void Font_DrawCentered(const char* str, int16_t cx, int16_t y, uint16_t color, uint8_t size);
 void Font_DrawCenteredIn(const char* str, int16_t x, int16_t w, int16_t y, uint16_t color, uint8_t size);
+void Font_DrawCenteredBox(const char* str, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color, uint8_t size);
 
 // Measurement
 int16_t Font_TextWidth(const char* str, uint8_t size = 0);
 int16_t Font_TextHeight(uint8_t size = 0);
 
-// Access underlying U8g2 renderer
-U8G2_FOR_ADAFRUIT_GFX& Font_GetU8g2();
+// Removed U8G2 legacy support

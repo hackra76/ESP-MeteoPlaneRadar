@@ -4,9 +4,15 @@
 // =============================================================================
 #pragma once
 #include <Arduino.h>
+#include <lvgl.h>
+
+void PetDrawer_Init();
 
 bool PetDrawer_IsOpen();
 void PetDrawer_Open();
+// Debug (runtime-only): force weather 0=clear 1=rain 2=thunder 3=snow, -1 = live; toggle military accessories
+void PetDrawer_DebugSetWeather(int w);
+void PetDrawer_DebugToggleMilitary();
 void PetDrawer_Close();
 void PetDrawer_Toggle();
 

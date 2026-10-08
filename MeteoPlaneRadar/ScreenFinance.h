@@ -5,7 +5,6 @@
 #pragma once
 #include <Arduino.h>
 
-void ScreenFinance_Enter();
-void ScreenFinance_Draw();
-bool ScreenFinance_Tick();
-bool ScreenFinance_HandleTap(int x, int y);
+#include <lvgl.h>
+
+void ScreenFinance_Init(lv_obj_t* parent);

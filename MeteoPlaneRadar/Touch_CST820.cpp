@@ -40,6 +40,8 @@ static bool readRegs(uint8_t reg, uint8_t* buf, size_t len) {
 static volatile bool s_intFlag = false;
 static bool          s_fingerDown = false;
 static unsigned long s_lastPoll = 0;
+static uint16_t      s_lastX = 0;
+static uint16_t      s_lastY = 0;
 
 static void IRAM_ATTR onTouchInt() { s_intFlag = true; }
 
@@ -52,9 +54,13 @@ bool Touch_Init() {
 
   pinMode(CST820_INT_PIN, INPUT_PULLUP);
 #if TOUCH_USE_INT
-  // detachInterrupt first - Touch_Init() may be called again at runtime.
-  detachInterrupt(digitalPinToInterrupt(CST820_INT_PIN));
+  // detachInterrupt only if previously attached to prevent uninstalled ISR service errors
+  static bool s_intAttached = false;
+  if (s_intAttached) {
+    detachInterrupt(digitalPinToInterrupt(CST820_INT_PIN));
+  }
   attachInterrupt(digitalPinToInterrupt(CST820_INT_PIN), onTouchInt, FALLING);
+  s_intAttached = true;
   s_intFlag = false;
   s_fingerDown = false;
 #endif
@@ -78,7 +84,9 @@ bool Touch_Init() {
 // is what could switch the display off for good.
 
 void Touch_Read(TouchData* out) {
-  out->points = 0;
+  out->points = s_fingerDown ? 1 : 0;
+  out->x = s_lastX;
+  out->y = s_lastY;
 
 #if TOUCH_USE_INT
   // Read when: the chip raised an event, a finger is already down (we need the
@@ -106,7 +114,11 @@ void Touch_Read(TouchData* out) {
   if (buf[0] == 0xFF && buf[1] == 0xFF && buf[2] == 0xFF) return;
 
   uint8_t points = buf[0] & 0x0F;
-  if (points == 0) { s_fingerDown = false; return; }   // finger lifted
+  if (points == 0) { 
+    s_fingerDown = false; 
+    out->points = 0;
+    return; 
+  }   // finger lifted
   if (points > 1) return;               // CST820 is a single-touch controller
 
   uint16_t x = ((buf[1] & 0x0F) << 8) | buf[2];
@@ -114,6 +126,9 @@ void Touch_Read(TouchData* out) {
   if (x >= LCD_WIDTH || y >= LCD_HEIGHT) return;   // outside the panel
 
   s_fingerDown = true;   // keep reading every pass until the finger lifts
+  s_lastX = x;
+  s_lastY = y;
+  
   out->points = points;
   out->x = x;
   out->y = y;

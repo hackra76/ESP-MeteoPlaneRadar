@@ -16,10 +16,13 @@
 #include "AirplaneSprite.h"
 #include "CatSpritesHiRes.h"
 #include <math.h>
+#include <esp_heap_caps.h>
 
 static bool s_isOpen = false;
 static unsigned long s_lastAnimTick = 0;
 static uint32_t s_frameCounter = 0;
+static lv_obj_t* s_petObj = nullptr;
+static lv_timer_t* s_petTimer = nullptr;
 
 // DigiCat Autonomous Animation States
 enum CatAnimState : uint8_t {
@@ -104,6 +107,11 @@ static unsigned long s_lastTiltSfxMs = 0;
 static unsigned long s_clingStartMs = 0;
 static unsigned long s_tiltLevelTimeMs = 0;
 
+// Military Tactical Co-Pilot Tracking
+static float         s_fighterBearingDeg = 0.0f;
+static bool          s_hasMilitaryFighter = false;
+static unsigned long s_lastMilitaryAlertMs = 0;
+
 // Forward declarations
 static void callCatBack();
 
@@ -120,77 +128,165 @@ static const char* getThoughtText() {
   return PetBrain_GetThought();
 }
 
-// (Old palette blitter removed – all cat states now use drawCatSpriteHiRes2x)
+// -----------------------------------------------------------------------------
+// High-Efficiency RGB565A8 Sprite Blitting (Single LVGL draw task per sprite)
+// -----------------------------------------------------------------------------
+static const int CAT_SCALE = 3;
+static const int CAT_SPRITE_W = 64 * CAT_SCALE; // 192
+static const int CAT_SPRITE_H = 64 * CAT_SCALE; // 192
+static const size_t CAT_BUF_SIZE = (CAT_SPRITE_W * CAT_SPRITE_H * 2) + (CAT_SPRITE_W * CAT_SPRITE_H); // 110,592 bytes
+
+static uint8_t* s_catBuf[2] = { nullptr, nullptr };
+static const uint16_t* s_cachedCatFrame = nullptr;
+static bool s_cachedCatFlipX = false;
+static uint8_t s_activeCatBufIdx = 0;
+
+static const int PLANE_SPRITE_W = CAT_AIRPLANE_W * 2; // 56
+static const int PLANE_SPRITE_H = CAT_AIRPLANE_H * 2; // 28
+static const size_t PLANE_BUF_SIZE = (PLANE_SPRITE_W * PLANE_SPRITE_H * 2) + (PLANE_SPRITE_W * PLANE_SPRITE_H); // 4,704 bytes
+
+static uint8_t* s_planeBuf[2] = { nullptr, nullptr };
+static const uint8_t* s_cachedPlaneArray = nullptr;
+static bool s_cachedPlaneFlipX = false;
+static uint8_t s_activePlaneBufIdx = 0;
 
 static void drawCatSpriteHiRes2x(const uint16_t* frame, int topLeftX, int topLeftY, bool flipX) {
-  if (!frame) return;
-
-  for (int py = 0; py < 64; py++) {
-    int screenY = topLeftY + py * 3;
-    if (screenY + 2 < 0 || screenY >= LCD_HEIGHT) continue;
-
-    const uint16_t* row = frame + py * 64;
-    int px = 0;
-    while (px < 64) {
-      uint16_t c = row[px];
-      if (c == 0x0000) {
-        px++;
-        continue; // Transparent
-      }
-
-      int startPx = px;
-      while (px < 64 && row[px] == c) {
-        px++;
-      }
-      int runLen = px - startPx;
-      int startX = flipX ? (topLeftX + (64 - px) * 3) : (topLeftX + startPx * 3);
-      int w = runLen * 3;
-
-      if (startX < 0) { w += startX; startX = 0; }
-      if (startX + w > LCD_WIDTH) { w = LCD_WIDTH - startX; }
-      if (w > 0) {
-        gfx->fillRect(startX, screenY, w, 3, c);
-      }
+  if (!frame || !gfx || !gfx->layer) return;
+  if (!s_catBuf[0]) {
+    for (int i = 0; i < 2; i++) {
+      if (!s_catBuf[i]) s_catBuf[i] = (uint8_t*)heap_caps_malloc(CAT_BUF_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     }
   }
+  if (!s_catBuf[0]) return;
+
+  uint8_t bufIdx = s_activeCatBufIdx;
+  if (frame != s_cachedCatFrame || flipX != s_cachedCatFlipX || !s_catBuf[bufIdx]) {
+    bufIdx = 1 - s_activeCatBufIdx;
+    if (!s_catBuf[bufIdx]) bufIdx = 0;
+    uint8_t* buf = s_catBuf[bufIdx];
+
+    uint16_t* rgbDst = (uint16_t*)buf;
+    uint8_t* alphaDst = buf + (CAT_SPRITE_W * CAT_SPRITE_H * 2);
+
+    uint16_t rowRgb[192];
+    uint8_t rowAlpha[192];
+
+    for (int sy = 0; sy < 64; sy++) {
+      const uint16_t* srcRow = frame + sy * 64;
+      
+      for (int sx = 0; sx < 64; sx++) {
+        int srcX = flipX ? (63 - sx) : sx;
+        uint16_t color = srcRow[srcX];
+        uint8_t alpha = (color == 0x0000) ? 0x00 : 0xFF;
+
+        int dstXBase = sx * CAT_SCALE;
+        for (int dx = 0; dx < CAT_SCALE; dx++) {
+          rowRgb[dstXBase + dx] = color;
+          rowAlpha[dstXBase + dx] = alpha;
+        }
+      }
+      
+      int dstYBase = sy * CAT_SCALE;
+      for (int dy = 0; dy < CAT_SCALE; dy++) {
+        memcpy(rgbDst + (dstYBase + dy) * CAT_SPRITE_W, rowRgb, CAT_SPRITE_W * sizeof(uint16_t));
+        memcpy(alphaDst + (dstYBase + dy) * CAT_SPRITE_W, rowAlpha, CAT_SPRITE_W);
+      }
+    }
+    s_cachedCatFrame = frame;
+    s_cachedCatFlipX = flipX;
+    s_activeCatBufIdx = bufIdx;
+  }
+
+  uint8_t* buf = s_catBuf[s_activeCatBufIdx];
+
+  lv_draw_image_dsc_t dsc;
+  lv_draw_image_dsc_init(&dsc);
+  static lv_image_dsc_t img_dscs[2];
+  lv_image_dsc_t* img_dsc = &img_dscs[s_activeCatBufIdx];
+
+  img_dsc->header.magic = LV_IMAGE_HEADER_MAGIC;
+  img_dsc->header.cf = LV_COLOR_FORMAT_RGB565A8;
+  img_dsc->header.w = CAT_SPRITE_W;
+  img_dsc->header.h = CAT_SPRITE_H;
+  img_dsc->header.stride = CAT_SPRITE_W * 2;
+  img_dsc->header.flags = 0;
+  img_dsc->data_size = CAT_BUF_SIZE;
+  img_dsc->data = buf;
+
+  dsc.src = img_dsc;
+  lv_area_t a;
+  lv_area_set(&a, topLeftX, topLeftY, topLeftX + CAT_SPRITE_W - 1, topLeftY + CAT_SPRITE_H - 1);
+  lv_draw_image(gfx->layer, &dsc, &a);
 }
 
 static void drawAirplaneSprite2x(const uint8_t* spriteArray, int topLeftX, int topLeftY, bool flipX) {
-  for (int py = 0; py < CAT_AIRPLANE_H; py++) {
-    int screenY = topLeftY + py * 2;
-    if (screenY + 1 < 0 || screenY >= LCD_HEIGHT) continue;
-
-    const uint8_t* row = spriteArray + py * CAT_AIRPLANE_W;
-    int px = 0;
-    while (px < CAT_AIRPLANE_W) {
-      uint8_t c = row[px];
-      if (c == 0 || c >= 16) {
-        px++;
-        continue;
-      }
-
-      int startPx = px;
-      while (px < CAT_AIRPLANE_W && row[px] == c) {
-        px++;
-      }
-      int runLen = px - startPx;
-      uint16_t color = CAT_PALETTE[c];
-      int startX = flipX ? (topLeftX + (CAT_AIRPLANE_W - px) * 2) : (topLeftX + startPx * 2);
-      int w = runLen * 2;
-
-      if (startX < 0) {
-        w += startX;
-        startX = 0;
-      }
-      if (startX + w > LCD_WIDTH) {
-        w = LCD_WIDTH - startX;
-      }
-
-      if (w > 0) {
-        gfx->fillRect(startX, screenY, w, 2, color);
-      }
+  if (!spriteArray || !gfx || !gfx->layer) return;
+  if (!s_planeBuf[0]) {
+    for (int i = 0; i < 2; i++) {
+      if (!s_planeBuf[i]) s_planeBuf[i] = (uint8_t*)heap_caps_malloc(PLANE_BUF_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     }
   }
+  if (!s_planeBuf[0]) return;
+
+  uint8_t bufIdx = s_activePlaneBufIdx;
+  if (spriteArray != s_cachedPlaneArray || flipX != s_cachedPlaneFlipX || !s_planeBuf[bufIdx]) {
+    bufIdx = 1 - s_activePlaneBufIdx;
+    if (!s_planeBuf[bufIdx]) bufIdx = 0;
+    uint8_t* buf = s_planeBuf[bufIdx];
+
+    uint16_t* rgbDst = (uint16_t*)buf;
+    uint8_t* alphaDst = buf + (PLANE_SPRITE_W * PLANE_SPRITE_H * 2);
+
+    uint16_t rowRgb[120];
+    uint8_t rowAlpha[120];
+
+    for (int sy = 0; sy < CAT_AIRPLANE_H; sy++) {
+      const uint8_t* srcRow = spriteArray + sy * CAT_AIRPLANE_W;
+      
+      for (int sx = 0; sx < CAT_AIRPLANE_W; sx++) {
+        int srcX = flipX ? (CAT_AIRPLANE_W - 1 - sx) : sx;
+        uint8_t c = srcRow[srcX];
+        uint16_t color = (c > 0 && c < 16) ? CAT_PALETTE[c] : 0x0000;
+        uint8_t alpha = (c == 0 || c >= 16) ? 0x00 : 0xFF;
+
+        int dstXBase = sx * 2;
+        rowRgb[dstXBase]     = color;
+        rowRgb[dstXBase + 1] = color;
+        rowAlpha[dstXBase]   = alpha;
+        rowAlpha[dstXBase + 1] = alpha;
+      }
+
+      int dstYBase = sy * 2;
+      for (int dy = 0; dy < 2; dy++) {
+        memcpy(rgbDst + (dstYBase + dy) * PLANE_SPRITE_W, rowRgb, PLANE_SPRITE_W * sizeof(uint16_t));
+        memcpy(alphaDst + (dstYBase + dy) * PLANE_SPRITE_W, rowAlpha, PLANE_SPRITE_W);
+      }
+    }
+    s_cachedPlaneArray = spriteArray;
+    s_cachedPlaneFlipX = flipX;
+    s_activePlaneBufIdx = bufIdx;
+  }
+
+  uint8_t* buf = s_planeBuf[s_activePlaneBufIdx];
+
+  lv_draw_image_dsc_t dsc;
+  lv_draw_image_dsc_init(&dsc);
+  static lv_image_dsc_t img_dscs[2];
+  lv_image_dsc_t* img_dsc = &img_dscs[s_activePlaneBufIdx];
+
+  img_dsc->header.magic = LV_IMAGE_HEADER_MAGIC;
+  img_dsc->header.cf = LV_COLOR_FORMAT_RGB565A8;
+  img_dsc->header.w = PLANE_SPRITE_W;
+  img_dsc->header.h = PLANE_SPRITE_H;
+  img_dsc->header.stride = PLANE_SPRITE_W * 2;
+  img_dsc->header.flags = 0;
+  img_dsc->data_size = PLANE_BUF_SIZE;
+  img_dsc->data = buf;
+
+  dsc.src = img_dsc;
+  lv_area_t a;
+  lv_area_set(&a, topLeftX, topLeftY, topLeftX + PLANE_SPRITE_W - 1, topLeftY + PLANE_SPRITE_H - 1);
+  lv_draw_image(gfx->layer, &dsc, &a);
 }
 
 // -----------------------------------------------------------------------------
@@ -206,6 +302,10 @@ bool PetDrawer_IsNightAwake() {
 
 void PetDrawer_Open() {
   s_isOpen = true;
+  if (s_petObj) {
+    lv_screen_load(s_petObj);
+    lv_obj_invalidate(s_petObj);
+  }
   const unsigned long now = millis();
   s_lastUserInteractMs = now;
   s_nextBrainDecisionMs = now + 12000;
@@ -245,6 +345,11 @@ void PetDrawer_Open() {
 
 void PetDrawer_Close() {
   s_isOpen = false;
+  lv_obj_t* baseScr = UI_GetScreenObj(UI_GetActiveScreen());
+  if (baseScr) {
+    lv_screen_load(baseScr);
+    lv_obj_invalidate(baseScr);
+  }
   s_catX = 240.0f;
   s_catTargetX = 240.0f;
   s_catVx = 0.0f;
@@ -336,7 +441,7 @@ bool PetDrawer_Tick() {
   if (!s_isOpen) return false;
   const unsigned long now = millis();
 
-  if (now - s_lastAnimTick < 33) return false;
+  if (now - s_lastAnimTick < 40) return false;
   s_lastAnimTick = now;
   s_frameCounter++;
 
@@ -495,8 +600,25 @@ bool PetDrawer_Tick() {
   const bool nightAwake = isNight && (now < s_nightWakeUntilMs);
   const bool nightDrowsy = isNight && nightAwake && (s_nightWakeUntilMs - now <= NIGHT_DROWSY_DURATION_MS);
 
-  // Tracked Aircraft simulation in pet screen: only when very close (<= 10km)
-  if (hasPlane && dist <= 10.0f && (!isNight || nightAwake)) {
+  // Military Fighter Intercept & Tactical Co-Pilot Mode
+  s_hasMilitaryFighter = (hasPlane && pType == PLANE_TYPE_FIGHTER && dist < 65.0f);
+  if (s_hasMilitaryFighter) {
+    s_fighterBearingDeg = bDeg;
+    if (now - s_lastMilitaryAlertMs > 25000UL && !s_hasCustomThought && s_catState != CAT_STATE_AWAY && s_catState != CAT_STATE_CLING) {
+      s_lastMilitaryAlertMs = now;
+      PetBrain_SetMood(PET_MOOD_MILITARY);
+      if (Settings_BuzzerEnabled() && Settings_BuzzerPet()) Buzzer_Play(BEEP_OVERHEAD);
+      setThought(
+        "Top Gun mode active! Intercepting bogey on tactical scope!",
+        "Top Gun rezim aktivny! Zameriavam stihacku na radare!",
+        "Top Gun rezim aktivni! Zameruji stihacku na radaru!"
+      );
+    }
+  }
+
+  // Tracked Aircraft simulation: military fighters tracked up to 45km, civil up to 10km
+  float maxTrackDist = (pType == PLANE_TYPE_FIGHTER) ? 45.0f : 10.0f;
+  if (hasPlane && dist <= maxTrackDist && (!isNight || nightAwake)) {
     s_skyPlane.active = true;
     s_skyPlane.distKm = dist;
     s_skyPlane.type = pType;
@@ -505,12 +627,13 @@ bool PetDrawer_Tick() {
     s_skyPlane.callsign[sizeof(s_skyPlane.callsign) - 1] = '\0';
 
     if (s_skyPlane.vx == 0.0f) {
+      float spd = (pType == PLANE_TYPE_FIGHTER) ? 3.0f : 1.6f;
       if (bDeg > 180.0f) {
         s_skyPlane.x = 410.0f;
-        s_skyPlane.vx = -1.6f;
+        s_skyPlane.vx = -spd;
       } else {
         s_skyPlane.x = 50.0f;
-        s_skyPlane.vx = 1.6f;
+        s_skyPlane.vx = spd;
       }
     }
 
@@ -1060,7 +1183,15 @@ enum PetWeather : uint8_t {
   WEATHER_SNOW
 };
 
+static int s_debugWeather = -1; // -1 = live weather; 0..3 = forced PetWeather (runtime-only, never persisted)
+void PetDrawer_DebugSetWeather(int w) { s_debugWeather = (w >= 0 && w <= 3) ? w : -1; }
+void PetDrawer_DebugToggleMilitary() {
+  s_hasMilitaryFighter = !s_hasMilitaryFighter;
+  PetBrain_SetMood(s_hasMilitaryFighter ? PET_MOOD_MILITARY : PET_MOOD_HAPPY);
+}
+
 static PetWeather getPetWeather() {
+  if (s_debugWeather >= 0) return (PetWeather)s_debugWeather;
   // 1. Live radar nowcasting alert check
   const PrecipAlert* alert = PrecipTracker_GetAlert();
   if (alert && (alert->status == PRECIP_STAT_CURRENTLY_ACTIVE || alert->status == PRECIP_STAT_APPROACHING)) {
@@ -1173,9 +1304,8 @@ static void drawRunwayDeck(PetWeather weather) {
 
   // Snow accumulation layer on top of the curb
   if (weather == WEATHER_SNOW) {
-    for (int x = 40; x < 440; x += 6) {
-      gfx->drawPixel(x, 341, 0xCE79);
-      gfx->drawPixel(x + 2, 341, 0xFFFF);
+    for (int x = 40; x < 440; x += 12) {
+      gfx->drawFastHLine(x, 341, 4, 0xFFFF);
     }
   }
 
@@ -1252,7 +1382,70 @@ static void drawUmbrellaCanopy(int cx, int cy, int r, uint16_t baseCol, uint16_t
   gfx->drawPixel(cx, cy - r - 3, 0xFFFF);
 }
 
-static void drawCatWeatherAccessories(int catDrawX, int catDrawY, bool flipX, CatAnimState state, PetWeather weather) {
+// Eye anchors resolved from the sprite pixels themselves (eye colour 0x1062 + light highlight 0xD6FC).
+struct CatEyes {
+  bool valid = false;
+  int n = 0;        // 1 = profile (single visible eye), 2 = frontal pair
+  int x[2] = {0, 0}; // screen coordinates of the eye centres
+  int y[2] = {0, 0};
+};
+
+static CatEyes resolveCatEyes(const uint16_t* frame, bool flip, int spriteX, int spriteY) {
+  static const uint16_t* s_cacheFrame = nullptr;
+  static bool s_cacheFlip = false;
+  static CatEyes s_cacheEyes;
+  static CatEyes s_lastGood;  // survives blink frames that have no highlight pixels
+  if (!frame) return CatEyes();
+
+  if (frame != s_cacheFrame || flip != s_cacheFlip) {
+    int gx[6], gy[6], gn = 0;
+    for (int y = 0; y < 48 && gn < 6; y++) {
+      for (int x = 0; x < 64 && gn < 6; x++) {
+        if (frame[y * 64 + x] != 0xD6FC) continue;
+        bool eyeNear = (x < 63 && frame[y * 64 + x + 1] == 0x1062) || (x > 0 && frame[y * 64 + x - 1] == 0x1062) ||
+                       (y < 63 && frame[(y + 1) * 64 + x] == 0x1062) || (y > 0 && frame[(y - 1) * 64 + x] == 0x1062);
+        if (eyeNear) { gx[gn] = x; gy[gn] = y; gn++; }
+      }
+    }
+    CatEyes e;
+    // Prefer a frontal pair: two highlights on roughly the same row, clearly apart
+    for (int i = 0; i < gn && !e.valid; i++) {
+      for (int j = i + 1; j < gn; j++) {
+        if (abs(gy[i] - gy[j]) <= 3 && abs(gx[i] - gx[j]) >= 5) {
+          int a = (gx[i] < gx[j]) ? i : j, b = (a == i) ? j : i;
+          e.n = 2; e.valid = true;
+          int gxs[2] = {gx[a], gx[b]}, gys[2] = {gy[a], gy[b]};
+          for (int k = 0; k < 2; k++) {
+            // eye block is 4 px wide with the highlight on its left-centre edge: centre = gx (px edge), gy+1.5
+            int ex = flip ? (64 - gxs[k]) : gxs[k];
+            e.x[k] = ex * CAT_SCALE;
+            e.y[k] = gys[k] * CAT_SCALE + (CAT_SCALE * 3) / 2;
+          }
+          break;
+        }
+      }
+    }
+    if (!e.valid && gn >= 1) {
+      int ex = flip ? (64 - gx[0]) : gx[0];
+      e.n = 1; e.valid = true;
+      e.x[0] = ex * CAT_SCALE;
+      e.y[0] = gy[0] * CAT_SCALE + (CAT_SCALE * 3) / 2;
+    }
+    // store sprite-relative offsets (spriteX/Y added below)
+    s_cacheFrame = frame;
+    s_cacheFlip = flip;
+    s_cacheEyes = e;
+    if (e.valid) s_lastGood = e;
+  }
+
+  CatEyes r = s_cacheEyes.valid ? s_cacheEyes : s_lastGood;
+  if (!r.valid) return r;
+  for (int k = 0; k < r.n; k++) { r.x[k] += spriteX; r.y[k] += spriteY; }
+  return r;
+}
+
+static void drawCatAccessories(int catDrawX, int catDrawY, bool flipX, CatAnimState state, PetWeather weather, PetMood mood,
+                               const uint16_t* frame, bool frameFlipX, int spriteX, int spriteY) {
   // 1. Rain & Thunderstorm: Umbrella!
   if (weather == WEATHER_RAIN || weather == WEATHER_THUNDERSTORM) {
     if (state == CAT_STATE_SLEEPING) {
@@ -1288,18 +1481,109 @@ static void drawCatWeatherAccessories(int catDrawX, int catDrawY, bool flipX, Ca
     return;
   }
 
+  // Eye-anchored accessories: all positions derive from the eye highlights actually present in the
+  // rendered sprite frame, so they follow every pose (sit, walk, profile, flipped, head bob).
+  CatEyes eyes = resolveCatEyes(frame, frameFlipX, spriteX, spriteY);
+  const int spriteCx = spriteX + 96;
+
   // 2. Snow / Freezing Weather: Cozy Knit Winter Scarf!
   bool isCold = (weather == WEATHER_SNOW) || (Forecast_CurrentValid() && Forecast_CurrentTemp() <= 2.0f);
-  if (isCold && state != CAT_STATE_CLING && state != CAT_STATE_AWAY) {
-    int neckX = flipX ? (catDrawX + 68) : (catDrawX + 48);
-    int neckY = catDrawY + 54;
-    gfx->fillRoundRect(neckX - 7, neckY, 15, 6, 2, 0xF800); // bright red scarf wrap
-    gfx->drawFastVLine(neckX - 3, neckY, 6, 0xFFFF); // white knit pattern
-    gfx->drawFastVLine(neckX + 2, neckY, 6, 0xFFFF);
-    int tailX = flipX ? (neckX + 5) : (neckX - 5);
-    gfx->fillRect(tailX, neckY + 4, 4, 10, 0xF800); // fluttering scarf tail
-    gfx->drawFastHLine(tailX, neckY + 12, 4, 0xFFFF);
-    gfx->drawFastHLine(tailX, neckY + 14, 4, 0xDEFB); // fringe
+  if (isCold && eyes.valid && state != CAT_STATE_CLING && state != CAT_STATE_AWAY && state != CAT_STATE_SLEEPING) {
+    int neckX, neckY, halfW, tailDir;
+    if (eyes.n >= 2) {
+      neckX = (eyes.x[0] + eyes.x[1]) / 2;
+      neckY = eyes.y[0] + 12;
+      halfW = 16;
+      tailDir = frameFlipX ? -1 : 1;
+    } else {
+      int facing = (eyes.x[0] >= spriteCx) ? 1 : -1;
+      neckX = eyes.x[0] - facing * 14;
+      neckY = eyes.y[0] + 13;
+      halfW = 10;
+      tailDir = -facing;
+    }
+    gfx->fillRoundRect(neckX - halfW, neckY, halfW * 2, 7, 3, 0xF800);   // bright red scarf wrap
+    gfx->drawFastVLine(neckX - halfW / 2, neckY, 7, 0xFFFF);             // white knit pattern
+    gfx->drawFastVLine(neckX + halfW / 2, neckY, 7, 0xFFFF);
+    int tailX = (tailDir > 0) ? (neckX + halfW - 7) : (neckX - halfW + 3);
+    gfx->fillRect(tailX, neckY + 5, 5, 12, 0xF800);                      // scarf tail
+    gfx->drawFastHLine(tailX, neckY + 14, 5, 0xFFFF);
+    gfx->drawFastHLine(tailX, neckY + 16, 5, 0xDEFB);                    // fringe
+  }
+
+  // 3. Military / Tactical Alert: Top Gun Aviator Sunglasses & Mini Radar Scope!
+  if ((mood == PET_MOOD_MILITARY || s_hasMilitaryFighter) && eyes.valid && state != CAT_STATE_CLING && state != CAT_STATE_AWAY) {
+    int facing = (eyes.n >= 2) ? 0 : ((eyes.x[0] >= spriteCx) ? 1 : -1);
+
+    // Top Gun Gold-Rimmed Aviator Sunglasses – one lens centred on each visible eye
+    if (state != CAT_STATE_SLEEPING) {
+      const int lensW = (eyes.n >= 2) ? 18 : 17;
+      const int lensH = 14;
+      for (int i = 0; i < eyes.n; i++) {
+        int lx = eyes.x[i] - lensW / 2;
+        int ly = eyes.y[i] - lensH / 2;
+        gfx->fillRoundRect(lx, ly, lensW, lensH, 4, 0x10A2);
+        gfx->drawRoundRect(lx, ly, lensW, lensH, 4, 0xFDC0);
+        gfx->drawFastHLine(lx + 2, ly, lensW - 4, 0xFEA0);               // brow rim highlight
+        gfx->drawLine(lx + 4, ly + 3, lx + 7, ly + 8, 0xFFFF);           // specular glint
+        gfx->drawPixel(lx + 4, ly + 4, 0xFFFF);
+      }
+      if (eyes.n >= 2) {
+        int bx0 = eyes.x[0] + lensW / 2;
+        int bx1 = eyes.x[1] - lensW / 2;
+        int by = (eyes.y[0] + eyes.y[1]) / 2 - 3;
+        if (bx1 > bx0) gfx->drawFastHLine(bx0, by, bx1 - bx0 + 1, 0xFDC0); // bridge
+        // temple stubs outward
+        gfx->drawFastHLine(eyes.x[0] - lensW / 2 - 4, eyes.y[0] - 3, 4, 0xFDC0);
+        gfx->drawFastHLine(eyes.x[1] + lensW / 2, eyes.y[1] - 3, 4, 0xFDC0);
+      } else {
+        // Profile view: temple arm running back along the head
+        int ax = eyes.x[0] - facing * (lensW / 2);
+        gfx->drawLine(ax, eyes.y[0] - 3, ax - facing * 16, eyes.y[0] - 3, 0xFDC0);
+      }
+    }
+
+    // Handheld Mini Tactical CRT Radar Scope
+    if (state == CAT_STATE_IDLE || state == CAT_STATE_WATCH_PLANE || state == CAT_STATE_PATROL || state == CAT_STATE_HAPPY) {
+      int refX = (eyes.n >= 2) ? (eyes.x[0] + eyes.x[1]) / 2 : eyes.x[0];
+      int side = (eyes.n >= 2) ? (frameFlipX ? 1 : -1) : facing;
+      int scopeX = refX + side * ((eyes.n >= 2) ? 58 : 42);
+      int scopeY = eyes.y[0] + 44;
+      int pawX = refX + side * ((eyes.n >= 2) ? 24 : 24);
+      int pawY = eyes.y[0] + 56;
+      int r = 11;
+
+      // Dark steel housing & bezel
+      gfx->fillCircle(scopeX, scopeY, r + 2, 0x2104);
+      gfx->drawCircle(scopeX, scopeY, r + 2, 0x4A69);
+      gfx->fillCircle(scopeX, scopeY, r, 0x0120); // deep phosphor green
+
+      // Concentric range ring
+      gfx->drawCircle(scopeX, scopeY, 6, 0x03E0);
+
+      // Crosshairs
+      gfx->drawFastHLine(scopeX - 9, scopeY, 19, 0x0280);
+      gfx->drawFastVLine(scopeX, scopeY - 9, 19, 0x0280);
+
+      // Rotating sweep line
+      const unsigned long now = millis();
+      float swAngle = (float)(now % 1600) / 1600.0f * (float)M_PI * 2.0f;
+      gfx->drawLine(scopeX, scopeY, scopeX + (int)(cosf(swAngle) * 9.0f), scopeY + (int)(sinf(swAngle) * 9.0f), 0x07E0);
+
+      // Intercepted Military Bogey blip
+      float bRad = (s_fighterBearingDeg - 90.0f) * (float)M_PI / 180.0f;
+      int blipX = scopeX + (int)(cosf(bRad) * 6.0f);
+      int blipY = scopeY + (int)(sinf(bRad) * 6.0f);
+      if ((now / 220) % 2 == 0) {
+        gfx->fillCircle(blipX, blipY, 2, C_RED);
+        gfx->drawPixel(blipX, blipY, 0xFFFF);
+      } else {
+        gfx->drawCircle(blipX, blipY, 2, C_RED);
+      }
+
+      // Mounting bracket to paw
+      gfx->drawLine(scopeX, scopeY + r + 1, pawX, pawY, 0x4A69);
+    }
   }
 }
 
@@ -1349,6 +1633,15 @@ static void drawTrackedSkyPlane() {
   // 2. Draw 2x scaled Pixel-Art Airplane Sprite (56x28 px)
   drawAirplaneSprite2x(spriteArray, px, py, flyingLeft);
 
+  // Supersonic afterburner exhaust cone for fighter jets
+  if (s_skyPlane.type == PLANE_TYPE_FIGHTER) {
+    int abDir = flyingLeft ? 1 : -1;
+    int tailX = flyingLeft ? (px + 54) : (px + 2);
+    uint16_t abCol = ((now / 70) % 2 == 0) ? 0xFD06 : 0xFF15;
+    gfx->fillTriangle(tailX, py + 15, tailX + abDir * 12, py + 18, tailX, py + 21, abCol);
+    gfx->drawFastHLine(tailX, py + 18, abDir * 7, 0xFFFF);
+  }
+
   // 3. Strobe beacon light flash on fuselage/tailfin every 600ms
   if ((now / 300) % 2 == 0) {
     int strobeX = flyingLeft ? (px + 50) : (px + 6);
@@ -1372,9 +1665,10 @@ static void drawTrackedSkyPlane() {
   bx = constrain(bx, 45, 435 - bw);
   int by = py + 30;
 
-  gfx->fillRoundRect(bx, by, bw, 13, 4, 0x0821);
-  gfx->drawRoundRect(bx, by, bw, 13, 4, 0x39E7);
-  UI_TextCenteredIn(badge, bx, bw, by + 2, C_WHITE, FONT_TINY);
+  bool isFighter = (s_skyPlane.type == PLANE_TYPE_FIGHTER);
+  gfx->fillRoundRect(bx, by, bw, 13, 4, isFighter ? 0x2000 : 0x0821);
+  gfx->drawRoundRect(bx, by, bw, 13, 4, isFighter ? C_RED : 0x39E7);
+  UI_TextCenteredIn(badge, bx, bw, by + 2, isFighter ? C_YELLOW : C_WHITE, FONT_TINY);
 
   // 5. Dynamic claw scratch marks / sparks when cat is actively swatting
   if (s_catState == CAT_STATE_SWAT && (s_animFrame % 8 == 2 || s_animFrame % 8 == 5)) {
@@ -1449,24 +1743,30 @@ static void drawClingEffects(int catX, int catY, bool clingLeft) {
 void PetDrawer_Draw() {
   if (!s_isOpen) return;
 
-  gfx->fillScreen(C_BLACK);
+  // Background is already filled by LVGL (LV_OPA_COVER)
 
-  // 1. Clock & Outside Temperature status line
+  // 1. Environmental Weather & Runway Deck (rendered first as background)
+  PetWeather curWeather = getPetWeather();
+  drawWeatherBackdrop(curWeather);
+  drawRunwayDeck(curWeather);
+  drawTrackedSkyPlane();
+
+  // 2. Clock & Outside Temperature status line
   UI_DrawStatusLine(36);
 
-  // 2. Pet Title Pill with Aviation Rank & Mute Toggle
+  // 3. Pet Title Pill with Aviation Rank & Mute Toggle
   char titleBuf[64];
-  snprintf(titleBuf, sizeof(titleBuf), "🐾 DIGICAT [%s]", PetBrain_GetStageTitle());
+  snprintf(titleBuf, sizeof(titleBuf), "DIGICAT [%s]", PetBrain_GetStageTitle());
   const int titleW = 254;
   const int titleX = 85;
-  const int titleY = 58;
+  const int titleY = 56;
   gfx->fillRoundRect(titleX, titleY, titleW, 22, 11, 0x10A2);
   gfx->drawRoundRect(titleX, titleY, titleW, 22, 11, C_CYAN);
   UI_TextCenteredIn(titleBuf, titleX, titleW, titleY + 4, C_WHITE, 1);
 
   // Mute / Sound Toggle Button
   const int muteX = 348;
-  const int muteY = 58;
+  const int muteY = 56;
   const int muteW = 50;
   const int muteH = 22;
   bool petSound = Settings_BuzzerPet();
@@ -1474,30 +1774,24 @@ void PetDrawer_Draw() {
   gfx->drawRoundRect(muteX, muteY, muteW, muteH, 11, petSound ? C_CYAN : C_RED);
   UI_TextCenteredIn(petSound ? "VOL" : "MUTE", muteX, muteW, muteY + 4, petSound ? C_WHITE : C_YELLOW, 1);
 
-  // 3. Virtual Pet Stats Badge
+  // 4. Virtual Pet Stats Badge
   PetStats stats = PetBrain_GetStats();
   const uint8_t curLang = Settings_Language();
   char statBuf[64];
   if (curLang == LANG_SK) {
-    snprintf(statBuf, sizeof(statBuf), "RADOSŤ: %d%%  •  HLAD: %d%%  •  XP: %u",
+    snprintf(statBuf, sizeof(statBuf), "RADOSŤ: %d%%  |  HLAD: %d%%  |  XP: %u",
              stats.happiness, stats.hunger, stats.flightsTracked);
   } else if (curLang == LANG_CZ) {
-    snprintf(statBuf, sizeof(statBuf), "RADOST: %d%%  •  HLAD: %d%%  •  XP: %u",
+    snprintf(statBuf, sizeof(statBuf), "RADOST: %d%%  |  HLAD: %d%%  |  XP: %u",
              stats.happiness, stats.hunger, stats.flightsTracked);
   } else {
-    snprintf(statBuf, sizeof(statBuf), "HAPPY: %d%%  •  HUNGER: %d%%  •  XP: %u",
+    snprintf(statBuf, sizeof(statBuf), "HAPPY: %d%%  |  HUNGER: %d%%  |  XP: %u",
              stats.happiness, stats.hunger, stats.flightsTracked);
   }
-  UI_TextCentered(statBuf, 84, 0x07E0, 1);
+  UI_TextCentered(statBuf, 80, 0x07E0, 1);
 
-  // 4. Speech Bubble
-  drawSpeechBubble(60, 98, 360, 68, getThoughtText());
-
-  // 5. Environmental Weather & Runway Deck
-  PetWeather curWeather = getPetWeather();
-  drawWeatherBackdrop(curWeather);
-  drawRunwayDeck(curWeather);
-  drawTrackedSkyPlane();
+  // 5. Speech Bubble
+  drawSpeechBubble(60, 95, 360, 66, getThoughtText());
 
   // 6. Draw DigiCat Pixel Art Sprite (or Away Radar Beacon & Call Button)
   const unsigned long now = millis();
@@ -1516,9 +1810,9 @@ void PetDrawer_Draw() {
     bool pulse = ((now / 450) % 2 == 0);
     gfx->fillRoundRect(callX, callY, callW, callH, 19, pulse ? 0x0320 : 0x0200);
     gfx->drawRoundRect(callX, callY, callW, callH, 19, pulse ? 0x07E0 : C_CYAN);
-    const char* callTxt = (curLang == LANG_SK) ? "🐾 ZAVOLAŤ DIGICAT"
-                        : ((curLang == LANG_CZ) ? "🐾 ZAVOLAT DIGICAT"
-                                                : "🐾 CALL DIGICAT");
+    const char* callTxt = (curLang == LANG_SK) ? "ZAVOLAT DIGICAT"
+                        : ((curLang == LANG_CZ) ? "ZAVOLAT DIGICAT"
+                                                : "CALL DIGICAT");
     UI_TextCenteredIn(callTxt, callX, callW, callY + 11, C_WHITE, 1);
 
     const char* awayHint = (curLang == LANG_SK) ? "( Ťuknite kdekoľvek pre privolanie )"
@@ -1588,7 +1882,7 @@ void PetDrawer_Draw() {
 
     switch (s_catState) {
       case CAT_STATE_IDLE:
-        // Rotate idle personality sub-animations every 10-20 seconds
+        // Rotate idle personality sub-animations every 4-10 seconds
         if (millis() > s_nextIdleSubMs) {
           uint8_t roll = (uint8_t)(millis() & 0xFF);
           if      (roll < 100) s_idleSubAnim = 0;  // 39% tail-wag sit
@@ -1600,7 +1894,7 @@ void PetDrawer_Draw() {
           else if (roll < 230) s_idleSubAnim = 6;  //  8% scratch left
           else if (roll < 245) s_idleSubAnim = 7;  //  6% scratch right
           else                 s_idleSubAnim = 8;  //  4% yawn
-          s_nextIdleSubMs = millis() + 10000 + (millis() % 10000);
+          s_nextIdleSubMs = millis() + 4000 + (millis() % 6000);
         }
         switch (s_idleSubAnim) {
           case 1:  hiResFrame = cat_idle_lick          [s_animFrame % HIRES_CAT_IDLE_LICK_FRAMES];          break;
@@ -1689,8 +1983,12 @@ void PetDrawer_Draw() {
         break;
 
       case CAT_STATE_SWAT:
-        // Only standing swat is used now
-        hiResFrame = cat_swat[s_animFrame % HIRES_CAT_SWAT_FRAMES];
+        // 3-way swat: stand-right, sit-front-right, sit-front-left (rolled at state entry)
+        switch (s_swatSubAnim) {
+          case 1:  hiResFrame = cat_swat_sit_right[s_animFrame % HIRES_CAT_SWAT_SIT_RIGHT_FRAMES]; break;
+          case 2:  hiResFrame = cat_swat_sit_left [s_animFrame % HIRES_CAT_SWAT_SIT_LEFT_FRAMES];  break;
+          default: hiResFrame = cat_swat          [s_animFrame % HIRES_CAT_SWAT_FRAMES];           break;
+        }
         break;
 
       case CAT_STATE_JUMP:
@@ -1735,8 +2033,22 @@ void PetDrawer_Draw() {
       drawClingEffects((int)s_catX, 340, s_clingLeft);
     }
 
-    // Weather-adaptive accessories (Umbrella/Scarf/Goggles)
-    drawCatWeatherAccessories(catDrawX, catDrawY + 26, s_catFlipX, s_catState, curWeather);
+    // Weather and Tactical Accessories (Umbrella/Scarf/Top Gun Aviators & Scope)
+    drawCatAccessories(catDrawX, catDrawY + 26, s_catFlipX, s_catState, curWeather, PetBrain_GetMood(),
+                       hiResFrame, renderFlipX, catDrawX, catDrawY - 15);
+
+    // Floating animated "Zzz" drifting upward when sleeping
+    if (s_catState == CAT_STATE_SLEEPING) {
+      for (int i = 0; i < 3; i++) {
+        unsigned long tOffset = now + i * 800;
+        float progress = (float)(tOffset % 2400) / 2400.0f;
+        int zX = (int)s_catX + 22 + i * 16 + (int)(sinf(progress * (float)M_PI * 2.0f) * 7.0f);
+        int zY = (int)s_catY - 12 - (int)(progress * 60.0f);
+        uint16_t zCol = (progress < 0.35f) ? 0xFFFF : ((progress < 0.7f) ? 0x85FF : 0x2DC9);
+        uint8_t zSz = (i == 2) ? 2 : 1;
+        UI_Text("Z", zX, zY, zCol, zSz);
+      }
+    }
   }
 
   // 7. Floating Hearts when Happy or Petted
@@ -1763,19 +2075,29 @@ void PetDrawer_Draw() {
   const int feedW = 140;
   gfx->fillRoundRect(feedX, btnY, feedW, btnH, 14, (now < s_petFeedUntilMs) ? 0x0400 : 0x1084);
   gfx->drawRoundRect(feedX, btnY, feedW, btnH, 14, 0xFDC0);
-  UI_TextCenteredIn("🍖 FEED TREAT", feedX, feedW, btnY + 7, 0xFDC0, 1);
+  UI_TextCenteredIn("FEED TREAT", feedX, feedW, btnY + 7, 0xFDC0, 1);
 
   const int petBtnX = 250;
   const int petBtnW = 140;
   gfx->fillRoundRect(petBtnX, btnY, petBtnW, btnH, 14, (now < s_petBounceUntilMs) ? 0x8000 : 0x1084);
   gfx->drawRoundRect(petBtnX, btnY, petBtnW, btnH, 14, C_CYAN);
-  UI_TextCenteredIn("👋 PET / TALK", petBtnX, petBtnW, btnY + 7, C_WHITE, 1);
+  UI_TextCenteredIn("PET / TALK", petBtnX, petBtnW, btnY + 7, C_WHITE, 1);
 
-  // 9. Gesture Close Hint
+  // 9. Cockpit Attitude Telemetry Readout (IMU Pitch / Roll / Gyro Heading)
+  if (QMI8658_Available()) {
+    QMI_Data imu;
+    QMI8658_GetData(&imu);
+    char imuBuf[64];
+    snprintf(imuBuf, sizeof(imuBuf), "PITCH %+d\xc2\xb0 | ROLL %+d\xc2\xb0 | %s",
+             (int)roundf(imu.pitch), (int)roundf(imu.roll), QMI8658_GetHeadingStr());
+    UI_TextCentered(imuBuf, 428, 0x4A69, 1);
+  }
+
+  // 10. Gesture Close Hint
   const char* hintTxt = (Lang_Get() == LANG_EN) ? "v swipe down from top to close v"
                        : ((Lang_Get() == LANG_SK) ? "v potiahnutim zhora zatvorte v"
                                                   : "v potazenim shora zavrete v");
-  UI_TextCentered(hintTxt, 442, 0x632C, 1);
+  UI_TextCentered(hintTxt, 444, 0x632C, 1);
 }
 
 // -----------------------------------------------------------------------------
@@ -1923,6 +2245,21 @@ bool PetDrawer_HandleTap(int x, int y) {
     if (Settings_BuzzerEnabled()) Buzzer_Play(BEEP_PET_PURR);
     s_petBounceUntilMs = now + 1800;
     s_catTargetX = s_catX;
+
+    // Tapping the cat's forehead / head area toggles Top Gun Aviator Shades & Scope
+    if (y <= 245) {
+      s_hasMilitaryFighter = !s_hasMilitaryFighter;
+      PetBrain_SetMood(s_hasMilitaryFighter ? PET_MOOD_MILITARY : PET_MOOD_HAPPY);
+      if (s_hasMilitaryFighter) {
+        setThought(
+          "Top Gun mode active! Intercepting bogey on tactical scope!",
+          "Top Gun rezim aktivny! Zameriavam stihacku na radare!",
+          "Top Gun rezim aktivni! Zameruji stihacku na radaru!"
+        );
+        return true;
+      }
+    }
+
     PetBrain_RequestThought(true);
     return true;
   }
@@ -1931,3 +2268,79 @@ bool PetDrawer_HandleTap(int x, int y) {
 }
 
 
+
+// -----------------------------------------------------------------------------
+// LVGL Integration
+// -----------------------------------------------------------------------------
+static void PetDrawer_TimerCb(lv_timer_t* t) {
+  if (!s_isOpen) return;
+  bool needsRedraw = PetDrawer_Tick();
+  if (needsRedraw && s_petObj) {
+    lv_obj_invalidate(s_petObj);
+  }
+}
+
+static void PetDrawer_EventCb(lv_event_t* e) {
+  lv_event_code_t code = lv_event_get_code(e);
+  if (code == LV_EVENT_DRAW_MAIN) {
+    lv_layer_t* layer = lv_event_get_layer(e);
+    gfx->setLayer(layer);
+    PetDrawer_Draw();
+    gfx->setLayer(nullptr);
+  } else if (code == LV_EVENT_PRESSED) {
+    lv_indev_t* indev = lv_indev_active();
+    if (indev) {
+      lv_point_t pt;
+      lv_indev_get_point(indev, &pt);
+      PetDrawer_HandleTouchMove(pt.x, pt.y);
+    }
+  } else if (code == LV_EVENT_PRESSING) {
+    lv_indev_t* indev = lv_indev_active();
+    if (indev) {
+      lv_point_t pt;
+      lv_indev_get_point(indev, &pt);
+      PetDrawer_HandleTouchMove(pt.x, pt.y);
+    }
+  } else if (code == LV_EVENT_RELEASED) {
+    PetDrawer_HandleTouchRelease();
+  } else if (code == LV_EVENT_CLICKED) {
+    lv_indev_t* indev = lv_indev_active();
+    if (indev) {
+      lv_point_t pt;
+      lv_indev_get_point(indev, &pt);
+      // Let tap handle specific hits, otherwise maybe close it
+      bool handled = PetDrawer_HandleTap(pt.x, pt.y);
+      if (!handled && pt.y < 100) {
+        // Tap outside pet area closes it
+        PetDrawer_Close();
+      }
+    }
+  } else if (code == LV_EVENT_GESTURE) {
+      lv_indev_t* indev = lv_indev_active();
+      if (indev) {
+          lv_dir_t dir = lv_indev_get_gesture_dir(indev);
+          if (dir == LV_DIR_BOTTOM) {
+              PetDrawer_Close();
+          }
+      }
+  }
+}
+
+void PetDrawer_Init() {
+  if (s_petObj) return;
+
+  // Create as dedicated full screen (zero bleed from underlying screens)
+  s_petObj = lv_obj_create(NULL);
+  lv_obj_remove_style_all(s_petObj);
+  lv_obj_set_size(s_petObj, LCD_WIDTH, LCD_HEIGHT);
+  lv_obj_set_pos(s_petObj, 0, 0);
+  lv_obj_set_style_bg_color(s_petObj, lv_color_black(), 0);
+  lv_obj_set_style_bg_opa(s_petObj, LV_OPA_COVER, 0);
+  lv_obj_set_scrollable(s_petObj, false);
+  lv_obj_set_clickable(s_petObj, true);
+
+  lv_obj_add_event_cb(s_petObj, PetDrawer_EventCb, LV_EVENT_ALL, nullptr);
+
+  // Tick at 25 FPS (40 ms)
+  s_petTimer = lv_timer_create(PetDrawer_TimerCb, 40, nullptr);
+}

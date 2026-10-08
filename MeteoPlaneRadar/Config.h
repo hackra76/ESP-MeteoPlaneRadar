@@ -133,11 +133,7 @@
 
 // ---------------------------------------------------------------------------
 //  Map orientation
-//  The user picks which compass bearing sits at the TOP of the aircraft radar,
-//  i.e. the direction they are looking. The step must divide 90 evenly,
-//  otherwise the exact cardinal directions (east / west) become unreachable.
-// ---------------------------------------------------------------------------
-#define MAP_ROT_STEP_DEG 45    // degrees per button press (45 -> 8 positions)
+
 
 // ---------------------------------------------------------------------------
 //  Touch
@@ -164,7 +160,7 @@
 #define TOUCH_USE_INT 1
 
 // Fallback poll while idle - only a safety net for a missed interrupt.
-#define TOUCH_IDLE_POLL_MS 250
+#define TOUCH_IDLE_POLL_MS 20
 
 // How often to read the I/O expander back and repair it if it does not match
 // what we wrote (TCA9554_Verify). Cheap - one I2C register read.
@@ -193,9 +189,9 @@
 // ---------------------------------------------------------------------------
 //  Network
 // ---------------------------------------------------------------------------
-// A TLS handshake with dynamic buffers in PSRAM needs roughly 20-25 kB of internal RAM on ESP32-S3.
-#define NET_MIN_HEAP  30000
-#define NET_MIN_BLOCK 12000
+// A TLS handshake with dynamic buffers in PSRAM needs roughly 10-15 kB of internal RAM on ESP32-S3.
+#define NET_MIN_HEAP  36000
+#define NET_MIN_BLOCK 18000
 
 // WiFiClientSecure defaults the mbedTLS handshake to 120 s, six times
 // WDT_TIMEOUT_S. setConnectTimeout() does NOT cover it - that only bounds the
@@ -265,13 +261,14 @@
 #define SCREEN_PLANES_I   1
 #define SCREEN_METEO_I    2
 #define SCREEN_TACTICAL_I 3
-#define SCREEN_FORECAST_I 4
-#define SCREEN_FINANCE_I  5
-#define SCREEN_ISS_I      6
-#define SCREEN_YOUTUBE_I  7
-#define SCREEN_INFO_I     8
-#define SCREEN_SETTINGS_I 9
-#define SCREEN_N          10
+#define SCREEN_SONAR_I    4
+#define SCREEN_FORECAST_I 5
+#define SCREEN_FINANCE_I  6
+#define SCREEN_ISS_I      7
+#define SCREEN_YOUTUBE_I  8
+#define SCREEN_INFO_I     9
+#define SCREEN_SETTINGS_I 10
+#define SCREEN_N          11
 
 // ---------------------------------------------------------------------------
 //  YouTube Channel Analytics

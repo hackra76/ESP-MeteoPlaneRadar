@@ -208,7 +208,7 @@ bool ST7701_Init() {
   rgb.data_width = 16;
   rgb.bits_per_pixel = 16;
   rgb.num_fbs = 2;                               // double buffering (no tearing)
-  rgb.bounce_buffer_size_px = 30 * LCD_WIDTH;    // 30 lines DMA feed (balances bus cushion with internal SRAM for SSL)
+  rgb.bounce_buffer_size_px = 10 * LCD_WIDTH;    // 10 lines DMA feed (balances bus cushion with internal SRAM for SSL)
   rgb.psram_trans_align = 64;
   rgb.hsync_gpio_num = RGB_HSYNC;
   rgb.vsync_gpio_num = RGB_VSYNC;
@@ -293,7 +293,7 @@ void LCD_Flush(const uint16_t* fb) {
   // very tearing we are getting rid of.
   if (s_vsyncSem) {
     xSemaphoreTake(s_vsyncSem, 0);                    // drop any stale event
-    xSemaphoreTake(s_vsyncSem, pdMS_TO_TICKS(100));   // wait for the swap
+    xSemaphoreTake(s_vsyncSem, pdMS_TO_TICKS(500));   // wait for the swap
   }
 #if FLUSH_DEBUG
   uint32_t dt = micros() - t0;
