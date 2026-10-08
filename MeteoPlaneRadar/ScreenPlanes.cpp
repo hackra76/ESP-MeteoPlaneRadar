@@ -32,6 +32,7 @@
 
 static lv_obj_t* s_screenObj = nullptr;
 static lv_timer_t* s_tickTimer = nullptr;
+static Aircraft* s_drawList = nullptr;
 
 static void draw_event_cb(lv_event_t * e) {
     lv_layer_t * layer = lv_event_get_layer(e);
@@ -433,7 +434,6 @@ void ScreenPlanes_Draw() {
   Layout_ReserveBand(LY_RANGE - 6, 46);       // unified range indicator pill (text + dots)
 
   // --- Map underlay ---
-  static Aircraft* s_drawList = nullptr;
   if (!s_drawList) {
     s_drawList = (Aircraft*)heap_caps_malloc(sizeof(Aircraft) * ADSB_MAX, MALLOC_CAP_SPIRAM);
     if (!s_drawList) s_drawList = (Aircraft*)malloc(sizeof(Aircraft) * ADSB_MAX);
@@ -913,5 +913,12 @@ void ScreenPlanes_Draw() {
     PlanePhoto_Select(s_selCache.reg, s_selCache.hex);
     const RouteInfo* rt = Route_Get();
     UI_DrawAircraftDetail(s_selCache, rt, Route_GetState(), signalLost);
+  }
+}
+
+void ScreenPlanes_FreeBuffers() {
+  if (s_drawList) {
+    if (esp_ptr_external_ram(s_drawList)) heap_caps_free(s_drawList); else free(s_drawList);
+    s_drawList = nullptr;
   }
 }

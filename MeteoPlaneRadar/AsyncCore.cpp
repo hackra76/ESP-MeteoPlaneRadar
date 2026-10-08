@@ -179,6 +179,12 @@ static void asyncWorkerTask(void* param) {
 
   while (true) {
     Watchdog_Feed();
+    if (GithubOTA_IsRequested()) {
+      s_core0NetBusy = true;
+      GithubOTA_RunUpdate();
+      s_core0NetBusy = false;
+      continue;
+    }
     if (s_paused) {
       vTaskDelay(pdMS_TO_TICKS(50));
       continue;

@@ -1118,6 +1118,13 @@ void UI_DrawAircraftDetail(const Aircraft& ac, const RouteInfo* rt, int routeSta
 void UI_DrawOtaProgress(const char* sourceName, int percent, size_t bytesWritten, size_t totalBytes, const char* statusMsg) {}
 void UI_DrawOtaWritingStaticScreen(const char* sourceName, const char* customMsg) {}
 
+void UI_FreePhotoBuffer() {
+  if (s_fsPhotoBuf) {
+    if (esp_ptr_external_ram(s_fsPhotoBuf)) heap_caps_free(s_fsPhotoBuf); else free(s_fsPhotoBuf);
+    s_fsPhotoBuf = nullptr;
+  }
+}
+
 void UI_DrawCompassWidget(int cx, int cy, int r, float headingDeg, uint16_t primaryCol, bool showCard) {
   if (!gfx) return;
   gfx->fillCircle(cx, cy, r, 0x0821);

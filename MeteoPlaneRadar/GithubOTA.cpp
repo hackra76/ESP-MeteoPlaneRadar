@@ -20,6 +20,13 @@
 #include "ScreenTactical.h"
 #include "PlanePhoto.h"
 #include "Route.h"
+#include "Net.h"
+#include "ADSB.h"
+#include "MapTiles.h"
+#include "ScreenClock.h"
+#include "ScreenSonar.h"
+#include "ScreenPlanes.h"
+#include "PlaneTrail.h"
 
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
@@ -40,13 +47,18 @@ static String s_downloadUrl = "";
 static String s_otaError = "";
 
 static TaskHandle_t s_checkTaskHandle = nullptr;
-static TaskHandle_t s_updateTaskHandle = nullptr;
+static volatile bool s_otaRequested = false;
+
+bool GithubOTA_IsRequested() {
+  return s_otaRequested;
+}
 
 void GithubOTA_Init() {
   s_otaState = GH_OTA_IDLE;
   s_otaProgress = 0;
   s_bytesWritten = 0;
   s_totalBytes = 0;
+  s_otaRequested = false;
 }
 
 GithubOtaState GithubOTA_GetState() {
@@ -91,6 +103,7 @@ void GithubOTA_Reset() {
   s_bytesWritten = 0;
   s_totalBytes = 0;
   s_otaError = "";
+  s_otaRequested = false;
 }
 
 // Compare semantic version strings e.g. "1.5.9" vs "v1.6.0"
@@ -271,9 +284,17 @@ bool GithubOTA_CheckSync() {
 }
 
 // -----------------------------------------------------------------------------
-//  Free large caches before and during OTA update
+//  Free all subsystem buffers before and during OTA update
 // -----------------------------------------------------------------------------
-static void clearCachesForOTA() {
+void GithubOTA_FreeAllBuffers() {
+  Net_FreeBuffers();
+  ADSB_FreeBuffers();
+  MapTiles_FreeBuffers();
+  ScreenClock_FreeBuffers();
+  ScreenSonar_FreeBuffers();
+  ScreenPlanes_FreeBuffers();
+  PlaneTrail_FreeBuffers();
+  UI_FreePhotoBuffer();
   RainViewer_FreeBuffers();
   CHMU_FreeBuffers();
   SHMU_FreeBuffers();
@@ -281,7 +302,7 @@ static void clearCachesForOTA() {
   ScreenTactical_FreeBuffers();
   PlanePhoto_ClearCache();
   Route_ClearQueue();
-  Serial.printf("GithubOTA: Cleared caches. Free SRAM: %u B (largest %u B), Free PSRAM: %u B (largest %u B)\n",
+  Serial.printf("GithubOTA: Cleared all caches. Free SRAM: %u B (largest %u B), Free PSRAM: %u B (largest %u B)\n",
                 (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
                 (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
                 (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
@@ -289,18 +310,17 @@ static void clearCachesForOTA() {
 }
 
 // -----------------------------------------------------------------------------
-//  Download & Flash Firmware
+//  Download & Flash Firmware (Executed directly on AsyncNetWorker task, Core 0)
 // -----------------------------------------------------------------------------
-static void downloadAndFlashTask(void* param) {
-  (void)param;
+void GithubOTA_RunUpdate() {
+  s_otaRequested = false;
   s_otaState = GH_OTA_DOWNLOADING;
   s_otaProgress = 0;
   s_bytesWritten = 0;
   s_totalBytes = 0;
   s_otaError = "";
 
-  Async_Pause();
-  clearCachesForOTA();
+  GithubOTA_FreeAllBuffers();
 
   UI_DrawOtaProgress("GitHub OTA", 0, 0, 0,
                      (Lang_Get() == LANG_EN) ? "Connecting to GitHub..." : "Pripajam sa k GitHubu...");
@@ -309,9 +329,6 @@ static void downloadAndFlashTask(void* param) {
   if (currentUrl.length() == 0) {
     s_otaError = "No download URL";
     s_otaState = GH_OTA_ERROR;
-    Async_Resume();
-    s_updateTaskHandle = nullptr;
-    vTaskDelete(NULL);
     return;
   }
 
@@ -337,10 +354,12 @@ static void downloadAndFlashTask(void* param) {
     }
     vTaskDelay(pdMS_TO_TICKS(50));
 
-    Serial.printf("GithubOTA: [%d] Free SRAM: %u B (largest %u B)\n",
+    Serial.printf("GithubOTA: [%d] Free SRAM: %u B (largest %u B), Free PSRAM: %u B (largest %u B)\n",
                   redirects,
                   (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
-                  (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
+                  (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
+                  (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
+                  (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
     Serial.printf("GithubOTA: Connecting to %s\n", currentUrl.c_str());
 
     client = new WiFiClientSecure();
@@ -405,9 +424,6 @@ static void downloadAndFlashTask(void* param) {
       client = nullptr;
     }
     s_otaState = GH_OTA_ERROR;
-    Async_Resume();
-    s_updateTaskHandle = nullptr;
-    vTaskDelete(NULL);
     return;
   }
 
@@ -439,9 +455,6 @@ static void downloadAndFlashTask(void* param) {
       delete client; client = nullptr;
       s_otaState = GH_OTA_ERROR;
       UI_DrawOtaProgress("GitHub OTA", 0, 0, 0, s_otaError.c_str());
-      Async_Resume();
-      s_updateTaskHandle = nullptr;
-      vTaskDelete(NULL);
       return;
     }
     directFlash = true;
@@ -499,7 +512,6 @@ static void downloadAndFlashTask(void* param) {
           if (totalLen > 0) {
             s_otaProgress = (int)(downloaded * 100 / (size_t)totalLen);
           }
-          // Smooth 100% stable progress on display!
           if (s_otaProgress != lastDrawnProg && (millis() - lastDrawnMs >= 150 || s_otaProgress == 100)) {
             lastDrawnProg = s_otaProgress;
             lastDrawnMs = millis();
@@ -546,10 +558,7 @@ static void downloadAndFlashTask(void* param) {
       s_otaState = GH_OTA_ERROR;
       UI_DrawOtaWritingStaticScreen("GitHub OTA", s_otaError.c_str());
       vTaskDelay(pdMS_TO_TICKS(3000));
-      Async_Resume();
     }
-    s_updateTaskHandle = nullptr;
-    vTaskDelete(NULL);
     return;
   }
 
@@ -596,16 +605,11 @@ static void downloadAndFlashTask(void* param) {
     s_otaState = GH_OTA_ERROR;
     UI_DrawOtaWritingStaticScreen("GitHub OTA", s_otaError.c_str());
     vTaskDelay(pdMS_TO_TICKS(3000));
-    Async_Resume();
   }
-
-  s_updateTaskHandle = nullptr;
-  vTaskDelete(NULL);
 }
 
 bool GithubOTA_StartUpdateAsync(const char* url, const char* tag) {
   if (GithubOTA_IsBusy() || Update.isRunning()) return false;
-  if (s_updateTaskHandle != nullptr) return false;
 
   if (url && strlen(url) > 0) s_downloadUrl = url;
   if (tag && strlen(tag) > 0) s_latestTag = tag;
@@ -623,8 +627,14 @@ bool GithubOTA_StartUpdateAsync(const char* url, const char* tag) {
     return false;
   }
 
-  clearCachesForOTA();
+  // Pre-clear all caches immediately to release heap
+  GithubOTA_FreeAllBuffers();
 
-  BaseType_t ret = xTaskCreatePinnedToCore(downloadAndFlashTask, "GhOtaUpd", 14336, NULL, 5, &s_updateTaskHandle, 0);
-  return (ret == pdPASS);
+  s_otaState = GH_OTA_DOWNLOADING;
+  s_otaProgress = 0;
+  s_bytesWritten = 0;
+  s_totalBytes = 0;
+  s_otaError = "";
+  s_otaRequested = true;
+  return true;
 }

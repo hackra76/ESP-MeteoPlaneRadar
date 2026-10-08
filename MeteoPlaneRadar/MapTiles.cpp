@@ -190,8 +190,37 @@ void MapTiles_Init() {
   }
 }
 
+void MapTiles_FreeBuffers() {
+  s_busy = false;
+  s_ready = false;
+  s_failed = false;
+
+  if (s_mapBuf) {
+    heap_caps_free(s_mapBuf);
+    s_mapBuf = nullptr;
+  }
+  if (s_lineBuf) {
+    if (esp_ptr_external_ram(s_lineBuf)) heap_caps_free(s_lineBuf); else free(s_lineBuf);
+    s_lineBuf = nullptr;
+  }
+  if (s_tilePayload) {
+    if (esp_ptr_external_ram(s_tilePayload)) heap_caps_free(s_tilePayload); else free(s_tilePayload);
+    s_tilePayload = nullptr;
+    s_tilePayloadLen = 0;
+  }
+  if (s_png) {
+    heap_caps_free(s_png);
+    s_png = nullptr;
+  }
+  if (s_jpeg) {
+    heap_caps_free(s_jpeg);
+    s_jpeg = nullptr;
+  }
+}
+
 void MapTiles_Begin(uint8_t provider, double lat, double lon, float rangeKm) {
   s_jobId++;
+  MapTiles_Init();
 
   if (provider == MAP_PROV_VECTOR) {
     if (s_provider != MAP_PROV_VECTOR) {

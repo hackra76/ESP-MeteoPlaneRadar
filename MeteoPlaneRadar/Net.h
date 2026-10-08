@@ -42,6 +42,7 @@ bool Net_TouchDate(const char* url);
 // them: an open session holds its buffers until closed.
 void Net_SessionBegin();
 void Net_SessionEnd();
+void Net_FreeBuffers();
 
 // Called from loop() while a long transfer runs, so the watchdog stays fed.
 void Net_SetPollFn(void (*fn)());

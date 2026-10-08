@@ -32,6 +32,15 @@ bool GithubOTA_CheckSync();
 // Start flashing update asynchronously
 bool GithubOTA_StartUpdateAsync(const char* url = nullptr, const char* tag = nullptr);
 
+// Check if an OTA update has been requested to execute on Core 0 worker
+bool GithubOTA_IsRequested();
+
+// Execute OTA update synchronously on the current task (AsyncNetWorker on Core 0)
+void GithubOTA_RunUpdate();
+
+// Release all subsystem buffers to maximize free SRAM and PSRAM
+void GithubOTA_FreeAllBuffers();
+
 // State & progress inspection
 GithubOtaState GithubOTA_GetState();
 const char*    GithubOTA_GetStateStr();

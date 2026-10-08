@@ -20,6 +20,9 @@ enum MapProvider : uint8_t {
 // Initialize MapTiles subsystem (allocates 480x480 PSRAM buffer)
 void MapTiles_Init();
 
+// Free all map buffers and decoders to release PSRAM for OTA
+void MapTiles_FreeBuffers();
+
 // Configure the view target. Non-blocking.
 void MapTiles_Begin(uint8_t provider, double lat, double lon, float rangeKm);
 

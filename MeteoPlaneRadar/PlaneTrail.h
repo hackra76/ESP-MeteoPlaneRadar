@@ -30,6 +30,9 @@ void PlaneTrail_Update(const Aircraft* list, int count);
 // Clear all historical trails (e.g. on range or location change)
 void PlaneTrail_Clear();
 
+// Free historical trails PSRAM buffer for OTA
+void PlaneTrail_FreeBuffers();
+
 // Draw the historical trajectory trail for a single aircraft
 // projectFn converts lat/lon to display coordinates; baseCol is the current altitude color.
 void PlaneTrail_Draw(const char* hex, TrailProjectFn projectFn, uint16_t baseCol, int currentSx, int currentSy);

@@ -7,3 +7,4 @@ void ScreenSonar_Enter();
 void ScreenSonar_Draw();
 void ScreenSonar_ChangeRange(int dir);
 void ScreenSonar_RangeText(char* out, size_t cap);
+void ScreenSonar_FreeBuffers();

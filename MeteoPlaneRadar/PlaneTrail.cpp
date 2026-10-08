@@ -97,6 +97,13 @@ void PlaneTrail_Clear() {
   }
 }
 
+void PlaneTrail_FreeBuffers() {
+  if (s_trails) {
+    if (esp_ptr_external_ram(s_trails)) heap_caps_free(s_trails); else free(s_trails);
+    s_trails = nullptr;
+  }
+}
+
 void PlaneTrail_Update(const Aircraft* list, int count) {
   if (!list || count <= 0 || !ensureTrails()) return;
   unsigned long now = millis();

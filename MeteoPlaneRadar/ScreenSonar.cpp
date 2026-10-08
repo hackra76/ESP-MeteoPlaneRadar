@@ -599,3 +599,15 @@ void ScreenSonar_Init(lv_obj_t* parent) {
   // 25 FPS rotation timer
   s_tickTimer = lv_timer_create(tick_timer_cb, 40, NULL);
 }
+
+void ScreenSonar_FreeBuffers() {
+  if (s_sonarDrawBuf) {
+    heap_caps_free(s_sonarDrawBuf);
+    s_sonarDrawBuf = nullptr;
+    s_sonarDrawBufSize = 0;
+  }
+  if (s_wfBuffer) {
+    heap_caps_free(s_wfBuffer);
+    s_wfBuffer = nullptr;
+  }
+}

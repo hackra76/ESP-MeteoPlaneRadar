@@ -13,4 +13,5 @@
 #include <lvgl.h>
 
 void ScreenClock_Init(lv_obj_t* parent);
+void ScreenClock_FreeBuffers();
 

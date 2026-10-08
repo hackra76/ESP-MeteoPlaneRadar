@@ -35,3 +35,6 @@ void ScreenPlanes_SelectFirst();
 
 // Is the aircraft detail open? (main then blocks range change / screen switch)
 bool ScreenPlanes_DetailOpen();
+
+// Free radar drawing aircraft list buffer for OTA
+void ScreenPlanes_FreeBuffers();

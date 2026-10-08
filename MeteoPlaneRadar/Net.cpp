@@ -56,6 +56,15 @@ static bool txtReserve(size_t need) {
   return true;
 }
 
+void Net_FreeBuffers() {
+  Net_SessionEnd();
+  if (s_txt) {
+    heap_caps_free(s_txt);
+    s_txt = nullptr;
+    s_txtCap = 0;
+  }
+}
+
 bool Net_GetString(const char* url, String& out, const char* tag) {
   out = "";
   if (WiFi.status() != WL_CONNECTED) return false;

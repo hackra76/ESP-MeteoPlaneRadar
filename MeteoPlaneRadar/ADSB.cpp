@@ -22,6 +22,7 @@
 #include "NetSink.h"        // chunked-safe body reader
 #include "Settings.h"
 #include "FlightStats.h"
+#include "GithubOTA.h"
 
 static const float KM_PER_NM = 1.852f;
 
@@ -68,7 +69,11 @@ static bool ensureAdsbBuffers() {
 
 void ADSB_SetPollFn(void (*fn)()) { s_poll = fn; }
 int  ADSB_Count() { return s_count; }
-const Aircraft* ADSB_List() { ensureAdsbBuffers(); return s_list; }
+const Aircraft* ADSB_List() {
+  if (GithubOTA_IsBusy()) return nullptr;
+  ensureAdsbBuffers();
+  return s_list;
+}
 
 const char* ADSB_EmergencyCode(const Aircraft& a) {
   if (!a.squawk[0]) return nullptr;
@@ -197,6 +202,25 @@ static bool bodyReserve(size_t need) {
   s_body = nb; 
   s_bodyCap = cap;
   return true;
+}
+
+void ADSB_FreeBuffers() {
+  Async_LockAdsb();
+  if (s_body) {
+    heap_caps_free(s_body);
+    s_body = nullptr;
+    s_bodyCap = 0;
+  }
+  if (s_list) {
+    if (esp_ptr_external_ram(s_list)) heap_caps_free(s_list); else free(s_list);
+    s_list = nullptr;
+  }
+  if (s_tmp) {
+    if (esp_ptr_external_ram(s_tmp)) heap_caps_free(s_tmp); else free(s_tmp);
+    s_tmp = nullptr;
+  }
+  s_count = 0;
+  Async_UnlockAdsb();
 }
 
 // Read the whole HTTP body into s_body. Returns the byte count (>= 0), or -1 on

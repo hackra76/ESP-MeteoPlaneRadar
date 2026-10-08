@@ -102,6 +102,9 @@ void UI_DrawOtaProgress(const char* sourceName, int percent, size_t bytesWritten
 // Dedicated fullscreen static text display for flash writing phase (zero redrawing, rock-solid)
 void UI_DrawOtaWritingStaticScreen(const char* sourceName, const char* customMsg = nullptr);
 
+// Free photo rendering scratch buffer in PSRAM for OTA
+void UI_FreePhotoBuffer();
+
 // Returns true if a swipe gesture was fired or a screen transition is in progress
 bool UI_IsSwipeActive();
 

@@ -70,3 +70,4 @@ const Aircraft* ADSB_GetOverheadAircraft(float maxDistKm, float* outDistKm = nul
 unsigned long ADSB_LastFetchTime();
 bool          ADSB_IsFresh(unsigned long maxAgeMs = 45000UL);
 void          ADSB_Clear();
+void          ADSB_FreeBuffers();

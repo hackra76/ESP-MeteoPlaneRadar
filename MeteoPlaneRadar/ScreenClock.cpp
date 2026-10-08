@@ -1284,3 +1284,15 @@ void ScreenClock_Init(lv_obj_t* parent) {
   s_timer = lv_timer_create(ScreenClock_TimerCb, 500, nullptr);
 }
 
+void ScreenClock_FreeBuffers() {
+  if (s_luxuryBg) {
+    heap_caps_free(s_luxuryBg);
+    s_luxuryBg = nullptr;
+  }
+  if (s_frameBg) {
+    heap_caps_free(s_frameBg);
+    s_frameBg = nullptr;
+  }
+  s_bgDirty = true;
+}
+
