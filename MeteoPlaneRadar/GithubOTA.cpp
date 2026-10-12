@@ -274,7 +274,7 @@ bool GithubOTA_CheckAsync() {
   if (s_otaState == GH_OTA_CHECKING || GithubOTA_IsBusy()) return false;
   if (s_checkTaskHandle != nullptr) return false;
 
-  BaseType_t ret = xTaskCreatePinnedToCore(checkTask, "GhOtaChk", 10240, NULL, 5, &s_checkTaskHandle, 0);
+  BaseType_t ret = xTaskCreatePinnedToCore(checkTask, "GhOtaChk", 10240, NULL, 1, &s_checkTaskHandle, 0);
   return (ret == pdPASS);
 }
 
@@ -429,94 +429,82 @@ void GithubOTA_RunUpdate() {
 
   int totalLen = http->getSize();
   s_totalBytes = (totalLen > 0) ? (size_t)totalLen : 0;
-  size_t updateSize = (totalLen > 0) ? (size_t)totalLen : UPDATE_SIZE_UNKNOWN;
 
   UI_DrawOtaProgress("GitHub OTA", 0, 0, (size_t)totalLen,
                      (Lang_Get() == LANG_EN) ? "Downloading firmware..." : "Stahujem firmver...");
 
-  size_t ramCap = (totalLen > 0) ? ((size_t)totalLen + 65536) : 2600000;
-  uint8_t* ramBuf = (uint8_t*)heap_caps_malloc(ramCap, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-  if (!ramBuf) {
-    size_t largest = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (largest > 1000000 && (totalLen <= 0 || largest > (size_t)totalLen + 32768)) {
-      ramCap = largest - 65536;
-      ramBuf = (uint8_t*)heap_caps_malloc(ramCap, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    }
+  // Use UPDATE_SIZE_UNKNOWN to avoid multi-second synchronous partition erase up front,
+  // which stalls the CPU and drops the incoming TLS connection. Sectors are erased on demand.
+  if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
+    s_otaError = Update.errorString();
+    while (client && client->available()) client->read();
+    http->end();
+    delete http; http = nullptr;
+    delete client; client = nullptr;
+    s_otaState = GH_OTA_ERROR;
+    Serial.printf("GithubOTA: Update.begin failed: %s. Restarting in 3s...\n", s_otaError.c_str());
+    UI_DrawOtaWritingStaticScreen("GitHub OTA", s_otaError.c_str());
+    vTaskDelay(pdMS_TO_TICKS(3000));
+    Safe_Restart();
+    return;
   }
 
-  bool directFlash = false;
-  if (!ramBuf) {
-    Serial.println("GithubOTA: PSRAM buffer unavailable, falling back to direct flash streaming OTA");
-    if (!Update.begin(updateSize)) {
-      s_otaError = Update.errorString();
-      while (client && client->available()) client->read();
-      http->end();
-      delete http; http = nullptr;
-      delete client; client = nullptr;
-      s_otaState = GH_OTA_ERROR;
-      UI_DrawOtaProgress("GitHub OTA", 0, 0, 0, s_otaError.c_str());
-      return;
-    }
-    directFlash = true;
+  // 64 KB streaming buffer in PSRAM (guaranteed to fit, reduces SPI flash writes from ~9,300 to ~75)
+  const size_t OTA_CHUNK_CAP = 65536;
+  uint8_t* chunkBuf = (uint8_t*)heap_caps_malloc(OTA_CHUNK_CAP, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  if (!chunkBuf) chunkBuf = (uint8_t*)malloc(16384);
+  const size_t bufCap = chunkBuf ? (esp_ptr_external_ram(chunkBuf) ? OTA_CHUNK_CAP : 16384) : 0;
+
+  if (!chunkBuf || bufCap == 0) {
+    s_otaError = "Out of memory for OTA stream";
+    Update.abort();
+    while (client && client->available()) client->read();
+    http->end();
+    delete http; http = nullptr;
+    delete client; client = nullptr;
+    s_otaState = GH_OTA_ERROR;
+    Serial.printf("GithubOTA: %s. Restarting in 3s...\n", s_otaError.c_str());
+    UI_DrawOtaWritingStaticScreen("GitHub OTA", s_otaError.c_str());
+    vTaskDelay(pdMS_TO_TICKS(3000));
+    Safe_Restart();
+    return;
   }
 
   size_t downloaded = 0;
+  size_t chunkLen = 0;
   unsigned long lastFeed = millis();
   int lastDrawnProg = -1;
   unsigned long lastDrawnMs = 0;
   WiFiClient* stream = http->getStreamPtr();
 
-  while (http->connected() && (totalLen <= 0 || downloaded < (size_t)totalLen)) {
+  while (http->connected() && (totalLen <= 0 || downloaded + chunkLen < (size_t)totalLen)) {
     size_t avail = stream ? stream->available() : 0;
-    if (avail) {
-      if (directFlash) {
-        uint8_t chunk[512];
-        size_t toRead = (avail > sizeof(chunk)) ? sizeof(chunk) : avail;
-        int r = stream->readBytes(chunk, toRead);
-        if (r > 0) {
-          if (Update.write(chunk, (size_t)r) != (size_t)r) {
+    if (avail > 0) {
+      size_t toRead = (bufCap - chunkLen < avail) ? (bufCap - chunkLen) : avail;
+      int r = stream->readBytes(chunkBuf + chunkLen, toRead);
+      if (r > 0) {
+        chunkLen += (size_t)r;
+
+        // Flush when buffer reaches 32KB or capacity to keep flash write batches optimal
+        if (chunkLen >= 32768 || chunkLen == bufCap) {
+          if (Update.write(chunkBuf, chunkLen) != chunkLen) {
             s_otaError = Update.errorString();
             Update.abort();
             break;
           }
-          downloaded += (size_t)r;
+          downloaded += chunkLen;
           s_bytesWritten = downloaded;
-          if (totalLen > 0) {
-            s_otaProgress = (int)(downloaded * 100 / (size_t)totalLen);
-          }
-          if (s_otaProgress != lastDrawnProg && (millis() - lastDrawnMs >= 150 || s_otaProgress == 100)) {
-            lastDrawnProg = s_otaProgress;
-            lastDrawnMs = millis();
-            UI_DrawOtaProgress("GitHub OTA", s_otaProgress, downloaded, (size_t)totalLen, nullptr);
-          }
+          chunkLen = 0;
+          vTaskDelay(pdMS_TO_TICKS(5)); // Give ST7701 RGB DMA uninterrupted PSRAM bus time
         }
-      } else {
-        if (downloaded + avail > ramCap) {
-          size_t newCap = ramCap + 524288;
-          uint8_t* newBuf = (uint8_t*)heap_caps_malloc(newCap, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-          if (!newBuf) {
-            s_otaError = "PSRAM alloc failed";
-            break;
-          }
-          if (ramBuf) {
-            memcpy(newBuf, ramBuf, downloaded);
-            heap_caps_free(ramBuf);
-          }
-          ramBuf = newBuf;
-          ramCap = newCap;
+
+        if (totalLen > 0) {
+          s_otaProgress = (int)((downloaded + chunkLen) * 100 / (size_t)totalLen);
         }
-        int r = stream->readBytes(ramBuf + downloaded, avail);
-        if (r > 0) {
-          downloaded += (size_t)r;
-          s_bytesWritten = downloaded;
-          if (totalLen > 0) {
-            s_otaProgress = (int)(downloaded * 100 / (size_t)totalLen);
-          }
-          if (s_otaProgress != lastDrawnProg && (millis() - lastDrawnMs >= 150 || s_otaProgress == 100)) {
-            lastDrawnProg = s_otaProgress;
-            lastDrawnMs = millis();
-            UI_DrawOtaProgress("GitHub OTA", s_otaProgress, downloaded, (size_t)totalLen, nullptr);
-          }
+        if (s_otaProgress != lastDrawnProg && (millis() - lastDrawnMs >= 150 || s_otaProgress == 100)) {
+          lastDrawnProg = s_otaProgress;
+          lastDrawnMs = millis();
+          UI_DrawOtaProgress("GitHub OTA", s_otaProgress, downloaded + chunkLen, (size_t)totalLen, nullptr);
         }
       }
     } else {
@@ -528,7 +516,19 @@ void GithubOTA_RunUpdate() {
     }
   }
 
-  // Network transfer complete - tear down client and http before writing flash
+  // Flush any trailing bytes remaining in chunkBuf
+  if (s_otaError.length() == 0 && chunkLen > 0) {
+    if (Update.write(chunkBuf, chunkLen) != chunkLen) {
+      s_otaError = Update.errorString();
+      Update.abort();
+    } else {
+      downloaded += chunkLen;
+      s_bytesWritten = downloaded;
+      chunkLen = 0;
+    }
+  }
+
+  // Clean up network connection and stream buffer before evaluating flash status
   if (http) {
     while (client && client->available()) client->read();
     http->end();
@@ -540,72 +540,37 @@ void GithubOTA_RunUpdate() {
     delete client;
     client = nullptr;
   }
+  if (chunkBuf) {
+    if (esp_ptr_external_ram(chunkBuf)) heap_caps_free(chunkBuf); else free(chunkBuf);
+    chunkBuf = nullptr;
+  }
 
   if (totalLen > 0 && downloaded < (size_t)totalLen && s_otaError.length() == 0) {
     s_otaError = "Incomplete download";
-  }
-
-  if (directFlash) {
-    if (s_otaError.length() == 0 && Update.end(true)) {
-      s_otaProgress = 100;
-      s_otaState = GH_OTA_SUCCESS;
-      Serial.printf("GithubOTA: Direct flash write complete (%u B), restarting...\n", (unsigned)downloaded);
-      UI_DrawOtaWritingStaticScreen("GitHub OTA", (Lang_Get() == LANG_EN) ? "Success! Restarting..." : "Hotovo! Reštartujem...");
-      vTaskDelay(pdMS_TO_TICKS(1500));
-      Safe_Restart();
-    } else {
-      if (s_otaError.length() == 0) s_otaError = Update.errorString();
-      s_otaState = GH_OTA_ERROR;
-      UI_DrawOtaWritingStaticScreen("GitHub OTA", s_otaError.c_str());
-      vTaskDelay(pdMS_TO_TICKS(3000));
-    }
-    return;
+    Update.abort();
   }
 
   if (s_otaError.length() == 0 && downloaded > 0) {
-    s_otaState = GH_OTA_FLASHING;
-    Serial.printf("GithubOTA: Download complete (%u bytes in PSRAM). Writing to flash...\n", (unsigned)downloaded);
-    UI_DrawOtaWritingStaticScreen("GitHub OTA");
-    vTaskDelay(pdMS_TO_TICKS(150));
-
-    if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
-      s_otaError = Update.errorString();
+    if (Update.end(true)) {
+      s_otaProgress = 100;
+      s_otaState = GH_OTA_SUCCESS;
+      Serial.printf("GithubOTA: Update successful (%u bytes). Restarting...\n", (unsigned)downloaded);
+      UI_DrawOtaWritingStaticScreen("GitHub OTA", (Lang_Get() == LANG_EN) ? "Success! Restarting..." : "Hotovo! Reštartujem...");
+      vTaskDelay(pdMS_TO_TICKS(1500));
+      Safe_Restart();
+      return;
     } else {
-      size_t written = 0;
-      const size_t CHUNK_SZ = 16384;
-      while (written < downloaded) {
-        size_t toWrite = (downloaded - written > CHUNK_SZ) ? CHUNK_SZ : (downloaded - written);
-        if (Update.write(ramBuf + written, toWrite) != toWrite) {
-          s_otaError = Update.errorString();
-          Update.abort();
-          break;
-        }
-        written += toWrite;
-        vTaskDelay(pdMS_TO_TICKS(20)); // Give ST7701 RGB DMA uninterrupted access to PSRAM between flash writes
-        Watchdog_Feed();
-      }
-      if (s_otaError.length() == 0 && Update.end(true)) {
-        s_otaProgress = 100;
-        s_otaState = GH_OTA_SUCCESS;
-        Serial.printf("GithubOTA: Update successful (%u bytes). Restarting...\n", (unsigned)downloaded);
-        UI_DrawOtaWritingStaticScreen("GitHub OTA", (Lang_Get() == LANG_EN) ? "Success! Restarting..." : "Hotovo! Reštartujem...");
-        vTaskDelay(pdMS_TO_TICKS(1500));
-        Safe_Restart();
-      }
+      s_otaError = Update.errorString();
     }
   }
 
-  if (ramBuf) {
-    heap_caps_free(ramBuf);
-    ramBuf = nullptr;
-  }
-
-  if (s_otaState != GH_OTA_SUCCESS) {
-    if (s_otaError.length() == 0) s_otaError = Update.errorString();
-    s_otaState = GH_OTA_ERROR;
-    UI_DrawOtaWritingStaticScreen("GitHub OTA", s_otaError.c_str());
-    vTaskDelay(pdMS_TO_TICKS(3000));
-  }
+  // Once OTA starts and buffers are cleared, failure must restart to restore clean system state
+  s_otaState = GH_OTA_ERROR;
+  if (s_otaError.length() == 0) s_otaError = "Update failed";
+  Serial.printf("GithubOTA: Update failed (%s). Restarting in 3s to restore clean system state...\n", s_otaError.c_str());
+  UI_DrawOtaWritingStaticScreen("GitHub OTA", s_otaError.c_str());
+  vTaskDelay(pdMS_TO_TICKS(3000));
+  Safe_Restart();
 }
 
 bool GithubOTA_StartUpdateAsync(const char* url, const char* tag) {

@@ -237,7 +237,10 @@ static void asyncWorkerTask(void* param) {
           !GithubOTA_IsBusy() && GithubOTA_GetState() != GH_OTA_CHECKING && !rvBusy && !mtBusy) {
         if (Net_HeapOk("GH_OTA")) {
           s_lastOtaAutoCheck = now;
-          GithubOTA_CheckAsync();
+          s_core0NetBusy = true;
+          GithubOTA_CheckSync();
+          s_core0NetBusy = false;
+          lastTlsTime = millis();
         }
       }
 
