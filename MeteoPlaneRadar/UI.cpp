@@ -30,6 +30,7 @@
 #include "RainViewer.h"
 #include "CHMU.h"
 #include "SHMU.h"
+#include "NightMode.h"
 
 static int s_activeScreen = SCREEN_CLOCK_I;
 static lv_obj_t* s_wifiScreen = nullptr;
@@ -549,6 +550,9 @@ void UI_SetScreensHidden(bool hidden) {
 
 void UI_NotifyInteraction() {
     s_lastUserInteractionMs = millis();
+    if (NightMode_IsUltraNightActive()) {
+        NightMode_WakeTemporary(15000);
+    }
 }
 
 void UI_SwitchScreenStep(int step) {
@@ -563,6 +567,14 @@ void UI_SwitchScreenStep(int step) {
 
 void UI_AutoRotate_Tick() {
     UI_ZoomTick();
+
+    // Night: Clock only or Ultra Night mode (freeze on Clock screen during night)
+    if ((Settings_NightClockOnly() || Settings_UltraNight()) && Settings_IsNight()) {
+        if (s_activeScreen != SCREEN_CLOCK_I && !UI_IsSwipeActive() && !QuickControl_IsOpen() && !PetDrawer_IsOpen()) {
+            UI_SwitchScreen(SCREEN_CLOCK_I);
+        }
+        return;
+    }
 
     uint16_t rotSec = Settings_AutoRotateSec();
     if (rotSec == 0) return;

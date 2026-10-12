@@ -279,8 +279,14 @@ static void asyncWorkerTask(void* param) {
         } _guard;
         (void)_guard;
 
-        unsigned long adsbPeriod = (s_targetRangeKm <= ADSB_NEAR_KM) ? ADSB_PERIOD_NEAR_MS :
-                                   (s_targetRangeKm <= ADSB_MID_KM)  ? ADSB_PERIOD_MID_MS  : ADSB_PERIOD_FAR_MS;
+        static int s_adsbFails = 0;
+        unsigned long adsbPeriodBase = (s_targetRangeKm <= ADSB_NEAR_KM) ? ADSB_PERIOD_NEAR_MS :
+                                       (s_targetRangeKm <= ADSB_MID_KM)  ? ADSB_PERIOD_MID_MS  : ADSB_PERIOD_FAR_MS;
+        unsigned long adsbPeriod = adsbPeriodBase;
+        if (s_adsbFails > 0) {
+          int shift = s_adsbFails > 5 ? 5 : s_adsbFails;
+          adsbPeriod <<= shift;
+        }
 
         // 2. Pending Route Lookups (only when active on planes screen, queue not empty, and not right after ADS-B)
         if (planesActive && (now - lastAdsbFetch >= 1000) && Route_HasPending()) {
@@ -299,15 +305,25 @@ static void asyncWorkerTask(void* param) {
           }
         }
         // 2c. Tactical Radar Fetch for CHMU / SHMU (when on Tactical screen and not RainViewer)
-        else if ((curScr == SCREEN_TACTICAL_I) && (Settings_RadarSource() != RADAR_SRC_RAINVIEWER) &&
-                 (s_reqRadar || (now - lastRadarFetch >= TACTICAL_RADAR_PERIOD_MS))) {
-          s_reqRadar = false;
-          lastRadarFetch = now;
-          int n = (Settings_RadarSource() == RADAR_SRC_SHMU) ? SHMU_FetchAnim(1) : CHMU_FetchAnim(1);
-          if (n > 0) {
-            s_radarUpdated = true;
+        else if ((curScr == SCREEN_TACTICAL_I) && (Settings_RadarSource() != RADAR_SRC_RAINVIEWER)) {
+          static int s_radarFails = 0;
+          unsigned long radarPeriod = TACTICAL_RADAR_PERIOD_MS;
+          if (s_radarFails > 0) {
+            int shift = s_radarFails > 3 ? 3 : s_radarFails;
+            radarPeriod <<= shift;
           }
-          lastTlsTime = millis();
+          if (s_reqRadar || (now - lastRadarFetch >= radarPeriod)) {
+            s_reqRadar = false;
+            lastRadarFetch = now;
+            int n = (Settings_RadarSource() == RADAR_SRC_SHMU) ? SHMU_FetchAnim(1) : CHMU_FetchAnim(1);
+            if (n > 0) {
+              s_radarUpdated = true;
+              s_radarFails = 0;
+            } else {
+              s_radarFails++;
+            }
+            lastTlsTime = millis();
+          }
         }
         // 3. ADS-B Aircraft Fetching (when on Planes or Tactical screen, or periodic background scan for emergency squawks)
         else if ((planesActive && (now - lastAdsbFetch >= adsbPeriod)) ||
@@ -320,6 +336,9 @@ static void asyncWorkerTask(void* param) {
           float rng = planesActive ? s_targetRangeKm : 250.0f;
           if (ADSB_Fetch(lat, lon, rng)) {
             s_adsbUpdated = true;
+            s_adsbFails = 0;
+          } else {
+            s_adsbFails++;
           }
           lastTlsTime = millis();
         }

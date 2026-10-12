@@ -1656,9 +1656,9 @@ static void drawTrackedSkyPlane() {
   // 4. Callsign & Distance Badge Pill floating right below plane
   char badge[32];
   if (s_skyPlane.callsign[0]) {
-    snprintf(badge, sizeof(badge), "%s • %.0fkm", s_skyPlane.callsign, s_skyPlane.distKm);
+    snprintf(badge, sizeof(badge), "%s - %.0fkm", s_skyPlane.callsign, s_skyPlane.distKm);
   } else {
-    snprintf(badge, sizeof(badge), "✈ %.0fkm", s_skyPlane.distKm);
+    snprintf(badge, sizeof(badge), "%.0fkm", s_skyPlane.distKm);
   }
   int bw = Font_TextWidth(badge, FONT_TINY) + 12;
   int bx = px + 28 - bw / 2;

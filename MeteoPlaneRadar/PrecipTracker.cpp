@@ -191,6 +191,7 @@ void PrecipTracker_ProcessFrames(const uint16_t* prevFrame, const uint16_t* curF
   }
 
   // Compute motion vector via 2D spatial cross-correlation (TREC)
+  int64_t scores[11][11] = {0};
   int bestDx = 0, bestDy = 0;
   int64_t bestScore = 0;
 
@@ -210,18 +211,39 @@ void PrecipTracker_ProcessFrames(const uint16_t* prevFrame, const uint16_t* curF
           }
         }
       }
-      if (matchCount >= 8 && score > bestScore) {
-        bestScore = score;
-        bestDx = dx;
-        bestDy = dy;
+      if (matchCount >= 8) {
+        scores[dy + 5][dx + 5] = score;
+        if (score > bestScore) {
+          bestScore = score;
+          bestDx = dx;
+          bestDy = dy;
+        }
       }
     }
   }
 
+  float fDx = (float)bestDx;
+  float fDy = (float)bestDy;
+
+  // Sub-pixel peak interpolation (Quadratic fitting) for smooth ETAs
+  if (bestDx > -5 && bestDx < 5 && bestDy > -5 && bestDy < 5 && bestScore > 0) {
+      int64_t s0 = scores[bestDy + 5][bestDx + 5];
+      
+      int64_t smx = scores[bestDy + 5][bestDx - 1 + 5];
+      int64_t spx = scores[bestDy + 5][bestDx + 1 + 5];
+      float denomX = 2.0f * (float)(smx - 2LL * s0 + spx);
+      if (denomX != 0.0f) fDx += (float)(smx - spx) / denomX;
+
+      int64_t smy = scores[bestDy - 1 + 5][bestDx + 5];
+      int64_t spy = scores[bestDy + 1 + 5][bestDx + 5];
+      float denomY = 2.0f * (float)(smy - 2LL * s0 + spy);
+      if (denomY != 0.0f) fDy += (float)(smy - spy) / denomY;
+  }
+
   // Convert grid displacement to real-world velocity (km/h)
   const float kmPerCell = (2.0f * rangeKm) / (float)GRID_SIZE;
-  float vx = (float)bestDx * kmPerCell * (60.0f / dtMin);
-  float vy = (float)bestDy * kmPerCell * (60.0f / dtMin);
+  float vx = fDx * kmPerCell * (60.0f / dtMin);
+  float vy = fDy * kmPerCell * (60.0f / dtMin);
   float speedKmh = sqrtf(vx * vx + vy * vy);
 
   // Bearing: Direction FROM which the weather is coming

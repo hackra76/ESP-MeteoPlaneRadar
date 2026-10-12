@@ -515,3 +515,27 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
   }
   return false;
 }
+
+void ADSB_GetExtrapolatedPosition(const Aircraft& a, float* outLat, float* outLon) {
+    if (outLat) *outLat = a.lat;
+    if (outLon) *outLon = a.lon;
+    if (a.gsKt < 1.0f || !a.hasTrack) return;
+
+    unsigned long elapsedMs = millis() - s_lastFetchTime;
+    // Cap extrapolation to 20 seconds to prevent planes flying infinitely if connection is lost
+    if (elapsedMs > 20000) elapsedMs = 20000;
+    
+    // Speed in km/h = knots * 1.852
+    // Distance in km = speed * time_in_hours
+    float distKm = (a.gsKt * 1.852f) * ((float)elapsedMs / 3600000.0f);
+    
+    // Bearing in radians
+    float bearingRad = a.track * (PI / 180.0f);
+    
+    // Flat earth approximation (perfectly accurate for < 5km distances)
+    float dLat = (distKm * cosf(bearingRad)) / 111.32f;
+    float dLon = (distKm * sinf(bearingRad)) / (111.32f * cosf(a.lat * (PI / 180.0f)));
+    
+    if (outLat) *outLat = a.lat + dLat;
+    if (outLon) *outLon = a.lon + dLon;
+}

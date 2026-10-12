@@ -9,6 +9,20 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [3.1.0] - 2026-10-12
+
+### Added
+- **Natural Earth Worldwide Vector Borders:** Replaced legacy regional EU border dataset with a high-performance global vector dataset (Natural Earth 110m clipped coastline and international boundaries). Seamless offline border rendering on all radar screens (Planes, Meteo, Tactical, Sonar) worldwide for any user coordinates.
+- **Astronomical Solar Day/Night Calculation (NOAA Algorithm):** Real-time mathematical calculation of sunrise and sunset directly from GPS coordinates and UTC epoch time. Operates completely offline without requiring internet access or waiting for Open-Meteo forecast responses.
+- **Ultra Night Wake Triggers:** Added temporary 15-second brightness restoration on touchscreen tap and physical IMU double-tap when Ultra Night mode is active.
+- **Night Screen Lock:** Enforced `Settings_NightClockOnly()` and `Settings_UltraNight()` during nighttime hours to lock display auto-rotation to Screen 0 (Clock).
+
+### Fixed
+- **Meteo Radar Zoom Crash & Tearing:** Eliminated display crashes and tearing during zoom level switching by removing unstable full-country composite buffer allocation, stabilizing frame lifecycle, and optimizing async radar rendering.
+- **Day/Night Automatic Brightness:** Fixed `NightMode_Tick()` integration into main loop (previously omitted from loop, leaving automatic day/night switching dormant).
+- **Pet Chase Badge Glyph:** Fixed corrupt character/box rendered between callsign and distance on the active DigiCat aircraft chasing overlay.
+- **ISS Tracker UI:** Polished hint text and status indications on Screen 7.
+
 ## [3.0.0] - 2026-10-07
 
 ### Changed

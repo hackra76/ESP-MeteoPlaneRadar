@@ -14,6 +14,9 @@
 #include "Outside.h"
 #include "FlightStats.h"
 #include "PrecipTracker.h"
+#include "NightMode.h"
+#include "Adsb.h"
+#include <time.h>
 #include "WiFiPortal.h"
 #include "GeoIP.h"
 #include "FinanceData.h"
@@ -118,6 +121,9 @@ void setup() {
 
   if (QMI8658_Init()) {
     QMI8658_OnDoubleTap([]() {
+      if (NightMode_IsUltraNightActive()) {
+        NightMode_WakeTemporary(15000);
+      }
       if (PetDrawer_IsOpen()) {
         if (Settings_BuzzerTouch()) Buzzer_Play(BEEP_OVERHEAD);
         PetBrain_Feed();
@@ -208,6 +214,32 @@ void loop() {
 
   Buzzer_Tick();
   UI_AutoRotate_Tick();
+  NightMode_Tick();
+  
+  // Smart auto-dimming check (30 minutes of inactivity)
+  uint32_t inactive_ms = lv_display_get_inactive_time(lv_display_get_default());
+  bool is_idle = (inactive_ms > 30 * 60 * 1000UL) && 
+                 (ADSB_Count() == 0) && 
+                 (!PrecipTracker_IsApproaching());
+  NightMode_SetIdle(is_idle);
+
+  // PSRAM Defragmentation Watch (runs around 3:00 AM)
+  static unsigned long last_maint = 0;
+  if (millis() - last_maint > 300000UL) { // Check every 5 minutes
+      last_maint = millis();
+      time_t now = time(nullptr);
+      struct tm lt;
+      localtime_r(&now, &lt);
+      if (lt.tm_hour == 3 && is_idle) { // 3:00 AM - 3:59 AM
+          size_t largest_psram = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM);
+          if (largest_psram < 500 * 1024) { // < 500 KB block size
+              Serial.printf("Maintenance: PSRAM fragmented (Largest block: %zu bytes). Restarting gracefully.\n", largest_psram);
+              delay(100);
+              Safe_Restart();
+          }
+      }
+  }
+
   lv_timer_handler();
   Watchdog_Feed();
   delay(5);

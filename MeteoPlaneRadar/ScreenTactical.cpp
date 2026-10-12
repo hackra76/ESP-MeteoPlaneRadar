@@ -575,9 +575,12 @@ void ScreenTactical_Draw() {
     // In Emergency mode: isolate and show ONLY the emergency aircraft!
     if (emergIdx >= 0 && i != emergIdx) continue;
 
+    float eLat, eLon;
+    ADSB_GetExtrapolatedPosition(list[i], &eLat, &eLon);
+
     // 3D Proximity distance
-    double dLatKm = (list[i].lat - clat) * 111.0;
-    double dLonKm = (list[i].lon - clon) * (111.0 * cos(clat * 0.0174532925));
+    double dLatKm = (eLat - clat) * 111.0;
+    double dLonKm = (eLon - clon) * (111.0 * cos(clat * 0.0174532925));
     float dGnd = sqrtf((float)(dLatKm * dLatKm + dLonKm * dLonKm));
     float dAlt = (list[i].altFt * 0.3048f) / 1000.0f;
     float d3D = sqrtf(dGnd * dGnd + dAlt * dAlt);
@@ -605,7 +608,7 @@ void ScreenTactical_Draw() {
 
     if (!em && !watched && !passesFilter(list[i])) continue;
     int sx, sy;
-    project(list[i].lat, list[i].lon, clat, clon, crng, &sx, &sy);
+    project(eLat, eLon, clat, clon, crng, &sx, &sy);
     int dx = sx - R_CX, dy = sy - R_CY;
     if (dx * dx + dy * dy > R_RADIUS * R_RADIUS) continue;
 

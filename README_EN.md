@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20SK%20%7C%20CZ-green.svg)
-![Release](https://img.shields.io/badge/Release-v3.0.0-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v3.1.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, ISS orbit tracking, YouTube channel analytics, financial market tickers, and an animated virtual pet companion on a round 2.1" IPS touchscreen.**  
@@ -36,18 +36,26 @@ Designed for the **Waveshare ESP32-S3-Touch-LCD-2.1** with smartphone-like touch
 </p>
 
 <p align="center">
-  <em>DigiCat v3.0.0 — Professional 64×64 ginger cat sprites (247 frames, 38 animation sequences, RGB565 PROGMEM, rendered at 3× scale / 192×192 px).</em>
+  <em>DigiCat v3.1.0 — Professional 64×64 ginger cat sprites (247 frames, 38 animation sequences, RGB565 PROGMEM, rendered at 3× scale / 192×192 px).</em>
 </p>
 
 ---
 
 ## 🌟 Features
 
+### ⚡ v3.1.0 Optimization & Global Mapping Release
+- **Worldwide Natural Earth Vector Borders:** Replaced legacy regional EU vector border data with a high-performance global vector dataset (Natural Earth 110m clipped coastline & international boundaries). Seamless offline border rendering on all radar screens (Planes, Meteo, Tactical, Sonar) worldwide for any user coordinates.
+- **Astronomical Solar Day/Night Engine:** Offline mathematical calculation of sunrise and sunset directly from GPS coordinates and UTC epoch time (NOAA algorithm). Dynamic brightness control operates immediately upon boot without requiring network or weather API responses.
+- **Ultra Night Wake Triggers:** 15-second brightness wake on touchscreen tap or physical IMU double-tap when Ultra Night mode is active.
+- **Night Screen Auto-Lock:** Enforces `nightClockOnly` and `ultraNight` to lock display auto-rotation to Screen 0 (Clock) during nighttime hours.
+- **Meteo Radar Zoom Crash Fix:** Eliminated display crashes and tearing during zoom level switching by removing unstable full-country composite buffer allocation, stabilizing frame lifecycle, and optimizing async radar rendering.
+- **DigiCat Aircraft Chasing Badge Fix:** Fixed corrupt character/box rendered between callsign and distance on the active DigiCat aircraft chasing overlay.
+
 ### 🚀 v3.0.0 Major Architectural Upgrade
 - **LVGL 9 Rendering Pipeline:** Replaced legacy Arduino_GFX rendering with double-buffered LVGL 9.1 (2× 480×480 in PSRAM) and DMA transfers, achieving buttery smooth animations and native anti-aliasing.
 - **Luxury Astronomical Chronograph:** Handcrafted Swiss luxury watchface featuring a 24-hour solar twilight perimeter arc with orbiting Sun glyph and golden hour bands, photorealistic 3D raymarched lunar sphere with embedded NASA LROC albedo texture, outdoor temperature trend sparkline subdial, and an orbiting 30 FPS electric-blue seconds bead with Gaussian bloom arc.
 - **Glass Cockpit Avionics & Radar Modernization:** 360-degree aviation compass rose bezel, forward 1-minute velocity vector leader lines, selectable target styles (aerodynamic vector chevrons vs. silhouettes), floating uncluttered stacked avionics callouts (with smart origin/destination route substitution), and metric/aviation unit scaling.
-- **Multi-Provider Map Underlays:** Switch seamlessly between offline high-speed vector European borders & cities (`EuBorder`) and online raster map tiles (Esri World Dark Gray Canvas, OpenStreetMap Standard) cached to flash memory.
+- **Multi-Provider Map Underlays:** Switch seamlessly between offline high-speed Natural Earth global vector borders and online raster map tiles (Esri World Dark Gray Canvas, OpenStreetMap Standard) cached to flash memory.
 - **Tactical Sonar Screen:** Cold War tactical phosphor green CRT radar sweep (25 FPS) with analog phosphor persistence decay, Doppler velocity color encoding (Closing cyan, Opening amber, Cross-track green), acoustic ping on target contact, and 3 view modes (Classic PPI sweep, Split view with BTR waterfall spectrogram, Full-height Waterfall).
 - **3D Orbital Space Command ISS Tracker:** Real-time 3D orthographic spherical Earth projection with Rayleigh atmospheric limb scattering halo, real-time Day/Night solar terminator shading, orbital ground track and radio footprint circle, and 3 view modes (3D ISS, 3D Home, 2D Map).
 - **DigiCat 2.0 Aero-Cat Flight Deck Co-Pilot:** Top Gun tactical military intercept mode with aviator sunglasses, animated mini radar scope, real-time 6-axis IMU attitude telemetry (pitch, roll, gyro heading), and Google Gemini AI thoughts.

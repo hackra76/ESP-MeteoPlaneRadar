@@ -136,8 +136,10 @@ static void drawClassicPPI(float currentRangeKm) {
 
   int inRangeCount = 0;
   for (int i = 0; i < count; i++) {
-    float dxKm = (float)((list[i].lon - clon) * 111.32 * cosLat);
-    float dyKm = (float)((list[i].lat - clat) * 110.57);
+    float eLat, eLon;
+    ADSB_GetExtrapolatedPosition(list[i], &eLat, &eLon);
+    float dxKm = (float)((eLon - clon) * 111.32 * cosLat);
+    float dyKm = (float)((eLat - clat) * 110.57);
     float distKm = sqrtf(dxKm * dxKm + dyKm * dyKm);
     if (distKm > currentRangeKm) continue;
 
@@ -251,8 +253,10 @@ static void drawSplitView(float currentRangeKm) {
 
   int inRangeCount = 0;
   for (int i = 0; i < count; i++) {
-    float dxKm = (float)((list[i].lon - clon) * 111.32 * cosLat);
-    float dyKm = (float)((list[i].lat - clat) * 110.57);
+    float eLat, eLon;
+    ADSB_GetExtrapolatedPosition(list[i], &eLat, &eLon);
+    float dxKm = (float)((eLon - clon) * 111.32 * cosLat);
+    float dyKm = (float)((eLat - clat) * 110.57);
     float distKm = sqrtf(dxKm * dxKm + dyKm * dyKm);
     if (distKm > currentRangeKm) continue;
 
@@ -342,8 +346,10 @@ static void drawFullWaterfall(float currentRangeKm) {
 
   int inRangeCount = 0;
   for (int i = 0; i < count; i++) {
-    float dxKm = (float)((list[i].lon - clon) * 111.32 * cosLat);
-    float dyKm = (float)((list[i].lat - clat) * 110.57);
+    float eLat, eLon;
+    ADSB_GetExtrapolatedPosition(list[i], &eLat, &eLon);
+    float dxKm = (float)((eLon - clon) * 111.32 * cosLat);
+    float dyKm = (float)((eLat - clat) * 110.57);
     if ((dxKm * dxKm + dyKm * dyKm) <= (currentRangeKm * currentRangeKm)) {
       inRangeCount++;
     }
@@ -463,8 +469,10 @@ static void tick_timer_cb(lv_timer_t* timer) {
         float currentRangeKm = SONAR_RANGES[s_rangeIdx];
 
         for (int i = 0; i < count; i++) {
-          float dxKm = (float)((list[i].lon - clon) * 111.32 * cosLat);
-          float dyKm = (float)((list[i].lat - clat) * 110.57);
+          float eLat, eLon;
+          ADSB_GetExtrapolatedPosition(list[i], &eLat, &eLon);
+          float dxKm = (float)((eLon - clon) * 111.32 * cosLat);
+          float dyKm = (float)((eLat - clat) * 110.57);
           float distKm = sqrtf(dxKm * dxKm + dyKm * dyKm);
           if (distKm > currentRangeKm || distKm < 0.1f) continue;
 
@@ -518,8 +526,10 @@ static void tick_timer_cb(lv_timer_t* timer) {
       bool hit = false;
 
       for (int i = 0; i < count; i++) {
-        float dxKm = (float)((list[i].lon - clon) * 111.32 * cosLat);
-        float dyKm = (float)((list[i].lat - clat) * 110.57);
+        float eLat, eLon;
+        ADSB_GetExtrapolatedPosition(list[i], &eLat, &eLon);
+        float dxKm = (float)((eLon - clon) * 111.32 * cosLat);
+        float dyKm = (float)((eLat - clat) * 110.57);
         if ((dxKm * dxKm + dyKm * dyKm) > maxDistSq) continue;
 
         float azimuthDeg = atan2f(dxKm, dyKm) * 57.2957795f;

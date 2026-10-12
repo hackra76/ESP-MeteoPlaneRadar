@@ -15,47 +15,31 @@
 #include <string.h>
 #include <math.h>
 
-// Decode a fixed-point vertex back into degrees.
-static inline float ptLon(uint16_t v) { return EU_LON_ORIGIN + v * EU_COORD_SCALE; }
-static inline float ptLat(uint16_t v) { return EU_LAT_ORIGIN + v * EU_COORD_SCALE; }
-
 void EuBorder_Draw(ProjectFn project, uint16_t color,
                    float lat0, float lat1, float lon0, float lon1) {
-  const int nRings = EU_RING_COUNT;
+  // Quantize visible window bounding box to integer degrees * 100
+  int16_t qLon0 = (int16_t)roundf(lon0 * 100.0f);
+  int16_t qLon1 = (int16_t)roundf(lon1 * 100.0f);
+  int16_t qLat0 = (int16_t)roundf(lat0 * 100.0f);
+  int16_t qLat1 = (int16_t)roundf(lat1 * 100.0f);
 
-  for (int r = 0; r < nRings; r++) {
-    uint16_t start = EU_RING_OFFSETS[r];
-    uint16_t end   = EU_RING_OFFSETS[r + 1];   // exclusive
-    if (end - start < 2) continue;
+  for (uint16_t a = 0; a < GLOBAL_ARC_COUNT; a++) {
+    const GlobalArcBox& box = GLOBAL_ARC_BOXES[a];
 
-    // Ring-level rejection: if the ring's bounding box misses the window
-    // entirely, skip the whole country in one go. This is what keeps the
-    // draw cheap - at 25 km over Prague, nearly every ring dies right here.
-    uint16_t bxmin = 0xFFFF, bxmax = 0, bymin = 0xFFFF, bymax = 0;
-    for (uint16_t i = start; i < end; i++) {
-      uint16_t x = EU_BORDER_PTS[i][0], y = EU_BORDER_PTS[i][1];
-      if (x < bxmin) bxmin = x;
-      if (x > bxmax) bxmax = x;
-      if (y < bymin) bymin = y;
-      if (y > bymax) bymax = y;
-    }
-    if (ptLon(bxmax) < lon0 || ptLon(bxmin) > lon1) continue;
-    if (ptLat(bymax) < lat0 || ptLat(bymin) > lat1) continue;
+    // Ring/arc-level rejection: fast integer comparison discards >98% of the world in microseconds
+    if (box.lonMax100 < qLon0 || box.lonMin100 > qLon1) continue;
+    if (box.latMax100 < qLat0 || box.latMin100 > qLat1) continue;
 
-    // Segment level: draw the segment i-1 -> i whenever *either* endpoint lies
-    // in the window. Requiring both would chop off the border exactly where it
-    // crosses the edge of the view, leaving visible gaps at the screen rim.
-    //
-    // Every vertex of a surviving ring is projected once and cached in prevX/
-    // prevY, so a point sitting just outside the window is still available as
-    // the far end of the segment that reaches into it.
+    uint32_t start = box.startIdx;
+    uint32_t end   = start + box.count;
+
     int   prevX = 0, prevY = 0;
     bool  prevIn = false;
     bool  first = true;
 
-    for (uint16_t i = start; i < end; i++) {
-      float lon = ptLon(EU_BORDER_PTS[i][0]);
-      float lat = ptLat(EU_BORDER_PTS[i][1]);
+    for (uint32_t i = start; i < end; i++) {
+      float lon = globalPtLon(GLOBAL_BORDER_PTS[i][0]);
+      float lat = globalPtLat(GLOBAL_BORDER_PTS[i][1]);
       bool  in  = (lat >= lat0 && lat <= lat1 && lon >= lon0 && lon <= lon1);
 
       int sx, sy;

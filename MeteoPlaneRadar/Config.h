@@ -74,7 +74,7 @@
 // ---------------------------------------------------------------------------
 // Radius in km around the user's position. The value 0 is special: it means
 // "the whole country", a fixed view that ignores where the user is.
-#define METEO_RANGES_KM    { 25.0f, 50.0f, 100.0f, 200.0f, 0.0f }
+#define METEO_RANGES_KM    { 25.0f, 50.0f, 100.0f, 200.0f }
 #define TACTICAL_RANGES_KM { 25.0f, 50.0f, 100.0f, 200.0f, 0.0f }
 #define TACTICAL_RADAR_PERIOD_MS (5 * 60 * 1000UL) // 5 min refresh interval for precipitation radar on Tactical screen
 
@@ -191,7 +191,7 @@
 // ---------------------------------------------------------------------------
 // A TLS handshake with dynamic buffers in PSRAM needs roughly 10-15 kB of internal RAM on ESP32-S3.
 #define NET_MIN_HEAP  36000
-#define NET_MIN_BLOCK 18000
+#define NET_MIN_BLOCK 16000
 
 // WiFiClientSecure defaults the mbedTLS handshake to 120 s, six times
 // WDT_TIMEOUT_S. setConnectTimeout() does NOT cover it - that only bounds the

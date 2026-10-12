@@ -60,6 +60,10 @@ int    ADSB_FindByHex(const char* hex);
 // Returns the code, or nullptr when it is not one of them.
 const char* ADSB_EmergencyCode(const Aircraft& a);
 
+// Smoothly extrapolates the aircraft's position based on its speed, track, and 
+// time elapsed since the last fetch. Caps at 20s to prevent infinite flying.
+void ADSB_GetExtrapolatedPosition(const Aircraft& a, float* outLat, float* outLon);
+
 // Return pointer to first airborne aircraft squawking an emergency code (or nullptr)
 const Aircraft* ADSB_GetEmergencyAircraft();
 

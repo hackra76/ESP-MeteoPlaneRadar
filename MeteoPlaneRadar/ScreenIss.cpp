@@ -556,9 +556,9 @@ static void ScreenIss_Draw() {
   UI_TextCentered(passBuf, 408, RGB565(120, 180, 235), 1);
 
   // 10. Bottom Rim: Micro-hint
-  const char* hint = isEn ? "Tap: 3D/2D View • Dbl-tap: Refresh"
-                          : (isSk ? "Ťuk: 3D/2D Pohľad • Dvojklik: Obnova"
-                                  : "Ťuk: 3D/2D Pohled • Dvojklik: Obnova");
+  const char* hint = isEn ? "Tap: 3D/2D View | Dbl-tap: Refresh"
+                          : (isSk ? "Ťuk: 3D/2D Pohľad | Dvojklik: Obnova"
+                                  : "Ťuk: 3D/2D Pohled | Dvojklik: Obnova");
   UI_TextCentered(hint, 432, RGB565(85, 115, 145), 0);
 }
 

@@ -16,6 +16,9 @@
 // Call from loop(). Decides day/night and pushes the matching brightness.
 void NightMode_Tick();
 
+// Set idle state for smart auto-dimming
+void NightMode_SetIdle(bool idle);
+
 // Manual switch, used by a short tap on the clock screen when the automatic
 // mode is off. Does nothing while automatic mode is on - it would be undone a
 // second later anyway.

@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-SK%20%7C%20CZ%20%7C%20EN-green.svg)
-![Release](https://img.shields.io/badge/Release-v3.0.0-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v3.1.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunkčná meteorologická stanica, živý ADS-B letecký radar, animovaný radar zrážok (SHMÚ, ČHMÚ, RainViewer), kombinovaný taktický radar, sledovanie dráhy ISS, analytika YouTube, finančné trhy a animovaný virtuálny spoločník na okrúhlom 2.1" IPS dotykovom displeji.**  
@@ -36,18 +36,26 @@ Vyvinuté pre **Waveshare ESP32-S3-Touch-LCD-2.1** s dotykovými gestami v štý
 </p>
 
 <p align="center">
-  <em>DigiCat v3.0.0 — Profesionálne 64×64 sprite animácie ryšavej mačky (247 snímok, 38 animačných sekvencií, RGB565 PROGMEM, škálované na 3× / 192×192 px).</em>
+  <em>DigiCat v3.1.0 — Profesionálne 64×64 sprite animácie ryšavej mačky (247 snímok, 38 animačných sekvencií, RGB565 PROGMEM, škálované na 3× / 192×192 px).</em>
 </p>
 
 ---
 
 ## 🌟 Funkcie
 
+### ⚡ v3.1.0 Optimalizácia a celosvetové mapy
+- **Celosvetové vektorové hranice Natural Earth:** Pôvodné regionálne vektorové hranice EÚ boli nahradené vysoko optimalizovaným globálnym vektorovým datasetom (Natural Earth 110m pobrežia a štátne hranice). Plynulé offline vykresľovanie hraníc na všetkých obrazovkách radaru (Lietadlá, Meteo, Taktický, Sonar) kdekoľvek na svete pre ľubovoľné súradnice.
+- **Astronomický výpočet východu a západu slnka (NOAA algoritmus):** Real-time offline matematický výpočet východu a západu slnka priamo zo súradníc a UTC času. Automatická regulácia jasu funguje okamžite po štarte bez nutnosti čakať na internet alebo predpoveď počasia.
+- **Prebudenie z Ultra Night režimu:** Dočasné 15-sekundové rozjasnenie displeja dotykom obrazovky alebo fyzickým poklepaním na zariadenie (IMU dvojklik).
+- **Nočný zámok obrazovky:** Vynútenie režimov `nightClockOnly` a `ultraNight`, ktoré počas noci automaticky uzamknú rotáciu obrazoviek na Hodiny (Screen 0).
+- **Oprava pádov a trhania pri zoomovaní meteo radaru:** Úplné odstránenie pádov ovládača displeja pri prepínaní úrovní priblíženia, stabilizácia životného cyklu snímok a vyčistenie pamäte PSRAM.
+- **Oprava odznaku DigiCat pri naháňaní lietadla:** Odstránený neplatný znak (otáznik/štvorec) vykresľovaný medzi volacím znakom lietadla a vzdialenosťou.
+
 ### 🚀 v3.0.0 Hlavná architektonická aktualizácia
 - **Vykresľovanie cez LVGL 9:** Nahradenie starého Arduino_GFX systému za LVGL 9.1 s dvojitým bufferingom (2× 480×480 v PSRAM) a DMA prenosmi, prinášajúce plynulé animácie a hardvérové vyhladzovanie hrán (anti-aliasing).
 - **Luxusný astronomický chronograf:** Prémiový ciferník inšpirovaný švajčiarskou hodinarinou s 24-hodinovým solárnym oblúkom a obiehajúcim slnkom s pásmami zlatej hodinky, fotorealistickou 3D raymarchovanou lunárnou sférou s fotografickou textúrou NASA LROC, subciferníkom 24-hodinového trendu teploty s krivkou sparkline a svietiacim 30 FPS sekundovým prstencom s Gaussian bloom efektom.
 - **Modernizácia Glass Cockpit & radarové funkcie:** 360-stupňová letecká kompasová ružica, prediktívne 1-minútové vektory rýchlosti letu, voliteľný štýl cieľov (aerodynamické vektory chevron vs. siluety lietadiel), optimalizované viacriadkové telemetrické štítky (so smart skratkami letov ODKIAĽ>KAM) a prepínanie metrických/leteckých jednotiek.
-- **Viaczdrojové mapové podklady:** Možnosť prepínania medzi offline vektorovými hranicami štátov a mestami (`EuBorder`) a online rastrovými mapovými dlaždicami (Esri World Dark Gray Canvas, OpenStreetMap Standard) kešovanými do flash pamäte.
+- **Viaczdrojové mapové podklady:** Možnosť prepínania medzi offline celosvetovými vektorovými hranicami štátov Natural Earth a online rastrovými mapovými dlaždicami (Esri World Dark Gray Canvas, OpenStreetMap Standard) kešovanými do flash pamäte.
 - **Taktický sonarový radar:** Obrazovka v štýle vojenského sonaru so zeleným fosforovým CRT skenovaním (25 FPS), analógovým doznievaním stopy, dopplerovským farebným kódovaním rýchlosti (približovanie azúrová, vzďaľovanie jantárová, kolmý let zelená), akustickým sonarovým pípnutím pri zameraní kontaktu a 3 režimami zobrazenia (klasický kruhový PPI sweep, rozdelený Split režim s BTR spektrogramom, celoobrazovkový vodopád).
 - **3D sledovanie dráhy ISS (Space Command):** Reálna 3D ortografická guľová projekcia Zeme so scanline raytracingom, atmosférickým Rayleighovým halo efektom, reálnym solárnym terminátorom deň/noc, dráhou letu, rádiovým dosahom a 3 režimami pohľadu (3D ISS, 3D Domov, 2D mapa).
 - **DigiCat 2.0 Aero-Cat letový kopilot:** Taktický vojenský režim Top Gun so slnečnými leteckými okuliarmi, animovaným mini radarovým displejom, živou telemetriou 6-osého IMU senzora (náklon, rotácia, gyroskopický kurz) a generovanými myšlienkami cez Google Gemini AI.

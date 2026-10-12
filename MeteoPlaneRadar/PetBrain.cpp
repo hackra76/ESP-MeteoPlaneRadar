@@ -125,7 +125,10 @@ static void generateOfflineThought(char* buf, size_t cap) {
   Outside_StatusText(tempBuf, sizeof(tempBuf));
 
   const bool isNight = Settings_IsNight() && !PetDrawer_IsNightAwake();
-  const bool isRaining = (PrecipTracker_IsApproaching() || PrecipTracker_IsCurrentlyActive());
+  const PrecipAlert* alert = PrecipTracker_GetAlert();
+  bool isApproaching = (alert && alert->status == PRECIP_STAT_APPROACHING);
+  bool isActive = (alert && alert->status == PRECIP_STAT_CURRENTLY_ACTIVE);
+  const bool isRaining = (isApproaching || isActive);
 
   if (isNight) {
     s_mood = PET_MOOD_SLEEPY;
@@ -135,7 +138,15 @@ static void generateOfflineThought(char* buf, size_t cap) {
     return;
   }
 
-  if (isRaining) {
+  if (isApproaching) {
+    s_mood = PET_MOOD_RAIN;
+    if (lang == LANG_SK) snprintf(buf, cap, "Pozor! Búrka sa blíži! Podľa môjho výpočtu dorazí o %d minút!", alert->etaMin);
+    else if (lang == LANG_CZ) snprintf(buf, cap, "Pozor! Bouřka se blíží! Podle mého výpočtu dorazí za %d minut!", alert->etaMin);
+    else snprintf(buf, cap, "Alert! Storm approaching! My tactical tracking says ETA %d minutes!", alert->etaMin);
+    return;
+  }
+  
+  if (isActive) {
     s_mood = PET_MOOD_RAIN;
     if (lang == LANG_SK) snprintf(buf, cap, "Vonku prší! Teplé pradenie a útulný radar v teple.");
     else if (lang == LANG_CZ) snprintf(buf, cap, "Venku prší! Teplé předení a útulný radar v teple.");

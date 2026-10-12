@@ -299,6 +299,19 @@ static void blitRainViewer(const uint16_t* fb) {
     uint16_t* dst = s_radarFb + dy * LCD_WIDTH;
     memcpy(dst + x0, row + x0, (x1 - x0 + 1) * sizeof(uint16_t));
   }
+  if (s_lastFail) {
+    for (int i = 0; i < LCD_WIDTH * LCD_HEIGHT; i++) {
+      uint16_t c = s_radarFb[i];
+      if (c) {
+        uint32_t r = (c >> 11) & 0x1F;
+        uint32_t g = (c >> 5) & 0x3F;
+        uint32_t b = c & 0x1F;
+        uint32_t luma = (r * 299 + (g / 2) * 587 + b * 114) / 1000;
+        s_radarFb[i] = (uint16_t)((luma << 11) | ((luma * 2) << 5) | luma);
+      }
+    }
+  }
+
   gfx->draw16bitRGBBitmap(0, 0, s_radarFb, LCD_WIDTH, LCD_HEIGHT);
 }
 
@@ -442,6 +455,19 @@ static void blitCrop() {
           else outCol = (uint16_t)((r << 11) | (g << 5) | b);
         }
         dst[dx] = outCol;
+      }
+    }
+  }
+
+  if (s_lastFail) {
+    for (int i = 0; i < LCD_WIDTH * LCD_HEIGHT; i++) {
+      uint16_t c = s_radarFb[i];
+      if (c) {
+        uint32_t r = (c >> 11) & 0x1F;
+        uint32_t g = (c >> 5) & 0x3F;
+        uint32_t b = c & 0x1F;
+        uint32_t luma = (r * 299 + (g / 2) * 587 + b * 114) / 1000;
+        s_radarFb[i] = (uint16_t)((luma << 11) | ((luma * 2) << 5) | luma);
       }
     }
   }
