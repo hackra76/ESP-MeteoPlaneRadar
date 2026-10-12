@@ -74,21 +74,30 @@ bool Net_GetString(const char* url, String& out, const char* tag) {
   // growing a second copy of this function elsewhere. The heap guard is about
   // the handshake, so it only applies when there is one.
   const bool tls = (strncmp(url, "http://", 7) != 0);
-  if (tls && !Net_HeapOk(tag)) return false;
+  const bool sess = (s_sess != nullptr && tls);
+  if (sess && !s_sess->connected()) {
+    s_sess->stop();
+  }
+  const bool connected = (sess && s_sess->connected());
+  if (tls && !connected && !Net_HeapOk(tag)) return false;
 
   WiFiClient       plain;
-  WiFiClientSecure secure;
-  if (tls) {
-    secure.setInsecure();
-    secure.setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
+  std::unique_ptr<WiFiClientSecure> own;
+  if (tls && !sess) {
+    own.reset(new WiFiClientSecure());
+    if (own) {
+      own->setInsecure();
+      own->setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
+    }
   }
-  WiFiClient& client = tls ? static_cast<WiFiClient&>(secure)
-                           : static_cast<WiFiClient&>(plain);
+  WiFiClient& client = tls ? (sess ? static_cast<WiFiClient&>(*s_sess)
+                                   : (own ? static_cast<WiFiClient&>(*own) : plain))
+                           : plain;
 
   HTTPClient http;
   http.setConnectTimeout(6000);
   http.setTimeout(10000);
-  http.setReuse(false);
+  http.setReuse(sess);
   http.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
   if (!http.begin(client, url)) { Serial.printf("%s: begin() failed\n", tag); return false; }
   http.collectHeaders(DATE_HDR, 1);
@@ -99,6 +108,7 @@ bool Net_GetString(const char* url, String& out, const char* tag) {
   if (code != HTTP_CODE_OK) {
     Serial.printf("%s: HTTP %d\n", tag, code);
     http.end();
+    if (sess) s_sess->stop();
     return false;
   }
   if (http.hasHeader("Date")) Outside_NoteHttpDate(http.header("Date").c_str());
@@ -108,10 +118,12 @@ bool Net_GetString(const char* url, String& out, const char* tag) {
     Serial.printf("%s: response %d B, limit is %u B\n",
                   tag, declared, (unsigned)NET_MAX_TEXT);
     http.end();
+    if (sess) s_sess->stop();
     return false;
   }
   if (!txtReserve((declared > 0) ? (size_t)declared + 1 : NET_MAX_TEXT)) {
     http.end();
+    if (sess) s_sess->stop();
     return false;
   }
 
@@ -119,7 +131,11 @@ bool Net_GetString(const char* url, String& out, const char* tag) {
   http.end();
   poll();
 
-  if (len <= 0) { Serial.printf("%s: empty response\n", tag); return false; }
+  if (len <= 0) {
+    Serial.printf("%s: empty response\n", tag);
+    if (sess) s_sess->stop();
+    return false;
+  }
   out = s_txt;
   return true;
 }

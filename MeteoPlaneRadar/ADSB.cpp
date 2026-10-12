@@ -28,6 +28,7 @@ static const float KM_PER_NM = 1.852f;
 
 static Aircraft* s_list = nullptr;   // last GOOD snapshot shown on screen
 static int s_count = 0;
+static WiFiClientSecure* s_adsbClient = nullptr; // Persistent TLS client for connection reuse
 // Scratch buffer we parse into. The visible list (s_list/s_count) is only
 // overwritten once a fetch has fully and correctly parsed - so a truncated or
 // otherwise broken JSON never blanks the radar, it just keeps the previous
@@ -206,6 +207,11 @@ static bool bodyReserve(size_t need) {
 
 void ADSB_FreeBuffers() {
   Async_LockAdsb();
+  if (s_adsbClient) {
+    s_adsbClient->stop();
+    delete s_adsbClient;
+    s_adsbClient = nullptr;
+  }
   if (s_body) {
     heap_caps_free(s_body);
     s_body = nullptr;
@@ -305,23 +311,36 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
            ADSB_API_BASE, lat, lon, distNm);
   Serial.printf("ADSB: %s\n", url);
 
+  if (!s_adsbClient) {
+    s_adsbClient = new WiFiClientSecure();
+    if (s_adsbClient) {
+      s_adsbClient->setInsecure();
+      s_adsbClient->setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
+    }
+  }
+  if (!s_adsbClient) return false;
+
+  // If the socket was previously disconnected or in an error state, close it
+  if (!s_adsbClient->connected()) {
+    s_adsbClient->stop();
+  }
+
   // Up to two attempts. A single transient hiccup (dropped TLS, truncated body)
   // no longer skips a whole poll cycle; two failures fall through and the
   // previous snapshot stays on screen.
   const int MAX_ATTEMPTS = 2;
+  unsigned long fetchMs = 0;
   for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     poll();
-    WiFiClientSecure client;
-    client.setInsecure();
-    client.setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
 
     HTTPClient http;
-    http.setConnectTimeout(8000);   // ms - TCP connect only, NOT the handshake
-    http.setTimeout(12000);         // ms - per-read timeout
-    http.setReuse(false);           // clean close, do not pool the socket
-    if (!http.begin(client, url)) {
+    http.setConnectTimeout(6000);   // ms - TCP connect
+    http.setTimeout(10000);         // ms - per-read timeout
+    http.setReuse(true);            // Persistent HTTP/1.1 keep-alive across poll cycles
+    if (!http.begin(*s_adsbClient, url)) {
       Serial.println("ADSB: begin failed");
-      if (attempt < MAX_ATTEMPTS) { delay(200); continue; }
+      if (s_adsbClient) s_adsbClient->stop();
+      if (attempt < MAX_ATTEMPTS) { delay(100); continue; }
       return false;
     }
     // The response header carries the current time - that is where the clock
@@ -337,30 +356,34 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
     http.setUserAgent(HTTP_USER_AGENT);
     http.addHeader("Accept", "application/json");
 
+    unsigned long t0 = millis();
     int code = http.GET();
+    fetchMs = millis() - t0;
+
     // Seed the clock even from a non-OK answer - the header is there either way.
     if (http.hasHeader("Date")) Outside_NoteHttpDate(http.header("Date").c_str());
     if (code != HTTP_CODE_OK) {
-      Serial.printf("ADSB: HTTP %d (attempt %d)\n", code, attempt);
+      Serial.printf("ADSB: HTTP %d (attempt %d, %lu ms)\n", code, attempt, fetchMs);
       http.end();
-      client.stop();
-      if (attempt < MAX_ATTEMPTS) { delay(200); continue; }
+      if (s_adsbClient) s_adsbClient->stop(); // Reset TLS socket on any server or HTTP error
+      if (attempt < MAX_ATTEMPTS) { delay(150); continue; }
       return false;   // keep last good data
     }
 
     // Read the WHOLE body first (into PSRAM), then parse - no live-stream parse.
     long len = readBody(http);
-    http.end();
-    client.stop();
+    http.end(); // Socket stays alive for next cycle because setReuse(true) is active!
 
     if (len < 0) {
       Serial.println("ADSB: body read failed");
-      if (attempt < MAX_ATTEMPTS) { delay(200); continue; }
+      if (s_adsbClient) s_adsbClient->stop();
+      if (attempt < MAX_ATTEMPTS) { delay(150); continue; }
       return false;
     }
     if (len < 8) {   // empty / nonsense
       Serial.printf("ADSB: short body %ld (attempt %d)\n", len, attempt);
-      if (attempt < MAX_ATTEMPTS) { delay(200); continue; }
+      if (s_adsbClient) s_adsbClient->stop();
+      if (attempt < MAX_ATTEMPTS) { delay(150); continue; }
       return false;
     }
 
@@ -509,7 +532,7 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
     PlaneTrail_Update(s_list, s_count);
     FlightStats_Update(s_list, s_count);
     Async_UnlockAdsb();
-    Serial.printf("ADSB: %d aircraft (%ld bytes)\n", n, len);
+    Serial.printf("ADSB: %d aircraft (%ld bytes, %lu ms)\n", n, len, fetchMs);
     Status_Set(ST_ADSB, "OK, %d", n);
     return true;
   }
