@@ -136,11 +136,12 @@ static bool authed(JsonDocument& body) {
 
 // --- Endpoints --------------------------------------------------------------
 static void handleRoot() {
+  s_srv.sendHeader("Content-Encoding", "gzip");
   s_srv.sendHeader("Cache-Control", "no-store");
   // The charset belongs in the HEADER, not only in a meta tag: a browser that
   // reads the header first would otherwise guess, and the Czech accents on the
   // page would come out as mojibake.
-  s_srv.send_P(200, "text/html; charset=utf-8", PAGE_HTML);
+  s_srv.send_P(200, "text/html; charset=utf-8", (const char*)PAGE_HTML_GZ, PAGE_HTML_GZ_LEN);
 }
 
 static void handleGetConfig() {
