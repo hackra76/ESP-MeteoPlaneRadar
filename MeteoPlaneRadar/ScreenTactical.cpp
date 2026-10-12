@@ -31,6 +31,7 @@
 #include <math.h>
 #include <string.h>
 #include <lvgl.h>
+#include "SIMD_Blend.h"
 
 #define R_CX (LCD_WIDTH / 2)
 #define R_CY (LCD_HEIGHT / 2)
@@ -370,10 +371,11 @@ static void buildTacticalComposite() {
     const uint16_t* r0 = s_crop565 + (int64_t)y0 * cw;
     const uint16_t* r1 = s_crop565 + (int64_t)y1 * cw;
 
+    uint32_t qy64 = (uint32_t)(qy >> 2);
     for (int dx = sx0; dx <= sx1; dx++) {
       int x0 = s_tacMapX[dx].x0;
       int x1 = s_tacMapX[dx].x1;
-      int qx = s_tacMapX[dx].qx;
+      uint32_t qx64 = (uint32_t)(s_tacMapX[dx].qx >> 2);
 
       uint16_t c00 = r0[x0];
       uint16_t c10 = r0[x1];
@@ -386,31 +388,9 @@ static void buildTacticalComposite() {
       } else if (c00 == c10 && c00 == c01 && c00 == c11) {
         outCol = c00;
       } else {
-        int w00 = (wy0 * (256 - qx)) >> 8;
-        int w10 = (wy0 * qx) >> 8;
-        int w01 = (wy1 * (256 - qx)) >> 8;
-        int w11 = (wy1 * qx) >> 8;
-
-        uint32_t r = ((c00 >> 11) & 0x1F) * w00 +
-                     ((c10 >> 11) & 0x1F) * w10 +
-                     ((c01 >> 11) & 0x1F) * w01 +
-                     ((c11 >> 11) & 0x1F) * w11;
-
-        uint32_t g = ((c00 >> 5) & 0x3F) * w00 +
-                     ((c10 >> 5) & 0x3F) * w10 +
-                     ((c01 >> 5) & 0x3F) * w01 +
-                     ((c11 >> 5) & 0x3F) * w11;
-
-        uint32_t b = (c00 & 0x1F) * w00 +
-                     (c10 & 0x1F) * w10 +
-                     (c01 & 0x1F) * w01 +
-                     (c11 & 0x1F) * w11;
-
-        r >>= 8;
-        g >>= 8;
-        b >>= 8;
-        if (r < 1 && g < 2 && b < 1) outCol = 0x0000;
-        else outCol = (uint16_t)((r << 11) | (g << 5) | b);
+        uint16_t c_top = (c00 == c10) ? c00 : blend565_packed64(c00, c10, qx64);
+        uint16_t c_bot = (c01 == c11) ? c01 : blend565_packed64(c01, c11, qx64);
+        outCol = (c_top == c_bot) ? c_top : blend565_packed64(c_top, c_bot, qy64);
       }
       dst[dx] = outCol;
     }
@@ -418,11 +398,11 @@ static void buildTacticalComposite() {
 }
 
 static inline uint16_t dimRadarPixel(uint16_t c) {
-  uint32_t r = (((c >> 11) & 0x1F) * 7) >> 4;
-  uint32_t g = (((c >> 5)  & 0x3F) * 7) >> 4;
-  uint32_t b = (( c        & 0x1F) * 7) >> 4;
-  if ((r | g | b) == 0) g = 1;
-  return (uint16_t)((r << 11) | (g << 5) | b);
+  if (c == 0) return 0;
+  uint32_t rb = (((c & 0xF81F) * 7) >> 4) & 0xF81F;
+  uint32_t g  = (((c & 0x07E0) * 7) >> 4) & 0x07E0;
+  if ((rb | g) == 0) g = (1 << 5);
+  return (uint16_t)(rb | g);
 }
 
 static uint16_t* s_dimBuf = nullptr;

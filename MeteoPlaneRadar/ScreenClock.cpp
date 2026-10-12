@@ -25,6 +25,7 @@
 #include "QMI8658.h"
 #include "FontEngine.h"
 #include "MoonTexture.h"
+#include "SIMD_Blend.h"
 #include <esp_heap_caps.h>
 
 static lv_obj_t* s_screenObj = nullptr;
@@ -547,27 +548,11 @@ static inline void unpack565(uint16_t c, uint8_t &r, uint8_t &g, uint8_t &b) {
 }
 
 static inline uint16_t blendColor(uint16_t c1, uint16_t c2, float a) {
-  if (a <= 0.0f) return c1;
-  if (a >= 1.0f) return c2;
-  uint8_t r1, g1, b1, r2, g2, b2;
-  unpack565(c1, r1, g1, b1);
-  unpack565(c2, r2, g2, b2);
-  uint8_t r = (uint8_t)(r1 + (r2 - r1) * a);
-  uint8_t g = (uint8_t)(g1 + (g2 - g1) * a);
-  uint8_t b = (uint8_t)(b1 + (b2 - b1) * a);
-  return pack565(r, g, b);
+  return blendColor_fast(c1, c2, a);
 }
 
 static inline uint16_t addGlow(uint16_t base, uint8_t gr, uint8_t gg, uint8_t gb, float intensity) {
-  if (intensity <= 0.001f) return base;
-  uint8_t r, g, b;
-  unpack565(base, r, g, b);
-  int nr = r + (int)(gr * intensity);
-  int ng = g + (int)(gg * intensity);
-  int nb = b + (int)(gb * intensity);
-  return pack565((uint8_t)(nr > 255 ? 255 : nr),
-                 (uint8_t)(ng > 255 ? 255 : ng),
-                 (uint8_t)(nb > 255 ? 255 : nb));
+  return addGlow_fast(base, gr, gg, gb, intensity);
 }
 
 static void drawCapsuleToBuf(uint16_t* buf, float x0, float y0, float x1, float y1, float radius, uint16_t col) {
@@ -1080,23 +1065,45 @@ static void ScreenClock_Draw() {
   MoonInfo moon = Astro_GetMoon(now);
 
   // Background Cache Regeneration Check
+  static int s_lastDrawnSec = -1;
+  static int s_lastSunMin = -1;
   if (s_bgDirty || s_lastBgDay != lt.tm_yday || fabsf(moon.phase - s_lastBgMoonPhase) >= 0.01f) {
     if (s_luxuryBg) {
       renderLuxuryDialBackground(s_luxuryBg, moon.phase, now);
       s_lastBgMoonPhase = moon.phase;
       s_lastBgDay = lt.tm_yday;
       s_bgDirty = false;
+      s_lastDrawnSec = -1;
+      s_lastSunMin = -1;
     }
   }
 
   uint16_t* displayBuf = s_luxuryBg;
   if (s_frameBg && s_luxuryBg) {
-    memcpy(s_frameBg, s_luxuryBg, LCD_WIDTH * LCD_HEIGHT * sizeof(uint16_t));
     displayBuf = s_frameBg;
+    if (s_lastDrawnSec < 0) {
+      // First frame or cache invalidated: full clone into s_frameBg
+      memcpy(s_frameBg, s_luxuryBg, LCD_WIDTH * LCD_HEIGHT * sizeof(uint16_t));
+    } else if (lt.tm_sec < s_lastDrawnSec) {
+      // Minute rollover (second rolled from 59 to 0): restore ONLY the annular ring spans
+      for (int y = CY - 202; y <= CY + 202; y++) {
+        float dy = (float)y - (float)CY;
+        float dy2 = dy * dy;
+        float xOuter2 = 202.0f * 202.0f - dy2;
+        if (xOuter2 < 0.0f) continue;
+        float xOuter = sqrtf(xOuter2);
+        int xStart = (int)floorf((float)CX - xOuter);
+        int xEnd   = (int)ceilf((float)CX + xOuter);
+        if (xStart < 0) xStart = 0;
+        if (xEnd >= LCD_WIDTH) xEnd = LCD_WIDTH - 1;
+        memcpy(s_frameBg + y * LCD_WIDTH + xStart, s_luxuryBg + y * LCD_WIDTH + xStart, (xEnd - xStart + 1) * sizeof(uint16_t));
+      }
+      s_lastDrawnSec = -1;
+    }
   }
 
   // Render dynamic active glowing seconds arc from 12 o'clock clockwise to current second
-  if (displayBuf) {
+  if (displayBuf && (s_lastDrawnSec != lt.tm_sec)) {
     static const float s_radialGlow[33] = {
       1.400f, 1.348f, 1.211f, 1.026f, 0.832f, 0.655f, 0.510f, 0.398f,
       0.315f, 0.252f, 0.205f, 0.168f, 0.138f, 0.114f, 0.095f, 0.079f,
@@ -1104,6 +1111,7 @@ static void ScreenClock_Draw() {
       0.015f, 0.013f, 0.010f, 0.009f, 0.007f, 0.006f, 0.005f, 0.004f, 0.000f
     };
 
+    float minSecDeg = (s_lastDrawnSec < 0) ? 0.0f : ((float)s_lastDrawnSec * 6.0f);
     float targetSecDeg = (float)lt.tm_sec * 6.0f;
     for (int y = CY - 202; y <= CY + 202; y++) {
       float dy = (float)y - (float)CY;
@@ -1146,7 +1154,8 @@ static void ScreenClock_Draw() {
           float angSec = atan2f(dx, -dy) * 57.2957795f;
           if (angSec < 0.0f) angSec += 360.0f;
 
-          if (angSec <= targetSecDeg) {
+          // Only render incremental slice between previous second and current target
+          if (angSec > minSecDeg && angSec <= targetSecDeg) {
             float deltaRing = fabsf(dist - 186.0f);
             float edgeA = 1.0f;
             if (angSec > targetSecDeg - 1.5f) {
@@ -1161,23 +1170,26 @@ static void ScreenClock_Draw() {
             uint16_t c = displayBuf[idx];
             if (deltaRing <= 1.0f) {
               float coreA = (1.0f - deltaRing) * edgeA;
-              c = blendColor(c, pack565(80, 215, 255), coreA * 0.95f);
+              c = blendColor_fast(c, pack565(80, 215, 255), coreA * 0.95f);
             }
-            displayBuf[idx] = addGlow(c, 40, 165, 255, glow);
+            displayBuf[idx] = addGlow_fast(c, 40, 165, 255, glow);
           }
         }
       }
     }
+    s_lastDrawnSec = lt.tm_sec;
   }
 
-  // Live Sun glyph orbiting along 24h perimeter solar ring according to current local time
-  if (displayBuf) {
-    float minNowF = (float)lt.tm_hour * 60.0f + (float)lt.tm_min + (float)lt.tm_sec / 60.0f;
+  // Live Sun glyph orbiting along 24h perimeter solar ring (updated only when minute changes)
+  int curSunMin = lt.tm_hour * 60 + lt.tm_min;
+  if (displayBuf && (curSunMin != s_lastSunMin)) {
+    float minNowF = (float)curSunMin + (float)lt.tm_sec / 60.0f;
     float degNow = (float)(fmodf(minNowF - 720.0f + 1440.0f, 1440.0f) * 360.0f) / 1440.0f;
     float radNow = degNow * (float)(M_PI / 180.0);
     float sunX = (float)CX + 224.0f * sinf(radNow);
     float sunY = (float)CY - 224.0f * cosf(radNow);
     drawSunGlyphToBuf(displayBuf, sunX, sunY, 0);
+    s_lastSunMin = curSunMin;
   }
 
   // 1. Blit the pre-rendered luxury chronograph background (bloom arc, vignette, chamfers, shadows, moon, batons)

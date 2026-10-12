@@ -38,6 +38,7 @@
 #include <string.h>
 #include <esp_heap_caps.h>
 #include <lvgl.h>
+#include "SIMD_Blend.h"
 #include "PlanePhoto.h"
 #include "Route.h"
 
@@ -83,6 +84,9 @@ static int       s_lineCap = 0;
 static uint16_t* s_frame565[ANIM_FRAMES] = {0};
 static int       s_frameCap[ANIM_FRAMES] = {0};
 static uint16_t* s_crop565 = nullptr;    // current target (pngDraw) / source (blit)
+static uint16_t* s_blendCrop = nullptr;  // scratch buffer for cross-dissolve frame blending
+static size_t    s_blendCropCap = 0;
+static uint8_t   s_blendAlpha64 = 0;     // 0..64 cross-dissolve blend factor between frames
 static void updatePrecipTracker();
 static int       s_frameCount = 0;
 static bool      s_downsampled = false;
@@ -279,8 +283,8 @@ static int pngDraw(PNGDRAW* d) {
 // RainViewer frames are already in display coordinates - the zoom was chosen so
 // one world pixel is one display pixel - so this is a straight masked copy with
 // no scaling at all.
-static void blitRainViewer(const uint16_t* fb) {
-  if (!fb) return;
+static void blitRainViewerCrossDissolve(const uint16_t* fbA, const uint16_t* fbB, uint8_t a64) {
+  if (!fbA) return;
   if (!s_radarFb) {
     s_radarFb = (uint16_t*)heap_caps_malloc((size_t)LCD_WIDTH * LCD_HEIGHT * sizeof(uint16_t), MALLOC_CAP_SPIRAM);
     if (!s_radarFb) return;
@@ -295,9 +299,14 @@ static void blitRainViewer(const uint16_t* fb) {
     int x0 = CX - half, x1 = CX + half;
     if (x0 < 0) x0 = 0;
     if (x1 > LCD_WIDTH - 1) x1 = LCD_WIDTH - 1;
-    const uint16_t* row = fb + (int32_t)dy * LCD_WIDTH;
+    const uint16_t* rowA = fbA + (int32_t)dy * LCD_WIDTH;
     uint16_t* dst = s_radarFb + dy * LCD_WIDTH;
-    memcpy(dst + x0, row + x0, (x1 - x0 + 1) * sizeof(uint16_t));
+    if (a64 > 0 && fbB && fbB != fbA) {
+      const uint16_t* rowB = fbB + (int32_t)dy * LCD_WIDTH;
+      blendFrames565_SIMD(rowA + x0, rowB + x0, dst + x0, (size_t)(x1 - x0 + 1), a64);
+    } else {
+      memcpy(dst + x0, rowA + x0, (size_t)(x1 - x0 + 1) * sizeof(uint16_t));
+    }
   }
   if (s_lastFail) {
     for (int i = 0; i < LCD_WIDTH * LCD_HEIGHT; i++) {
@@ -306,13 +315,17 @@ static void blitRainViewer(const uint16_t* fb) {
         uint32_t r = (c >> 11) & 0x1F;
         uint32_t g = (c >> 5) & 0x3F;
         uint32_t b = c & 0x1F;
-        uint32_t luma = (r * 299 + (g / 2) * 587 + b * 114) / 1000;
+        uint32_t luma = (r * 77 + (g >> 1) * 150 + b * 29) >> 8;
         s_radarFb[i] = (uint16_t)((luma << 11) | ((luma * 2) << 5) | luma);
       }
     }
   }
 
   gfx->draw16bitRGBBitmap(0, 0, s_radarFb, LCD_WIDTH, LCD_HEIGHT);
+}
+
+static void blitRainViewer(const uint16_t* fb) {
+  blitRainViewerCrossDissolve(fb, nullptr, 0);
 }
 
 struct ScaleMapX {
@@ -412,10 +425,11 @@ static void blitCrop() {
       const uint16_t* r1 = srcBuf + (int64_t)y1 * cw;
       uint16_t* dst = s_radarFb + dy * LCD_WIDTH;
 
+      uint32_t qy64 = (uint32_t)(qy >> 2);
       for (int dx = sx0; dx <= sx1; dx++) {
         int x0 = s_mapX[dx].x0;
         int x1 = s_mapX[dx].x1;
-        int qx = s_mapX[dx].qx;
+        uint32_t qx64 = (uint32_t)(s_mapX[dx].qx >> 2);
 
         uint16_t c00 = r0[x0];
         uint16_t c10 = r0[x1];
@@ -428,31 +442,9 @@ static void blitCrop() {
         } else if (c00 == c10 && c00 == c01 && c00 == c11) {
           outCol = c00;
         } else {
-          int w00 = (wy0 * (256 - qx)) >> 8;
-          int w10 = (wy0 * qx) >> 8;
-          int w01 = (wy1 * (256 - qx)) >> 8;
-          int w11 = (wy1 * qx) >> 8;
-
-          uint32_t r = ((c00 >> 11) & 0x1F) * w00 +
-                       ((c10 >> 11) & 0x1F) * w10 +
-                       ((c01 >> 11) & 0x1F) * w01 +
-                       ((c11 >> 11) & 0x1F) * w11;
-
-          uint32_t g = ((c00 >> 5) & 0x3F) * w00 +
-                       ((c10 >> 5) & 0x3F) * w10 +
-                       ((c01 >> 5) & 0x3F) * w01 +
-                       ((c11 >> 5) & 0x3F) * w11;
-
-          uint32_t b = (c00 & 0x1F) * w00 +
-                       (c10 & 0x1F) * w10 +
-                       (c01 & 0x1F) * w01 +
-                       (c11 & 0x1F) * w11;
-
-          r >>= 8;
-          g >>= 8;
-          b >>= 8;
-          if (r < 1 && g < 2 && b < 1) outCol = 0x0000;
-          else outCol = (uint16_t)((r << 11) | (g << 5) | b);
+          uint16_t c_top = (c00 == c10) ? c00 : blend565_packed64(c00, c10, qx64);
+          uint16_t c_bot = (c01 == c11) ? c01 : blend565_packed64(c01, c11, qx64);
+          outCol = (c_top == c_bot) ? c_top : blend565_packed64(c_top, c_bot, qy64);
         }
         dst[dx] = outCol;
       }
@@ -466,7 +458,7 @@ static void blitCrop() {
         uint32_t r = (c >> 11) & 0x1F;
         uint32_t g = (c >> 5) & 0x3F;
         uint32_t b = c & 0x1F;
-        uint32_t luma = (r * 299 + (g / 2) * 587 + b * 114) / 1000;
+        uint32_t luma = (r * 77 + (g >> 1) * 150 + b * 29) >> 8;
         s_radarFb[i] = (uint16_t)((luma << 11) | ((luma * 2) << 5) | luma);
       }
     }
@@ -605,6 +597,11 @@ void ScreenWeather_FreeBuffers() {
   if (s_png) {
     heap_caps_free(s_png);
     s_png = nullptr;
+  }
+  if (s_blendCrop) {
+    heap_caps_free(s_blendCrop);
+    s_blendCrop = nullptr;
+    s_blendCropCap = 0;
   }
   s_crop565 = nullptr;
   s_frameCount = 0;
@@ -831,8 +828,8 @@ void ScreenWeather_Init(lv_obj_t* parent) {
   // Note: tap/swipe handling is done globally in UI.cpp (global_screen_event_cb).
   // Do NOT add a competing CLICKED handler here - it interferes with the global handler.
 
-  // Setup the refresh timer
-  s_timer = lv_timer_create(ScreenWeather_TimerCb, 100, NULL);
+  // Setup the refresh timer (50ms for smooth 20 fps radar cross-dissolve animation)
+  s_timer = lv_timer_create(ScreenWeather_TimerCb, 50, NULL);
 }
 
 void ScreenWeather_Enter() {
@@ -963,12 +960,26 @@ static bool tickRainViewer() {
     return true;
   }
   if (s_gap) {
+    s_blendAlpha64 = 0;
     if (now - s_gapStart >= 800UL) { s_gap = false; s_curFrame = 0; s_lastStep = now; return true; }
     return false;
   }
-  if (now - s_lastStep >= 180UL) {
+  const unsigned long stepDur = 200UL;
+  if (Settings_SmoothRadar() && (s_curFrame < n - 1)) {
+    unsigned long elapsed = now - s_lastStep;
+    if (elapsed < stepDur) {
+      uint8_t targetAlpha = (uint8_t)((elapsed * 64UL) / stepDur);
+      if (targetAlpha != s_blendAlpha64) {
+        s_blendAlpha64 = targetAlpha;
+        return true;
+      }
+      return false;
+    }
+  }
+  if (now - s_lastStep >= stepDur) {
     s_lastStep = now;
     s_curFrame++;
+    s_blendAlpha64 = 0;
     if (s_curFrame >= n) { s_curFrame = n - 1; s_gap = true; s_gapStart = now; }
     return true;
   }
@@ -1058,14 +1069,28 @@ bool ScreenWeather_Tick() {
     return true;
   }
 
-  // Animation step.
+  // Animation step with cross-dissolve interpolation.
   if (s_gap) {
+    s_blendAlpha64 = 0;
     if (now - s_gapStart >= 1200UL) { s_gap = false; s_curFrame = 0; s_lastStep = now; return true; }
     return false;
   }
-  if (now - s_lastStep >= 300UL) {
+  const unsigned long stepDur = 300UL;
+  if (Settings_SmoothRadar() && (s_curFrame < s_frameCount - 1)) {
+    unsigned long elapsed = now - s_lastStep;
+    if (elapsed < stepDur) {
+      uint8_t targetAlpha = (uint8_t)((elapsed * 64UL) / stepDur);
+      if (targetAlpha != s_blendAlpha64) {
+        s_blendAlpha64 = targetAlpha;
+        return true;
+      }
+      return false;
+    }
+  }
+  if (now - s_lastStep >= stepDur) {
     s_lastStep = now;
     s_curFrame++;
+    s_blendAlpha64 = 0;
     if (s_curFrame >= s_frameCount) { s_curFrame = s_frameCount - 1; s_gap = true; s_gapStart = now; }
     return true;
   }
@@ -1094,11 +1119,27 @@ void ScreenWeather_Draw() {
   const int have = srcCount();
   if (have > 0) {
     int f = clampI(s_curFrame, 0, have - 1);
+    int nextF = (f < have - 1) ? (f + 1) : f;
     if (rvMode()) {
-      blitRainViewer(RainViewer_Frame(f));
+      blitRainViewerCrossDissolve(RainViewer_Frame(f), RainViewer_Frame(nextF), s_blendAlpha64);
     } else {
       if (s_frame565[f]) {
-        s_crop565 = s_frame565[f];
+        if (s_blendAlpha64 > 0 && f != nextF && s_frame565[nextF]) {
+          size_t cSz = (size_t)cropW() * cropH();
+          if (cSz > s_blendCropCap) {
+            if (s_blendCrop) heap_caps_free(s_blendCrop);
+            s_blendCrop = (uint16_t*)heap_caps_malloc(cSz * sizeof(uint16_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+            s_blendCropCap = s_blendCrop ? cSz : 0;
+          }
+          if (s_blendCrop) {
+            blendFrames565_SIMD(s_frame565[f], s_frame565[nextF], s_blendCrop, cSz, s_blendAlpha64);
+            s_crop565 = s_blendCrop;
+          } else {
+            s_crop565 = s_frame565[f];
+          }
+        } else {
+          s_crop565 = s_frame565[f];
+        }
         blitCrop();
       }
     }
