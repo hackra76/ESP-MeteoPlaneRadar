@@ -135,8 +135,6 @@ void Settings_BatchEnd() {
     s_batchDepth--;
     if (s_batchDepth == 0) {
       prefs.end();
-      // Failsafe: Realign the ST7701 panel if a massive sector erase starved the DMA
-      LCD_Restart();
     }
   }
 }
@@ -147,7 +145,6 @@ static void putU8(const char* k, uint8_t v) {
   } else if (prefs.begin(NS, false)) {
     prefs.putUChar(k, v);
     prefs.end();
-    LCD_Restart();
   }
 }
 static void putI8(const char* k, int8_t v) {
@@ -156,7 +153,6 @@ static void putI8(const char* k, int8_t v) {
   } else if (prefs.begin(NS, false)) {
     prefs.putChar(k, v);
     prefs.end();
-    LCD_Restart();
   }
 }
 static void putU16(const char* k, uint16_t v) {
@@ -165,7 +161,6 @@ static void putU16(const char* k, uint16_t v) {
   } else if (prefs.begin(NS, false)) {
     prefs.putUShort(k, v);
     prefs.end();
-    LCD_Restart();
   }
 }
 static void putBool(const char* k, bool v) {
@@ -174,7 +169,6 @@ static void putBool(const char* k, bool v) {
   } else if (prefs.begin(NS, false)) {
     prefs.putBool(k, v);
     prefs.end();
-    LCD_Restart();
   }
 }
 static void putStr(const char* k, const char* v) {
@@ -183,7 +177,6 @@ static void putStr(const char* k, const char* v) {
   } else if (prefs.begin(NS, false)) {
     prefs.putString(k, v);
     prefs.end();
-    LCD_Restart();
   }
 }
 
@@ -1202,9 +1195,8 @@ bool Settings_FromJson(JsonObjectConst in) {
 }
 
 // --- Debounced flush --------------------------------------------------------
-void Settings_Tick() {
+void Settings_Commit() {
   if (!s_uiDirty) return;
-  if (millis() - s_uiDirtyAt < 2000) return;
   if (prefs.begin(NS, false)) {
     prefs.putUChar("rngP", s_rngP);
     prefs.putUChar("rngM", s_rngM);
@@ -1215,6 +1207,12 @@ void Settings_Tick() {
     prefs.end();
   }
   s_uiDirty = false;
+}
+
+void Settings_Tick() {
+  if (!s_uiDirty) return;
+  if (millis() - s_uiDirtyAt < 1500) return;
+  Settings_Commit();
 }
 
 void Settings_ClearAll() {

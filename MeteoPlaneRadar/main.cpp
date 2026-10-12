@@ -215,6 +215,7 @@ void loop() {
   Buzzer_Tick();
   UI_AutoRotate_Tick();
   NightMode_Tick();
+  Settings_Tick();
   
   // Smart auto-dimming check (30 minutes of inactivity)
   uint32_t inactive_ms = lv_display_get_inactive_time(lv_display_get_default());

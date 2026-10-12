@@ -443,7 +443,6 @@ void PetBrain_Tick() {
       prefs.putUChar("stage", s_stats.stage);
       prefs.putUShort("xp", s_stats.flightsTracked);
       prefs.end();
-      LCD_Restart();
     }
   }
 }

@@ -8,6 +8,7 @@
 #include "Display_ST7701.h"
 #include "TCA9554.h"
 #include "Config.h"
+#include "Settings.h"
 #include "driver/spi_master.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -371,6 +372,7 @@ void Display_PrepareRestart() {
 
 void Safe_Restart() {
   Serial.println("System: Executing clean display shutdown and safe restart...");
+  Settings_Commit();
   Serial.flush();
   Display_PrepareRestart();
   ESP.restart();

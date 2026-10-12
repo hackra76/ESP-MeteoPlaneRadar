@@ -281,4 +281,5 @@ void Settings_BatchBegin(); // hold single NVS transaction for bulk updates
 void Settings_BatchEnd();
 
 void Settings_Tick();       // call once per loop(); debounced NVS flush
+void Settings_Commit();     // immediately flushes pending debounced NVS writes
 void Settings_ClearAll();

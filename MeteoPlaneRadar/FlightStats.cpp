@@ -114,7 +114,6 @@ static void FlightStats_Save() {
     }
   }
   prefs.end();
-  LCD_Restart();
 }
 
 static void FlightStats_Load() {
