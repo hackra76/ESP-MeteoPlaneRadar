@@ -74,32 +74,27 @@ bool Net_GetString(const char* url, String& out, const char* tag) {
   // growing a second copy of this function elsewhere. The heap guard is about
   // the handshake, so it only applies when there is one.
   const bool tls = (strncmp(url, "http://", 7) != 0);
-  const bool sess = (s_sess != nullptr && tls);
-  if (sess && !s_sess->connected()) {
-    s_sess->stop();
-  }
-  const bool connected = (sess && s_sess->connected());
-  if (tls && !connected && !Net_HeapOk(tag)) return false;
+  if (tls && !Net_HeapOk(tag)) return false;
 
   WiFiClient       plain;
-  std::unique_ptr<WiFiClientSecure> own;
-  if (tls && !sess) {
-    own.reset(new WiFiClientSecure());
-    if (own) {
-      own->setInsecure();
-      own->setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
-    }
+  WiFiClientSecure secure;
+  if (tls) {
+    secure.setInsecure();
+    secure.setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
   }
-  WiFiClient& client = tls ? (sess ? static_cast<WiFiClient&>(*s_sess)
-                                   : (own ? static_cast<WiFiClient&>(*own) : plain))
-                           : plain;
+  WiFiClient& client = tls ? static_cast<WiFiClient&>(secure)
+                           : static_cast<WiFiClient&>(plain);
 
   HTTPClient http;
-  http.setConnectTimeout(6000);
-  http.setTimeout(10000);
-  http.setReuse(sess);
+  http.setConnectTimeout(8000);
+  http.setTimeout(12000);
+  http.setReuse(false);
   http.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
-  if (!http.begin(client, url)) { Serial.printf("%s: begin() failed\n", tag); return false; }
+  if (!http.begin(client, url)) {
+    Serial.printf("%s: begin() failed\n", tag);
+    if (tls) secure.stop();
+    return false;
+  }
   http.collectHeaders(DATE_HDR, 1);
 
   poll();
@@ -108,7 +103,7 @@ bool Net_GetString(const char* url, String& out, const char* tag) {
   if (code != HTTP_CODE_OK) {
     Serial.printf("%s: HTTP %d\n", tag, code);
     http.end();
-    if (sess) s_sess->stop();
+    if (tls) secure.stop();
     return false;
   }
   if (http.hasHeader("Date")) Outside_NoteHttpDate(http.header("Date").c_str());
@@ -118,22 +113,22 @@ bool Net_GetString(const char* url, String& out, const char* tag) {
     Serial.printf("%s: response %d B, limit is %u B\n",
                   tag, declared, (unsigned)NET_MAX_TEXT);
     http.end();
-    if (sess) s_sess->stop();
+    if (tls) secure.stop();
     return false;
   }
   if (!txtReserve((declared > 0) ? (size_t)declared + 1 : NET_MAX_TEXT)) {
     http.end();
-    if (sess) s_sess->stop();
+    if (tls) secure.stop();
     return false;
   }
 
   long len = Net_ReadBody(http, (uint8_t*)s_txt, s_txtCap, tag, s_poll);
   http.end();
+  if (tls) secure.stop();
   poll();
 
   if (len <= 0) {
     Serial.printf("%s: empty response\n", tag);
-    if (sess) s_sess->stop();
     return false;
   }
   out = s_txt;
@@ -211,29 +206,35 @@ bool Net_GetBinary(const char* url, uint8_t* buf, size_t cap, size_t* outLen,
   const bool sess = (s_sess != nullptr && tls);
   if (sess && !s_sess->connected()) {
     s_sess->stop();
-  }
-  const bool connected = (sess && s_sess->connected());
-  if (tls && !connected && !Net_HeapOk(tag)) return false;
-
-  WiFiClient plain;
-  std::unique_ptr<WiFiClientSecure> own;
-  if (tls && !sess) {
-    own.reset(new WiFiClientSecure());
-    if (own) {
-      own->setInsecure();
-      own->setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
+    delete s_sess;
+    s_sess = new WiFiClientSecure();
+    if (s_sess) {
+      s_sess->setInsecure();
+      s_sess->setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
     }
   }
-  WiFiClient& client = tls ? (sess ? static_cast<WiFiClient&>(*s_sess)
-                                   : (own ? static_cast<WiFiClient&>(*own) : plain))
-                           : plain;
+  const bool connected = (sess && s_sess && s_sess->connected());
+  if (tls && !connected && !Net_HeapOk(tag)) return false;
+
+  WiFiClient       plain;
+  WiFiClientSecure ownSecure;
+  if (tls && !sess) {
+    ownSecure.setInsecure();
+    ownSecure.setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
+  }
+  WiFiClient& client = tls ? (sess && s_sess ? static_cast<WiFiClient&>(*s_sess)
+                                             : static_cast<WiFiClient&>(ownSecure))
+                           : static_cast<WiFiClient&>(plain);
 
   HTTPClient http;
-  http.setConnectTimeout(6000);
-  http.setTimeout(10000);
-  http.setReuse(sess);            // keep the socket open for the next tile
+  http.setConnectTimeout(8000);
+  http.setTimeout(12000);
+  http.setReuse(sess && s_sess != nullptr); // keep the socket open for the next tile
   http.setUserAgent("ESP-MeteoPlaneRadar/2.0 (contact: admin@esp-meteoplane.local)");
-  if (!http.begin(client, url)) return false;
+  if (!http.begin(client, url)) {
+    if (!sess && tls) ownSecure.stop();
+    return false;
+  }
   http.collectHeaders(DATE_HDR, 1);
 
   poll();
@@ -242,7 +243,12 @@ bool Net_GetBinary(const char* url, uint8_t* buf, size_t cap, size_t* outLen,
   if (code != HTTP_CODE_OK) {
     Serial.printf("%s: HTTP %d\n", tag, code);
     http.end();
-    if (sess) s_sess->stop();
+    if (sess && s_sess) {
+      s_sess->stop();
+      delete s_sess;
+      s_sess = nullptr;
+    }
+    if (!sess && tls) ownSecure.stop();
     return false;
   }
   if (http.hasHeader("Date")) Outside_NoteHttpDate(http.header("Date").c_str());
@@ -251,15 +257,25 @@ bool Net_GetBinary(const char* url, uint8_t* buf, size_t cap, size_t* outLen,
   if (declared > 0 && (size_t)declared > cap) {
     Serial.printf("%s: response %d B does not fit into %u B\n", tag, declared, (unsigned)cap);
     http.end();
-    if (sess) s_sess->stop();
+    if (sess && s_sess) {
+      s_sess->stop();
+      delete s_sess;
+      s_sess = nullptr;
+    }
+    if (!sess && tls) ownSecure.stop();
     return false;
   }
 
   long got = Net_ReadBody(http, buf, cap, tag, s_poll);
   http.end();
+  if (!sess && tls) ownSecure.stop();
   poll();
   if (got <= 0) {
-    if (sess) s_sess->stop();
+    if (sess && s_sess) {
+      s_sess->stop();
+      delete s_sess;
+      s_sess = nullptr;
+    }
     return false;
   }
   if (outLen) *outLen = got;
