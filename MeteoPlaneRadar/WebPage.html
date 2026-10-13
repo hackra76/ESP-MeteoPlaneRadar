@@ -3,7 +3,134 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <title>MeteoPlaneRadar · H4CKR4</title>
-<script async src="https://js.stripe.com/v3/buy-button.js"></script>
+<script async src="https://js.stripe.com/v3/buy-button.js">
+// --- Disaster Warning System Feed & Controls ---
+async function refreshDisaster(){
+  try{
+    const r = await fetch("/api/disaster");
+    if(!r.ok) return;
+    const d = await r.json();
+    renderDisasterData(d);
+  }catch(e){}
+}
+
+function renderDisasterData(d){
+  if(!d) return;
+  const ban = $("disasterLiveBanner");
+  const bIcon = $("disasterBannerIcon");
+  const bTitle = $("disasterBannerTitle");
+  const bSub = $("disasterBannerSub");
+  const bBadge = $("disasterBannerBadge");
+  const btnDismiss = $("btnDisasterDismiss");
+
+  if(d.hasAlert && d.activeAlert){
+    const a = d.activeAlert;
+    if(ban){
+      ban.style.background = "rgba(239,68,68,0.18)";
+      ban.style.borderColor = "var(--err)";
+      ban.style.boxShadow = "0 0 20px rgba(239,68,68,0.3)";
+    }
+    if(bIcon) bIcon.textContent = (a.type === "TSUNAMI") ? "🌊" : (a.type === "LOCAL_TREMOR" ? "📳" : "⚠️");
+    if(bTitle){
+      bTitle.textContent = (a.type === "TSUNAMI" ? "TSUNAMI WARNING: " : (a.type === "LOCAL_TREMOR" ? "LOCAL SEISMIC TREMOR: " : "EARTHQUAKE M" + a.mag + ": ")) + (a.place || a.title);
+      bTitle.style.color = "#fca5a5";
+    }
+    if(bSub){
+      const distStr = a.distKm > 0 ? (a.distKm + " km " + (a.bearing||"")) : "Desk/Local";
+      bSub.textContent = distStr + (a.tsunami ? " • 🌊 TSUNAMI THREAT" : "");
+    }
+    if(bBadge){
+      bBadge.className = "pill pill-err";
+      bBadge.textContent = "ACTIVE ALERT";
+    }
+    if(btnDismiss) btnDismiss.classList.remove("hide");
+  } else {
+    if(ban){
+      ban.style.background = "rgba(255,255,255,0.02)";
+      ban.style.borderColor = "var(--line)";
+      ban.style.boxShadow = "none";
+    }
+    if(bIcon) bIcon.textContent = "🛡️";
+    if(bTitle){
+      bTitle.textContent = (D[L]&&D[L].disasterAllClear) ? D[L].disasterAllClear : "Žiadne aktívne výstrahy pred zemetrasením alebo tsunami.";
+      bTitle.style.color = "#fff";
+    }
+    if(bSub) bSub.textContent = (L==="en") ? "All seismic zones and ocean buoys are normal." : ((L==="cs") ? "Všechny seizmické zóny a oceánské bóje jsou v normálu." : "Všetky seizmické zóny a oceánske bóje sú v normále.");
+    if(bBadge){
+      bBadge.className = "pill pill-ok";
+      bBadge.textContent = "ALL QUIET";
+    }
+    if(btnDismiss) btnDismiss.classList.add("hide");
+  }
+
+  // Seismometer
+  if(d.seismometer){
+    const s = d.seismometer;
+    if($("seismoAvailBadge")){
+      $("seismoAvailBadge").textContent = s.available ? ((D[L]&&D[L].disasterSeismoActive)|| "Aktívny") : ((D[L]&&D[L].disasterSeismoNone)||"Nedostupný");
+      $("seismoAvailBadge").className = "pill " + (s.available ? "pill-ok" : "pill-warn");
+    }
+    if($("seismoDeltaG")) $("seismoDeltaG").textContent = (s.peakDeltaG || 0).toFixed(2);
+    if($("seismoShakingState")){
+      const shaking = !!s.shaking;
+      $("seismoShakingState").textContent = shaking ? ((D[L]&&D[L].disasterSeismoTremor)||"⚠️ DETEKOVANÉ OTRASY!") : ((D[L]&&D[L].disasterSeismoQuiet)||"Pokojný povrch");
+      $("seismoShakingState").className = "pill " + (shaking ? "pill-err" : "pill-ok");
+    }
+  }
+
+  // Recent Table
+  const tbody = $("disasterTableBody");
+  if(tbody && d.recent){
+    if($("disasterRecentCount")) $("disasterRecentCount").textContent = d.recent.length;
+    if(d.recent.length === 0){
+      tbody.innerHTML = "<tr><td colspan='5' style='text-align:center;color:var(--mut);padding:12px;'>" + ((D[L]&&D[L].nothing)||"Žiadne nedávne udalosti") + "</td></tr>";
+    } else {
+      const now = Math.floor(Date.now() / 1000);
+      tbody.innerHTML = d.recent.map(ev => {
+        let magBadgeCls = "pill-ok";
+        if(ev.mag >= 7.0) magBadgeCls = "pill-err";
+        else if(ev.mag >= 6.0) magBadgeCls = "pill-warn";
+        else if(ev.mag >= 5.0) magBadgeCls = "pill";
+
+        const ageMin = (now > ev.time) ? Math.floor((now - ev.time) / 60) : 0;
+        let ageStr = ageMin + "m";
+        if(ageMin >= 60) ageStr = Math.floor(ageMin / 60) + "h " + (ageMin % 60) + "m";
+
+        const tsuStr = ev.tsunami ? "<span class='pill pill-err'>🌊 " + ((D[L]&&D[L].disasterTsunamiYes)||"Hrozba") + "</span>" : "<span style='color:var(--mut);'>-</span>";
+        const distStr = ev.distKm > 0 ? (ev.distKm + " km " + (ev.bearing||"")) : "-";
+
+        return "<tr>" +
+          "<td><span class='pill " + magBadgeCls + "' style='font-weight:700;'>M" + (ev.mag ? ev.mag.toFixed(1) : "–") + "</span></td>" +
+          "<td style='font-weight:500;color:#fff;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' title='" + (ev.title||"") + "'>" + (ev.title||"–") + "</td>" +
+          "<td>" + distStr + "</td>" +
+          "<td>" + tsuStr + "</td>" +
+          "<td style='color:var(--mut);font-size:11.5px;'>" + ageStr + "</td>" +
+        "</tr>";
+      }).join("");
+    }
+  }
+}
+
+async function testDisasterAlert(){
+  try{
+    await fetch("/api/disaster/test", {method:"POST"});
+    msg((D[L]&&D[L].disasterTestTriggered)||"Testovacia výstraha spustená", "ok");
+    setTimeout(refreshDisaster, 200);
+    setTimeout(status, 200);
+  }catch(e){ msg(D[L].failed||"Chyba", "err"); }
+}
+
+async function dismissDisasterAlert(){
+  try{
+    await fetch("/api/disaster/dismiss", {method:"POST"});
+    msg((D[L]&&D[L].disasterDismissedOk)||"Výstraha bola zrušená", "ok");
+    setTimeout(refreshDisaster, 200);
+    setTimeout(status, 200);
+  }catch(e){ msg(D[L].failed||"Chyba", "err"); }
+}
+setInterval(()=>{ if(TAB==="tCommon" && !document.hidden) refreshDisaster(); }, 10000);
+
+</script>
 <style>
 :root{
   --bg:#070a10;--card:rgba(18,25,38,0.78);--card-hdr:rgba(24,34,52,0.85);--line:rgba(56,189,248,0.16);--fg:#e2e8f0;--mut:#8896ab;
@@ -128,6 +255,10 @@ td:first-child{color:var(--mut);width:45%}
     <span class="ver-pill" id="ver"></span>
   </div>
   <div class="hdr-right">
+    <div id="disasterHdrBadge" class="live-pill hide" style="background:rgba(239,68,68,0.2);color:#ef4444;border-color:rgba(239,68,68,0.4);cursor:pointer;" onclick="showTab('tCommon');document.getElementById('cardDisaster').scrollIntoView({behavior:'smooth'});" title="Aktívna výstraha pred katastrofou!">
+      <span class="pulse-dot" style="background:#ef4444;box-shadow:0 0 8px #ef4444;"></span>
+      <span id="disasterHdrTxt">⚠️ VÝSTRAHA!</span>
+    </div>
     <div id="liveDispPill" class="live-pill" title="Aktuálne zobrazená obrazovka na displeji" data-i18n-title="liveDispTitle">
       <span class="pulse-dot"></span>
       <span id="liveDispName">Hodiny</span>
@@ -217,6 +348,8 @@ td:first-child{color:var(--mut);width:45%}
             <label class="chk"><input type="checkbox" id="bzOverheadClock"><span data-i18n="bzOverhead">🔊 Pípnutie pri prelete nad hlavou</span></label>
             <label class="chk"><input type="checkbox" id="cPrecip"><span data-i18n="cPrecip">🌧️ Výstraha blížiacich sa zrážok</span></label>
             <label class="chk"><input type="checkbox" id="bzPrecipClock"><span data-i18n="bzPrecip">🔊 Pípnutie pri blížiacich sa zrážkach</span></label>
+            <label class="chk"><input type="checkbox" id="cDisasterClock"><span data-i18n="cDisaster">⚠️ Výstraha pred katastrofami (Zemetrasenia & Tsunami)</span></label>
+            <label class="chk"><input type="checkbox" id="cDisasterSndClock"><span data-i18n="cDisasterSnd">🚨 Zvuková siréna pri výstrahe</span></label>
           </div>
           <div class="row" style="margin-top:12px;"><label data-i18n="ovRad">Polomer preletu nad hlavou (km)</label><input type="number" id="ovRad" min="1" max="50" step="1" style="max-width:110px;"></div>
         </div>
@@ -962,9 +1095,82 @@ td:first-child{color:var(--mut);width:45%}
             <label class="chk"><input type="checkbox" id="bzNightMute"><span data-i18n="bzNightMute">🌙 Nočný kľud (stíšiť bzučiak v noci)</span></label>
             <label class="chk"><input type="checkbox" id="bzPet"><span data-i18n="bzPet">🐾 DigiCat virtuálne zvieratko (pradenie, štebotanie)</span></label>
             <label class="chk"><input type="checkbox" id="bzSonar"><span data-i18n="bzSonar">🟢 Sonar ping (akustický pulz pri otáčke)</span></label>
+            <label class="chk"><input type="checkbox" id="cDisasterSnd"><span data-i18n="cDisasterSnd">🚨 Zvuková núdzová siréna (Zemetrasenia & Tsunami)</span></label>
           </div>
           <div style="margin-top:12px;">
             <button type="button" class="sec" onclick="testBuzzer()" data-i18n="btnTestBuzzer">🔊 Otestovať bzučiak</button>
+          </div>
+        </div>
+
+        <!-- Varovanie pred katastrofami & Seizmológia -->
+        <div class="card" id="cardDisaster">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px solid rgba(34,45,66,0.6);padding-bottom:8px;">
+            <h2 style="margin:0;border:0;padding:0;" data-i18n="disasterHdr">⚠️ Varovanie pred katastrofami & Seizmológia</h2>
+            <span class="pill pill-ok" style="font-size:11px;">USGS & NOAA Real-Time</span>
+          </div>
+          <p class="hint" data-i18n="disasterHint">Globálne monitorovanie zemetrasení v reálnom čase (USGS CDN), výstrahy pred tsunami (NOAA) a hardvérový seizmometer (akcelerometer QMI8658).</p>
+
+          <!-- Active HUD Alert Banner -->
+          <div id="disasterLiveBanner" style="margin:12px 0;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,0.02);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span id="disasterBannerIcon" style="font-size:24px;">🛡️</span>
+              <div>
+                <div id="disasterBannerTitle" style="font-weight:700;font-size:14px;color:#fff;" data-i18n="disasterAllClear">Žiadne aktívne výstrahy pred zemetrasením alebo tsunami.</div>
+                <div id="disasterBannerSub" style="font-size:12px;color:var(--mut);">Všetky seizmické zóny a oceánske bóje sú v normále.</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span id="disasterBannerBadge" class="pill pill-ok">ALL QUIET</span>
+              <button type="button" id="btnDisasterDismiss" class="sec hide" onclick="dismissDisasterAlert()" style="padding:6px 10px;font-size:12px;" data-i18n="btnDisasterDismiss">🔕 Zrušiť výstrahu</button>
+            </div>
+          </div>
+
+          <!-- Controls Grid -->
+          <div class="grid" style="margin-top:12px;">
+            <label class="chk" style="font-weight:600;"><input type="checkbox" id="cDisaster"><span data-i18n="cDisaster">⚠️ Globálny systém varovania pred katastrofami (USGS & NOAA)</span></label>
+            <label class="chk" style="font-weight:600;"><input type="checkbox" id="cDisasterSndCommon"><span data-i18n="cDisasterSnd">🚨 Zvuková núdzová siréna pri výstrahe</span></label>
+          </div>
+
+          <!-- Hardware Seismometer Sub-Card -->
+          <div style="margin-top:14px;background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:10px;padding:12px 14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <strong style="color:var(--acc);font-size:13.5px;" data-i18n="disasterSeismoHdr">🧭 Hardvérový seizmometer (QMI8658)</strong>
+              <span id="seismoAvailBadge" class="pill pill-ok" data-i18n="disasterSeismoActive">Aktívny (6-osový akcelerometer)</span>
+            </div>
+            <table style="margin-top:4px;">
+              <tr><td data-i18n="disasterSeismoShaking">Detekcia otrasov:</td><td><span id="seismoShakingState" class="pill pill-ok" data-i18n="disasterSeismoQuiet">Pokojný povrch</span></td></tr>
+              <tr><td data-i18n="disasterPeakDeltaG">Špičkové preťaženie (Δg):</td><td><span class="stat-val" id="seismoDeltaG">0.00</span> g</td></tr>
+            </table>
+          </div>
+
+          <!-- Action Buttons -->
+          <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
+            <button type="button" class="sec" onclick="testDisasterAlert()" data-i18n="btnDisasterTest">🚨 Otestovať výstrahu</button>
+            <button type="button" class="sec" onclick="refreshDisaster()" data-i18n="btnDisasterRefresh">🔄 Obnoviť údaje</button>
+          </div>
+
+          <!-- Recent Global Seismic Events Table -->
+          <div style="margin-top:16px;border-top:1px solid var(--line);padding-top:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <h3 style="margin:0;font-size:13.5px;color:var(--fg);font-weight:600;" data-i18n="disasterRecentHdr">🌍 Posledné globálne seizmické udalosti (USGS)</h3>
+              <span id="disasterRecentCount" class="ver-pill">0</span>
+            </div>
+            <div style="overflow-x:auto;max-height:240px;scrollbar-width:thin;">
+              <table id="disasterTable" style="margin-top:4px;font-size:12.5px;">
+                <thead>
+                  <tr style="color:var(--mut);border-bottom:1px solid var(--line);text-align:left;">
+                    <th style="padding:6px 4px;" data-i18n="disasterMag">M</th>
+                    <th style="padding:6px 4px;" data-i18n="disasterLocation">Lokalita</th>
+                    <th style="padding:6px 4px;" data-i18n="disasterDist">Vzdialenosť</th>
+                    <th style="padding:6px 4px;" data-i18n="disasterTsunami">Tsunami</th>
+                    <th style="padding:6px 4px;" data-i18n="disasterTime">Čas</th>
+                  </tr>
+                </thead>
+                <tbody id="disasterTableBody">
+                  <tr><td colspan="5" style="text-align:center;color:var(--mut);padding:12px;" data-i18n="searching">Načítavam...</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -1667,7 +1873,7 @@ function showTab(id){
  TAB=id;
  document.querySelectorAll("section.tab").forEach(s=>s.classList.toggle("hide",s.id!=id));
  document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.tab==id));
- if(id=="tCommon" && !g_otaLatest) checkGithubUpdates(false);
+ if(id=="tCommon"){ if(!g_otaLatest) checkGithubUpdates(false); refreshDisaster(); }
  if(id=="tScrInfo") fetchStats();
  if(id=="tScrIss") refreshIssLive();
  if(id=="tSerial") startSerialPolling(); else stopSerialPolling();
@@ -1896,6 +2102,11 @@ const AUTO = [
  ["bzPrecipMeteo","change","buzzerPrecip",e=>{ if($("bzPrecip")) $("bzPrecip").checked=e.checked; if($("bzPrecipClock")) $("bzPrecipClock").checked=e.checked; return e.checked; }],
  ["cPrecip","change","cPrecip",e=>{ if($("cPrecipMeteo")) $("cPrecipMeteo").checked=e.checked; return e.checked; }],
  ["cPrecipMeteo","change","cPrecip",e=>{ if($("cPrecip")) $("cPrecip").checked=e.checked; return e.checked; }],
+ ["cDisaster","change","cDisaster",e=>{ if($("cDisasterClock")) $("cDisasterClock").checked=e.checked; return e.checked; }],
+ ["cDisasterClock","change","cDisaster",e=>{ if($("cDisaster")) $("cDisaster").checked=e.checked; return e.checked; }],
+ ["cDisasterSnd","change","cDisasterSnd",e=>{ if($("cDisasterSndClock")) $("cDisasterSndClock").checked=e.checked; if($("cDisasterSndCommon")) $("cDisasterSndCommon").checked=e.checked; return e.checked; }],
+ ["cDisasterSndClock","change","cDisasterSnd",e=>{ if($("cDisasterSnd")) $("cDisasterSnd").checked=e.checked; if($("cDisasterSndCommon")) $("cDisasterSndCommon").checked=e.checked; return e.checked; }],
+ ["cDisasterSndCommon","change","cDisasterSnd",e=>{ if($("cDisasterSnd")) $("cDisasterSnd").checked=e.checked; if($("cDisasterSndClock")) $("cDisasterSndClock").checked=e.checked; return e.checked; }],
  ["cOver","change","cOver",e=>e.checked],
  ["ovRad","change","ovRad",e=>parseFloat(e.value)||10],
  ["sClock","change","screens",()=>getScreensObj()],
@@ -2117,6 +2328,11 @@ async function load(){
  if($("rCompass")) $("rCompass").checked=CFG.rCompass!==false;
  if($("rCompassTac")) $("rCompassTac").checked=CFG.rCompass!==false;
  if($("cDate")) $("cDate").checked=CFG.cDate!==false;
+ if($("cDisaster")) $("cDisaster").checked=CFG.cDisaster!==false;
+ if($("cDisasterClock")) $("cDisasterClock").checked=CFG.cDisaster!==false;
+ if($("cDisasterSnd")) $("cDisasterSnd").checked=CFG.cDisasterSnd!==false;
+ if($("cDisasterSndClock")) $("cDisasterSndClock").checked=CFG.cDisasterSnd!==false;
+ if($("cDisasterSndCommon")) $("cDisasterSndCommon").checked=CFG.cDisasterSnd!==false;
  if($("cOver")) $("cOver").checked=CFG.cOver!==false;
  if($("ovRad")) $("ovRad").value=CFG.ovRad||10;
  if($("nightClockOnly")) $("nightClockOnly").checked=!!CFG.nightClockOnly;
@@ -2230,6 +2446,17 @@ async function status(){
     if($("issElVal") && s.issEl !== undefined) $("issElVal").textContent = s.issEl + "° / " + s.issAz + "°";
     if($("issSunVal") && s.issSun !== undefined) $("issSunVal").textContent = s.issSun ? ((D[L]&&D[L].issSunlit) ? D[L].issSunlit : "☀️ Sunlit") : ((D[L]&&D[L].issEclipsed) ? D[L].issEclipsed : "🌑 Eclipsed");
   }
+  if(s.disaster !== undefined){
+    const hBadge = $("disasterHdrBadge");
+    if(hBadge){
+      if(s.disaster){
+        hBadge.classList.remove("hide");
+        if($("disasterHdrTxt")) $("disasterHdrTxt").textContent = "⚠️ " + (s.disasterTitle || "VÝSTRAHA!");
+      } else {
+        hBadge.classList.add("hide");
+      }
+    }
+  }
   if(s.precip && $("livePrecipStatus")){
     $("livePrecipStatus").textContent = s.precip;
     if(s.precipStatus === 2){
@@ -2291,6 +2518,8 @@ function body(){return{
   buzzerPet:($("bzPet")?$("bzPet").checked:($("bzPetPetSettings")?$("bzPetPetSettings").checked:true)),
  hostname:$("hostname")?$("hostname").value.trim():undefined,
  buzzerSonar:($("bzSonar")?$("bzSonar").checked:($("bzSonarSonarSettings")?$("bzSonarSonarSettings").checked:true)),
+ cDisaster:$("cDisaster")?$("cDisaster").checked:true,
+ cDisasterSnd:($("cDisasterSnd")?$("cDisasterSnd").checked:($("cDisasterSndCommon")?$("cDisasterSndCommon").checked:true)),
  cOver:$("cOver")?$("cOver").checked:true,
  ovRad:$("ovRad")?parseFloat($("ovRad").value)||10:10,
  screens:{clock:$("sClock").checked,planes:$("sPlanes").checked,meteo:$("sMeteo").checked,tactical:$("sTactical").checked,sonar:$("sSonar")?$("sSonar").checked:true,forecast:$("sForecast").checked,finance:$("sFinance")?$("sFinance").checked:true,iss:$("sIss")?$("sIss").checked:true,youtube:$("sYt")?$("sYt").checked:true,info:$("sInfo")?$("sInfo").checked:true},

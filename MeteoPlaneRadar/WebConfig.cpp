@@ -1339,8 +1339,22 @@ void WebConfig_Begin(bool apMode) {
     serializeJson(doc, resp);
     s_srv.send(200, "application/json", resp);
   });
+  s_srv.on("/api/disaster", HTTP_POST, [](){
+    JsonDocument doc;
+    if (!readBody(doc)) { s_srv.send(400, "application/json", "{\"error\":\"json\"}"); return; }
+    if (!doc["enabled"].isNull()) Settings_SetDisasterAlert(doc["enabled"].as<bool>());
+    if (!doc["audio"].isNull())   Settings_SetDisasterAudio(doc["audio"].as<bool>());
+    if (doc["dismiss"].as<bool>()) DisasterAlert_Dismiss();
+    if (doc["test"].as<bool>())    DisasterAlert_TriggerTest();
+    JsonDocument res; res["ok"] = true;
+    sendJson(200, res);
+  });
   s_srv.on("/api/disaster/dismiss", HTTP_POST, [](){
     DisasterAlert_Dismiss();
+    s_srv.send(200, "application/json", "{\"ok\":true}");
+  });
+  s_srv.on("/api/disaster/test", HTTP_POST, [](){
+    DisasterAlert_TriggerTest();
     s_srv.send(200, "application/json", "{\"ok\":true}");
   });
   // The update page authenticates with HTTP Basic when a password is set. See

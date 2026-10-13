@@ -303,7 +303,44 @@ bool DisasterAlert_IsLocalTremorActive() {
 
 void DisasterAlert_Dismiss() {
   s_alertDismissed = true;
+  s_hasActiveAlert = false;
   Buzzer_Stop();
+  UI_InvalidateActiveScreen();
+}
+
+void DisasterAlert_TriggerTest() {
+  memset(&s_activeAlert, 0, sizeof(s_activeAlert));
+  snprintf(s_activeAlert.id, sizeof(s_activeAlert.id), "test_%lu", millis());
+  snprintf(s_activeAlert.title, sizeof(s_activeAlert.title), "M7.2 TEST WARNING");
+  snprintf(s_activeAlert.place, sizeof(s_activeAlert.place), "Simulated Coastal Fault Zone");
+  s_activeAlert.mag = 7.2f;
+  s_activeAlert.distKm = 420.0f;
+  s_activeAlert.bearingDeg = 215.0f;
+  snprintf(s_activeAlert.bearingStr, sizeof(s_activeAlert.bearingStr), "SW");
+  s_activeAlert.tsunami = true;
+  s_activeAlert.type = DISASTER_TSUNAMI;
+  s_activeAlert.severity = SEV_WARNING;
+  s_activeAlert.epochSec = (uint32_t)time(nullptr);
+
+  s_hasActiveAlert = true;
+  s_alertDismissed = false;
+  s_needAlarm = true;
+
+  bool exists = false;
+  for (int i = 0; i < s_recentCount; i++) {
+    if (strcmp(s_recentEvents[i].id, s_activeAlert.id) == 0) { exists = true; break; }
+  }
+  if (!exists) {
+    if (s_recentCount < MAX_RECENT_EVENTS) {
+      s_recentEvents[s_recentCount++] = s_activeAlert;
+    } else {
+      for (int k = MAX_RECENT_EVENTS - 1; k > 0; k--) {
+        s_recentEvents[k] = s_recentEvents[k - 1];
+      }
+      s_recentEvents[0] = s_activeAlert;
+    }
+  }
+
   UI_InvalidateActiveScreen();
 }
 

@@ -64,6 +64,9 @@ bool DisasterAlert_IsLocalTremorActive();
 // Dismiss/acknowledge currently active alert audio & banner
 void DisasterAlert_Dismiss();
 
+// Trigger a simulated disaster alert for testing/verification
+void DisasterAlert_TriggerTest();
+
 // Recent global disaster events count and access
 int DisasterAlert_GetRecentCount();
 const DisasterEvent* DisasterAlert_GetRecent(int idx);
