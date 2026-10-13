@@ -10,5 +10,6 @@ __pycache__/
 .wiki_clone/
 scratch/
 tools/preview_sprites/
+audit_output/
 
 
