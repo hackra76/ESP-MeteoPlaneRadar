@@ -538,6 +538,18 @@ static float s_lastBgMoonPhase = -999.0f;
 static int s_lastBgDay = -1;
 static bool s_bgDirty = true;
 
+static int s_lastDrawnSec = -1;
+static int s_lastSunMin = -1;
+static float s_lastSunX = -1.0f;
+static float s_lastSunY = -1.0f;
+
+static void resetFrameCache() {
+  s_lastDrawnSec = -1;
+  s_lastSunMin = -1;
+  s_lastSunX = -1.0f;
+  s_lastSunY = -1.0f;
+}
+
 static inline uint16_t pack565(uint8_t r, uint8_t g, uint8_t b) {
   return (uint16_t)(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
 }
@@ -905,13 +917,15 @@ static void renderLuxuryDialBackground(uint16_t* buf, float moonPhase, time_t no
   drawCapsuleToBuf(buf, (float)CX, (float)CY - 220.0f, (float)CX, (float)CY - 227.0f, 0.9f, pack565(255, 215, 110));
 
   // Sunrise and Sunset glyphs positioned on the 24h solar arc
-  float degSunrise = (float)(((minSunrise - 720 + 1440) % 1440) * 360) / 1440.0f;
-  float degSunset  = (float)(((minSunset  - 720 + 1440) % 1440) * 360) / 1440.0f;
-  float radRise = degSunrise * (float)(M_PI / 180.0);
-  float radSet  = degSunset  * (float)(M_PI / 180.0);
+  if (st.valid) {
+    float degSunrise = (float)(((minSunrise - 720 + 1440) % 1440) * 360) / 1440.0f;
+    float degSunset  = (float)(((minSunset  - 720 + 1440) % 1440) * 360) / 1440.0f;
+    float radRise = degSunrise * (float)(M_PI / 180.0);
+    float radSet  = degSunset  * (float)(M_PI / 180.0);
 
-  drawSunGlyphToBuf(buf, (float)CX + 224.0f * sinf(radRise), (float)CY - 224.0f * cosf(radRise), 1);
-  drawSunGlyphToBuf(buf, (float)CX + 224.0f * sinf(radSet),  (float)CY - 224.0f * cosf(radSet),  2);
+    drawSunGlyphToBuf(buf, (float)CX + 224.0f * sinf(radRise), (float)CY - 224.0f * cosf(radRise), 1);
+    drawSunGlyphToBuf(buf, (float)CX + 224.0f * sinf(radSet),  (float)CY - 224.0f * cosf(radSet),  2);
+  }
 }
 
 static void drawLuxuryWeatherDynamic() {
@@ -1066,16 +1080,13 @@ static void ScreenClock_Draw() {
   MoonInfo moon = Astro_GetMoon(now);
 
   // Background Cache Regeneration Check
-  static int s_lastDrawnSec = -1;
-  static int s_lastSunMin = -1;
   if (s_bgDirty || s_lastBgDay != lt.tm_yday || fabsf(moon.phase - s_lastBgMoonPhase) >= 0.01f) {
     if (s_luxuryBg) {
       renderLuxuryDialBackground(s_luxuryBg, moon.phase, now);
       s_lastBgMoonPhase = moon.phase;
       s_lastBgDay = lt.tm_yday;
       s_bgDirty = false;
-      s_lastDrawnSec = -1;
-      s_lastSunMin = -1;
+      resetFrameCache();
     }
   }
 
@@ -1085,6 +1096,9 @@ static void ScreenClock_Draw() {
     if (s_lastDrawnSec < 0) {
       // First frame or cache invalidated: full clone into s_frameBg
       memcpy(s_frameBg, s_luxuryBg, LCD_WIDTH * LCD_HEIGHT * sizeof(uint16_t));
+      s_lastSunMin = -1;
+      s_lastSunX = -1.0f;
+      s_lastSunY = -1.0f;
     } else if (lt.tm_sec < s_lastDrawnSec) {
       // Minute rollover (second rolled from 59 to 0): restore ONLY the annular ring spans
       for (int y = CY - 202; y <= CY + 202; y++) {
@@ -1155,22 +1169,16 @@ static void ScreenClock_Draw() {
           float angSec = atan2f(dx, -dy) * 57.2957795f;
           if (angSec < 0.0f) angSec += 360.0f;
 
-          // Only render incremental slice between previous second and current target
+          // Seamless incremental arc: solid uniform core and radial glow (no edge gaps)
           if (angSec > minSecDeg && angSec <= targetSecDeg) {
             float deltaRing = fabsf(dist - 186.0f);
-            float edgeA = 1.0f;
-            if (angSec > targetSecDeg - 1.5f) {
-              edgeA = (targetSecDeg - angSec) / 1.5f;
-              if (edgeA < 0.0f) edgeA = 0.0f;
-            }
-
             int gIdx = (int)(deltaRing * 2.0f);
-            float glow = (gIdx < 32 ? s_radialGlow[gIdx] : 0.0f) * edgeA;
+            float glow = (gIdx < 32 ? s_radialGlow[gIdx] : 0.0f);
 
             int idx = y * LCD_WIDTH + x;
             uint16_t c = displayBuf[idx];
             if (deltaRing <= 1.0f) {
-              float coreA = (1.0f - deltaRing) * edgeA;
+              float coreA = (1.0f - deltaRing);
               c = blendColor_fast(c, pack565(80, 215, 255), coreA * 0.95f);
             }
             displayBuf[idx] = addGlow_fast(c, 40, 165, 255, glow);
@@ -1184,6 +1192,19 @@ static void ScreenClock_Draw() {
   // Live Sun glyph orbiting along 24h perimeter solar ring (updated only when minute changes)
   int curSunMin = lt.tm_hour * 60 + lt.tm_min;
   if (displayBuf && (curSunMin != s_lastSunMin)) {
+    // 1. Erase previous Sun glyph by restoring its bounding box from pristine s_luxuryBg
+    if (s_lastSunX >= 0.0f && s_luxuryBg) {
+      int x0 = (int)floorf(s_lastSunX - 12.0f); if (x0 < 0) x0 = 0;
+      int x1 = (int)ceilf(s_lastSunX + 12.0f);  if (x1 >= LCD_WIDTH) x1 = LCD_WIDTH - 1;
+      int y0 = (int)floorf(s_lastSunY - 12.0f); if (y0 < 0) y0 = 0;
+      int y1 = (int)ceilf(s_lastSunY + 12.0f);  if (y1 >= LCD_HEIGHT) y1 = LCD_HEIGHT - 1;
+      int spanBytes = (x1 - x0 + 1) * sizeof(uint16_t);
+      for (int y = y0; y <= y1; y++) {
+        memcpy(displayBuf + y * LCD_WIDTH + x0, s_luxuryBg + y * LCD_WIDTH + x0, (size_t)spanBytes);
+      }
+    }
+
+    // 2. Draw live Sun glyph at new position
     float minNowF = (float)curSunMin + (float)lt.tm_sec / 60.0f;
     float degNow = (float)(fmodf(minNowF - 720.0f + 1440.0f, 1440.0f) * 360.0f) / 1440.0f;
     float radNow = degNow * (float)(M_PI / 180.0);
@@ -1191,6 +1212,8 @@ static void ScreenClock_Draw() {
     float sunY = (float)CY - 224.0f * cosf(radNow);
     drawSunGlyphToBuf(displayBuf, sunX, sunY, 0);
     s_lastSunMin = curSunMin;
+    s_lastSunX = sunX;
+    s_lastSunY = sunY;
   }
 
   // 1. Blit the pre-rendered luxury chronograph background (bloom arc, vignette, chamfers, shadows, moon, batons)
@@ -1254,10 +1277,12 @@ static void ScreenClock_Draw() {
 
 static void ScreenClock_TimerCb(lv_timer_t* t) {
   if (UI_GetActiveScreen() != SCREEN_CLOCK_I) return;
-  static unsigned long s_lastTick = 0;
-  unsigned long now = millis();
-  if (now - s_lastTick >= 1000) {
-    s_lastTick = now;
+  static int s_prevSec = -1;
+  time_t now = time(nullptr);
+  struct tm lt;
+  localtime_r(&now, &lt);
+  if (lt.tm_sec != s_prevSec) {
+    s_prevSec = lt.tm_sec;
     lv_obj_invalidate(s_screenObj);
   }
 }
@@ -1269,6 +1294,9 @@ static void ScreenClock_EventCb(lv_event_t* e) {
     gfx->setLayer(layer);
     ScreenClock_Draw();
     gfx->setLayer(nullptr);
+  } else if (code == LV_EVENT_SCREEN_LOADED) {
+    resetFrameCache();
+    lv_obj_invalidate(s_screenObj);
   } else if (code == LV_EVENT_CLICKED) {
     if (UI_IsSwipeActive()) return;
     lv_indev_t* indev = lv_indev_active();
@@ -1297,7 +1325,7 @@ void ScreenClock_Init(lv_obj_t* parent) {
   }
   s_bgDirty = true;
 
-  s_timer = lv_timer_create(ScreenClock_TimerCb, 500, nullptr);
+  s_timer = lv_timer_create(ScreenClock_TimerCb, 100, nullptr);
 }
 
 void ScreenClock_FreeBuffers() {
