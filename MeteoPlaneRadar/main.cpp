@@ -23,6 +23,7 @@
 #include "IssData.h"
 #include "YouTubeData.h"
 #include "PetBrain.h"
+#include "DisasterAlert.h"
 #include "WebConfig.h"
 #include "ScreenPlanes.h"
 #include "ScreenWeather.h"
@@ -118,6 +119,7 @@ void setup() {
   Iss_Init();
   YouTube_Init();
   PetBrain_Init();
+  DisasterAlert_Init();
 
   if (QMI8658_Init()) {
     QMI8658_OnDoubleTap([]() {
@@ -216,12 +218,14 @@ void loop() {
   UI_AutoRotate_Tick();
   NightMode_Tick();
   Settings_Tick();
+  DisasterAlert_Tick();
   
   // Smart auto-dimming check (30 minutes of inactivity)
   uint32_t inactive_ms = lv_display_get_inactive_time(lv_display_get_default());
   bool is_idle = (inactive_ms > 30 * 60 * 1000UL) && 
                  (ADSB_Count() == 0) && 
-                 (!PrecipTracker_IsApproaching());
+                 (!PrecipTracker_IsApproaching()) &&
+                 (!DisasterAlert_HasActiveAlert());
   NightMode_SetIdle(is_idle);
 
   // PSRAM Defragmentation Watch (runs around 3:00 AM)

@@ -29,6 +29,7 @@
 #include "IssData.h"
 #include "YouTubeData.h"
 #include "PetBrain.h"
+#include "DisasterAlert.h"
 #include "ScreenWeather.h"
 #include <WiFi.h>
 #include <freertos/idf_additions.h>
@@ -399,6 +400,10 @@ static void asyncWorkerTask(void* param) {
             if (PetBrain_Step()) {
               lastTlsTime = millis();
             }
+          }
+          // 10. Global Disaster Warning System (USGS Real-Time Earthquake & Tsunami Feeds)
+          else if (DisasterAlert_Step()) {
+            lastTlsTime = millis();
           }
         }
         // (s_core0NetBusy = false handled by NetBusyGuard destructor above)

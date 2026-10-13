@@ -38,6 +38,7 @@
 #include "Route.h"
 #include "PetDrawer.h"
 #include "QuickControl.h"
+#include "DisasterAlert.h"
 #include <Wire.h>
 
 #include <WiFi.h>
@@ -332,6 +333,17 @@ static void handleStatus() {
     doc["issVel"] = (int)roundf(iss.velocity);
   } else {
     doc["iss"] = "--";
+  }
+
+  doc["disaster"] = DisasterAlert_HasActiveAlert();
+  const DisasterEvent* da = DisasterAlert_GetActiveAlert();
+  if (da) {
+    doc["disasterType"] = (da->type == DISASTER_TSUNAMI) ? "TSUNAMI" :
+                          (da->type == DISASTER_LOCAL_TREMOR) ? "LOCAL_TREMOR" : "EARTHQUAKE";
+    doc["disasterTitle"] = da->title;
+    doc["disasterMag"] = da->mag;
+    doc["disasterDist"] = (int)roundf(da->distKm);
+    doc["disasterBearing"] = da->bearingStr;
   }
 
   sendJson(200, doc);
@@ -1319,6 +1331,18 @@ void WebConfig_Begin(bool apMode) {
   s_srv.on("/api/serial/clear", HTTP_POST, handleSerialClear);
   s_srv.on("/api/serial/send", HTTP_POST, handleSerialSend);
   s_srv.on("/api/iss/refresh", HTTP_POST, handleRefreshIss);
+  s_srv.on("/api/disaster", HTTP_GET, [](){
+    JsonDocument doc;
+    JsonObject obj = doc.to<JsonObject>();
+    DisasterAlert_ToJson(obj);
+    String resp;
+    serializeJson(doc, resp);
+    s_srv.send(200, "application/json", resp);
+  });
+  s_srv.on("/api/disaster/dismiss", HTTP_POST, [](){
+    DisasterAlert_Dismiss();
+    s_srv.send(200, "application/json", "{\"ok\":true}");
+  });
   // The update page authenticates with HTTP Basic when a password is set. See
   // the note in Settings.h about why the password is stored in the clear.
   s_srv.on("/update", HTTP_GET, handleUpdatePage);

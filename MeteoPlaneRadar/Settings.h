@@ -227,9 +227,13 @@ void     Settings_SetBuzzerPet(bool on);
 bool     Settings_SonarPing();
 void     Settings_SetSonarPing(bool on);
 
-// --- Precipitation alert ---------------------------------------------------
+// --- Precipitation & Disaster alerts ---------------------------------------
 bool     Settings_PrecipAlert();
 void     Settings_SetPrecipAlert(bool on);
+bool     Settings_DisasterAlert();
+void     Settings_SetDisasterAlert(bool on);
+bool     Settings_DisasterAudio();
+void     Settings_SetDisasterAudio(bool on);
 
 // --- UI state (debounced writes) --------------------------------------------
 uint8_t Settings_PlaneRange();

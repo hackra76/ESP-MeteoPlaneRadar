@@ -31,6 +31,7 @@
 #include "CHMU.h"
 #include "SHMU.h"
 #include "NightMode.h"
+#include "DisasterAlert.h"
 
 static int s_activeScreen = SCREEN_CLOCK_I;
 static lv_obj_t* s_wifiScreen = nullptr;
@@ -233,6 +234,11 @@ static void handleRelease(int startX, int startY, int endX, int endY) {
 
     // --- Tap (no significant movement) --------------------------------------
     if (absDx < SWIPE_MIN_PX && absDy < SWIPE_MIN_PX) {
+        if (DisasterAlert_HandleTap(endX, endY)) {
+            UI_InvalidateActiveScreen();
+            return;
+        }
+
         // Zoom button interaction or wake-up on zoomable screens
         if (UI_IsZoomScreen(s_activeScreen)) {
             if (s_zoomVisible) {
@@ -673,6 +679,8 @@ void UI_DrawStatusLine(int cy) {
   int pillY = cy - 3;
   gfx->fillRoundRect(pillX, pillY, pillW, pillH, 6, C_BLACK);
   UI_TextCenteredBox(txt, pillX, pillY, pillW, pillH, C_WHITE, 2);
+
+  DisasterAlert_DrawOverlay();
 }
 
 void UI_DrawWifiQR(const char* ssid, const char* password, bool open,
@@ -740,6 +748,7 @@ void UI_DrawRangeIndicator(const char* text, int activeIdx, int totalCount, bool
   }
 
   UI_DrawZoomControls();
+  DisasterAlert_DrawOverlay();
 }
 
 void UI_DrawHomeMarker(int x, int y) {

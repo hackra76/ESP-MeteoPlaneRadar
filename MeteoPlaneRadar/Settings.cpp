@@ -102,6 +102,8 @@ static bool     s_bzNMute  = true;
 static bool     s_bzPet    = true;
 static bool     s_bzSonar  = true;
 static bool     s_precipAlert = true;
+static bool     s_disasterAlert = true;
+static bool     s_disasterAudio = true;
 
 // --- UI state ---
 static uint8_t  s_rngP = 1;
@@ -320,6 +322,8 @@ void Settings_Begin() {
     s_bzPet   = prefs.getBool("bzPet", true);
     s_bzSonar = prefs.getBool("bzSonar", true);
     s_precipAlert = prefs.getBool("cPrecip", true);
+    s_disasterAlert = prefs.getBool("cDisaster", true);
+    s_disasterAudio = prefs.getBool("cDisasterSnd", true);
     if (prefs.isKey("watch")) prefs.getString("watch", s_watch, sizeof(s_watch));
     s_rngP   = prefs.getUChar("rngP", 1);
     s_rngM   = prefs.getUChar("rngM", 1);
@@ -906,6 +910,10 @@ void Settings_SetSonarPing(bool on) { s_bzSonar = on; putBool("bzSonar", on); }
 
 bool Settings_PrecipAlert() { return s_precipAlert; }
 void Settings_SetPrecipAlert(bool on) { s_precipAlert = on; putBool("cPrecip", on); }
+bool Settings_DisasterAlert() { return s_disasterAlert; }
+void Settings_SetDisasterAlert(bool on) { s_disasterAlert = on; putBool("cDisaster", on); }
+bool Settings_DisasterAudio() { return s_disasterAudio; }
+void Settings_SetDisasterAudio(bool on) { s_disasterAudio = on; putBool("cDisasterSnd", on); }
 
 // --- UI state ---------------------------------------------------------------
 uint8_t Settings_PlaneRange() { return s_rngP; }
@@ -1040,6 +1048,8 @@ void Settings_ToJson(JsonObject o) {
   o["buzzerSonar"]     = s_bzSonar;
   o["sonarPing"]       = s_bzSonar;
   o["cPrecip"]         = s_precipAlert;
+  o["cDisaster"]       = s_disasterAlert;
+  o["cDisasterSnd"]    = s_disasterAudio;
   o["showLegends"] = s_showLegends;
   o["hasPassword"] = Settings_HasAdminPassword();
   o["timezone"] = s_tz;
@@ -1152,6 +1162,8 @@ bool Settings_FromJson(JsonObjectConst in) {
   setIf("sonarPing",       [](JsonVariantConst v){ Settings_SetSonarPing(v.as<bool>()); });
   setIf("bzSonar",         [](JsonVariantConst v){ Settings_SetSonarPing(v.as<bool>()); });
   setIf("cPrecip",         [](JsonVariantConst v){ Settings_SetPrecipAlert(v.as<bool>()); });
+  setIf("cDisaster",       [](JsonVariantConst v){ Settings_SetDisasterAlert(v.as<bool>()); });
+  setIf("cDisasterSnd",    [](JsonVariantConst v){ Settings_SetDisasterAudio(v.as<bool>()); });
   setIf("financeTickers",  [](JsonVariantConst v){ Settings_SetFinanceTickers(v.as<const char*>()); });
   setIf("financeGraph",    [](JsonVariantConst v){ Settings_SetFinanceGraphType(v.as<uint8_t>()); });
   setIf("issAlert",        [](JsonVariantConst v){ Settings_SetIssAlert(v.as<bool>()); });
@@ -1231,6 +1243,8 @@ void Settings_ClearAll() {
   s_secStyle = SEC_STYLE_DOTS; s_clockCol = 0xFFFF; s_secCol = 0x05FF;
   s_clkShowOverhead = true; s_overheadRadiusKm = 10.0f;
   s_precipAlert = true;
+  s_disasterAlert = true;
+  s_disasterAudio = true;
   s_altMin = 0; s_altMax = 60000; s_onlyCs = false; s_sqAlert = true; s_watch[0] = '\0';
   s_statsScope = 0;
   s_typeFilterMask = 0x3F;

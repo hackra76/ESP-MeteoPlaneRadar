@@ -22,6 +22,7 @@
 #include "Buzzer.h"
 #include "ScreenPlanes.h"
 #include "PrecipTracker.h"
+#include "DisasterAlert.h"
 #include "QMI8658.h"
 #include "FontEngine.h"
 #include "MoonTexture.h"
@@ -1246,6 +1247,9 @@ static void ScreenClock_Draw() {
   if (s_precipActive && precipAlert) {
     drawPrecipWidget(precipAlert);
   }
+
+  // 8. Draw Global Disaster Alert Overlay if detected
+  DisasterAlert_DrawOverlay();
 }
 
 static void ScreenClock_TimerCb(lv_timer_t* t) {
