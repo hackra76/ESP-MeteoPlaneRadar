@@ -82,6 +82,25 @@ uint8_t* SHMU_AnimData(int i) { return (i >= 0 && i < s_animCount) ? s_animBuf[i
 size_t   SHMU_AnimSize(int i) { return (i >= 0 && i < s_animCount) ? s_animSize[i] : 0; }
 String   SHMU_AnimTimeText(int i) { return (i >= 0 && i < s_animCount) ? timeTextFromName(s_animName[i]) : String(""); }
 
+int SHMU_MinutesAgo(int i) {
+  if (i < 0 || i >= s_animCount) return -1;
+  String ts = extractTimestamp(s_animName[i]);
+  if (ts.length() < 12) return -1;
+  int Y  = ts.substring(0, 4).toInt();
+  int Mo = ts.substring(4, 6).toInt();
+  int D  = ts.substring(6, 8).toInt();
+  int hh = ts.substring(8, 10).toInt();
+  int mm = ts.substring(10, 12).toInt();
+  if (Y < 2000 || Mo < 1 || Mo > 12 || D < 1 || D > 31) return -1;
+
+  time_t utc = TimeUtil_UtcToEpoch(Y, Mo, D, hh, mm, 0);
+  time_t now = time(nullptr);
+  if (now < 1700000000) return -1;
+  long diffSec = (long)(now - utc);
+  if (diffSec < 0) diffSec = 0;
+  return (int)(diffSec / 60);
+}
+
 // Running top-N newest filenames (ascending by time).
 static String s_topName[SHMU_ANIM_MAX];
 static String s_topTs[SHMU_ANIM_MAX];

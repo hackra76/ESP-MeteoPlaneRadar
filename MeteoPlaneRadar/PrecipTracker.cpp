@@ -19,12 +19,23 @@ static bool    s_hail1[GRID_SIZE][GRID_SIZE];
 static bool s_hasGrid0 = false;
 static time_t s_lastGridTime = 0;
 
-void PrecipTracker_Init() {
+void PrecipTracker_Reset() {
   memset(&s_alert, 0, sizeof(s_alert));
+  s_alert.status = PRECIP_STAT_CLEAR;
+  s_alert.type = PRECIP_NONE;
+  s_alert.distKm = 0.0f;
+  s_alert.etaMin = 0;
+  s_alert.speedKmh = 0.0f;
+  s_alert.bearingDeg = 0;
+  s_alert.alertArmed = false;
+  s_hasGrid0 = false;
+}
+
+void PrecipTracker_Init() {
+  PrecipTracker_Reset();
   memset(s_grid0, 0, sizeof(s_grid0));
   memset(s_grid1, 0, sizeof(s_grid1));
   memset(s_hail1, 0, sizeof(s_hail1));
-  s_hasGrid0 = false;
 }
 
 const PrecipAlert* PrecipTracker_GetAlert() {
@@ -53,6 +64,21 @@ static uint8_t extractIntensity(uint16_t col, bool* isHail) {
   uint8_t r = (col >> 11) & 0x1F;
   uint8_t g = (col >> 5)  & 0x3F;
   uint8_t b = col & 0x1F;
+  uint8_t g31 = g >> 1;
+
+  // Meteorological radar echoes are vividly colored (cyan, blue, green, yellow, orange, red, magenta).
+  // Discard all grayscale, neutral, border, river, and desaturated background pixels.
+  uint8_t maxC = r;
+  if (g31 > maxC) maxC = g31;
+  if (b > maxC) maxC = b;
+
+  uint8_t minC = r;
+  if (g31 < minC) minC = g31;
+  if (b < minC) minC = b;
+
+  if ((maxC - minC) < 5) {
+    return 0;
+  }
 
   // Weight RGB channels to reflect meteorological radar reflectivity
   int val = (r * 4 + g * 2 + b * 4);
@@ -61,10 +87,8 @@ static uint8_t extractIntensity(uint16_t col, bool* isHail) {
   // Detect intense convective core / hail (>50-55 dBZ):
   // True radar storm cores are represented by magenta / purple / deep violet:
   // - Magenta / purple: high R, high B, low G (e.g., r >= 24, b >= 20, g <= 18)
-  // - Pure white core (>60 dBZ): maxed R, G, B with high overall intensity
-  // Note: yellow/orange rain (high R, high G, low B) is standard moderate rain, NOT hail.
   if (isHail) {
-    if ((r >= 24 && b >= 20 && g <= 18) || (val >= 245 && r >= 30 && b >= 28 && g >= 58)) {
+    if (r >= 24 && b >= 20 && g <= 18) {
       *isHail = true;
     }
   }
@@ -141,10 +165,16 @@ void PrecipTracker_ProcessFrames(const uint16_t* prevFrame, const uint16_t* curF
 
   bool isRainingLocally = false;
   if (sampleCount > 0) {
-    if (centerIntensity >= 160 || centerHail) {
-      isRainingLocally = true; // Severe convective core or hail directly over location
-    } else if (centerIntensity >= 55 && (activeEchoCountInRadius * 100 / sampleCount) >= 20) {
-      isRainingLocally = true; // Substantial rain coverage directly over location
+    if (sampleCount <= 4) {
+      if (activeEchoCountInRadius >= 2 && (centerIntensity >= 160 || centerHail)) {
+        isRainingLocally = true;
+      }
+    } else {
+      if (activeEchoCountInRadius >= 2 && (activeEchoCountInRadius * 100 / sampleCount) >= 10 && (centerIntensity >= 160 || centerHail)) {
+        isRainingLocally = true; // Severe convective core or hail directly over location
+      } else if (activeEchoCountInRadius >= 3 && (activeEchoCountInRadius * 100 / sampleCount) >= 20 && centerIntensity >= 55) {
+        isRainingLocally = true; // Substantial rain coverage directly over location
+      }
     }
   }
 

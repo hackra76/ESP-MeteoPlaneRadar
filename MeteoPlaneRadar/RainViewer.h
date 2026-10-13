@@ -54,6 +54,7 @@ const uint16_t* RainViewer_Frame(int i);
 // Local HH:MM of that frame, and how many minutes old it is.
 String RainViewer_TimeText(int i);
 int    RainViewer_MinutesAgo(int i);
+int    RainViewer_WallMinutesAgo(int i); // Age in minutes relative to real now clock
 
 // Projection matching the current view - for the borders and city labels.
 void RainViewer_Project(float lat, float lon, int* sx, int* sy);

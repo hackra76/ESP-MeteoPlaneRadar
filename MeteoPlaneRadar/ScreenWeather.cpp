@@ -552,7 +552,30 @@ static bool rebuildCrops() {
 }
 
 static void updatePrecipTracker() {
-  if (!Settings_PrecipAlert() || !Settings_HasLocation()) return;
+  if (!Settings_PrecipAlert() || !Settings_HasLocation()) {
+    PrecipTracker_Reset();
+    return;
+  }
+
+  // Radar Freshness Guard: If newest radar frame is older than 45 minutes,
+  // do not generate active/approaching rain alerts on obsolete radar data.
+  int ageMin = -1;
+  if (rvMode()) {
+    int cnt = RainViewer_Count();
+    if (cnt > 0) ageMin = RainViewer_WallMinutesAgo(cnt - 1);
+  } else if (shmuMode()) {
+    int cnt = SHMU_AnimCount();
+    if (cnt > 0) ageMin = SHMU_MinutesAgo(cnt - 1);
+  } else {
+    int cnt = CHMU_AnimCount();
+    if (cnt > 0) ageMin = CHMU_MinutesAgo(cnt - 1);
+  }
+
+  if (ageMin > 45) {
+    PrecipTracker_Reset();
+    return;
+  }
+
   float curTemp = Forecast_CurrentValid() ? Forecast_CurrentTemp() : 15.0f;
   if (rvMode()) {
     int cnt = RainViewer_Count();
@@ -563,16 +586,21 @@ static void updatePrecipTracker() {
       if (rng <= 0.0f) rng = 150.0f;
       PrecipTracker_ProcessFrames(f0, f1, LCD_WIDTH, LCD_HEIGHT, rng, 10.0f,
                                  Settings_Lat(), Settings_Lon(), curTemp);
+    } else {
+      PrecipTracker_Reset();
     }
   } else {
     if (s_frameCount >= 2) {
       const uint16_t* f0 = s_frame565[s_frameCount - 2];
       const uint16_t* f1 = s_frame565[s_frameCount - 1];
-      int cw = cropW(), ch = cropH();
+      int cw = s_downsampled ? LCD_WIDTH : cropW();
+      int ch = s_downsampled ? LCD_HEIGHT : cropH();
       float rng = currentRange();
       if (rng <= 0.0f) rng = 150.0f;
       PrecipTracker_ProcessFrames(f0, f1, cw, ch, rng, 5.0f,
                                  Settings_Lat(), Settings_Lon(), curTemp);
+    } else {
+      PrecipTracker_Reset();
     }
   }
 }

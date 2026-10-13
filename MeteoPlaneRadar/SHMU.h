@@ -28,4 +28,5 @@ int         SHMU_AnimCount();
 uint8_t*    SHMU_AnimData(int i);
 size_t      SHMU_AnimSize(int i);
 String      SHMU_AnimTimeText(int i);   // HH:MM (local frame time)
+int         SHMU_MinutesAgo(int i);     // Age of frame i in minutes relative to now (-1 if invalid)
 void        SHMU_FreeBuffers();         // Free PSRAM buffers

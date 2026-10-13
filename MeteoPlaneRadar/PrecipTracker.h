@@ -43,6 +43,9 @@ struct PrecipAlert {
 // Initialize module
 void PrecipTracker_Init();
 
+// Reset precipitation tracker state to clear / no alert
+void PrecipTracker_Reset();
+
 // Feed two consecutive radar frames (or downsampled intensity grids) for analysis.
 // prevFrame & curFrame: RGB565 buffers or nullptr
 // w, h: buffer dimensions

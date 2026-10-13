@@ -575,6 +575,16 @@ int RainViewer_MinutesAgo(int i) {
   return (int)((newest - t) / 60);
 }
 
+int RainViewer_WallMinutesAgo(int i) {
+  time_t t = frameTime(i);
+  if (!t) return -1;
+  time_t now = time(nullptr);
+  if (now < 1700000000) return -1;
+  long diffSec = (long)(now - t);
+  if (diffSec < 0) diffSec = 0;
+  return (int)(diffSec / 60);
+}
+
 void RainViewer_FreeBuffers() {
   s_jobId = s_jobId + 1;
   s_state = RV_IDLE;

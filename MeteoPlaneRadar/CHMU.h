@@ -32,4 +32,5 @@ int         CHMU_AnimCount();
 uint8_t*    CHMU_AnimData(int i);
 size_t      CHMU_AnimSize(int i);
 String      CHMU_AnimTimeText(int i);   // HH:MM (local frame time)
+int         CHMU_MinutesAgo(int i);     // Age of frame i in minutes relative to now (-1 if invalid)
 void        CHMU_FreeBuffers();         // Free PSRAM buffers
