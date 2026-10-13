@@ -4,10 +4,10 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20SK%20%7C%20CZ-green.svg)
-![Release](https://img.shields.io/badge/Release-v3.1.0-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v3.2.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
-**Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, ISS orbit tracking, YouTube channel analytics, financial market tickers, and an animated virtual pet companion on a round 2.1" IPS touchscreen.**  
+**Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, ISS orbit tracking, YouTube channel analytics, financial market tickers, disaster warning system with hardware seismometer, and an animated virtual pet companion on a round 2.1" IPS touchscreen.**  
 Designed for the **Waveshare ESP32-S3-Touch-LCD-2.1** with smartphone-like touch gestures, a pull-down Control Center, live aircraft photos, bilinear radar smoothing, and a responsive web dashboard.
 
 > 🇸🇰 Slovenská dokumentácia: **[README_SK.md](README_SK.md)**  
@@ -36,12 +36,20 @@ Designed for the **Waveshare ESP32-S3-Touch-LCD-2.1** with smartphone-like touch
 </p>
 
 <p align="center">
-  <em>DigiCat v3.1.0 — Professional 64×64 ginger cat sprites (247 frames, 38 animation sequences, RGB565 PROGMEM, rendered at 3× scale / 192×192 px).</em>
+  <em>DigiCat v3.2.0 — Professional 64×64 ginger cat sprites (247 frames, 38 animation sequences, RGB565 PROGMEM, rendered at 3× scale / 192×192 px).</em>
 </p>
 
 ---
 
 ## 🌟 Features
+
+### 🌋 v3.2.0 Disaster Warning System & Chronograph Refinement
+- **Real-Time Earthquake & Tsunami Monitoring:** Live global seismic intelligence from USGS feeds (`all_hour.geojson`, `significant_week.geojson`) calculating exact distance and bearing to your home station.
+- **Hardware Onboard Seismometer:** Physical ground tremor detection via the QMI8658 6-axis IMU accelerometer with dynamic baseline filtering.
+- **Geofenced Range Perimeter Filter:** Selectable alert radius (Worldwide, 100 km, 250 km, 500 km, 1000 km, 2500 km, 5000 km) to focus strictly on relevant nearby seismic events.
+- **Circular HUD Emergency Banner:** Immediate top alert overlay displaying event magnitude, depth, location, distance, and elapsed time with tap-to-dismiss and acoustic siren (`BEEP_EMERGENCY`).
+- **Complete Trilingual Web UI Localization:** Dedicated disaster card with full translations in English, Slovak, and Czech, magnitude thresholds, and adaptive test alert triggering.
+- **Luxury Chronograph Visual Fixes:** Continuous unbroken seconds dial ring and elimination of duplicate sun artifacts along the solar twilight arc.
 
 ### ⚡ v3.1.0 Optimization & Global Mapping Release
 - **Worldwide Natural Earth Vector Borders:** Replaced legacy regional EU vector border data with a high-performance global vector dataset (Natural Earth 110m clipped coastline & international boundaries). Seamless offline border rendering on all radar screens (Planes, Meteo, Tactical, Sonar) worldwide for any user coordinates.
@@ -188,9 +196,9 @@ Built for the **[Waveshare ESP32-S3-Touch-LCD-2.1](https://www.waveshare.com/esp
 
 ### Method A — Pre-built Binary (Easiest)
 Download from **[Releases](https://github.com/hackra76/ESP-MeteoPlaneRadar/releases)**:
-- `MeteoPlaneRadar-v3.0.0-factory.bin` — full image (bootloader + partitions + firmware).
+- `MeteoPlaneRadar-v3.2.0-factory.bin` — full image (bootloader + partitions + firmware).
 - Flash via [ESP Web Flasher](https://espressif.github.io/esptool-js/) at 921600 baud, address `0x00000000`.
-- Or: `esptool.py -p COM_PORT -b 921600 write_flash 0x0 MeteoPlaneRadar-v3.0.0-factory.bin`
+- Or: `esptool.py -p COM_PORT -b 921600 write_flash 0x0 MeteoPlaneRadar-v3.2.0-factory.bin`
 
 ### Method B — PlatformIO
 ```bash

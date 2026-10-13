@@ -4,10 +4,10 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-SK%20%7C%20CZ%20%7C%20EN-green.svg)
-![Release](https://img.shields.io/badge/Release-v3.1.0-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v3.2.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
-**Multifunkčná meteorologická stanica, živý ADS-B letecký radar, animovaný radar zrážok (SHMÚ, ČHMÚ, RainViewer), kombinovaný taktický radar, sledovanie dráhy ISS, analytika YouTube, finančné trhy a animovaný virtuálny spoločník na okrúhlom 2.1" IPS dotykovom displeji.**  
+**Multifunkčná meteorologická stanica, živý ADS-B letecký radar, animovaný radar zrážok (SHMÚ, ČHMÚ, RainViewer), kombinovaný taktický radar, sledovanie dráhy ISS, analytika YouTube, finančné trhy, systém varovania pred katastrofami s hardvérovým seizmometrom a animovaný virtuálny spoločník na okrúhlom 2.1" IPS dotykovom displeji.**  
 Vyvinuté pre **Waveshare ESP32-S3-Touch-LCD-2.1** s dotykovými gestami v štýle smartfónu, sťahovacím Ovládacím centrom, reálnymi fotografiami lietadiel, bilineárnym vyhladzovaním radaru a webovým ovládacím panelom.
 
 > 🇬🇧 English documentation: **[README.md](README.md)**  
@@ -36,12 +36,20 @@ Vyvinuté pre **Waveshare ESP32-S3-Touch-LCD-2.1** s dotykovými gestami v štý
 </p>
 
 <p align="center">
-  <em>DigiCat v3.1.0 — Profesionálne 64×64 sprite animácie ryšavej mačky (247 snímok, 38 animačných sekvencií, RGB565 PROGMEM, škálované na 3× / 192×192 px).</em>
+  <em>DigiCat v3.2.0 — Profesionálne 64×64 sprite animácie ryšavej mačky (247 snímok, 38 animačných sekvencií, RGB565 PROGMEM, škálované na 3× / 192×192 px).</em>
 </p>
 
 ---
 
 ## 🌟 Funkcie
+
+### 🌋 v3.2.0 Systém varovania pred katastrofami a vylepšenia chronografu
+- **Globálny monitoring zemetrasení a cunami v reálnom čase:** Živé seizmické dáta zo serverov USGS (`all_hour.geojson`, `significant_week.geojson`) s okamžitým výpočtom presnej vzdialenosti a azimutu k domácej stanici.
+- **Palubný hardvérový seizmometer:** Detekcia fyzických otrasov zeme v reálnom čase pomocou 6-osého akcelerometra QMI8658 s dynamickou filtráciou kmitov.
+- **Geofencing a perimeter dosahu výstrah:** Nastaviteľný rádius výstrah (Celý svet, 100 km, 250 km, 500 km, 1000 km, 2500 km, 5000 km) pre filtrovanie vzdialených udalostí.
+- **Kruhový núdzový HUD banner:** Celoobrazovkový výstražný pás s magnitúdou, hĺbkou, lokalitou, vzdialenosťou a uplynutým časom so zrušením dotykom a núdzovou sirénou (`BEEP_EMERGENCY`).
+- **Kompletná trojjazyčná lokalizácia webu:** Samostatná karta varovaní vo webovom rozhraní v slovenčine, češtine a angličtine s nastavením prahov magnitúdy a testovacím tlačidlom.
+- **Vizuálne opravy chronografu:** Plynulý celistvý prstenec sekúnd bez medzier a odstránenie duplicitných artefaktov Slnka na solárnom oblúku.
 
 ### ⚡ v3.1.0 Optimalizácia a celosvetové mapy
 - **Celosvetové vektorové hranice Natural Earth:** Pôvodné regionálne vektorové hranice EÚ boli nahradené vysoko optimalizovaným globálnym vektorovým datasetom (Natural Earth 110m pobrežia a štátne hranice). Plynulé offline vykresľovanie hraníc na všetkých obrazovkách radaru (Lietadlá, Meteo, Taktický, Sonar) kdekoľvek na svete pre ľubovoľné súradnice.
@@ -188,9 +196,9 @@ Pre **[Waveshare ESP32-S3-Touch-LCD-2.1](https://www.waveshare.com/esp32-s3-touc
 
 ### Možnosť A — Predkompilovaná binárka (Najjednoduchšie)
 Stiahnite z **[Vydania (Releases)](https://github.com/hackra76/ESP-MeteoPlaneRadar/releases)**:
-- `MeteoPlaneRadar-v3.0.0-factory.bin` — kompletný obraz (bootloader + partície + firmvér).
+- `MeteoPlaneRadar-v3.2.0-factory.bin` — kompletný obraz (bootloader + partície + firmvér).
 - Flash cez [ESP Web Flasher](https://espressif.github.io/esptool-js/) pri 921600 baud od adresy `0x00000000`.
-- Alebo: `esptool.py -p COM_PORT -b 921600 write_flash 0x0 MeteoPlaneRadar-v3.0.0-factory.bin`
+- Alebo: `esptool.py -p COM_PORT -b 921600 write_flash 0x0 MeteoPlaneRadar-v3.2.0-factory.bin`
 
 ### Možnosť B — PlatformIO
 ```bash

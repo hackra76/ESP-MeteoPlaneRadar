@@ -7,6 +7,7 @@
 #include "FlightStats.h"
 #include "Lang.h"
 #include "Display_ST7701.h"
+#include "DisasterAlert.h"
 #include <Preferences.h>
 #include <string.h>
 #include <ctype.h>
@@ -104,6 +105,7 @@ static bool     s_bzSonar  = true;
 static bool     s_precipAlert = true;
 static bool     s_disasterAlert = true;
 static bool     s_disasterAudio = true;
+static uint16_t s_disasterRange = 0; // 0 = global / unlimited km
 
 // --- UI state ---
 static uint8_t  s_rngP = 1;
@@ -324,6 +326,7 @@ void Settings_Begin() {
     s_precipAlert = prefs.getBool("cPrecip", true);
     s_disasterAlert = prefs.getBool("cDisaster", true);
     s_disasterAudio = prefs.getBool("cDisasterSnd", true);
+    s_disasterRange = prefs.getUShort("cDisRng", 0);
     if (prefs.isKey("watch")) prefs.getString("watch", s_watch, sizeof(s_watch));
     s_rngP   = prefs.getUChar("rngP", 1);
     s_rngM   = prefs.getUChar("rngM", 1);
@@ -914,6 +917,12 @@ bool Settings_DisasterAlert() { return s_disasterAlert; }
 void Settings_SetDisasterAlert(bool on) { s_disasterAlert = on; putBool("cDisaster", on); }
 bool Settings_DisasterAudio() { return s_disasterAudio; }
 void Settings_SetDisasterAudio(bool on) { s_disasterAudio = on; putBool("cDisasterSnd", on); }
+uint16_t Settings_DisasterRange() { return s_disasterRange; }
+void Settings_SetDisasterRange(uint16_t km) {
+  s_disasterRange = km;
+  putU16("cDisRng", km);
+  DisasterAlert_CheckRange(km);
+}
 
 // --- UI state ---------------------------------------------------------------
 uint8_t Settings_PlaneRange() { return s_rngP; }
@@ -1050,6 +1059,7 @@ void Settings_ToJson(JsonObject o) {
   o["cPrecip"]         = s_precipAlert;
   o["cDisaster"]       = s_disasterAlert;
   o["cDisasterSnd"]    = s_disasterAudio;
+  o["cDisasterRange"]  = s_disasterRange;
   o["showLegends"] = s_showLegends;
   o["hasPassword"] = Settings_HasAdminPassword();
   o["timezone"] = s_tz;
@@ -1164,6 +1174,7 @@ bool Settings_FromJson(JsonObjectConst in) {
   setIf("cPrecip",         [](JsonVariantConst v){ Settings_SetPrecipAlert(v.as<bool>()); });
   setIf("cDisaster",       [](JsonVariantConst v){ Settings_SetDisasterAlert(v.as<bool>()); });
   setIf("cDisasterSnd",    [](JsonVariantConst v){ Settings_SetDisasterAudio(v.as<bool>()); });
+  setIf("cDisasterRange",  [](JsonVariantConst v){ Settings_SetDisasterRange(v.as<uint16_t>()); });
   setIf("financeTickers",  [](JsonVariantConst v){ Settings_SetFinanceTickers(v.as<const char*>()); });
   setIf("financeGraph",    [](JsonVariantConst v){ Settings_SetFinanceGraphType(v.as<uint8_t>()); });
   setIf("issAlert",        [](JsonVariantConst v){ Settings_SetIssAlert(v.as<bool>()); });

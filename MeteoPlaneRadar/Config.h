@@ -189,9 +189,17 @@
 // ---------------------------------------------------------------------------
 //  Network
 // ---------------------------------------------------------------------------
-// A TLS handshake with dynamic buffers in PSRAM needs roughly 10-15 kB of internal RAM on ESP32-S3.
-#define NET_MIN_HEAP  36000
-#define NET_MIN_BLOCK 16000
+// The prebuilt Arduino core is built with CONFIG_MBEDTLS_INTERNAL_MEM_ALLOC=y and
+// CONFIG_MBEDTLS_SSL_MAX_CONTENT_LEN=16384 (fixed, no asymmetric/variable
+// buffers). One TLS session therefore needs TWO contiguous ~16.7 kB blocks in
+// internal RAM (in + out record buffers) plus ~12 kB for the handshake state,
+// ~45 kB in total. A guard below that (the old 36000 / 16000) lets handshakes
+// through that then die with "SSL - Memory allocation failed" (-0x7F00).
+#define NET_MIN_HEAP  46000
+#define NET_MIN_BLOCK 17500
+// Net_HeapOk() additionally probes these real allocations (see NetSink.cpp).
+#define NET_TLS_BUF_BYTES   17200   // one mbedTLS record buffer (16384 + headers)
+#define NET_TLS_STATE_BYTES 12000   // handshake / session state
 
 // WiFiClientSecure defaults the mbedTLS handshake to 120 s, six times
 // WDT_TIMEOUT_S. setConnectTimeout() does NOT cover it - that only bounds the

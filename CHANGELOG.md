@@ -9,6 +9,28 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [3.2.0] - 2026-10-13
+
+### Added
+- **Disaster Warning & Earthquake Monitoring System:**
+  - Real-time global seismic and tsunami threat monitoring via USGS GeoJSON feeds (`all_hour.geojson`, `significant_week.geojson`).
+  - Hardware onboard seismometer: high-precision real-time physical ground vibration and tremor detection utilizing the onboard QMI8658 6-axis IMU accelerometer.
+  - Geofenced alert range perimeter: configurable alert distance limit (Worldwide, 100 km, 250 km, 500 km, 1000 km, 2500 km, 5000 km) with persistent NVS storage (`cDisRng`). Automatically filters out distant earthquakes and dismisses existing alerts when shrinking perimeter.
+  - Circular HUD alert overlay: high-visibility emergency banner displaying magnitude, depth, epicenter location, distance from home station, and elapsed time with tap-to-dismiss.
+  - High-decibel emergency siren (`BEEP_EMERGENCY`) via onboard PWM buzzer.
+  - Adaptive test alert triggering: Web UI test button automatically scales test event distance based on configured range perimeter.
+- **Web UI & Multilingual Complete Localization:**
+  - Dedicated Disaster Warning card in the web management dashboard for configuring minimum magnitude thresholds, range perimeter, hardware seismometer toggle, and test alert trigger.
+  - Complete trilingual localization coverage across English, Slovak, and Czech for all disaster settings, status pills, and buttons.
+
+### Fixed
+- **Clock Chronograph Visual Fixes:**
+  - Seconds ring continuity: resolved ring discontinuities, gaps, and jumpy rendering around the outer dial perimeter.
+  - Solar arc sun duplication: fixed multiple sun rendering artifacts along the twilight arc during daytime/evening transitions.
+- **Network Heap Stability & TLS Hardening:**
+  - Raised network heap allocation thresholds (`NET_MIN_HEAP` 46,000 B, `NET_MIN_BLOCK` 17,500 B, `NET_TLS_BUF_BYTES` 17,200 B, `NET_TLS_STATE_BYTES` 12,000 B).
+  - Dynamic mbedTLS allocation probing in `Net_HeapOk()` preventing memory exhaustion crashes under heavy concurrent traffic (ADS-B + Weather Radar + USGS feeds).
+
 ## [3.1.0] - 2026-10-12
 
 ### Added

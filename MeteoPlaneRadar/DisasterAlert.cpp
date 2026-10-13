@@ -186,10 +186,13 @@ static void parseUsgsFeed(const String& json) {
       }
     }
 
-    // Check active alert candidate (fresh emergency within time window)
+    // Check active alert candidate (fresh emergency within time window and range limit)
     uint32_t ageSec = (now > (time_t)ev.epochSec) ? (uint32_t)(now - ev.epochSec) : 0;
     uint32_t maxAge = ev.tsunami ? TSUNAMI_MAX_AGE_SEC : ALERT_MAX_AGE_SEC;
-    if ((ev.severity >= SEV_WARNING || ev.tsunami) && (ageSec <= maxAge)) {
+    uint16_t maxRng = Settings_DisasterRange();
+    bool inRange = (maxRng == 0 || ev.distKm <= (float)maxRng);
+
+    if ((ev.severity >= SEV_WARNING || ev.tsunami) && (ageSec <= maxAge) && inRange) {
       if (!s_hasActiveAlert || ev.severity > s_activeAlert.severity ||
           (ev.severity == s_activeAlert.severity && ev.epochSec > s_activeAlert.epochSec)) {
         
@@ -308,13 +311,30 @@ void DisasterAlert_Dismiss() {
   UI_InvalidateActiveScreen();
 }
 
+void DisasterAlert_CheckRange(uint16_t maxRngKm) {
+  if (s_hasActiveAlert && s_activeAlert.type != DISASTER_LOCAL_TREMOR && maxRngKm > 0) {
+    if (s_activeAlert.distKm > (float)maxRngKm) {
+      s_hasActiveAlert = false;
+      Buzzer_Stop();
+      UI_InvalidateActiveScreen();
+    }
+  }
+}
+
 void DisasterAlert_TriggerTest() {
   memset(&s_activeAlert, 0, sizeof(s_activeAlert));
   snprintf(s_activeAlert.id, sizeof(s_activeAlert.id), "test_%lu", millis());
   snprintf(s_activeAlert.title, sizeof(s_activeAlert.title), "M7.2 TEST WARNING");
   snprintf(s_activeAlert.place, sizeof(s_activeAlert.place), "Simulated Coastal Fault Zone");
   s_activeAlert.mag = 7.2f;
-  s_activeAlert.distKm = 420.0f;
+
+  uint16_t maxRng = Settings_DisasterRange();
+  float simDist = 420.0f;
+  if (maxRng > 0 && maxRng < 450) {
+    simDist = (float)maxRng * 0.6f;
+    if (simDist < 10.0f) simDist = 10.0f;
+  }
+  s_activeAlert.distKm = simDist;
   s_activeAlert.bearingDeg = 215.0f;
   snprintf(s_activeAlert.bearingStr, sizeof(s_activeAlert.bearingStr), "SW");
   s_activeAlert.tsunami = true;
@@ -356,6 +376,7 @@ const DisasterEvent* DisasterAlert_GetRecent(int idx) {
 void DisasterAlert_ToJson(JsonObject& obj) {
   obj["enabled"] = Settings_DisasterAlert();
   obj["audio"] = Settings_DisasterAudio();
+  obj["maxRangeKm"] = Settings_DisasterRange();
   obj["hasAlert"] = DisasterAlert_HasActiveAlert();
 
   if (s_hasActiveAlert) {

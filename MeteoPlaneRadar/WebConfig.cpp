@@ -1344,6 +1344,7 @@ void WebConfig_Begin(bool apMode) {
     if (!readBody(doc)) { s_srv.send(400, "application/json", "{\"error\":\"json\"}"); return; }
     if (!doc["enabled"].isNull()) Settings_SetDisasterAlert(doc["enabled"].as<bool>());
     if (!doc["audio"].isNull())   Settings_SetDisasterAudio(doc["audio"].as<bool>());
+    if (!doc["range"].isNull())   Settings_SetDisasterRange(doc["range"].as<uint16_t>());
     if (doc["dismiss"].as<bool>()) DisasterAlert_Dismiss();
     if (doc["test"].as<bool>())    DisasterAlert_TriggerTest();
     JsonDocument res; res["ok"] = true;
@@ -1355,7 +1356,9 @@ void WebConfig_Begin(bool apMode) {
   });
   s_srv.on("/api/disaster/test", HTTP_POST, [](){
     DisasterAlert_TriggerTest();
-    s_srv.send(200, "application/json", "{\"ok\":true}");
+    s_srv.send(200, "application/json",
+               DisasterAlert_HasActiveAlert() ? "{\"ok\":true,\"active\":true}"
+                                              : "{\"ok\":true,\"active\":false}");
   });
   // The update page authenticates with HTTP Basic when a password is set. See
   // the note in Settings.h about why the password is stored in the clear.

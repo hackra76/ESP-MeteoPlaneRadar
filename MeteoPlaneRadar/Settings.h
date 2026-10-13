@@ -234,6 +234,8 @@ bool     Settings_DisasterAlert();
 void     Settings_SetDisasterAlert(bool on);
 bool     Settings_DisasterAudio();
 void     Settings_SetDisasterAudio(bool on);
+uint16_t Settings_DisasterRange();
+void     Settings_SetDisasterRange(uint16_t km);
 
 // --- UI state (debounced writes) --------------------------------------------
 uint8_t Settings_PlaneRange();

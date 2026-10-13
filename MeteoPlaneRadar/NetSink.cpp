@@ -235,10 +235,25 @@ long Net_ScanBody(HTTPClient& http, NetScanFn cb, void* user, const char* tag,
 }
 
 bool Net_HeapOk(const char* tag) {
-  size_t freeInt = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-  size_t maxBlock = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-  if (freeInt >= NET_MIN_HEAP && maxBlock >= NET_MIN_BLOCK) return true;
-  Serial.printf("%s: low memory (free %u B, max block %u B < %u B), fetch deferred\n",
-                tag, (unsigned)freeInt, (unsigned)maxBlock, (unsigned)NET_MIN_BLOCK);
+  const uint32_t caps = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
+  size_t freeInt = heap_caps_get_free_size(caps);
+  size_t maxBlock = heap_caps_get_largest_free_block(caps);
+  bool ok = (freeInt >= NET_MIN_HEAP && maxBlock >= NET_MIN_BLOCK);
+  if (ok) {
+    // free/largest-block say nothing about whether TWO record buffers fit:
+    // probe the real mbedTLS allocation pattern (in + out buffer + handshake
+    // state) and give it straight back.
+    void* in  = heap_caps_malloc(NET_TLS_BUF_BYTES, caps);
+    void* out = in  ? heap_caps_malloc(NET_TLS_BUF_BYTES, caps) : nullptr;
+    void* hs  = out ? heap_caps_malloc(NET_TLS_STATE_BYTES, caps) : nullptr;
+    ok = (in && out && hs);
+    if (hs)  heap_caps_free(hs);
+    if (out) heap_caps_free(out);
+    if (in)  heap_caps_free(in);
+    if (ok) return true;
+  }
+  Serial.printf("%s: low memory (free %u B, max block %u B, need 2x%u B + %u B), fetch deferred\n",
+                tag, (unsigned)freeInt, (unsigned)maxBlock,
+                (unsigned)NET_TLS_BUF_BYTES, (unsigned)NET_TLS_STATE_BYTES);
   return false;
 }

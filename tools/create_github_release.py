@@ -18,6 +18,19 @@ def get_github_token():
             return line.split("=", 1)[1].strip()
     return None
 
+def get_version():
+    if len(sys.argv) > 1 and sys.argv[1].strip():
+        v = sys.argv[1].strip()
+        return v if v.startswith("v") else f"v{v}"
+    vh_path = os.path.join("MeteoPlaneRadar", "Version.h")
+    if os.path.isfile(vh_path):
+        with open(vh_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if "#define FW_VERSION" in line:
+                    ver = line.split('"')[1]
+                    return f"v{ver}"
+    return "v3.2.0"
+
 def main():
     token = get_github_token()
     if not token:
@@ -26,10 +39,13 @@ def main():
 
     owner = "hackra76"
     repo = "ESP-MeteoPlaneRadar"
-    tag_name = "v2.0.5"
-    release_title = "v2.0.5"
+    tag_name = get_version()
+    release_title = tag_name
     
-    notes_path = os.path.join("release", "release_notes_v2.0.5.md")
+    notes_path = os.path.join("release", f"release_notes_{tag_name}.md")
+    if not os.path.isfile(notes_path):
+        print(f"Warning: {notes_path} not found, checking release_notes_v3.2.0.md")
+        notes_path = os.path.join("release", "release_notes_v3.2.0.md")
     with open(notes_path, "r", encoding="utf-8") as f:
         release_notes = f.read()
 
@@ -93,8 +109,10 @@ def main():
     base_upload_url = upload_url_template.split("{")[0]
 
     assets = [
-        os.path.join("release", "MeteoPlaneRadar-v2.0.5-factory.bin"),
-        os.path.join("release", "MeteoPlaneRadar-v2.0.5-ota.bin")
+        os.path.join("release", f"MeteoPlaneRadar-{tag_name}-factory.bin"),
+        os.path.join("release", f"MeteoPlaneRadar-{tag_name}-ota.bin"),
+        os.path.join("release", "bootloader.bin"),
+        os.path.join("release", "partitions.bin")
     ]
 
     for asset_path in assets:

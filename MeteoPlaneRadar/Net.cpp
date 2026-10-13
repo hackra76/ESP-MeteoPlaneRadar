@@ -101,7 +101,10 @@ bool Net_GetString(const char* url, String& out, const char* tag) {
   int code = http.GET();
   poll();
   if (code != HTTP_CODE_OK) {
-    Serial.printf("%s: HTTP %d\n", tag, code);
+    if (code < 0) Serial.printf("%s: HTTP %d (heap %u B, block %u B)\n", tag, code,
+                                (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+                                (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+    else        Serial.printf("%s: HTTP %d\n", tag, code);
     http.end();
     if (tls) secure.stop();
     return false;

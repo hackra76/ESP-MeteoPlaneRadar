@@ -64,6 +64,9 @@ bool DisasterAlert_IsLocalTremorActive();
 // Dismiss/acknowledge currently active alert audio & banner
 void DisasterAlert_Dismiss();
 
+// Check if currently active alert is still within newly set range perimeter
+void DisasterAlert_CheckRange(uint16_t maxRngKm);
+
 // Trigger a simulated disaster alert for testing/verification
 void DisasterAlert_TriggerTest();
 

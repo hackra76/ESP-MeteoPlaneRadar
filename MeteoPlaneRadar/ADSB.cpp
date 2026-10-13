@@ -312,6 +312,9 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
   unsigned long fetchMs = 0;
   for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     poll();
+    // Another consumer (web UI request, LVGL) may have taken the internal heap
+    // since the check above - do not start a handshake mbedTLS cannot finish.
+    if (attempt > 1 && !Net_HeapOk("ADSB")) { Status_Set(ST_ADSB, "low memory"); return false; }
     WiFiClientSecure client;
     client.setInsecure();
     client.setHandshakeTimeout(NET_TLS_HANDSHAKE_S);
@@ -346,7 +349,9 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
     // Seed the clock even from a non-OK answer - the header is there either way.
     if (http.hasHeader("Date")) Outside_NoteHttpDate(http.header("Date").c_str());
     if (code != HTTP_CODE_OK) {
-      Serial.printf("ADSB: HTTP %d (attempt %d, %lu ms)\n", code, attempt, fetchMs);
+      Serial.printf("ADSB: HTTP %d (attempt %d, %lu ms, heap %u B, block %u B)\n", code, attempt, fetchMs,
+                    (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+                    (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
       http.end();
       client.stop();
       if (attempt < MAX_ATTEMPTS) { delay(150); continue; }
