@@ -12,6 +12,13 @@
 #define LV_MEM_CUSTOM_FREE    free
 #define LV_MEM_CUSTOM_REALLOC ps_realloc
 
+/* LVGL 9 ignores the v8 LV_MEM_CUSTOM_* macros above: its builtin TLSF pool
+ * was a static 64 kB array in internal DRAM .bss. That internal RAM is exactly
+ * what mbedTLS needs (2x ~17 kB record buffers), so place the pool in PSRAM. */
+#define LV_MEM_SIZE (256 * 1024U)
+#define LV_MEM_POOL_INCLUDE "esp_heap_caps.h"
+#define LV_MEM_POOL_ALLOC(size) heap_caps_malloc((size), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)
+
 #define LV_TICK_CUSTOM 1
 #define LV_TICK_CUSTOM_INCLUDE "Arduino.h"
 #define LV_TICK_CUSTOM_SYS_TIME_EXPR (millis())

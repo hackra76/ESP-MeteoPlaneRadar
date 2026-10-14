@@ -9,6 +9,13 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [3.2.1] - 2026-10-14
+
+### Fixed
+- **"low memory" deferral of every TLS fetch (ISS, Disaster, ADS-B, SHMU):** the LVGL 9 builtin memory pool (a static 64 kB array) lived in internal DRAM `.bss` because LVGL 9 ignores the v8-style `LV_MEM_CUSTOM_*` macros in `lv_conf.h`. That left only ~73 kB free internal RAM with a 31 kB largest block, while one mbedTLS session needs 2x 17.2 kB contiguous record buffers + 12 kB of state, so `Net_HeapOk()` kept deferring fetches.
+  - `lv_conf.h` now defines `LV_MEM_SIZE` 256 kB with `LV_MEM_POOL_ALLOC` = `heap_caps_malloc(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)`, moving the LVGL pool into PSRAM and freeing ~64 kB of internal RAM for TLS.
+  - Verified on hardware: clean boot, ADS-B / forecast / GitHub OTA check run with no `low memory` warnings.
+
 ## [3.2.0] - 2026-10-13
 
 ### Added
