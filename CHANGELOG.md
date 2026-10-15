@@ -9,6 +9,24 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [3.4.0] - 2026-10-15
+
+### Added
+- **Tactile Field Instrument Industrial UI & Anti-Slop Web Portal:**
+  - Comprehensive overhaul of the embedded web management interface based on Braun, Teenage Engineering, and Swiss Architectural Grid design language.
+  - Strict Anti-Slop Ban List enforcement: eradicated slate/zinc blue backgrounds (`#0f172a`, `#1e293b`), purple/cyan neon gradients, radial glow blurs, glassmorphism (`backdrop-filter: blur`), floating soft cards (`border-radius: 8px–20px`), generic pill badges (`border-radius: 9999px`), and generic sans data fonts.
+  - Matte industrial materials palette: Deep matte carbon (`#121211`), milled chassis plate (`#171716`), structural hairlines (`#2A2A28`), and off-white primary ink (`#F4F3EF`).
+  - Strictly rationed functional accents: International Signal Orange (`#FF4F00`) for warning/active actuators, Lab Ochre (`#E5A93C`) for standby telemetry, and Phosphor Green (`#00D062`) for live radar sweeps.
+  - Exposed Swiss architectural grid with `gap: 0`, 1px solid dividing hairlines, corner crosshairs (`+`) at cell junctions, and sharp 0px–2px chamfered corners.
+  - Extreme scale typographic hierarchy: Grotesque technical headers (`Space Grotesk`) paired with strict tabular monospace (`JetBrains Mono`, `tabular-nums`) for all numbers, coordinates, altitudes, voltages, and logs (micro `10px` uppercase tracked labels vs raw `42px` hero readouts).
+  - Bespoke hardware-inspired controls: Rotary-style SVG circular arc gauges with calibrated tick marks for core die temperature and PSRAM utilization, segmented mechanical rocker switches with Signal Orange slides, and phosphor LED matrix status diodes.
+  - High-craft standalone field instrument simulator (`portal.html`) featuring an animated 480×480 CRT radar scope with sweeping beam, persistent phosphor decay, and aircraft telemetry blips.
+- **Embedded Flash Optimization:**
+  - Re-compressed Gzip Level 9 payload (`WebPageGz.h`): Packed down to 62,776 bytes (25.4% compression ratio, saving 184.8 KB of flash storage).
+- **Workspace & Agent Design Rules:**
+  - Codified permanent Antigravity workspace rule `.agents/rules/anti-slop-industrial-ui.md` and repository protocol in `GEMINI.md`.
+  - Persisted `GlobalDesignRule_AntiSlopIndustrialUI` in local-memory knowledge graph across future turns.
+
 ## [3.3.0] - 2026-10-15
 
 ### Added

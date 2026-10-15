@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-SK%20%7C%20CZ%20%7C%20EN-green.svg)
-![Release](https://img.shields.io/badge/Release-v3.3.0-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v3.4.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunkčná meteorologická stanica, živý ADS-B letecký radar, animovaný radar zrážok (SHMÚ, ČHMÚ, RainViewer), kombinovaný taktický radar, sledovanie dráhy ISS, analytika YouTube, finančné trhy, telemetrický HUD pre Klipper 3D tlačiarne, systém varovania pred katastrofami s hardvérovým seizmometrom a animovaný virtuálny spoločník na okrúhlom 2.1" IPS dotykovom displeji.**  
@@ -37,12 +37,22 @@ Vyvinuté pre **Waveshare ESP32-S3-Touch-LCD-2.1** s dotykovými gestami v štý
 </p>
 
 <p align="center">
-  <em>DigiCat v3.3.0 — Profesionálne 64×64 sprite animácie ryšavej mačky (247 snímok, 38 animačných sekvencií, RGB565 PROGMEM, škálované na 3× / 192×192 px).</em>
+  <em>DigiCat v3.4.0 — Profesionálne 64×64 sprite animácie ryšavej mačky (247 snímok, 38 animačných sekvencií, RGB565 PROGMEM, škálované na 3× / 192×192 px).</em>
 </p>
 
 ---
 
 ## 🌟 Funkcie
+
+### 🎛️ v3.4.0 Priemyselné rozhranie "Tactile Field Instrument" & Anti-Slop Webový portál
+- **Kompletné prepracovanie dizajnu v štýle laboratórnych prístrojov:** Vstavaný webový portál kompletne pretvorený podľa estetiky Braun, Teenage Engineering a švajčiarskej architektonickej mriežky (Swiss Grid).
+- **Striktný zákaz generických AI prvkov (Anti-Slop Ban List):** Úplné odstránenie bridlicovo-modrých tmavých pozadí (`#0f172a`, `#1e293b`), neónových fialových/azúrových radiálnych rozmazaní, glassmorphismu (`backdrop-filter: blur`), mäkkých 8–20px zaoblených bento kariet, generických pilulkových odznakov a bezpätkových systémových fontov pre čísla.
+- **Matná industriálna paleta:** Základ z hlbokého matného karbónu (`#121211`), frézovaného šasi (`#171716`), konštrukčných vlasových liniek (`#2A2A28`) a prémiovej lomenej bielej (`#F4F3EF`) so striktne vyhradenými funkčnými akcentmi: Medzinárodná signálna oranžová (`#FF4F00`), laboratórny okrový akcent (`#E5A93C`) a fosforová zelená (`#00D062`).
+- **Otvorená švajčiarska mriežka:** Geometria s nulovou medzerou (`gap: 0; 1px solid #2A2A28`), technickými zameriavacími krížikmi (`+`) na križovatkách a ostrými 0px–2px zrazenými rohmi.
+- **Extrémny kontrast typografickej mierky:** Groteskné technické nadpisy (`Space Grotesk`) spojené so striktným tabulárnym neproporcionálnym písmom (`JetBrains Mono`, `tabular-nums`) pre všetky čísla, koordináty, napätia a logy (mikroštítky `10px` verzálok verzus masívne `42px` hlavné hodnoty).
+- **Taktilné prístrojové ovládače:** Segmentované mechanické kolískové prepínače, kruhové vektorové SVG ukazovatele s kalibrovanými ryskami pre teplotu jadra a PSRAM a fosforové LED matrix diódy.
+- **Samostatný simulátor prístroja (`portal.html`):** Integrovaný radarový CRT osciloskop 480×480 s plynulým lúčom, perzistentným fosforovým dosvitom a telemetriou cieľov.
+- **Optimalizácia flash pamäte PROGMEM:** Predkomprimovaný gzip archív úrovne 9 (`WebPageGz.h`) zmenšený na 62,7 KB (kompresný pomer 25,4 %, úspora 184,8 KB flash).
 
 ### 🖨️ v3.3.0 Telemetrický HUD pre Klipper & Moonraker 3D tlačiarne
 - **Kruhový HUD inšpirovaný Cyberpunkom a KNOMI:** Samostatná obrazovka živej telemetrie 3D tlačiarne (Obrazovka 9) komunikujúca s rozhraním Moonraker cez lokálnu Wi-Fi sieť.

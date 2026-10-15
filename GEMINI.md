@@ -18,3 +18,18 @@
 - **Code Changes**: Apply directly to files on disk. In chat, output only clickable file links with concise bullet points of modified functions/symbols (do not reprint diffs or file boilerplate).
 - **Execution Steps**: Bulleted commands and verification status only.
 - **Questions**: Single-line queries only when strictly blocking.
+
+## 4. Anti-Slop Industrial UI Design Protocol (Strictly Mandatory)
+- **Zero AI-Slop Tropes**:
+  - NO slate/zinc blue-gray dark mode backgrounds (`#0f172a`, `#1e293b`, `#111827`).
+  - NO purple, indigo, violet, or cyan neon gradients, glowing orbs, or radial background blurs.
+  - NO uniform Bento grids of floating cards with soft rounded corners (`border-radius` between 8px and 20px is strictly banned) and subtle drop shadows.
+  - NO glassmorphism (`backdrop-filter: blur`) or translucent white borders (`rgba(255,255,255,0.1)`).
+  - NO generic pill badges (`border-radius: 9999px`) or generic floating lift hovers (`transform: translateY(-2px)`).
+  - NO Inter, Roboto, Open Sans, or generic system sans-serif for data readouts.
+- **Aesthetic Standard ("Tactile Field Instrument" / Braun / Teenage Engineering / Swiss Grid)**:
+  - **Surfaces & Palette**: Matte carbon (`#121211`), chassis plate (`#171716`), structural hairlines (`#2A2A28`), primary off-white ink (`#F4F3EF`), strictly rationed functional accents: International Signal Orange (`#FF4F00`), Lab Ochre (`#E5A93C`), Phosphor Green (`#00D062`).
+  - **Structural Geometry**: Exposed Swiss architectural grid (`gap: 0`, `1px solid #2A2A28` dividers, sharp 0px–2px chamfered corners, corner crosshairs `+` at junctions). Dense technical sidebar paired with asymmetric telemetry canvas.
+  - **Typography**: Grotesque technical header (`Space Grotesk`) paired with strict tabular monospace (`JetBrains Mono`, `tabular-nums`) for all numbers, coordinates, voltages, and logs. Extreme scale contrast (10px uppercase tracked-out labels vs 36px–48px hero numbers).
+  - **Controls & Graphics**: Segmented mechanical rocker switches, rotary SVG arc gauges with calibrated tick marks, phosphor LED matrix dots, and crisp geometric 1.5px inline SVGs.
+

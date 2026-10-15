@@ -1,0 +1,1869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>METEO-PLANE-RADAR // FIELD INSTRUMENT TERMINAL</title>
+<style>
+/* =============================================================================
+   TACTILE FIELD INSTRUMENT DESIGN SYSTEM
+   Enforcing Anti-Slop: Zero slate blues, zero floating bento cards, zero glass,
+   zero soft pill badges, zero generic sans readouts.
+   Palette: Warm Carbon (#121211), Milled Plate (#171716), Hairlines (#2A2A28),
+   Primary Ink (#F4F3EF), Signal Orange (#FF4F00), Phosphor Green (#00D062).
+   ============================================================================= */
+
+:root {
+  --chassis-base:       #121211;
+  --chassis-plate:      #171716;
+  --chassis-inset:      #0B0B0A;
+  --chassis-well:       #1D1D1B;
+  --chassis-hover:      #242422;
+  --chassis-active:     #2D2D2A;
+
+  --hairline-main:      #2A2A28;
+  --hairline-dim:       #1E1E1C;
+  --hairline-bright:    #3E3E3A;
+
+  --ink-primary:        #F4F3EF;
+  --ink-secondary:      #B2B1AC;
+  --ink-muted:          #6A6965;
+  --ink-dim:            #42413E;
+
+  --signal-orange:      #FF4F00;
+  --signal-orange-dim:  #3D1402;
+  --lab-ochre:          #E5A93C;
+  --phosphor-green:     #00D062;
+  --phosphor-dim:       #062A14;
+  --signal-red:         #E53935;
+
+  --font-header:        'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono:          'JetBrains Mono', 'IBM Plex Mono', 'SF Mono', Consolas, ui-monospace, monospace;
+
+  --grid-border:        1px solid var(--hairline-main);
+  --grid-border-dim:    1px solid var(--hairline-dim);
+}
+
+/* Base Reset & Industrial Substrate */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border-radius: 0; /* Anti-Slop: ZERO rounded corners on base */
+}
+
+html, body {
+  min-height: 100vh;
+  background-color: var(--chassis-base);
+  color: var(--ink-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+}
+
+/* Custom Industrial Hairline Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--chassis-inset);
+  border-left: 1px solid var(--hairline-dim);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--hairline-bright);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-muted);
+}
+
+/* Top Machinery Identification Header */
+header.machinery-bar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  background: var(--chassis-plate);
+  border-bottom: 2px solid var(--hairline-main);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.brand-spec {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.chassis-tag {
+  background: var(--signal-orange);
+  color: #000;
+  font-family: var(--font-header);
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  padding: 3px 6px;
+  line-height: 1;
+}
+
+.unit-id {
+  font-family: var(--font-header);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  color: var(--ink-primary);
+}
+
+.unit-sub {
+  font-size: 10px;
+  color: var(--ink-muted);
+  letter-spacing: 0.14em;
+  margin-left: 6px;
+}
+
+/* Status Cluster */
+.status-cluster {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: center;
+}
+
+.diode-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.diode {
+  width: 6px;
+  height: 6px;
+  background: var(--ink-dim);
+  border: 1px solid var(--hairline-main);
+  display: inline-block;
+}
+.diode.active-green {
+  background: var(--phosphor-green);
+  box-shadow: 0 0 6px rgba(0, 208, 98, 0.6);
+}
+.diode.active-orange {
+  background: var(--signal-orange);
+  box-shadow: 0 0 6px rgba(255, 79, 0, 0.6);
+}
+.diode.active-ochre {
+  background: var(--lab-ochre);
+  box-shadow: 0 0 6px rgba(229, 169, 60, 0.6);
+}
+
+.diode-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--ink-secondary);
+}
+
+.header-metrics {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.metric-inline {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.metric-inline .lbl {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--ink-muted);
+}
+.metric-inline .val {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Swiss Master Grid Container */
+.instrument-deck {
+  display: grid;
+  grid-template-columns: 1fr;
+  width: 100%;
+  border-bottom: 1px solid var(--hairline-main);
+}
+
+@media (min-width: 1100px) {
+  .instrument-deck {
+    grid-template-columns: 1fr 380px;
+  }
+}
+
+/* Left Technical Field */
+.field-canvas {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--hairline-main);
+}
+
+/* Primary Telemetry Header Row (Exposed Grid, 0 gap) */
+.hero-telemetry-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  border-bottom: 1px solid var(--hairline-main);
+  background: var(--chassis-plate);
+}
+
+.instrument-cell {
+  padding: 16px;
+  border-right: 1px solid var(--hairline-main);
+  position: relative;
+  background: var(--chassis-plate);
+}
+.instrument-cell:last-child {
+  border-right: none;
+}
+
+/* Corner Crosshairs (+) */
+.with-crosshair {
+  position: relative;
+}
+.with-crosshair::before {
+  content: "+";
+  position: absolute;
+  top: -6px;
+  left: -5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+  color: var(--ink-muted);
+  pointer-events: none;
+  z-index: 2;
+}
+.with-crosshair::after {
+  content: "+";
+  position: absolute;
+  bottom: -6px;
+  right: -5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+  color: var(--ink-muted);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.tech-tag {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+.tech-tag .name {
+  font-family: var(--font-header);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+}
+.tech-tag .code {
+  font-size: 10px;
+  color: var(--signal-orange);
+  letter-spacing: 0.08em;
+}
+
+.hero-readout {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 4px 0;
+}
+.hero-num {
+  font-family: var(--font-mono);
+  font-size: 42px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--ink-primary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+}
+.hero-unit {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--lab-ochre);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cell-subtext {
+  font-size: 11px;
+  color: var(--ink-secondary);
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--hairline-dim);
+  padding-top: 6px;
+  margin-top: 8px;
+}
+.cell-subtext span.sub-val {
+  color: var(--ink-primary);
+  font-weight: 600;
+}
+
+/* Precision SVG Gauge Widgets */
+.gauge-cluster {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.gauge-svg-wrap {
+  width: 68px;
+  height: 68px;
+  position: relative;
+  flex-shrink: 0;
+}
+.gauge-svg-wrap svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.gauge-track {
+  fill: none;
+  stroke: var(--chassis-inset);
+  stroke-width: 6;
+}
+.gauge-ticks {
+  fill: none;
+  stroke: var(--hairline-bright);
+  stroke-width: 1.5;
+  stroke-dasharray: 2 4;
+}
+.gauge-bar {
+  fill: none;
+  stroke-width: 6;
+  stroke-linecap: square; /* Anti-Slop: crisp square stroke ends */
+  transition: stroke-dashoffset 0.4s ease;
+}
+.gauge-bar.orange { stroke: var(--signal-orange); }
+.gauge-bar.green  { stroke: var(--phosphor-green); }
+.gauge-bar.ochre  { stroke: var(--lab-ochre); }
+
+.gauge-center-val {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Secondary Sensor Deck */
+.sensor-matrix-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  border-bottom: 1px solid var(--hairline-main);
+  background: var(--chassis-base);
+}
+
+.matrix-card {
+  padding: 14px 16px;
+  border-right: 1px solid var(--hairline-main);
+  background: var(--chassis-base);
+}
+.matrix-card:last-child {
+  border-right: none;
+}
+
+.matrix-title {
+  font-family: var(--font-header);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--ink-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--hairline-dim);
+  padding-bottom: 4px;
+}
+
+.imu-vector-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--hairline-dim);
+  border: 1px solid var(--hairline-dim);
+}
+.vector-cell {
+  background: var(--chassis-plate);
+  padding: 8px 10px;
+  text-align: center;
+}
+.vector-axis {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ink-muted);
+  letter-spacing: 0.1em;
+}
+.vector-val {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink-primary);
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+
+/* Swiss Index Tab Plates */
+.index-plates-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  background: var(--chassis-inset);
+  border-bottom: 1px solid var(--hairline-main);
+}
+
+.plate-btn {
+  background: var(--chassis-plate);
+  color: var(--ink-secondary);
+  border: none;
+  border-right: 1px solid var(--hairline-main);
+  border-bottom: 2px solid transparent;
+  padding: 10px 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.1s, color 0.1s;
+}
+.plate-btn:hover {
+  background: var(--chassis-hover);
+  color: var(--ink-primary);
+}
+.plate-btn.active {
+  background: var(--chassis-base);
+  color: var(--ink-primary);
+  border-bottom: 2px solid var(--signal-orange);
+}
+.plate-btn .p-idx {
+  font-size: 9px;
+  color: var(--signal-orange);
+}
+
+/* Tab Panels Content Field */
+.field-panel-container {
+  padding: 18px;
+  flex: 1;
+  background: var(--chassis-base);
+}
+
+.control-panel-section {
+  display: none;
+}
+.control-panel-section.active {
+  display: block;
+}
+
+.section-legend {
+  font-family: var(--font-header);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--ink-primary);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--hairline-main);
+  padding-bottom: 8px;
+}
+.section-legend::before {
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 12px;
+  background: var(--signal-orange);
+}
+
+/* Form Controls: Mechanical Laboratory Hardware */
+.param-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+}
+.param-table tr {
+  border-bottom: 1px solid var(--hairline-dim);
+}
+.param-table tr:hover {
+  background: var(--chassis-plate);
+}
+.param-table td {
+  padding: 10px 8px;
+  vertical-align: middle;
+}
+.param-table td.label-cell {
+  width: 38%;
+}
+.param-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-primary);
+}
+.param-desc {
+  font-size: 10px;
+  color: var(--ink-muted);
+  margin-top: 2px;
+}
+
+/* Tactile Inputs */
+input[type="text"], input[type="number"], select {
+  width: 100%;
+  max-width: 240px;
+  background: var(--chassis-inset);
+  color: var(--ink-primary);
+  border: 1px solid var(--hairline-main);
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  outline: none;
+  min-height: 38px;
+}
+input[type="text"]:focus, input[type="number"]:focus, select:focus {
+  border-color: var(--signal-orange);
+  background: #0E0E0C;
+}
+
+/* Segmented Mechanical Rocker Switch */
+.rocker-switch {
+  display: inline-flex;
+  border: 1px solid var(--hairline-main);
+  background: var(--chassis-inset);
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+}
+.rocker-option {
+  padding: 7px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--ink-muted);
+  transition: background 0.15s, color 0.15s;
+}
+.rocker-option.selected {
+  background: var(--chassis-well);
+  color: var(--ink-primary);
+  border: 1px solid var(--hairline-bright);
+  box-shadow: inset 0 2px 0 var(--signal-orange);
+}
+
+/* Native Checkbox Styled as Physical Actuator */
+.actuator-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-primary);
+}
+.visually-hidden {
+  position: absolute;
+  clip-path: inset(50%);
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  white-space: nowrap;
+}
+.actuator-box {
+  width: 36px;
+  height: 20px;
+  background: var(--chassis-inset);
+  border: 1px solid var(--hairline-main);
+  position: relative;
+  transition: border-color 0.15s;
+}
+.actuator-box::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  background: var(--ink-dim);
+  transition: transform 0.15s, background 0.15s;
+}
+input:checked + .actuator-label .actuator-box {
+  border-color: var(--signal-orange);
+  background: var(--signal-orange-dim);
+}
+input:checked + .actuator-label .actuator-box::after {
+  transform: translateX(16px);
+  background: var(--signal-orange);
+}
+input:focus-visible + .actuator-label .actuator-box {
+  outline: 1px solid var(--signal-orange);
+}
+
+/* Mechanical Push Buttons */
+.tactile-btn {
+  background: var(--chassis-plate);
+  color: var(--ink-primary);
+  border: 1px solid var(--hairline-bright);
+  padding: 8px 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 2px 0 #000;
+  transition: all 0.1s;
+}
+.tactile-btn:hover {
+  background: var(--chassis-hover);
+}
+.tactile-btn:active {
+  transform: translateY(1px);
+  box-shadow: inset 0 1px 0 rgba(0,0,0,0.4), 0 1px 0 #000;
+}
+.tactile-btn.primary {
+  background: var(--signal-orange);
+  color: #000;
+  border-color: #E04400;
+}
+.tactile-btn.primary:hover {
+  background: #FF621F;
+}
+
+/* Range Slider */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  max-width: 240px;
+  height: 8px;
+  background: var(--chassis-inset);
+  border: 1px solid var(--hairline-main);
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 20px;
+  background: var(--ink-primary);
+  border: 1px solid #000;
+  cursor: pointer;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 20px;
+  background: var(--ink-primary);
+  border: 1px solid #000;
+  cursor: pointer;
+}
+
+/* Right Fixed Technical Sidebar (Cockpit) */
+.cockpit-sidebar {
+  background: var(--chassis-plate);
+  display: flex;
+  flex-direction: column;
+}
+
+.cockpit-module {
+  border-bottom: 1px solid var(--hairline-main);
+  padding: 16px;
+}
+
+.cockpit-hdr {
+  font-family: var(--font-header);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--ink-secondary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--hairline-dim);
+  padding-bottom: 6px;
+}
+.cockpit-hdr .badge-spec {
+  font-size: 9px;
+  padding: 2px 4px;
+  background: var(--chassis-inset);
+  border: 1px solid var(--hairline-dim);
+  color: var(--signal-orange);
+}
+
+/* ST7701 Display Mirror Container */
+.crt-viewport {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-width: 340px;
+  margin: 0 auto 12px;
+  background: #020403;
+  border: 2px solid #20201E;
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.9);
+  position: relative;
+  overflow: hidden;
+}
+.crt-viewport canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  image-rendering: pixelated;
+}
+.crt-grid-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: 
+    linear-gradient(rgba(0, 208, 98, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 208, 98, 0.05) 1px, transparent 1px);
+  background-size: 20% 20%;
+}
+.crt-bezel-tag {
+  position: absolute;
+  bottom: 6px;
+  right: 8px;
+  font-size: 9px;
+  color: rgba(0, 208, 98, 0.7);
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+/* Mechanical Stepper Controls */
+.stepper-bar {
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  gap: 1px;
+  background: var(--hairline-dim);
+  border: 1px solid var(--hairline-main);
+  margin-top: 8px;
+}
+.stepper-btn {
+  background: var(--chassis-well);
+  color: var(--ink-primary);
+  border: none;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+}
+.stepper-btn:hover { background: var(--chassis-hover); }
+.stepper-btn:active { background: var(--chassis-active); }
+.stepper-disp {
+  background: var(--chassis-inset);
+  color: var(--signal-orange);
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+}
+
+/* Tactical Screen Selector Buttons (Array) */
+.screen-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  margin-top: 8px;
+}
+.scr-select-btn {
+  background: var(--chassis-inset);
+  border: 1px solid var(--hairline-dim);
+  color: var(--ink-muted);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 6px 4px;
+  text-align: center;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+}
+.scr-select-btn:hover {
+  color: var(--ink-primary);
+  background: var(--chassis-well);
+}
+.scr-select-btn.active {
+  background: var(--chassis-well);
+  color: var(--signal-orange);
+  border-color: var(--signal-orange);
+}
+
+/* Live Terminal Log Stream */
+.terminal-window {
+  background: var(--chassis-inset);
+  border: 1px solid var(--hairline-main);
+  height: 180px;
+  overflow-y: auto;
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--ink-secondary);
+}
+.log-line {
+  display: flex;
+  gap: 8px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.log-time {
+  color: var(--ink-muted);
+  flex-shrink: 0;
+}
+.log-tag {
+  color: var(--lab-ochre);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.log-msg.green { color: var(--phosphor-green); }
+.log-msg.orange { color: var(--signal-orange); }
+
+/* Master Hardware Telemetry Footer */
+footer.chassis-footer {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  background: var(--chassis-inset);
+  border-top: 1px solid var(--hairline-main);
+  padding: 8px 16px;
+  gap: 12px;
+  font-size: 10px;
+  color: var(--ink-muted);
+}
+.footer-node {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.footer-node strong {
+  color: var(--ink-secondary);
+  font-weight: 700;
+}
+
+/* Flash Toast Indicator */
+#toastBar {
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  background: var(--chassis-plate);
+  border: 1px solid var(--signal-orange);
+  padding: 8px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-primary);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.8);
+  display: none;
+  align-items: center;
+  gap: 8px;
+  z-index: 100;
+}
+#toastBar.visible { display: flex; }
+#toastBar::before {
+  content: "!";
+  display: inline-block;
+  background: var(--signal-orange);
+  color: #000;
+  font-weight: 900;
+  padding: 1px 5px;
+  font-size: 10px;
+}
+</style>
+</head>
+<body>
+
+<!-- Machinery Identification Top Bar -->
+<header class="machinery-bar">
+  <div class="brand-spec">
+    <span class="chassis-tag">LAB-SPEC</span>
+    <span class="unit-id">ESP32-S3 RADAR INSTRUMENT</span>
+    <span class="unit-sub">FW: v3.1.0-REV2 // DUAL-CORE 240MHz</span>
+  </div>
+
+  <div class="status-cluster">
+    <div class="diode-group">
+      <span class="diode active-green" id="dRf"></span>
+      <span class="diode-label">RF/1090</span>
+    </div>
+    <div class="diode-group">
+      <span class="diode active-green" id="dWx"></span>
+      <span class="diode-label">METEO</span>
+    </div>
+    <div class="diode-group">
+      <span class="diode active-ochre" id="dIss"></span>
+      <span class="diode-label">ISS/PASS</span>
+    </div>
+    <div class="diode-group">
+      <span class="diode active-orange" id="dNet"></span>
+      <span class="diode-label">LINK</span>
+    </div>
+  </div>
+
+  <div class="header-metrics">
+    <div class="metric-inline">
+      <span class="lbl">STATION UTC</span>
+      <span class="val" id="clockUtc">--:--:--</span>
+    </div>
+    <div class="metric-inline">
+      <span class="lbl">SYS VOLTAGE</span>
+      <span class="val" id="sysVolt">3.31 V</span>
+    </div>
+  </div>
+</header>
+
+<!-- Main Swiss Master Layout -->
+<main class="instrument-deck">
+
+  <!-- Left Technical Field -->
+  <section class="field-canvas">
+
+    <!-- Row 1: Primary Telemetry Deck (Raw Oversized Metrics & Calibrated SVGs) -->
+    <div class="hero-telemetry-row">
+
+      <!-- Cell 1: Air Targets Readout -->
+      <div class="instrument-cell with-crosshair">
+        <div class="tech-tag">
+          <span class="name">ADSB TRAFFIC (1090MHz)</span>
+          <span class="code">SEC-01</span>
+        </div>
+        <div class="hero-readout">
+          <span class="hero-num" id="valPlanes">24</span>
+          <span class="hero-unit">TARGETS</span>
+        </div>
+        <div class="cell-subtext">
+          <span>PEAK FLIGHT LEVEL: <span class="sub-val" id="valMaxAlt">FL390</span></span>
+          <span>MAX KT: <span class="sub-val" id="valMaxSpd">485</span></span>
+        </div>
+      </div>
+
+      <!-- Cell 2: Precipitation Vector -->
+      <div class="instrument-cell with-crosshair">
+        <div class="tech-tag">
+          <span class="name">PRECIPITATION TRACKER</span>
+          <span class="code">SHMU/CHMU</span>
+        </div>
+        <div class="hero-readout">
+          <span class="hero-num" id="valPrecipDist">18</span>
+          <span class="hero-unit">KM (ETA: 14M)</span>
+        </div>
+        <div class="cell-subtext">
+          <span>VECTOR: <span class="sub-val" id="valPrecipVector">042° NE @ 38 KM/H</span></span>
+          <span>CELL INTENSITY: <span class="sub-val" id="valPrecipRate">MOD</span></span>
+        </div>
+      </div>
+
+      <!-- Cell 3: CPU Core Temperature (Rotary Arc Gauge) -->
+      <div class="instrument-cell with-crosshair">
+        <div class="tech-tag">
+          <span class="name">CORE DIE TEMP</span>
+          <span class="code">TSENS-0</span>
+        </div>
+        <div class="gauge-cluster">
+          <div class="gauge-svg-wrap">
+            <svg viewBox="0 0 80 80">
+              <circle class="gauge-track" cx="40" cy="40" r="30"></circle>
+              <circle class="gauge-ticks" cx="40" cy="40" r="34"></circle>
+              <circle class="gauge-bar orange" id="gaugeCpuBar" cx="40" cy="40" r="30" 
+                      stroke-dasharray="188.4" stroke-dashoffset="94"></circle>
+            </svg>
+            <div class="gauge-center-val" id="gaugeCpuVal">46°C</div>
+          </div>
+          <div style="flex:1;">
+            <div class="hero-readout" style="margin:0;">
+              <span class="hero-num" style="font-size:26px;" id="valCpuFreq">240</span>
+              <span class="hero-unit">MHZ</span>
+            </div>
+            <div class="cell-subtext">
+              <span>TJMAX LIMIT: <span class="sub-val">85°C</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cell 4: PSRAM Utilization (Rotary Arc Gauge) -->
+      <div class="instrument-cell with-crosshair">
+        <div class="tech-tag">
+          <span class="name">OCTAL PSRAM 8MB</span>
+          <span class="code">DMA HEAP</span>
+        </div>
+        <div class="gauge-cluster">
+          <div class="gauge-svg-wrap">
+            <svg viewBox="0 0 80 80">
+              <circle class="gauge-track" cx="40" cy="40" r="30"></circle>
+              <circle class="gauge-ticks" cx="40" cy="40" r="34"></circle>
+              <circle class="gauge-bar green" id="gaugePsramBar" cx="40" cy="40" r="30" 
+                      stroke-dasharray="188.4" stroke-dashoffset="65"></circle>
+            </svg>
+            <div class="gauge-center-val" id="gaugePsramVal">65%</div>
+          </div>
+          <div style="flex:1;">
+            <div class="hero-readout" style="margin:0;">
+              <span class="hero-num" style="font-size:26px;" id="valPsramFree">5.2</span>
+              <span class="hero-unit">MB FREE</span>
+            </div>
+            <div class="cell-subtext">
+              <span>SRAM: <span class="sub-val" id="valHeapFree">182 KB</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Row 2: Secondary Sensor Deck (IMU 6-DOF & Orbital Tracker) -->
+    <div class="sensor-matrix-row">
+
+      <!-- IMU Vector Matrix -->
+      <div class="matrix-card">
+        <div class="matrix-title">
+          <span>QMI8658 6-DOF ATTITUDE SENSOR</span>
+          <span style="color:var(--phosphor-green); font-size:10px;">CALIBRATED [OK]</span>
+        </div>
+        <div class="imu-vector-grid">
+          <div class="vector-cell">
+            <div class="vector-axis">ACCEL X (G)</div>
+            <div class="vector-val" id="valAx">+0.02</div>
+          </div>
+          <div class="vector-cell">
+            <div class="vector-axis">ACCEL Y (G)</div>
+            <div class="vector-val" id="valAy">-0.01</div>
+          </div>
+          <div class="vector-cell">
+            <div class="vector-axis">ACCEL Z (G)</div>
+            <div class="vector-val" id="valAz">+1.00</div>
+          </div>
+          <div class="vector-cell">
+            <div class="vector-axis">PITCH (°)</div>
+            <div class="vector-val" id="valPitch">+1.2°</div>
+          </div>
+          <div class="vector-cell">
+            <div class="vector-axis">ROLL (°)</div>
+            <div class="vector-val" id="valRoll">-0.4°</div>
+          </div>
+          <div class="vector-cell">
+            <div class="vector-axis">DRIFT / SEC</div>
+            <div class="vector-val" style="color:var(--signal-orange);">0.00°</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ISS Orbital Pass Telemetry -->
+      <div class="matrix-card">
+        <div class="matrix-title">
+          <span>ISS SPACE STATION TRACKER</span>
+          <span id="issLockStatus" style="color:var(--lab-ochre); font-size:10px;">APPROACHING SECTOR</span>
+        </div>
+        <div class="imu-vector-grid">
+          <div class="vector-cell">
+            <div class="vector-axis">RANGE (KM)</div>
+            <div class="vector-val" id="valIssDist">1,420</div>
+          </div>
+          <div class="vector-cell">
+            <div class="vector-axis">ELEVATION</div>
+            <div class="vector-val" id="valIssEl">+28°</div>
+          </div>
+          <div class="vector-cell">
+            <div class="vector-axis">AZIMUTH</div>
+            <div class="vector-val" id="valIssAz">214° SW</div>
+          </div>
+          <div class="vector-cell">
+            <div class="vector-axis">ALTITUDE (KM)</div>
+            <div class="vector-val" id="valIssAlt">418</div>
+          </div>
+          <div class="vector-cell">
+            <div class="vector-axis">VELOCITY (KM/H)</div>
+            <div class="vector-val" id="valIssVel">27,600</div>
+          </div>
+          <div class="vector-cell">
+            <div class="vector-axis">NEXT PASS</div>
+            <div class="vector-val" style="color:var(--phosphor-green);" id="valIssPass">22 MIN</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Row 3: Swiss Index Tab Plates -->
+    <nav class="index-plates-bar" id="tabsBar">
+      <button class="plate-btn active" data-tab="tabRadar"><span class="p-idx">01</span>RADAR & ADSB</button>
+      <button class="plate-btn" data-tab="tabMeteo"><span class="p-idx">02</span>METEO RADAR</button>
+      <button class="plate-btn" data-tab="tabTactical"><span class="p-idx">03</span>TACTICAL & SONAR</button>
+      <button class="plate-btn" data-tab="tabSensors"><span class="p-idx">04</span>SENSORS & RTC</button>
+      <button class="plate-btn" data-tab="tabSerial"><span class="p-idx">05</span>SERIAL MONITOR</button>
+      <button class="plate-btn" data-tab="tabSystem"><span class="p-idx">06</span>SYSTEM CONFIG</button>
+    </nav>
+
+    <!-- Tab Panels Field -->
+    <div class="field-panel-container">
+
+      <!-- Panel 1: Radar & ADSB -->
+      <section class="control-panel-section active" id="tabRadar">
+        <div class="section-legend">AIR TRAFFIC & SECTOR PARAMETERS</div>
+        <table class="param-table">
+          <tr>
+            <td class="label-cell">
+              <div class="param-name">RADAR OBSERVATION RANGE</div>
+              <div class="param-desc">Active sweeping distance from station coordinates</div>
+            </td>
+            <td>
+              <div class="rocker-switch" id="rockerRange">
+                <span class="rocker-option" data-val="25">25 KM</span>
+                <span class="rocker-option" data-val="50">50 KM</span>
+                <span class="rocker-option selected" data-val="100">100 KM</span>
+                <span class="rocker-option" data-val="200">200 KM</span>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td class="label-cell">
+              <div class="param-name">ADSB INGESTION SOURCE</div>
+              <div class="param-desc">Direct 1090MHz SDR or OpenSky Network API</div>
+            </td>
+            <td>
+              <select id="cfgAdsbSource">
+                <option value="0">Local SDR 1090MHz / Tar1090 (LAN)</option>
+                <option value="1" selected>OpenSky Network API (Cloud)</option>
+                <option value="2">FlightAware PiAware Direct Feed</option>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <td class="label-cell">
+              <div class="param-name">ALTITUDE CLIPPING FILTER</div>
+              <div class="param-desc">Filter targets below ceiling threshold (ft)</div>
+            </td>
+            <td>
+              <input type="number" id="cfgAltFilter" value="12000" min="0" max="60000" step="1000">
+            </td>
+          </tr>
+          <tr>
+            <td class="label-cell">
+              <div class="param-name">FLIGHT PATH VECTOR TRAIL</div>
+              <div class="param-desc">Render historical vector breadcrumbs behind aircraft</div>
+            </td>
+            <td>
+              <input type="checkbox" id="cfgTrail" class="visually-hidden" checked>
+              <label for="cfgTrail" class="actuator-label">
+                <span class="actuator-box"></span>
+                <span>ENABLE VECTOR TRAIL</span>
+              </label>
+            </td>
+          </tr>
+        </table>
+        <div>
+          <button class="tactile-btn primary" id="btnSaveRadar">COMMIT TO EEPROM</button>
+        </div>
+      </section>
+
+      <!-- Panel 2: Meteo Radar -->
+      <section class="control-panel-section" id="tabMeteo">
+        <div class="section-legend">METEOROLOGICAL SATELLITE & PRECIPITATION SOURCE</div>
+        <table class="param-table">
+          <tr>
+            <td class="label-cell">
+              <div class="param-name">DOPPLER RADAR PROVIDER</div>
+              <div class="param-desc">Regional national composite radar source</div>
+            </td>
+            <td>
+              <select id="cfgRadarSource">
+                <option value="0" selected>SHMÚ (Slovak Hydrometeorological Institute)</option>
+                <option value="1">ČHMÚ (Czech Hydrometeorological Institute)</option>
+                <option value="2">RainViewer Worldwide Radar Composite</option>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <td class="label-cell">
+              <div class="param-name">ANIMATION FRAME BUFFER</div>
+              <div class="param-desc">Cached temporal sweeps for precipitation kinematics</div>
+            </td>
+            <td>
+              <div class="rocker-switch" id="rockerFrames">
+                <span class="rocker-option" data-val="4">4 FRAMES</span>
+                <span class="rocker-option selected" data-val="8">8 FRAMES</span>
+                <span class="rocker-option" data-val="12">12 FRAMES</span>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td class="label-cell">
+              <div class="param-name">SEVERE CELL ACOUSTIC ALARM</div>
+              <div class="param-desc">Buzzer warning if reflection rate exceeds 45 dBZ within 20 km</div>
+            </td>
+            <td>
+              <input type="checkbox" id="cfgStormAlarm" class="visually-hidden" checked>
+              <label for="cfgStormAlarm" class="actuator-label">
+                <span class="actuator-box"></span>
+                <span>PIEZO BUZZER ALARM ON SEVERE CELL</span>
+              </label>
+            </td>
+          </tr>
+        </table>
+        <div>
+          <button class="tactile-btn primary" id="btnSaveMeteo">COMMIT TO EEPROM</button>
+        </div>
+      </section>
+
+      <!-- Panel 3: Tactical & Sonar -->
+      <section class="control-panel-section" id="tabTactical">
+        <div class="section-legend">TACTICAL VECTOR & ACOUSTIC SONAR DECK</div>
+        <table class="param-table">
+          <tr>
+            <td class="label-cell">
+              <div class="param-name">RADIAL THREAT RINGS</div>
+              <div class="param-desc">Concentric distance reticles on CRT vector display</div>
+            </td>
+            <td>
+              <input type="checkbox" id="cfgRings" class="visually-hidden" checked>
+              <label for="cfgRings" class="actuator-label">
+                <span class="actuator-box"></span>
+                <span>DISPLAY RANGE RETICLES</span>
+              </label>
+            </td>
+          </tr>
+          <tr>
+            <td class="label-cell">
+              <div class="param-name">SQUAWK 7700 / 7600 INTERCEPT ALARM</div>
+              <div class="param-desc">Acoustic warble on aircraft emergency squawk code</div>
+            </td>
+            <td>
+              <input type="checkbox" id="cfgSquawk" class="visually-hidden" checked>
+              <label for="cfgSquawk" class="actuator-label">
+                <span class="actuator-box"></span>
+                <span>EMERGENCY SQUAWK SENTRY</span>
+              </label>
+            </td>
+          </tr>
+          <tr>
+            <td class="label-cell">
+              <div class="param-name">SONAR PING TRANSDUCER TEST</div>
+              <div class="param-desc">Trigger single ultrasonic chime on onboard buzzer</div>
+            </td>
+            <td>
+              <button class="tactile-btn" id="btnTestBuzzer">FIRE SONAR CHIME</button>
+            </td>
+          </tr>
+        </table>
+      </section>
+
+      <!-- Panel 4: Sensors & RTC -->
+      <section class="control-panel-section" id="tabSensors">
+        <div class="section-legend">INERTIAL MEASUREMENT UNIT & TIMEKEEPING HARDWARE</div>
+        <table class="param-table">
+          <tr>
+            <td class="label-cell">
+              <div class="param-name">PCF85063 REAL-TIME CLOCK SYNC</div>
+              <div class="param-desc">Hardware RTC backed by battery or supercapacitor</div>
+            </td>
+            <td>
+              <div style="display:flex; gap:8px;">
+                <button class="tactile-btn" id="btnSyncNtp">SYNC VIA NTP</button>
+                <button class="tactile-btn" id="btnSyncBrowser">SYNC BROWSER TIME</button>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td class="label-cell">
+              <div class="param-name">QMI8658 ZERO-OFFSET CALIBRATION</div>
+              <div class="param-desc">Zero tilt angles while device sits on flat level workbench</div>
+            </td>
+            <td>
+              <button class="tactile-btn" id="btnCalibrateImu">TARE LEVEL REFERENCE</button>
+            </td>
+          </tr>
+        </table>
+      </section>
+
+      <!-- Panel 5: Serial Monitor -->
+      <section class="control-panel-section" id="tabSerial">
+        <div class="section-legend">UART0 HARDWARE SERIAL STREAM // 115200 BAUD</div>
+        <div class="terminal-window" id="serialWindow">
+          <div class="log-line"><span class="log-time">[00:00:01]</span><span class="log-tag">[BOOT]</span><span class="log-msg green">ESP32-S3 ROM rev 0.1, Octal Flash 16MB @ 80MHz, PSRAM 8MB @ 80MHz</span></div>
+          <div class="log-line"><span class="log-time">[00:00:02]</span><span class="log-tag">[INIT]</span><span class="log-msg">Display ST7701 480x480 RGB initialized via TCA9554 expander.</span></div>
+          <div class="log-line"><span class="log-time">[00:00:03]</span><span class="log-tag">[NET]</span><span class="log-msg green">WiFi station connected. IP: 192.168.0.104, RSSI: -54 dBm</span></div>
+          <div class="log-line"><span class="log-time">[00:00:04]</span><span class="log-tag">[NTP]</span><span class="log-msg">RTC PCF85063 synced to stratum 1 pool. Drift: +12ms</span></div>
+          <div class="log-line"><span class="log-time">[00:00:05]</span><span class="log-tag">[RADAR]</span><span class="log-msg orange">Sweep initiated. Natural Earth vector bounds loaded in flash.</span></div>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <input type="text" id="serialInput" placeholder="ENTER G-CODE / AT COMMAND..." style="max-width:none; flex:1;">
+          <button class="tactile-btn primary" id="btnSendSerial">TRANSMIT</button>
+          <button class="tactile-btn" id="btnClearSerial">CLEAR</button>
+        </div>
+      </section>
+
+      <!-- Panel 6: System Config -->
+      <section class="control-panel-section" id="tabSystem">
+        <div class="section-legend">STATION LOCATION & DISPLAY BACKLIGHT</div>
+        <table class="param-table">
+          <tr>
+            <td class="label-cell">
+              <div class="param-name">LATITUDE / LONGITUDE COORDINATES</div>
+              <div class="param-desc">Station GPS center for polar calculations</div>
+            </td>
+            <td>
+              <div style="display:flex; gap:8px;">
+                <input type="text" id="cfgLat" value="48.1486" style="width:110px;">
+                <input type="text" id="cfgLon" value="17.1077" style="width:110px;">
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td class="label-cell">
+              <div class="param-name">ST7701 DISPLAY BRIGHTNESS</div>
+              <div class="param-desc">Hardware PWM backlight modulation (0-100%)</div>
+            </td>
+            <td>
+              <div style="display:flex; align-items:center; gap:12px;">
+                <input type="range" id="cfgBrightness" min="5" max="100" value="80">
+                <span id="cfgBrightnessVal" style="font-weight:700; width:36px;">80%</span>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td class="label-cell">
+              <div class="param-name">SYSTEM MAINTENANCE REBOOT</div>
+              <div class="param-desc">Perform clean warm reset of ESP32-S3 MCU</div>
+            </td>
+            <td>
+              <button class="tactile-btn" style="border-color:var(--signal-red); color:var(--signal-red);" id="btnReboot">WARM REBOOT</button>
+            </td>
+          </tr>
+        </table>
+        <div>
+          <button class="tactile-btn primary" id="btnSaveSys">COMMIT CONFIGURATION</button>
+        </div>
+      </section>
+
+    </div>
+
+  </section>
+
+  <!-- Right Fixed Cockpit Sidebar (380px) -->
+  <aside class="cockpit-sidebar">
+
+    <!-- Module 1: ST7701 CRT Framebuffer Mirror -->
+    <div class="cockpit-module">
+      <div class="cockpit-hdr">
+        <span>ST7701 CRT FRAMEBUFFER</span>
+        <span class="badge-spec">480×480 RGB</span>
+      </div>
+
+      <div class="crt-viewport" id="crtViewport">
+        <canvas id="crtCanvas" width="480" height="480"></canvas>
+        <div class="crt-grid-overlay"></div>
+        <div class="crt-bezel-tag">VECTOR SECTOR // 100 KM</div>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:11px; color:var(--ink-secondary);">ACTIVE SCREEN:</span>
+        <span style="font-size:11px; font-weight:700; color:var(--phosphor-green);" id="lblActiveScreen">01 // ADSB RADAR</span>
+      </div>
+
+      <!-- Mechanical Stepper for Range -->
+      <div class="stepper-bar">
+        <button class="stepper-btn" id="btnZoomOut" title="Zoom Out (− km)">−</button>
+        <div class="stepper-disp" id="stepperRangeVal">RANGE: 100 KM</div>
+        <button class="stepper-btn" id="btnZoomIn" title="Zoom In (+ km)">+</button>
+      </div>
+
+      <!-- Quick Screen Direct Selector -->
+      <div class="screen-selector-grid">
+        <button class="scr-select-btn" data-scr="0">00 CLK</button>
+        <button class="scr-select-btn active" data-scr="1">01 ADSB</button>
+        <button class="scr-select-btn" data-scr="2">02 RAIN</button>
+        <button class="scr-select-btn" data-scr="3">03 TACT</button>
+        <button class="scr-select-btn" data-scr="4">04 SONAR</button>
+        <button class="scr-select-btn" data-scr="5">05 WX</button>
+        <button class="scr-select-btn" data-scr="6">06 MKT</button>
+        <button class="scr-select-btn" data-scr="7">07 ISS</button>
+      </div>
+    </div>
+
+    <!-- Module 2: Hardware Actuators -->
+    <div class="cockpit-module">
+      <div class="cockpit-hdr">
+        <span>TACTILE INSTRUMENT ACTUATORS</span>
+        <span class="badge-spec">GPIO RELAY</span>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-size:11px; font-weight:700;">LEGEND RETICLE OVERLAY</div>
+            <div style="font-size:10px; color:var(--ink-muted);">Double-tap gesture trigger</div>
+          </div>
+          <button class="tactile-btn" id="btnToggleLegend">TOGGLE</button>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--hairline-dim); padding-top:10px;">
+          <div>
+            <div style="font-size:11px; font-weight:700;">DIGICAT RADAR COMPANION</div>
+            <div style="font-size:10px; color:var(--ink-muted);">Autonomous target interceptor</div>
+          </div>
+          <button class="tactile-btn" id="btnTogglePet">DEPLOY PET</button>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--hairline-dim); padding-top:10px;">
+          <div>
+            <div style="font-size:11px; font-weight:700;">FRAMEBUFFER SCREENSHOT</div>
+            <div style="font-size:10px; color:var(--ink-muted);">Fetch live 480x480 16-bit BMP</div>
+          </div>
+          <button class="tactile-btn" id="btnCaptureBmp">CAPTURE</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Module 3: Hardware Diagnostics Cluster -->
+    <div class="cockpit-module" style="border-bottom:none; flex:1;">
+      <div class="cockpit-hdr">
+        <span>RF SIGNAL & HARDWARE BUS</span>
+        <span class="badge-spec">I2C / SPI</span>
+      </div>
+
+      <div style="font-size:11px; line-height:1.8;">
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:var(--ink-muted);">WIFI RSSI:</span>
+          <span style="font-weight:700; color:var(--phosphor-green);" id="valWifiRssi">-54 dBm (92%)</span>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:var(--ink-muted);">LOCAL IP:</span>
+          <span style="font-weight:700;" id="valLocalIp">192.168.0.104</span>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:var(--ink-muted);">STATION MAC:</span>
+          <span style="font-weight:700;" id="valMac">DC:54:75:A8:B2:10</span>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:var(--ink-muted);">RESET REASON:</span>
+          <span style="font-weight:700; color:var(--lab-ochre);" id="valResetReason">POWER_ON (0x01)</span>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:var(--ink-muted);">UPTIME:</span>
+          <span style="font-weight:700;" id="valUptime">04d 18:22:10</span>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+
+</main>
+
+<!-- Master Chassis Telemetry Footer -->
+<footer class="chassis-footer">
+  <div class="footer-node">
+    <span>SOC:</span>
+    <strong>ESP32-S3 (WROOM-1)</strong>
+  </div>
+  <div class="footer-node">
+    <span>FLASH:</span>
+    <strong>16MB OCTAL @ 80MHz</strong>
+  </div>
+  <div class="footer-node">
+    <span>EXPANDER:</span>
+    <strong>TCA9554 I2C (0x20)</strong>
+  </div>
+  <div class="footer-node">
+    <span>DISP DRIVER:</span>
+    <strong>ST7701 RGB 16-BIT</strong>
+  </div>
+  <div class="footer-node">
+    <span>TOUCH IC:</span>
+    <strong>CST820 / CHSC6540</strong>
+  </div>
+  <div class="footer-node">
+    <span>CHASSIS GROUND:</span>
+    <strong style="color:var(--phosphor-green);">REFERENCED (OK)</strong>
+  </div>
+</footer>
+
+<!-- Toast Flash Notification -->
+<div id="toastBar">PARAM WRITTEN TO EEPROM</div>
+
+<script>
+/* =============================================================================
+   TACTILE FIELD INSTRUMENT CLIENT RUNTIME
+   High-performance ES6. Automatic hardware API sync with fallback simulation.
+   ============================================================================= */
+
+// Station State
+const S = {
+  isHardware: window.location.hostname !== '' && window.location.hostname !== 'localhost' && window.location.protocol !== 'file:',
+  activeScreen: 1,
+  activeRangeKm: 100,
+  cpuTemp: 46.2,
+  psramUsage: 65,
+  planesCount: 24,
+  radarAngle: 0,
+  targets: []
+};
+
+// Initialize Simulated ADSB Targets
+for (let i = 0; i < S.planesCount; i++) {
+  const angle = Math.random() * Math.PI * 2;
+  const dist = 15 + Math.random() * 80;
+  S.targets.push({
+    x: Math.cos(angle) * dist,
+    y: Math.sin(angle) * dist,
+    heading: Math.floor(Math.random() * 360),
+    speed: 380 + Math.floor(Math.random() * 140),
+    alt: 18000 + Math.floor(Math.random() * 22000),
+    callsign: ['DLH' + (100 + i), 'RYR' + (200 + i), 'WZZ' + (300 + i), 'CSA' + (400 + i), 'AFR' + (500 + i)][i % 5]
+  });
+}
+
+// ST7701 CRT Radar Canvas Renderer
+const canvas = document.getElementById('crtCanvas');
+const ctx = canvas.getContext('2d');
+
+function renderRadarCrt() {
+  const w = canvas.width;
+  const h = canvas.height;
+  const cx = w / 2;
+  const cy = h / 2;
+  const maxR = cx - 20;
+
+  // Clear with phosphorescent phosphor decay
+  ctx.fillStyle = 'rgba(2, 6, 4, 0.25)';
+  ctx.fillRect(0, 0, w, h);
+
+  // Concentric Radar Range Rings (25, 50, 75, 100 km)
+  ctx.strokeStyle = '#0E3A20';
+  ctx.lineWidth = 1;
+  for (let r = 1; r <= 4; r++) {
+    const ringR = (maxR / 4) * r;
+    ctx.beginPath();
+    ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Radial Crosshair
+  ctx.beginPath();
+  ctx.moveTo(cx, 10); ctx.lineTo(cx, h - 10);
+  ctx.moveTo(10, cy); ctx.lineTo(w - 10, cy);
+  ctx.stroke();
+
+  // Draw Sweeping Beam
+  S.radarAngle += 0.035;
+  if (S.radarAngle > Math.PI * 2) S.radarAngle -= Math.PI * 2;
+
+  const beamX = cx + Math.cos(S.radarAngle) * maxR;
+  const beamY = cy + Math.sin(S.radarAngle) * maxR;
+
+  // Sweep gradient trail
+  const sweepGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxR);
+  sweepGrad.addColorStop(0, 'rgba(0, 208, 98, 0.4)');
+  sweepGrad.addColorStop(1, 'rgba(0, 208, 98, 0.0)');
+
+  ctx.strokeStyle = '#00D062';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(beamX, beamY);
+  ctx.stroke();
+
+  // Draw Target Blips
+  S.targets.forEach((t) => {
+    const scale = maxR / S.activeRangeKm;
+    const px = cx + t.x * scale;
+    const py = cy + t.y * scale;
+
+    if (px > 10 && px < w - 10 && py > 10 && py < h - 10) {
+      // Crisp 1.5px geometric airplane silhouette / chevron
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate((t.heading * Math.PI) / 180);
+
+      // Airplane vector
+      ctx.strokeStyle = '#00D062';
+      ctx.fillStyle = '#00D062';
+      ctx.lineWidth = 1.5;
+
+      ctx.beginPath();
+      ctx.moveTo(0, -6);
+      ctx.lineTo(4, 5);
+      ctx.lineTo(0, 3);
+      ctx.lineTo(-4, 5);
+      ctx.closePath();
+      ctx.fill();
+
+      // Heading vector velocity line
+      ctx.beginPath();
+      ctx.moveTo(0, -6);
+      ctx.lineTo(0, -14);
+      ctx.stroke();
+
+      ctx.restore();
+
+      // Target Label
+      ctx.fillStyle = '#A4E5C0';
+      ctx.font = '9px "JetBrains Mono", monospace';
+      ctx.fillText(`${t.callsign}`, px + 6, py - 4);
+      ctx.fillStyle = '#6E9C82';
+      ctx.fillText(`FL${Math.round(t.alt / 100)}`, px + 6, py + 6);
+    }
+  });
+
+  // Station Center Dot
+  ctx.fillStyle = '#FF4F00';
+  ctx.fillRect(cx - 2, cy - 2, 4, 4);
+
+  requestAnimationFrame(renderRadarCrt);
+}
+requestAnimationFrame(renderRadarCrt);
+
+// Live Telemetry Tick Generator (Jitters sensors realistically)
+function telemetryTick() {
+  // Update Clock
+  const now = new Date();
+  const utcStr = now.toUTCString().split(' ')[4];
+  document.getElementById('clockUtc').innerText = utcStr;
+
+  // CPU Temp Jitter
+  S.cpuTemp += (Math.random() - 0.49) * 0.4;
+  if (S.cpuTemp < 43) S.cpuTemp = 43;
+  if (S.cpuTemp > 52) S.cpuTemp = 52;
+  document.getElementById('gaugeCpuVal').innerText = Math.round(S.cpuTemp) + '°C';
+  const cpuOffset = 188.4 - ((S.cpuTemp - 20) / 60) * 188.4;
+  document.getElementById('gaugeCpuBar').style.strokeDashoffset = Math.max(0, Math.min(188.4, cpuOffset));
+
+  // PSRAM Bar
+  S.psramUsage += (Math.random() - 0.5) * 0.2;
+  document.getElementById('gaugePsramVal').innerText = Math.round(S.psramUsage) + '%';
+  const psramOffset = 188.4 - (S.psramUsage / 100) * 188.4;
+  document.getElementById('gaugePsramBar').style.strokeDashoffset = psramOffset;
+
+  // IMU Jitter
+  const ax = (Math.random() * 0.04 - 0.02).toFixed(2);
+  const ay = (Math.random() * 0.04 - 0.02).toFixed(2);
+  document.getElementById('valAx').innerText = (ax >= 0 ? '+' : '') + ax;
+  document.getElementById('valAy').innerText = (ay >= 0 ? '+' : '') + ay;
+}
+setInterval(telemetryTick, 1000);
+telemetryTick();
+
+// Tab Plate Switcher
+document.querySelectorAll('.plate-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.plate-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    const tabId = btn.getAttribute('data-tab');
+    document.querySelectorAll('.control-panel-section').forEach(sec => {
+      sec.classList.remove('active');
+    });
+    const activeSection = document.getElementById(tabId);
+    if (activeSection) activeSection.classList.add('active');
+  });
+});
+
+// Rocker Switch Behavior
+document.querySelectorAll('.rocker-switch').forEach(sw => {
+  sw.querySelectorAll('.rocker-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      sw.querySelectorAll('.rocker-option').forEach(o => o.classList.remove('selected'));
+      opt.classList.add('selected');
+      const val = opt.getAttribute('data-val');
+      if (sw.id === 'rockerRange') {
+        setRange(parseInt(val, 10));
+      }
+    });
+  });
+});
+
+// Stepper & Direct Range Management
+function setRange(km) {
+  S.activeRangeKm = km;
+  document.getElementById('stepperRangeVal').innerText = `RANGE: ${km} KM`;
+  const viewportTag = document.querySelector('.crt-bezel-tag');
+  if (viewportTag) viewportTag.innerText = `VECTOR SECTOR // ${km} KM`;
+
+  // Update Rocker UI
+  const rOpt = document.querySelector(`#rockerRange .rocker-option[data-val="${km}"]`);
+  if (rOpt) {
+    document.querySelectorAll('#rockerRange .rocker-option').forEach(o => o.classList.remove('selected'));
+    rOpt.classList.add('selected');
+  }
+
+  showToast(`RADAR RANGE SET TO ${km} KM`);
+  if (S.isHardware) {
+    fetch('/api/range', { method: 'POST', body: JSON.stringify({ range: km }) });
+  }
+}
+
+document.getElementById('btnZoomIn').addEventListener('click', () => {
+  const steps = [25, 50, 100, 200];
+  let idx = steps.indexOf(S.activeRangeKm);
+  if (idx < steps.length - 1) setRange(steps[idx + 1]);
+});
+
+document.getElementById('btnZoomOut').addEventListener('click', () => {
+  const steps = [25, 50, 100, 200];
+  let idx = steps.indexOf(S.activeRangeKm);
+  if (idx > 0) setRange(steps[idx - 1]);
+});
+
+// Direct Screen Selector
+const screenNames = [
+  "00 // CLOCK",
+  "01 // ADSB RADAR",
+  "02 // RAIN RADAR",
+  "03 // TACTICAL RADAR",
+  "04 // SONAR SENTRY",
+  "05 // WEATHER FORECAST",
+  "06 // FINANCE MARKETS",
+  "07 // ISS TRACKER"
+];
+
+document.querySelectorAll('.scr-select-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.scr-select-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const idx = parseInt(btn.getAttribute('data-scr'), 10);
+    S.activeScreen = idx;
+    document.getElementById('lblActiveScreen').innerText = screenNames[idx] || `SCREEN ${idx}`;
+    showToast(`DISPLAY SWITCHED TO ${screenNames[idx]}`);
+    if (S.isHardware) {
+      fetch('/api/screen', { method: 'POST', body: JSON.stringify({ index: idx }) });
+    }
+  });
+});
+
+// Toast Flash Messenger
+let toastTimeout;
+function showToast(msg) {
+  const bar = document.getElementById('toastBar');
+  bar.innerText = msg;
+  bar.classList.add('visible');
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => {
+    bar.classList.remove('visible');
+  }, 2400);
+}
+
+// Actuator Buttons
+document.getElementById('btnToggleLegend').addEventListener('click', () => {
+  showToast('LEGEND RETICLE TOGGLED');
+  if (S.isHardware) fetch('/api/toggle-legends', { method: 'POST' });
+});
+
+document.getElementById('btnTogglePet').addEventListener('click', () => {
+  showToast('DIGICAT SENTRY DISPATCHED');
+  if (S.isHardware) fetch('/api/pet/toggle', { method: 'POST' });
+});
+
+document.getElementById('btnTestBuzzer').addEventListener('click', () => {
+  showToast('PIEZO TRANSDUCER CHIMED');
+  if (S.isHardware) fetch('/api/buzzer/test_sonar', { method: 'POST' });
+});
+
+document.getElementById('btnCaptureBmp').addEventListener('click', () => {
+  if (S.isHardware) {
+    window.open('/api/screenshot.bmp', '_blank');
+  } else {
+    // Generate data URL from local CRT canvas
+    const url = canvas.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `st7701_framebuffer_${Date.now()}.png`;
+    a.click();
+    showToast('FRAMEBUFFER DUMP DOWNLOADED');
+  }
+});
+
+// Serial Terminal Ingest
+const serialBox = document.getElementById('serialWindow');
+document.getElementById('btnSendSerial').addEventListener('click', sendSerial);
+document.getElementById('serialInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') sendSerial();
+});
+
+function sendSerial() {
+  const inp = document.getElementById('serialInput');
+  const txt = inp.value.trim();
+  if (!txt) return;
+
+  const now = new Date();
+  const timeStr = now.toTimeString().split(' ')[0];
+
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="log-time">[${timeStr}]</span><span class="log-tag">[TX]</span><span class="log-msg orange">${escapeHtml(txt)}</span>`;
+  serialBox.appendChild(line);
+  serialBox.scrollTop = serialBox.scrollHeight;
+  inp.value = '';
+
+  if (S.isHardware) {
+    fetch('/api/serial/send', { method: 'POST', body: txt });
+  }
+}
+
+document.getElementById('btnClearSerial').addEventListener('click', () => {
+  serialBox.innerHTML = '';
+  if (S.isHardware) fetch('/api/serial/clear', { method: 'POST' });
+});
+
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Hardware API Polling Loop (If deployed on ESP32-S3)
+if (S.isHardware) {
+  async function pollHardware() {
+    try {
+      const res = await fetch('/api/hardware');
+      if (res.ok) {
+        const d = await res.json();
+        if (d.cpuTemp) {
+          S.cpuTemp = d.cpuTemp;
+          document.getElementById('gaugeCpuVal').innerText = d.cpuTemp + '°C';
+        }
+        if (d.psramFree && d.psramTotal) {
+          const used = d.psramTotal - d.psramFree;
+          const pct = Math.round((used / d.psramTotal) * 100);
+          document.getElementById('gaugePsramVal').innerText = pct + '%';
+          document.getElementById('valPsramFree').innerText = (d.psramFree / (1024 * 1024)).toFixed(1);
+        }
+        if (d.ip) document.getElementById('valLocalIp').innerText = d.ip;
+        if (d.mac) document.getElementById('valMac').innerText = d.mac;
+        if (d.rssi) document.getElementById('valWifiRssi').innerText = `${d.rssi} dBm`;
+        if (d.uptime) document.getElementById('valUptime').innerText = d.uptime;
+      }
+    } catch (e) {
+      console.warn('API sync', e);
+    }
+  }
+  setInterval(pollHardware, 3000);
+  pollHardware();
+}
+</script>
+
+</body>
+</html>

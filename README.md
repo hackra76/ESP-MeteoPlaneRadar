@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20SK%20%7C%20CZ-green.svg)
-![Release](https://img.shields.io/badge/Release-v3.3.0-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v3.4.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, ISS orbit tracking, YouTube channel analytics, financial market tickers, Klipper 3D printer telemetry HUD, disaster warning system with hardware seismometer, and an animated virtual pet companion on a round 2.1" IPS touchscreen.**  
@@ -37,12 +37,22 @@ Designed for the **Waveshare ESP32-S3-Touch-LCD-2.1** with smartphone-like touch
 </p>
 
 <p align="center">
-  <em>DigiCat v3.3.0 — Professional 64×64 ginger cat sprites (247 frames, 38 animation sequences, RGB565 PROGMEM, rendered at 3× scale / 192×192 px).</em>
+  <em>DigiCat v3.4.0 — Professional 64×64 ginger cat sprites (247 frames, 38 animation sequences, RGB565 PROGMEM, rendered at 3× scale / 192×192 px).</em>
 </p>
 
 ---
 
 ## 🌟 Features
+
+### 🎛️ v3.4.0 Tactile Field Instrument & Industrial Web UI Release
+- **Tactile Field Instrument Design Overhaul:** Embedded web portal completely re-engineered under the aesthetic principles of Braun, Teenage Engineering, and Swiss Architectural Grids.
+- **Strict Anti-Slop Ban List Enforcement:** Completely banished generic AI tropes: slate/zinc blue dark backgrounds (`#0f172a`, `#1e293b`), neon purple/cyan glowing blurs, glassmorphism (`backdrop-filter: blur`), 8-20px rounded bento cards, generic pill badges, and generic sans data fonts.
+- **Matte Industrial Materials Palette:** Grounded in deep matte carbon (`#121211`), milled chassis plate (`#171716`), structural hairlines (`#2A2A28`), and off-white primary ink (`#F4F3EF`), with strictly rationed functional accents: International Signal Orange (`#FF4F00`), Lab Ochre (`#E5A93C`), and Phosphor Green (`#00D062`).
+- **Exposed Architectural Swiss Grid:** Zero-gap cell topology (`gap: 0; 1px solid #2A2A28`), technical corner crosshair markings (`+`) at junctions, and sharp 0px–2px chamfered corners.
+- **Extreme Scale Typographic Contrast:** Grotesque technical headers (`Space Grotesk`) paired with strict tabular monospace (`JetBrains Mono`, `tabular-nums`) for all numbers, coordinates, altitudes, voltages, and logs (micro `10px` uppercase tracked labels vs raw `42px` hero readouts).
+- **Tactile Laboratory Controls:** Segmented mechanical rocker switches with Signal Orange slides, rotary SVG arc gauges with calibrated tick marks for core die temperature and PSRAM, and phosphor LED matrix status diodes.
+- **Standalone Instrument Simulator (`portal.html`):** Integrated real-time 480×480 CRT radar scope with sweeping beam, persistent phosphor decay, and aircraft telemetry blips.
+- **PROGMEM Payload Optimization:** Pre-compressed Gzip Level 9 payload (`WebPageGz.h`) reduced to 62.7 KB (25.4% ratio, saving 184.8 KB of flash).
 
 ### 🖨️ v3.3.0 Klipper & Moonraker 3D Printer Telemetry Release
 - **Cyberpunk / KNOMI-Inspired Circular HUD:** Dedicated live 3D printer telemetry screen (Screen 9) querying Moonraker over local Wi-Fi.
