@@ -127,6 +127,16 @@ void        Settings_SetYouTubeChannel(const char* ch);
 uint8_t     Settings_YouTubeVideoMode();
 void        Settings_SetYouTubeVideoMode(uint8_t mode);
 
+// --- 3D Printer (Moonraker / Klipper) ---------------------------------------
+const char* Settings_KlipperName();
+void        Settings_SetKlipperName(const char* name);
+const char* Settings_KlipperHost();
+void        Settings_SetKlipperHost(const char* host);
+uint16_t    Settings_KlipperPort();
+void        Settings_SetKlipperPort(uint16_t port);
+const char* Settings_KlipperApiKey();
+void        Settings_SetKlipperApiKey(const char* key);
+
 // --- AI Pet Companion -------------------------------------------------------
 bool        Settings_PetEnabled();
 void        Settings_SetPetEnabled(bool on);

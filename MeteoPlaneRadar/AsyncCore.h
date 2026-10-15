@@ -34,6 +34,7 @@ void Async_RequestFinance();
 void Async_RequestIss();
 void Async_RequestYouTube();
 void Async_RequestPetThought();
+void Async_RequestKlipper();
 void Async_RequestRoute(const char* callsign, float lat, float lon);
 
 // Check and consume data-updated flags (called by UI screens on Core 1)
@@ -43,6 +44,7 @@ bool Async_TakeForecastUpdated();
 bool Async_TakeFinanceUpdated();
 bool Async_TakeIssUpdated();
 bool Async_TakeYouTubeUpdated();
+bool Async_TakeKlipperUpdated();
 bool Async_TakeRouteUpdated();
 
 // Global mutex helpers for thread-safe access to shared models
@@ -63,6 +65,9 @@ void Async_UnlockFinance();
 
 void Async_LockIss();
 void Async_UnlockIss();
+
+void Async_LockKlipper();
+void Async_UnlockKlipper();
 
 void Async_LockRoute();
 void Async_UnlockRoute();

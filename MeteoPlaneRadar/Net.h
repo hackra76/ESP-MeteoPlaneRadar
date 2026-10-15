@@ -15,9 +15,11 @@
 
 // GET the URL and put the whole body in `out`.
 //   tag - short name for the serial log ("PREDPOVED", "RAINVIEWER", ...)
+//   headerName / headerVal - optional custom request header (e.g. "X-Api-Key")
 // Returns false on no link, not enough heap, a non-200 status or an empty body;
 // the reason is printed once, so a caller can just retry later.
-bool Net_GetString(const char* url, String& out, const char* tag);
+bool Net_GetString(const char* url, String& out, const char* tag,
+                   const char* headerName = nullptr, const char* headerVal = nullptr);
 
 // POST a JSON payload to the URL and put the whole response body in `out`.
 // Returns false on failure, error HTTP status, or empty body.

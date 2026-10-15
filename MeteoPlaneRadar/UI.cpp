@@ -25,6 +25,7 @@
 #include "ScreenFinance.h"
 #include "ScreenIss.h"
 #include "ScreenYouTube.h"
+#include "ScreenKlipper.h"
 #include "ScreenInfo.h"
 #include "ScreenSonar.h"
 #include "RainViewer.h"
@@ -464,6 +465,8 @@ void UI_Init() {
             ScreenIss_Init(screens[i]);
         } else if (i == SCREEN_YOUTUBE_I) {
             ScreenYouTube_Init(screens[i]);
+        } else if (i == SCREEN_KLIPPER_I) {
+            ScreenKlipper_Init(screens[i]);
         } else if (i == SCREEN_INFO_I) {
             ScreenInfo_Init(screens[i]);
         } else if (i == SCREEN_SONAR_I) {

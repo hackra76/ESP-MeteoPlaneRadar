@@ -65,7 +65,8 @@ void Net_FreeBuffers() {
   }
 }
 
-bool Net_GetString(const char* url, String& out, const char* tag) {
+bool Net_GetString(const char* url, String& out, const char* tag,
+                   const char* headerName, const char* headerVal) {
   out = "";
   if (WiFi.status() != WL_CONNECTED) return false;
 
@@ -94,6 +95,9 @@ bool Net_GetString(const char* url, String& out, const char* tag) {
     Serial.printf("%s: begin() failed\n", tag);
     if (tls) secure.stop();
     return false;
+  }
+  if (headerName && headerVal && strlen(headerName) > 0 && strlen(headerVal) > 0) {
+    http.addHeader(headerName, headerVal);
   }
   http.collectHeaders(DATE_HDR, 1);
 

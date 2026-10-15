@@ -28,6 +28,7 @@
 #include "FinanceData.h"
 #include "IssData.h"
 #include "YouTubeData.h"
+#include "KlipperData.h"
 #include "PetBrain.h"
 #include "DisasterAlert.h"
 #include "ScreenWeather.h"
@@ -41,6 +42,7 @@ static SemaphoreHandle_t s_mtxRadar    = NULL;
 static SemaphoreHandle_t s_mtxForecast = NULL;
 static SemaphoreHandle_t s_mtxFinance  = NULL;
 static SemaphoreHandle_t s_mtxIss      = NULL;
+static SemaphoreHandle_t s_mtxKlipper  = NULL;
 static SemaphoreHandle_t s_mtxRoute    = NULL;
 
 static TaskHandle_t s_netTaskHandle = NULL;
@@ -55,6 +57,7 @@ static volatile bool s_forecastUpdated = false;
 static volatile bool s_financeUpdated = false;
 static volatile bool s_issUpdated = false;
 static volatile bool s_youtubeUpdated = false;
+static volatile bool s_klipperUpdated = false;
 static volatile bool s_routeUpdated = false;
 
 // Active state for Core 0
@@ -68,6 +71,7 @@ static volatile bool s_reqForecast = false;
 static volatile bool s_reqFinance = false;
 static volatile bool s_reqIss = false;
 static volatile bool s_reqYouTube = false;
+static volatile bool s_reqKlipper = false;
 static volatile bool s_reqPetThought = false;
 
 // Mutex Helpers
@@ -88,6 +92,9 @@ void Async_UnlockFinance() { if (s_mtxFinance)  xSemaphoreGive(s_mtxFinance); }
 
 void Async_LockIss()       { if (s_mtxIss)      { if (xSemaphoreTake(s_mtxIss,      pdMS_TO_TICKS(300)) != pdTRUE) Serial.println("AsyncCore: ISS mutex timeout!"); } }
 void Async_UnlockIss()     { if (s_mtxIss)      xSemaphoreGive(s_mtxIss); }
+
+void Async_LockKlipper()   { if (s_mtxKlipper)  { if (xSemaphoreTake(s_mtxKlipper,  pdMS_TO_TICKS(300)) != pdTRUE) Serial.println("AsyncCore: Klipper mutex timeout!"); } }
+void Async_UnlockKlipper() { if (s_mtxKlipper)  xSemaphoreGive(s_mtxKlipper); }
 
 void Async_LockRoute()     { if (s_mtxRoute)    { if (xSemaphoreTake(s_mtxRoute,    pdMS_TO_TICKS(300)) != pdTRUE) Serial.println("AsyncCore: Route mutex timeout!"); } }
 void Async_UnlockRoute()   { if (s_mtxRoute)    xSemaphoreGive(s_mtxRoute); }
@@ -125,6 +132,7 @@ void Async_RequestRoute(const char* callsign, float lat, float lon) {
 void Async_RequestFinance() { s_reqFinance = true; }
 void Async_RequestIss()     { s_reqIss = true; }
 void Async_RequestYouTube() { s_reqYouTube = true; }
+void Async_RequestKlipper() { s_reqKlipper = true; }
 void Async_RequestPetThought() { s_reqPetThought = true; }
 
 bool Async_TakeAdsbUpdated() {
@@ -157,6 +165,11 @@ bool Async_TakeYouTubeUpdated() {
   return false;
 }
 
+bool Async_TakeKlipperUpdated() {
+  if (s_klipperUpdated) { s_klipperUpdated = false; return true; }
+  return false;
+}
+
 bool Async_TakeRouteUpdated() {
   if (s_routeUpdated) { s_routeUpdated = false; return true; }
   return false;
@@ -175,6 +188,7 @@ static void asyncWorkerTask(void* param) {
   unsigned long lastFinanceFetch = 0;
   unsigned long lastIssFetch = 0;
   unsigned long lastYouTubeFetch = 0;
+  unsigned long lastKlipperFetch = 0;
 
   Serial.println("AsyncCore: Worker task running on Core 0");
 
@@ -394,6 +408,16 @@ static void asyncWorkerTask(void* param) {
             s_reqYouTube = false;
             lastYouTubeFetch = now;
           }
+          // 9. Klipper / Moonraker 3D Printer
+          else if (Settings_ScreenEnabled(SCREEN_KLIPPER_I) &&
+                   (s_reqKlipper ||
+                    (now - lastKlipperFetch >= ((curScr == SCREEN_KLIPPER_I) ? KLIPPER_PERIOD_ACTIVE_MS : KLIPPER_PERIOD_BG_MS)))) {
+            if (Klipper_Step()) {
+              s_klipperUpdated = true;
+            }
+            s_reqKlipper = false;
+            lastKlipperFetch = now;
+          }
           // 9. AI Pet Companion (Gemini LLM thoughts)
           else if (s_reqPetThought) {
             s_reqPetThought = false;
@@ -422,6 +446,7 @@ void Async_Begin() {
   if (!s_mtxForecast) s_mtxForecast = xSemaphoreCreateMutex();
   if (!s_mtxFinance)  s_mtxFinance  = xSemaphoreCreateMutex();
   if (!s_mtxIss)      s_mtxIss      = xSemaphoreCreateMutex();
+  if (!s_mtxKlipper)  s_mtxKlipper  = xSemaphoreCreateMutex();
   if (!s_mtxRoute)    s_mtxRoute    = xSemaphoreCreateMutex();
   if (!s_mtxI2c)      s_mtxI2c      = xSemaphoreCreateRecursiveMutex();
 

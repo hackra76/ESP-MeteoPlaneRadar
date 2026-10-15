@@ -82,6 +82,20 @@ public:
         lv_draw_arc(layer, &dsc);
     }
 
+    void drawArc(int x, int y, int r, int start_angle, int end_angle, uint16_t c, int width = 4) {
+        if (!layer) return;
+        lv_draw_arc_dsc_t dsc;
+        lv_draw_arc_dsc_init(&dsc);
+        dsc.color = rgb565_to_lv(c);
+        dsc.width = width;
+        dsc.center.x = x;
+        dsc.center.y = y;
+        dsc.radius = r;
+        dsc.start_angle = start_angle;
+        dsc.end_angle = end_angle;
+        lv_draw_arc(layer, &dsc);
+    }
+
     void fillRoundRect(int x, int y, int w, int h, int r, uint16_t c) {
         if (!layer) return;
         lv_draw_rect_dsc_t dsc;

@@ -154,6 +154,7 @@ td:first-child{color:var(--mut);width:45%}
   <button data-tab="tScrFinance"  data-i18n="tabScrFinance">📈 Trhy & Krypto</button>
   <button data-tab="tScrIss"      data-i18n="tabScrIss">🛰️ ISS Tracker</button>
   <button data-tab="tScrYouTube"  data-i18n="tabScrYouTube">▶️ YouTube</button>
+  <button data-tab="tScrKlipper"  data-i18n="tabScrKlipper">🖨️ 3D Tlačiareň</button>
   <button data-tab="tScrPet"      data-i18n="tabScrPet">🐾 Zvieratko</button>
   <button data-tab="tScrInfo"     data-i18n="tabScrInfo">ℹ️ Info & Štatistiky</button>
   <button data-tab="tSerial"      data-i18n="tabSerial" class="tab-serial">📟 Sériový monitor</button>
@@ -733,6 +734,56 @@ td:first-child{color:var(--mut);width:45%}
             </select>
           </div>
           <p class="hint" data-i18n="ytVideoModeHint">Vyberte, či sa má na karte videa zobrazovať najnovšie vydané video alebo najúspešnejšie video kanála podľa počtu pozretí.</p>
+        </div>
+      </section>
+
+      <!-- 10. OBRAZOVKA: 3D TLACIAREN (KLIPPER) -->
+      <section id="tScrKlipper" class="tab hide">
+        <div class="screen-hero">
+          <div class="hero-title">
+            <h2>🖨️ <span data-i18n="scrKlipperHdr">3D Tlačiareň (Klipper / Moonraker)</span></h2>
+          </div>
+          <div class="hero-actions">
+            <button type="button" class="btn-live" onclick="goScreen(9)">
+              ▶ <span data-i18n="btnShowOnDisp">Zobraziť na displeji</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="row" style="margin-top:0;">
+            <label class="chk" style="font-weight:600;font-size:14px;">
+              <input type="checkbox" id="sKlipper">
+              <span data-i18n="scrKlipperActive">Zahrnúť obrazovku do automatického striedania</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 data-i18n="klipConfigHdr">⚙️ Nastavenie Moonraker API</h2>
+          <div class="row">
+            <label class="lbl" for="klipperName" data-i18n="klipNameLbl">Názov tlačiarne (voliteľný):</label>
+            <input type="text" id="klipperName" placeholder="napr. Voron 2.4, Ender 3" data-i18n-placeholder="klipNamePh" style="flex:1 1 280px;" maxlength="24">
+          </div>
+          <p class="hint" data-i18n="klipNameHint">Vlastný názov tlačiarne zobrazený v záhlaví obrazovky (vhodné pri viacerých tlačiarňach).</p>
+
+          <div class="row" style="margin-top:10px;">
+            <label class="lbl" for="klipperHost" data-i18n="klipHostLbl">IP adresa / Hostname tlačiarne:</label>
+            <input type="text" id="klipperHost" placeholder="192.168.1.100 alebo printer.local" data-i18n-placeholder="klipHostPh" style="flex:1 1 280px;">
+          </div>
+          <p class="hint" data-i18n="klipHostHint">Lokálna IP adresa alebo mDNS názov Klipper hostiteľa (Raspberry Pi, CB1 a pod.).</p>
+
+          <div class="row" style="margin-top:10px;">
+            <label class="lbl" for="klipperPort" data-i18n="klipPortLbl">Port Moonraker API:</label>
+            <input type="number" id="klipperPort" value="7125" placeholder="7125" style="flex:1 1 120px;">
+          </div>
+          <p class="hint" data-i18n="klipPortHint">Štandardný port pre Moonraker REST API je 7125.</p>
+
+          <div class="row" style="margin-top:10px;">
+            <label class="lbl" for="klipperKey" data-i18n="klipKeyLbl">Moonraker API kľúč (voliteľný):</label>
+            <input type="password" id="klipperKey" placeholder="Nechajte prázdne pre lokálnu sieť" data-i18n-placeholder="klipKeyPh" style="flex:1 1 280px;">
+          </div>
+          <p class="hint" data-i18n="klipKeyHint">Potrebné iba v prípade, ak máte v moonraker.conf zapnutú autorizáciu pre lokálnu sieť.</p>
         </div>
       </section>
 
@@ -1438,8 +1489,9 @@ const D={
   otaUpToDate:"Máte nejnovější verzi",otaNewAvail:"K dispozici je nová verze!",otaChecking:"Kontroluji GitHub...",
   otaDownloading:"Stahování a zápis firmwaru...",otaSuccess:"Aktualizace úspěšná! Restartuji...",otaErr:"Chyba aktualizace",
   otaNoAsset:"Vydání neobsahuje soubor OTA (-ota.bin)",otaConfirm:"Opravdu spustit aktualizaci firmwaru na verzi",
-  scrClock:"Hodiny & Astro",scrPlanes:"Letadla radar",scrMeteo:"Meteoradar",scrTactical:"Taktický radar",scrForecast:"Předpověď počasí",scrInfo:"Info & Statistiky",scrFinance:"Trhy & Krypto",scrYouTube:"YouTube",scrSettings:"Nastavení",
+  scrClock:"Hodiny & Astro",scrPlanes:"Letadla radar",scrMeteo:"Meteoradar",scrTactical:"Taktický radar",scrForecast:"Předpověď počasí",scrInfo:"Info & Statistiky",scrFinance:"Trhy & Krypto",scrYouTube:"YouTube",scrKlipper:"3D Tiskárna",scrSettings:"Nastavení",
   tabScrYouTube:"▶️ YouTube",scrYtHdr:"YouTube Kanál Analytics",scrYtActive:"Zahrnout obrazovku do automatického střídání",ytConfigHdr:"⚙️ Nastavení YouTube API",ytKeyLbl:"YouTube Data API klíč:",ytKeyHint:"Bezplatný API klíč z Google Cloud Console (YouTube Data API v3).",ytChanLbl:"Kanál (Handle nebo ID):",ytChanHint:"Zadejte YouTube handle (např. @mkbhd) nebo Channel ID (např. UCbjqrq...).",ytVideoModeLbl:"Zobrazené video:",ytVideoModeHint:"Vyberte, zda se má zobrazovat nejnovější vydané video nebo nejúspěšnější video kanálu podle počtu zhlédnutí.",ytModeLatest:"🆕 Nejnovější vydané video",ytModeMostViews:"🔥 Nejsledovanější video (Top Views)",
+  tabScrKlipper:"🖨️ 3D Tiskárna",scrKlipperHdr:"3D Tiskárna (Klipper / Moonraker)",scrKlipperActive:"Zahrnout obrazovku do automatického střídání",klipConfigHdr:"⚙️ Nastavení Moonraker API",klipNameLbl:"Název tiskárny (volitelný):",klipNamePh:"např. Voron 2.4, Ender 3",klipNameHint:"Vlastní název tiskárny zobrazený v záhlaví obrazovky (vhodné při více tiskárnách).",klipHostLbl:"IP adresa / Hostname tiskárny:",klipHostPh:"192.168.1.100 nebo printer.local",klipHostHint:"Lokální IP adresa nebo mDNS název Klipper hostitele (Raspberry Pi, CB1 apod.).",klipPortLbl:"Port Moonraker API:",klipPortHint:"Výchozí port Moonraker REST API je 7125.",klipKeyLbl:"Moonraker API klíč (volitelný):",klipKeyPh:"Ponechte prázdné pro lokální síť",klipKeyHint:"Vyžadováno pouze v případě, že máte v moonraker.conf zapnutou autorizaci pro lokální síť.",
   finSlotsHdr:"📈 Sledované trhy & aktiva (4 pozice)",finGraphTypeLbl:"Typ hlavního grafu:",finGraphLine:"📈 Čárový graf (Line)",finGraphCandle:"🕯️ Svíčkový graf (Candlestick)",finGraphHint:"Svíčkový graf zobrazuje barevné svíčky (zelená růstová, červená klesající) s knoty (High/Low) a tělem (Open/Close).",finSlot1:"1. Hlavní trh (Hero graf)",finSlot1Sub:"Velký reálný graf + kurz",finSlot2:"2. Sledovaný trh",finSlot3:"3. Sledovaný trh",finSlot4:"4. Sledovaný trh",finSlotWatchlist:"Karta v dolním přehledu",finPresets:"⚡ Rychlé přidání populárních aktiv:",finClear:"Vymazat",finGold:"Zlato",finOil:"Ropa WTI",financeHint:"1. pozice má velký graf (Hero), pozice 2–4 se zobrazují v dolním přehledu. Podporuje evropské ETF fondy (Amundi CW8.PA, 500.PA, Vanguard VWCE.DE), krypto, indexy, komodity i světové akcie z Yahoo Finance.",
   ultraNight:"🌙 Ultra Night režim (hluboká červená / spánkový monochróm, min. jas)",
   tabScrInfo:"ℹ️ Info & Statistiky",scrInfoHdr:"Info & Denní statistika letů",scrInfoActive:"Zahrnout obrazovku do automatického střídání",
@@ -1560,8 +1612,9 @@ const D={
   otaUpToDate:"Máte najnovšiu verziu",otaNewAvail:"K dispozícii je nová verzia!",otaChecking:"Kontrolujem GitHub...",
   otaDownloading:"Sťahovanie a zápis firmvéru...",otaSuccess:"Aktualizácia úspešná! Reštartujem...",otaErr:"Chyba aktualizácie",
   otaNoAsset:"Vydanie neobsahuje súbor OTA (-ota.bin)",otaConfirm:"Naozaj spustiť aktualizáciu firmvéru na verziu",
-  scrClock:"Hodiny & Astro",scrPlanes:"Lietadlá radar",scrMeteo:"Meteoradar",scrTactical:"Taktický radar",scrForecast:"Predpoveď počasia",scrInfo:"Info & Štatistiky",scrFinance:"Trhy & Krypto",scrYouTube:"YouTube",scrSettings:"Nastavenia",
+  scrClock:"Hodiny & Astro",scrPlanes:"Lietadlá radar",scrMeteo:"Meteoradar",scrTactical:"Taktický radar",scrForecast:"Predpoveď počasia",scrInfo:"Info & Štatistiky",scrFinance:"Trhy & Krypto",scrYouTube:"YouTube",scrKlipper:"3D Tlačiareň",scrSettings:"Nastavenia",
   tabScrYouTube:"▶️ YouTube",scrYtHdr:"YouTube Kanál Analytics",scrYtActive:"Zahrnúť obrazovku do automatického striedania",ytConfigHdr:"⚙️ Nastavenie YouTube API",ytKeyLbl:"YouTube Data API kľúč:",ytKeyHint:"Bezplatný API kľúč z Google Cloud Console (YouTube Data API v3).",ytChanLbl:"Kanál (Handle alebo ID):",ytChanHint:"Zadajte YouTube handle (napr. @mkbhd) alebo Channel ID (napr. UCbjqrq...).",ytVideoModeLbl:"Zobrazené video:",ytVideoModeHint:"Vyberte, či sa má zobrazovať najnovšie vydané video alebo najúspešnejšie video kanála podľa počtu pozretí.",ytModeLatest:"🆕 Najnovšie vydané video",ytModeMostViews:"🔥 Najsledovanejšie video (Top Views)",
+  tabScrKlipper:"🖨️ 3D Tlačiareň",scrKlipperHdr:"3D Tlačiareň (Klipper / Moonraker)",scrKlipperActive:"Zahrnúť obrazovku do automatického striedania",klipConfigHdr:"⚙️ Nastavenie Moonraker API",klipNameLbl:"Názov tlačiarne (voliteľný):",klipNamePh:"napr. Voron 2.4, Ender 3",klipNameHint:"Vlastný názov tlačiarne zobrazený v záhlaví obrazovky (vhodné pri viacerých tlačiarňach).",klipHostLbl:"IP adresa / Hostname tlačiarne:",klipHostPh:"192.168.1.100 alebo printer.local",klipHostHint:"Lokálna IP adresa alebo mDNS názov Klipper hostiteľa (Raspberry Pi, CB1 a pod.).",klipPortLbl:"Port Moonraker API:",klipPortHint:"Predvolený port Moonraker REST API je 7125.",klipKeyLbl:"Moonraker API kľúč (voliteľný):",klipKeyPh:"Ponechajte prázdne pre lokálnu sieť",klipKeyHint:"Vyžadované iba v prípade, ak máte v moonraker.conf zapnutú autorizáciu pre lokálnu sieť.",
   finSlotsHdr:"📈 Sledované trhy & aktíva (4 pozície)",finGraphTypeLbl:"Typ hlavného grafu:",finGraphLine:"📈 Čiarový graf (Line)",finGraphCandle:"🕯️ Sviečkový graf (Candlestick)",finGraphHint:"Sviečkový graf zobrazuje farebné sviečky (zelená rastová, červená klesajúca) s knôtmi (High/Low) a telom (Open/Close).",finSlot1:"1. Hlavný trh (Hero graf)",finSlot1Sub:"Veľký reálny graf + kurz",finSlot2:"2. Sledovaný trh",finSlot3:"3. Sledovaný trh",finSlot4:"4. Sledovaný trh",finSlotWatchlist:"Karta v spodnom zozname",finPresets:"⚡ Rýchle pridanie populárnych aktív:",finClear:"Vymazať",finGold:"Zlato",finOil:"Ropa WTI",financeHint:"1. pozícia má veľký graf (Hero), pozície 2–4 sa zobrazujú v dolnom prehľade. Podporuje európske ETF fondy (Amundi CW8.PA, 500.PA, Vanguard VWCE.DE), krypto, indexy, komodity aj svetové akcie z Yahoo Finance.",
   ultraNight:"🌙 Ultra Night režim (hlboká červená / spánkový monochróm, min. jas)",
   tabScrInfo:"ℹ️ Info & Štatistiky",scrInfoHdr:"Info & Denná štatistika letov",scrInfoActive:"Zahrnúť obrazovku do automatického striedania",
@@ -1681,8 +1734,9 @@ const D={
   otaUpToDate:"Up to date",otaNewAvail:"New version available!",otaChecking:"Checking GitHub...",
   otaDownloading:"Downloading & flashing firmware...",otaSuccess:"Update successful! Restarting...",otaErr:"Update failed",
   otaNoAsset:"Release missing OTA binary (-ota.bin)",otaConfirm:"Really install firmware update to version",
-  scrClock:"Clock & Astro",scrPlanes:"Aircraft radar",scrMeteo:"Weather radar",scrTactical:"Tactical radar",scrForecast:"Weather forecast",scrInfo:"Info & Stats",scrFinance:"Markets & Crypto",scrYouTube:"YouTube",scrSettings:"Settings",
+  scrClock:"Clock & Astro",scrPlanes:"Aircraft radar",scrMeteo:"Weather radar",scrTactical:"Tactical radar",scrForecast:"Weather forecast",scrInfo:"Info & Stats",scrFinance:"Markets & Crypto",scrYouTube:"YouTube",scrKlipper:"3D Printer",scrSettings:"Settings",
   tabScrYouTube:"▶️ YouTube",scrYtHdr:"YouTube Channel Analytics",scrYtActive:"Include screen in auto-rotation cycle",ytConfigHdr:"⚙️ YouTube API Settings",ytKeyLbl:"YouTube Data API key:",ytKeyHint:"Free API key from Google Cloud Console (YouTube Data API v3).",ytChanLbl:"Channel (Handle or ID):",ytChanHint:"Enter YouTube handle (e.g. @mkbhd) or Channel ID (e.g. UCbjqrq...).",ytVideoModeLbl:"Displayed Video:",ytVideoModeHint:"Choose whether to feature the channel's latest video or the all-time most viewed video.",ytModeLatest:"🆕 Latest Released Video",ytModeMostViews:"🔥 Most Viewed Video (Top Views)",
+  tabScrKlipper:"🖨️ 3D Printer",scrKlipperHdr:"3D Printer (Klipper / Moonraker)",scrKlipperActive:"Include screen in auto-rotation cycle",klipConfigHdr:"⚙️ Moonraker API Settings",klipNameLbl:"Printer Name (optional):",klipNamePh:"e.g. Voron 2.4, Ender 3",klipNameHint:"Custom friendly printer name displayed in the screen header (useful with multiple printers).",klipHostLbl:"Printer IP Address / Hostname:",klipHostPh:"192.168.1.100 or printer.local",klipHostHint:"Local IP address or mDNS hostname of your Klipper host (Raspberry Pi, CB1, etc.).",klipPortLbl:"Moonraker API Port:",klipPortHint:"Default port for Moonraker REST API is 7125.",klipKeyLbl:"Moonraker API Key (optional):",klipKeyPh:"Leave empty for trusted local LAN",klipKeyHint:"Only required if trusted_clients authorization is enabled in moonraker.conf.",
   finSlotsHdr:"📈 Watched Markets & Assets (4 slots)",finGraphTypeLbl:"Primary Chart Style:",finGraphLine:"📈 Line Chart",finGraphCandle:"🕯️ Candlestick Chart",finGraphHint:"Candlestick chart renders colored candles (green bullish, red bearish) with wicks (High/Low) and bodies (Open/Close).",finSlot1:"1. Primary Market (Hero Chart)",finSlot1Sub:"Full sparkline chart + quote",finSlot2:"2. Watchlist Market",finSlot3:"3. Watchlist Market",finSlot4:"4. Watchlist Market",finSlotWatchlist:"Bottom watchlist card",finPresets:"⚡ Quick-add popular assets:",finClear:"Clear",finGold:"Gold",finOil:"Crude Oil WTI",financeHint:"Slot 1 features the large Hero sparkline chart; slots 2–4 appear in the bottom watchlist cards. Supports European ETFs (Amundi CW8.PA, 500.PA, Vanguard VWCE.DE), crypto, indices, commodities and global equities via Yahoo Finance.",
   ultraNight:"🌙 Ultra Night mode (deep red sleep monochrome, min. brightness)",
   tabScrInfo:"ℹ️ Info & Stats",scrInfoHdr:"Info & Daily Flight Statistics",scrInfoActive:"Include screen in automatic cycling",
@@ -1907,7 +1961,7 @@ function setLang(v){
  });
  if(g_lastStatus){
   drawScrBtns(g_lastStatus.screen, g_lastStatus.enabled);
-  const scrKeys=["scrClock","scrPlanes","scrMeteo","scrTactical","scrSonar","scrForecast","scrFinance","scrIss","scrYouTube","scrInfo","scrSettings"];
+  const scrKeys=["scrClock","scrPlanes","scrMeteo","scrTactical","scrSonar","scrForecast","scrFinance","scrIss","scrYouTube","scrKlipper","scrInfo","scrSettings"];
   const curKey = scrKeys[g_lastStatus.screen] || "scrClock";
   let curName = (D[L] && D[L][curKey]) ? D[L][curKey] : ("Screen " + g_lastStatus.screen);
   if(g_lastStatus.petOpen) curName += " + 🐾 DigiCat";
@@ -1937,7 +1991,7 @@ document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>showTab(b.dat
 
 function msg(t,c){$("msg").textContent=t;$("msg").className=c||"";setTimeout(()=>{$("msg").textContent=""},4000);}
 
-const SCR=[["scrClock",0],["scrPlanes",1],["scrMeteo",2],["scrTactical",3],["scrSonar",4],["scrForecast",5],["scrFinance",6],["scrIss",7],["scrYouTube",8],["scrInfo",9],["scrSettings",10]];
+const SCR=[["scrClock",0],["scrPlanes",1],["scrMeteo",2],["scrTactical",3],["scrSonar",4],["scrForecast",5],["scrFinance",6],["scrIss",7],["scrYouTube",8],["scrKlipper",9],["scrInfo",10],["scrSettings",11]];
 function drawScrBtns(cur,enabled){
  if(!$("scrBtns")) return;
  $("scrBtns").innerHTML=SCR.map(([k,i])=>{
@@ -2183,6 +2237,20 @@ const AUTO = [
  ["ytKey","change","youtubeKey",e=>e.value.trim()],
  ["ytChan","change","youtubeChannel",e=>e.value.trim()],
  ["ytVideoMode","change","youtubeVideoMode",e=>parseInt(e.value,10)||0],
+ ["sKlipper","change","screens",()=>getScreensObj()],
+ ["klipperName","change","klipperName",e=>e.value.trim()],
+ ["klipperHost","change","klipperHost",e=>{
+   let v = e.value.trim().replace(/^https?:\/\//i,'').replace(/\/.*$/,'');
+   let m = v.match(/^([^:]+):(\d+)$/);
+   if (m) {
+     v = m[1];
+     if ($("klipperPort")) { $("klipperPort").value = m[2]; send("klipperPort", parseInt(m[2],10)||7125); }
+   }
+   e.value = v;
+   return v;
+ }],
+ ["klipperPort","change","klipperPort",e=>parseInt(e.value,10)||7125],
+ ["klipperKey","change","klipperKey",e=>e.value.trim()],
  ["petEnabled","change","petEnabled",e=>e.checked],
  ["petCharacter","change","petCharacter",e=>parseInt(e.value,10)||0],
  ["geminiKey","change","geminiKey",e=>e.value.trim()],
@@ -2364,6 +2432,11 @@ async function load(){
  if($("ytKey")) $("ytKey").value=CFG.youtubeKey||"";
  if($("ytChan")) $("ytChan").value=CFG.youtubeChannel||"";
  if($("ytVideoMode") && CFG.youtubeVideoMode!==undefined) $("ytVideoMode").value=CFG.youtubeVideoMode;
+ if($("sKlipper")) $("sKlipper").checked=CFG.screens.klipper!==false;
+ if($("klipperName")) $("klipperName").value=CFG.klipperName||"";
+ if($("klipperHost")) $("klipperHost").value=CFG.klipperHost||"";
+ if($("klipperPort")) $("klipperPort").value=CFG.klipperPort||7125;
+ if($("klipperKey")) $("klipperKey").value=CFG.klipperKey||"";
  if($("petEnabled")) $("petEnabled").checked=CFG.petEnabled!==false;
  if($("petCharacter") && CFG.petCharacter!==undefined) $("petCharacter").value=CFG.petCharacter;
  if($("geminiKey")) $("geminiKey").value=CFG.geminiKey||"";
@@ -2470,7 +2543,7 @@ async function status(){
   if($("rMinus")){ $("rMinus").disabled=!hasR; $("rMinus").style.opacity=hasR?"1":".4"; }
   if($("rPlus")){ $("rPlus").disabled=!hasR; $("rPlus").style.opacity=hasR?"1":".4"; }
   
-  const scrKeys=["scrClock","scrPlanes","scrMeteo","scrTactical","scrSonar","scrForecast","scrFinance","scrIss","scrYouTube","scrInfo","scrSettings"];
+  const scrKeys=["scrClock","scrPlanes","scrMeteo","scrTactical","scrSonar","scrForecast","scrFinance","scrIss","scrYouTube","scrKlipper","scrInfo","scrSettings"];
   const curKey = scrKeys[s.screen] || "scrClock";
   let curName = (D[L] && D[L][curKey]) ? D[L][curKey] : ("Screen " + s.screen);
   if(s.petOpen) curName += " + 🐾 DigiCat";
@@ -2609,6 +2682,7 @@ function getScreensObj(){
   finance: $("sFinance") ? $("sFinance").checked : true,
   iss: $("sIss") ? $("sIss").checked : true,
   youtube: $("sYt") ? $("sYt").checked : true,
+  klipper: $("sKlipper") ? $("sKlipper").checked : true,
   info: $("sInfo") ? $("sInfo").checked : true
  };
 }

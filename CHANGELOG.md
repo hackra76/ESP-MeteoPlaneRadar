@@ -9,6 +9,27 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [3.3.0] - 2026-10-15
+
+### Added
+- **Klipper & Moonraker 3D Printer Telemetry Screen (Screen 10):**
+  - Live 3D printer telemetry dashboard for Klipper-powered printers via Moonraker REST API.
+  - 2026-era circular HUD aesthetic inspired by BTT KNOMI V2 and modern glassmorphic aerospace displays.
+  - Hardware-rendered vector micro-icons: Hotend nozzle, heated bed platform with heat waves, 3D shaded isometric calibration cube with wireframe highlights, aviation homing crosshairs, bed mesh calibration grid, and G-code document.
+  - Dynamic State Badge with illuminated status LED indicator for all printer phases: `STANDBY`, `HOMING`, `PROBING / MESH`, `HEATING`, `HEAT SOAKING`, `PRINTING`, `PAUSED`, `FILAMENT RUNOUT`, `PURGING / CLEAN`, `COOLING DOWN`, `COMPLETED`, `CANCELLED`, `ERROR`, `MCU SHUTDOWN`, `STARTING UP`, and `DISCONNECTED`.
+  - Dual glassmorphism thermal cards with neon accent strips (orange for hotend, cyan for bed), real-time temperatures, and target pill badges (`OFF` / `TGT XX°C`).
+  - Circular progress gauge: radial sweep track arc, ETA countdown / duration, and zero text collisions via mathematical bounded box centering (`UI_TextCenteredBox`).
+  - Real-time toolhead telemetry row: X, Y, Z homed status badges, Z-height elevation pill, and volumetric flow / filament usage chip.
+  - Active G-code job card with document icon and clean fallback to "No active print job" when idling.
+  - Live telemetry sync status with colored health LED indicator.
+  - Dynamic printer state detection: integrated Moonraker `idle_timeout` (`state`: `"Printing"` vs `"Ready"`/`"Idle"`) and `motion_report` (`live_velocity`) to accurately detect active homing and calibration moves without getting stuck on stale LCD text buffers.
+  - Fast LAN polling: 1.5s refresh cycle when Screen 10 is active, throttled to 15s in background when other screens are viewed.
+- **Web Interface & Settings Integration:**
+  - Dedicated 3D Printer (Klipper) configuration card in the web management portal with custom printer name, host/IP address, port, and API key.
+  - Support for local hostnames (e.g. `klipper.local`, `voron.local`) with automatic mDNS resolution.
+  - Complete trilingual localization across English, Slovak, and Czech.
+  - Remote screen switching and screenshot inspection support.
+
 ## [3.2.1] - 2026-10-14
 
 ### Fixed

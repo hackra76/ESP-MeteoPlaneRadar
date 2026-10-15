@@ -274,9 +274,17 @@
 #define SCREEN_FINANCE_I  6
 #define SCREEN_ISS_I      7
 #define SCREEN_YOUTUBE_I  8
-#define SCREEN_INFO_I     9
-#define SCREEN_SETTINGS_I 10
-#define SCREEN_N          11
+#define SCREEN_KLIPPER_I  9
+#define SCREEN_INFO_I     10
+#define SCREEN_SETTINGS_I 11
+#define SCREEN_N          12
+
+// ---------------------------------------------------------------------------
+//  3D Printer Telemetry (Moonraker / Klipper)
+// ---------------------------------------------------------------------------
+#define KLIPPER_PERIOD_ACTIVE_MS  (1500UL)                 // 1.5s when active on screen
+#define KLIPPER_PERIOD_BG_MS      (15UL * 1000UL)          // 15s in background
+#define KLIPPER_DEFAULT_PORT      7125
 
 // ---------------------------------------------------------------------------
 //  YouTube Channel Analytics

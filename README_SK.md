@@ -4,10 +4,10 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-SK%20%7C%20CZ%20%7C%20EN-green.svg)
-![Release](https://img.shields.io/badge/Release-v3.2.1-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v3.3.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
-**Multifunkčná meteorologická stanica, živý ADS-B letecký radar, animovaný radar zrážok (SHMÚ, ČHMÚ, RainViewer), kombinovaný taktický radar, sledovanie dráhy ISS, analytika YouTube, finančné trhy, systém varovania pred katastrofami s hardvérovým seizmometrom a animovaný virtuálny spoločník na okrúhlom 2.1" IPS dotykovom displeji.**  
+**Multifunkčná meteorologická stanica, živý ADS-B letecký radar, animovaný radar zrážok (SHMÚ, ČHMÚ, RainViewer), kombinovaný taktický radar, sledovanie dráhy ISS, analytika YouTube, finančné trhy, telemetrický HUD pre Klipper 3D tlačiarne, systém varovania pred katastrofami s hardvérovým seizmometrom a animovaný virtuálny spoločník na okrúhlom 2.1" IPS dotykovom displeji.**  
 Vyvinuté pre **Waveshare ESP32-S3-Touch-LCD-2.1** s dotykovými gestami v štýle smartfónu, sťahovacím Ovládacím centrom, reálnymi fotografiami lietadiel, bilineárnym vyhladzovaním radaru a webovým ovládacím panelom.
 
 > 🇬🇧 English documentation: **[README.md](README.md)**  
@@ -21,12 +21,13 @@ Vyvinuté pre **Waveshare ESP32-S3-Touch-LCD-2.1** s dotykovými gestami v štý
 ## 📸 Ukážky zo zariadenia
 
 <p align="center">
-  <img src="docs/media/clock_luxury.png" width="16%" alt="Luxusný astronomický chronograf" />
-  <img src="docs/media/tactical_radar_live.gif" width="16%" alt="Taktický radar" />
-  <img src="docs/media/screen_sonar.png" width="16%" alt="Fosforový sonarový radar" />
-  <img src="docs/media/screen_iss_live.png" width="16%" alt="3D sledovanie ISS" />
-  <img src="docs/media/finance_screen.png" width="16%" alt="Trhy a krypto" />
-  <img src="docs/media/plane_detail_photo.png" width="16%" alt="Detail lietadla" />
+  <img src="docs/media/clock_luxury.png" width="13%" alt="Luxusný astronomický chronograf" />
+  <img src="docs/media/tactical_radar_live.gif" width="13%" alt="Taktický radar" />
+  <img src="docs/media/screen_sonar.png" width="13%" alt="Fosforový sonarový radar" />
+  <img src="docs/media/screen_klipper.png" width="13%" alt="Klipper 3D tlačiareň telemetria" />
+  <img src="docs/media/screen_iss_live.png" width="13%" alt="3D sledovanie ISS" />
+  <img src="docs/media/finance_screen.png" width="13%" alt="Trhy a krypto" />
+  <img src="docs/media/plane_detail_photo.png" width="13%" alt="Detail lietadla" />
 </p>
 
 ### 🐱 DigiCat — Animovaný virtuálny spoločník
@@ -36,12 +37,21 @@ Vyvinuté pre **Waveshare ESP32-S3-Touch-LCD-2.1** s dotykovými gestami v štý
 </p>
 
 <p align="center">
-  <em>DigiCat v3.2.0 — Profesionálne 64×64 sprite animácie ryšavej mačky (247 snímok, 38 animačných sekvencií, RGB565 PROGMEM, škálované na 3× / 192×192 px).</em>
+  <em>DigiCat v3.3.0 — Profesionálne 64×64 sprite animácie ryšavej mačky (247 snímok, 38 animačných sekvencií, RGB565 PROGMEM, škálované na 3× / 192×192 px).</em>
 </p>
 
 ---
 
 ## 🌟 Funkcie
+
+### 🖨️ v3.3.0 Telemetrický HUD pre Klipper & Moonraker 3D tlačiarne
+- **Kruhový HUD inšpirovaný Cyberpunkom a KNOMI:** Samostatná obrazovka živej telemetrie 3D tlačiarne (Obrazovka 9) komunikujúca s rozhraním Moonraker cez lokálnu Wi-Fi sieť.
+- **Hardvérovo vykresľované vektorové mikroikony:** Vlastná izometrická 3D tieňovaná kalibračná kocka s drôtenými hranami, hotend tryska s vyhrievacím blokom, vyhrievaná podložka so stúpajúcimi vlnami tepla, letecký zameriavací kríž homingu, mriežka bed meshu a symbol G-code dokumentu.
+- **Dynamický stavový odznak a stavová LED:** Real-time detekcia stavu s farebne podsvietenými LED indikátormi pre 16 prevádzkových stavov: `STANDBY`, `HOMING`, `PROBING / MESH`, `HEATING`, `HEAT SOAKING`, `PRINTING`, `PAUSED`, `FILAMENT RUNOUT`, `PURGING / CLEAN`, `COOLING DOWN`, `COMPLETED`, `CANCELLED`, `ERROR`, `MCU SHUTDOWN`, `STARTING UP` a `DISCONNECTED`.
+- **Inteligentné riadenie životného cyklu makier:** Podmienenie prechodných stavov podľa `idle_timeout` Moonrakeru (`state: "Printing"` vs `"Ready"`/`"Idle"`) a `motion_report` (`live_velocity`), čo zabraňuje uviaznutiu displeja na doznievajúcich správach LCD ako `"Z tilt adjusting...."`.
+- **Dvojité karty teplôt v štýle Glassmorphism:** Karty hotendu a podložky s neónovými akcentovými pásikmi, vysoko presnými teplotami a štítkami cieľovej teploty (`OFF` / `TGT XX°C`).
+- **Živá elevácia a telemetria nástroja:** Dynamické odznaky zahómovaných osí X/Y/Z, pilulka výšky osi Z a štítok objemového prietoku / spotreby filamentu.
+- **Konfigurácia vo webovom rozhraní:** Samostatná sekcia nastavení 3D tlačiarne vo webovom paneli s vlastným názvom tlačiarne, IP/hostiteľom, portom a voliteľným API kľúčom s automatickým riešením mDNS.
 
 ### 🧠 v3.2.1 Oprava stability pamäte
 - **Sťahovanie cez TLS už nie je odkladané:** Pamäťový pool LVGL 9 (64 kB) zaberal internú RAM a vyhladovával mbedTLS, čo spôsobovalo opakované varovania `low memory ... fetch deferred` pre ISS, katastrofy, ADS-B a SHMÚ. Pool je teraz v PSRAM (256 kB) a uvoľnil ~64 kB internej RAM.
@@ -151,8 +161,9 @@ Celoobrazovková interaktívna zásuvka (Swipe Up zospodu alebo ikona labky v Ov
 | **6. Trhy & Krypto** | <img src="docs/media/finance_screen.png" width="70" /> | Až 8 vlastných tickerov, čiarový a sviečkový graf | Yahoo Finance v8 |
 | **7. Dráha ISS** | <img src="docs/media/screen_iss_live.png" width="70" /> | 3D ortografická guľa Zeme, slnečný terminátor, Rayleighovo halo, orbity | WhereTheISS API |
 | **8. YouTube** | <img src="docs/media/youtube_screen.png" width="70" /> | Živý počet odberateľov, celkové zhliadnutia, štatistiky nového / top videa | YouTube Data API v3 |
-| **9. Štatistiky letov & Info** | <img src="docs/media/flight_stats_screen.png" width="70" /> | 24h aktivita vzdušného priestoru v 6 rozsahoch, telemetria pamäte SRAM a PSRAM | PSRAM Tracker |
-| **10. Nastavenia** | <img src="docs/media/settings_screen.png" width="70" /> | Telemetria zariadenia, IP, jas, jazyk, poskytovateľ máp, zvuk, OTA | Systém |
+| **9. 3D tlačiareň (Klipper)** | <img src="docs/media/screen_klipper.png" width="70" /> | Živý telemetrický HUD pre Klipper, vektorové ikony, teploty trysky a podložky, homing, priebeh tlače | Moonraker API |
+| **10. Štatistiky letov & Info** | <img src="docs/media/flight_stats_screen.png" width="70" /> | 24h aktivita vzdušného priestoru v 6 rozsahoch, telemetria pamäte SRAM a PSRAM | PSRAM Tracker |
+| **11. Nastavenia** | <img src="docs/media/settings_screen.png" width="70" /> | Telemetria zariadenia, IP, jas, jazyk, poskytovateľ máp, zvuk, OTA | Systém |
 
 ---
 
@@ -173,6 +184,7 @@ Celoobrazovková interaktívna zásuvka (Swipe Up zospodu alebo ikona labky v Ov
 | **Ťuknutie na štítok vpravo hore (Sonar)** | Prepnutie režimu zobrazenia (Klasický PPI → Rozdelený Split → Vodopád) |
 | **Ťuknutie na spodný dosah (Sonar)** | Prepnutie rozsahu sonaru (25, 50, 100, 150 km) |
 | **Ťuknutie na guľu Zeme (ISS)** | Prepnutie režimu zobrazenia (3D ISS → 3D Domov → 2D mapa) |
+| **Ťuknutie na obrazovku (Klipper)** | Okamžité vyžiadanie obnovy telemetrie z Moonraker |
 | **Ťuknutie na mačku (DigiCat)** | Pohladkanie (pradenie, dialóg); ťuknutie na čelo prepína Top Gun režim |
 | **Dvojité ťuknutie na mačku** | Kŕmenie maškrtou (obnoví hlad a šťastie) |
 | **Podržanie tlačidla BOOT ~3 s** | Továrenský reset (vymazanie Wi-Fi a nastavení) |
@@ -199,9 +211,9 @@ Pre **[Waveshare ESP32-S3-Touch-LCD-2.1](https://www.waveshare.com/esp32-s3-touc
 
 ### Možnosť A — Predkompilovaná binárka (Najjednoduchšie)
 Stiahnite z **[Vydania (Releases)](https://github.com/hackra76/ESP-MeteoPlaneRadar/releases)**:
-- `MeteoPlaneRadar-v3.2.1-factory.bin` — kompletný obraz (bootloader + partície + firmvér).
+- `MeteoPlaneRadar-v3.3.0-factory.bin` — kompletný obraz (bootloader + partície + firmvér).
 - Flash cez [ESP Web Flasher](https://espressif.github.io/esptool-js/) pri 921600 baud od adresy `0x00000000`.
-- Alebo: `esptool.py -p COM_PORT -b 921600 write_flash 0x0 MeteoPlaneRadar-v3.2.1-factory.bin`
+- Alebo: `esptool.py -p COM_PORT -b 921600 write_flash 0x0 MeteoPlaneRadar-v3.3.0-factory.bin`
 
 ### Možnosť B — PlatformIO
 ```bash
@@ -230,7 +242,7 @@ pio run -t upload  # nahratie
 | :--- | :---: | :--- |
 | `/api/status` | GET | Kompletný JSON stav (počasie, lietadlá, pamäť, ISS) |
 | `/api/hardware` | GET | Periférie, RTC, I2C scan, dôvod resetu |
-| `/api/screen` | POST | Prepnutie obrazovky `{"index": 0}` (0–10) |
+| `/api/screen` | POST | Prepnutie obrazovky `{"index": 0}` (0–11) |
 | `/api/display/resync` | POST | Hardvérová resynchronizácia displeja |
 | `/api/toggle-legends` | POST | Prepnutie čistého režimu mapy |
 | `/api/rtc/sync_ntp` | POST | Vynútenie NTP → RTC synchronizácie |

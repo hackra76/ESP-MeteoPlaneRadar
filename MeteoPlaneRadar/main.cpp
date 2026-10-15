@@ -22,6 +22,7 @@
 #include "FinanceData.h"
 #include "IssData.h"
 #include "YouTubeData.h"
+#include "KlipperData.h"
 #include "PetBrain.h"
 #include "DisasterAlert.h"
 #include "WebConfig.h"
@@ -118,6 +119,7 @@ void setup() {
   Finance_Init();
   Iss_Init();
   YouTube_Init();
+  Klipper_Init();
   PetBrain_Init();
   DisasterAlert_Init();
 

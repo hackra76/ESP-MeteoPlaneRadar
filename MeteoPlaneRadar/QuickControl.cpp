@@ -17,6 +17,7 @@
 #include "FinanceData.h"
 #include "ScreenSonar.h"
 #include "YouTubeData.h"
+#include "KlipperData.h"
 #include "Buzzer.h"
 #include "Config.h"
 #include <lvgl.h>
@@ -640,6 +641,10 @@ void QuickControl_Draw(int currentScreen) {
     drawButton(CW_X + 16, y3, CW_W - 32, 34, modeLabel, isMostViews, isMostViews ? RGB565(255, 185, 0) : 0x07E0);
     const char* updYt = (lang == LANG_EN) ? "Refresh YouTube Analytics" : ((lang == LANG_SK) ? "Aktualizovať YouTube" : "Aktualizovat YouTube");
     drawButton(CW_X + 16, y4, CW_W - 32, 34, updYt, true, 0x07E0);
+  } else if (currentScreen == SCREEN_KLIPPER_I) {
+    const uint8_t lang = Lang_Get();
+    const char* refKlip = (lang == LANG_EN) ? "Refresh 3D Printer" : ((lang == LANG_SK) ? "Aktualizovať 3D tlačiareň" : "Aktualizovat 3D tiskárnu");
+    drawButton(CW_X + 16, y3, CW_W - 32, 34, refKlip, true, 0x07E0);
   }
 
   // Bottom pull-up hint
@@ -902,6 +907,13 @@ bool QuickControl_HandleTap(int x, int y, int currentScreen) {
       Buzzer_Play(BEEP_CLICK);
       YouTube_RequestFetch();
       Async_RequestYouTube();
+      return true;
+    }
+  } else if (currentScreen == SCREEN_KLIPPER_I) {
+    if (y >= y3 && y <= y3 + 34) {
+      Buzzer_Play(BEEP_CLICK);
+      Klipper_RequestFetch();
+      Async_RequestKlipper();
       return true;
     }
   }

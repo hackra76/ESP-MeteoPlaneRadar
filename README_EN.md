@@ -4,10 +4,10 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20SK%20%7C%20CZ-green.svg)
-![Release](https://img.shields.io/badge/Release-v3.2.1-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v3.3.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
-**Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, ISS orbit tracking, YouTube channel analytics, financial market tickers, disaster warning system with hardware seismometer, and an animated virtual pet companion on a round 2.1" IPS touchscreen.**  
+**Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, ISS orbit tracking, YouTube channel analytics, financial market tickers, Klipper 3D printer telemetry HUD, disaster warning system with hardware seismometer, and an animated virtual pet companion on a round 2.1" IPS touchscreen.**  
 Designed for the **Waveshare ESP32-S3-Touch-LCD-2.1** with smartphone-like touch gestures, a pull-down Control Center, live aircraft photos, bilinear radar smoothing, and a responsive web dashboard.
 
 > 🇸🇰 Slovenská dokumentácia: **[README_SK.md](README_SK.md)**  
@@ -21,12 +21,13 @@ Designed for the **Waveshare ESP32-S3-Touch-LCD-2.1** with smartphone-like touch
 ## 📸 Live Device Demo
 
 <p align="center">
-  <img src="docs/media/clock_luxury.png" width="16%" alt="Luxury Astronomical Chronograph" />
-  <img src="docs/media/tactical_radar_live.gif" width="16%" alt="Tactical Radar" />
-  <img src="docs/media/screen_sonar.png" width="16%" alt="Phosphor Sonar Radar" />
-  <img src="docs/media/screen_iss_live.png" width="16%" alt="3D ISS Orbit Tracker" />
-  <img src="docs/media/finance_screen.png" width="16%" alt="Markets & Crypto" />
-  <img src="docs/media/plane_detail_photo.png" width="16%" alt="Aircraft Detail" />
+  <img src="docs/media/clock_luxury.png" width="13%" alt="Luxury Astronomical Chronograph" />
+  <img src="docs/media/tactical_radar_live.gif" width="13%" alt="Tactical Radar" />
+  <img src="docs/media/screen_sonar.png" width="13%" alt="Phosphor Sonar Radar" />
+  <img src="docs/media/screen_klipper.png" width="13%" alt="Klipper 3D Printer Telemetry" />
+  <img src="docs/media/screen_iss_live.png" width="13%" alt="3D ISS Orbit Tracker" />
+  <img src="docs/media/finance_screen.png" width="13%" alt="Markets & Crypto" />
+  <img src="docs/media/plane_detail_photo.png" width="13%" alt="Aircraft Detail" />
 </p>
 
 ### 🐱 DigiCat — Animated Virtual Pet Companion
@@ -36,12 +37,21 @@ Designed for the **Waveshare ESP32-S3-Touch-LCD-2.1** with smartphone-like touch
 </p>
 
 <p align="center">
-  <em>DigiCat v3.2.0 — Professional 64×64 ginger cat sprites (247 frames, 38 animation sequences, RGB565 PROGMEM, rendered at 3× scale / 192×192 px).</em>
+  <em>DigiCat v3.3.0 — Professional 64×64 ginger cat sprites (247 frames, 38 animation sequences, RGB565 PROGMEM, rendered at 3× scale / 192×192 px).</em>
 </p>
 
 ---
 
 ## 🌟 Features
+
+### 🖨️ v3.3.0 Klipper & Moonraker 3D Printer Telemetry Release
+- **Cyberpunk / KNOMI-Inspired Circular HUD:** Dedicated live 3D printer telemetry screen (Screen 9) querying Moonraker over local Wi-Fi.
+- **Hardware-Rendered Vector Micro-Icons:** Custom isometric 3D shaded calibration cube with wireframe edges, hotend nozzle with heating block, heated bed plate with rising heat waves, aviation homing crosshairs, bed mesh grid, and G-code document.
+- **Dynamic State Badge & Status LED:** Real-time state detection with color-coded illuminated LED indicators for 16 operational states: `STANDBY`, `HOMING`, `PROBING / MESH`, `HEATING`, `HEAT SOAKING`, `PRINTING`, `PAUSED`, `FILAMENT RUNOUT`, `PURGING / CLEAN`, `COOLING DOWN`, `COMPLETED`, `CANCELLED`, `ERROR`, `MCU SHUTDOWN`, `STARTING UP`, and `DISCONNECTED`.
+- **Intelligent Macro Lifecycle Gating:** Gated transient states on Moonraker's `idle_timeout` (`state: "Printing"` vs `"Ready"`/`"Idle"`) and `motion_report` (`live_velocity`), preventing displays from getting stuck on lingering LCD strings like `"Z tilt adjusting...."`.
+- **Dual Glassmorphism Thermal Cards:** Hotend and heatbed cards with neon accent strips, high-precision temperatures, and target pill badges (`OFF` / `TGT XX°C`).
+- **Real-Time Toolhead Elevation & Telemetry:** Dynamic X/Y/Z homed status badges, Z-height elevation pill, and volumetric flow / filament usage chip.
+- **Web Interface Configuration:** Dedicated 3D printer configuration card in the web management portal with custom printer name, host/IP address, port, and API key with automatic mDNS hostname resolution.
 
 ### 🧠 v3.2.1 Memory Stability Fix
 - **TLS Fetches No Longer Deferred:** The LVGL 9 memory pool (64 kB) was occupying internal RAM and starving mbedTLS, causing repeated `low memory ... fetch deferred` warnings for ISS, Disaster, ADS-B and SHMU. The pool now lives in PSRAM (256 kB), freeing ~64 kB of internal RAM.
@@ -151,8 +161,9 @@ Full-screen interactive companion (Swipe Up from bottom edge or Quick Control Ce
 | **6. Markets & Crypto** | <img src="docs/media/finance_screen.png" width="70" /> | Up to 8 custom tickers, sparkline & candlestick charts | Yahoo Finance v8 |
 | **7. ISS Tracker** | <img src="docs/media/screen_iss_live.png" width="70" /> | 3D orthographic Earth globe, solar terminator, Rayleigh limb glow, orbits | WhereTheISS API |
 | **8. YouTube** | <img src="docs/media/youtube_screen.png" width="70" /> | Subscriber count, total views, latest / top video stats | YouTube Data API v3 |
-| **9. Flight Stats & Info** | <img src="docs/media/flight_stats_screen.png" width="70" /> | 24h airspace activity across 6 zoom scopes, internal SRAM & PSRAM telemetry | PSRAM Tracker |
-| **10. Settings** | <img src="docs/media/settings_screen.png" width="70" /> | Device telemetry, IP, brightness, language, map provider, audio, OTA | System |
+| **9. 3D Printer (Klipper)** | <img src="docs/media/screen_klipper.png" width="70" /> | Live Klipper 3D printer telemetry HUD, vector icons, nozzle/bed temps, homing, progress | Moonraker API |
+| **10. Flight Stats & Info** | <img src="docs/media/flight_stats_screen.png" width="70" /> | 24h airspace activity across 6 zoom scopes, internal SRAM & PSRAM telemetry | PSRAM Tracker |
+| **11. Settings** | <img src="docs/media/settings_screen.png" width="70" /> | Device telemetry, IP, brightness, language, map provider, audio, OTA | System |
 
 ---
 
@@ -173,6 +184,7 @@ Full-screen interactive companion (Swipe Up from bottom edge or Quick Control Ce
 | **Tap top-right badge (Sonar)** | Cycle sonar view mode (Classic PPI → Split → Waterfall) |
 | **Tap bottom range pill (Sonar)** | Cycle sonar range (25, 50, 100, 150 km) |
 | **Tap Earth globe (ISS)** | Cycle ISS view mode (3D ISS → 3D Home → 2D Map) |
+| **Tap screen (Klipper)** | Request instant telemetry refresh from Moonraker |
 | **Tap pet (DigiCat)** | Pet / affection (purr, blush, dialogue); tap forehead to toggle Top Gun mode |
 | **Double-tap pet** | Feed treat (restores hunger & happiness) |
 | **Hold BOOT button ~3 s** | Factory reset (clears Wi-Fi & NVS) |

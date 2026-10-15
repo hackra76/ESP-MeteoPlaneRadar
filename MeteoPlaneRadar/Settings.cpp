@@ -44,7 +44,7 @@ static uint16_t s_scrMask = (1 << SCREEN_CLOCK_I) | (1 << SCREEN_PLANES_I) |
                             (1 << SCREEN_METEO_I) | (1 << SCREEN_TACTICAL_I) |
                             (1 << SCREEN_SONAR_I) | (1 << SCREEN_FORECAST_I) |
                             (1 << SCREEN_FINANCE_I) | (1 << SCREEN_ISS_I) |
-                            (1 << SCREEN_YOUTUBE_I) | (1 << SCREEN_INFO_I);
+                            (1 << SCREEN_YOUTUBE_I) | (1 << SCREEN_KLIPPER_I) | (1 << SCREEN_INFO_I);
 static char     s_finTickers[128] = DEFAULT_FINANCE_TICKERS;
 static uint8_t  s_finGraphType = FIN_GRAPH_LINE;
 static bool     s_issAlert = true;
@@ -53,6 +53,10 @@ static uint8_t  s_sonarViewMode = SONAR_VIEW_PPI;
 static char     s_ytApiKey[64] = "";
 static char     s_ytChannel[64] = "";
 static uint8_t  s_ytVideoMode = YT_MODE_LATEST;
+static char     s_klipperName[32] = "";
+static char     s_klipperHost[64] = "";
+static uint16_t s_klipperPort = KLIPPER_DEFAULT_PORT;
+static char     s_klipperKey[64] = "";
 static bool     s_petEnabled = true;
 static uint8_t  s_petChar = 0;
 static char     s_geminiApiKey[128] = "";
@@ -191,6 +195,7 @@ void Settings_Begin() {
   bool migrateIssScr = false;
   bool migrateYtScr = false;
   bool migrateSonarScr = false;
+  bool migrateKlipperScr = false;
   if (prefs.begin(NS, true)) {
     s_lat    = prefs.getDouble("lat", DEFAULT_LAT);
     s_lon    = prefs.getDouble("lon", DEFAULT_LON);
@@ -229,6 +234,12 @@ void Settings_Begin() {
       s_scrMask |= (1 << SCREEN_SONAR_I);
       migrateSonarScr = true;
     }
+    if (!prefs.isKey("klipScrInit")) {
+      bool oldInfo = (s_scrMask & (1 << 9)) != 0;
+      if (oldInfo) s_scrMask |= (1 << SCREEN_INFO_I);
+      s_scrMask |= (1 << SCREEN_KLIPPER_I);
+      migrateKlipperScr = true;
+    }
     if (!prefs.isKey("scrOrderV2")) {
       uint16_t oldMask = s_scrMask;
       uint16_t newMask = oldMask & 0x0F; // Clock(0), Planes(1), Meteo(2), Tactical(3) unchanged
@@ -263,6 +274,39 @@ void Settings_Begin() {
     }
     s_ytVideoMode = prefs.getUChar("ytVMode", YT_MODE_LATEST);
     if (s_ytVideoMode > YT_MODE_MOST_VIEWED) s_ytVideoMode = YT_MODE_LATEST;
+    if (prefs.isKey("klipName")) {
+      prefs.getString("klipName", s_klipperName, sizeof(s_klipperName));
+    }
+    s_klipperPort = prefs.getUShort("klipPort", KLIPPER_DEFAULT_PORT);
+    if (prefs.isKey("klipHost")) {
+      prefs.getString("klipHost", s_klipperHost, sizeof(s_klipperHost));
+      char prev[sizeof(s_klipperHost)];
+      strncpy(prev, s_klipperHost, sizeof(prev));
+      // Inlined sanitization on load
+      String sh = String(s_klipperHost);
+      sh.trim();
+      if (sh.startsWith("http://") || sh.startsWith("HTTP://")) sh.remove(0, 7);
+      else if (sh.startsWith("https://") || sh.startsWith("HTTPS://")) sh.remove(0, 8);
+      int sl = sh.indexOf('/');
+      if (sl >= 0) sh = sh.substring(0, sl);
+      sh.trim();
+      int col = sh.indexOf(':');
+      if (col >= 0) {
+        int p = sh.substring(col + 1).toInt();
+        if (p > 0 && p <= 65535) s_klipperPort = (uint16_t)p;
+        sh = sh.substring(0, col);
+      }
+      sh.trim();
+      strncpy(s_klipperHost, sh.c_str(), sizeof(s_klipperHost) - 1);
+      s_klipperHost[sizeof(s_klipperHost) - 1] = '\0';
+      if (strcmp(prev, s_klipperHost) != 0) {
+        putStr("klipHost", s_klipperHost);
+        putU16("klipPort", s_klipperPort);
+      }
+    }
+    if (prefs.isKey("klipKey")) {
+      prefs.getString("klipKey", s_klipperKey, sizeof(s_klipperKey));
+    }
     if (prefs.isKey("finTk")) {
       prefs.getString("finTk", s_finTickers, sizeof(s_finTickers));
     }
@@ -411,6 +455,12 @@ void Settings_Begin() {
   }
   if (migrateYtScr && prefs.begin(NS, false)) {
     prefs.putBool("ytScrInit", true);
+    prefs.putUChar("scrM", (uint8_t)s_scrMask);
+    prefs.putUShort("scrM16", s_scrMask);
+    prefs.end();
+  }
+  if (migrateKlipperScr && prefs.begin(NS, false)) {
+    prefs.putBool("klipScrInit", true);
     prefs.putUChar("scrM", (uint8_t)s_scrMask);
     prefs.putUShort("scrM16", s_scrMask);
     prefs.end();
@@ -670,6 +720,7 @@ void Settings_SetScreenEnabled(uint8_t idx, bool on) {
   putBool("finScrInit", true);
   putBool("issScrInit", true);
   putBool("ytScrInit", true);
+  putBool("klipScrInit", true);
   Settings_BatchEnd();
 }
 
@@ -748,6 +799,59 @@ void Settings_SetYouTubeVideoMode(uint8_t mode) {
   if (s_ytVideoMode == mode) return;
   s_ytVideoMode = mode;
   putU8("ytVMode", mode);
+}
+
+const char* Settings_KlipperName() { return s_klipperName; }
+void Settings_SetKlipperName(const char* name) {
+  if (!name) name = "";
+  if (strcmp(s_klipperName, name) == 0) return;
+  strncpy(s_klipperName, name, sizeof(s_klipperName) - 1);
+  s_klipperName[sizeof(s_klipperName) - 1] = '\0';
+  putStr("klipName", s_klipperName);
+}
+
+const char* Settings_KlipperHost() { return s_klipperHost; }
+void Settings_SetKlipperHost(const char* host) {
+  if (!host) host = "";
+  String sh = String(host);
+  sh.trim();
+  if (sh.startsWith("http://") || sh.startsWith("HTTP://")) sh.remove(0, 7);
+  else if (sh.startsWith("https://") || sh.startsWith("HTTPS://")) sh.remove(0, 8);
+  int sl = sh.indexOf('/');
+  if (sl >= 0) sh = sh.substring(0, sl);
+  sh.trim();
+  int col = sh.indexOf(':');
+  if (col >= 0) {
+    int p = sh.substring(col + 1).toInt();
+    if (p > 0 && p <= 65535) {
+      s_klipperPort = (uint16_t)p;
+      putU16("klipPort", s_klipperPort);
+    }
+    sh = sh.substring(0, col);
+  }
+  sh.trim();
+  if (strcmp(s_klipperHost, sh.c_str()) == 0) return;
+  strncpy(s_klipperHost, sh.c_str(), sizeof(s_klipperHost) - 1);
+  s_klipperHost[sizeof(s_klipperHost) - 1] = '\0';
+  putStr("klipHost", s_klipperHost);
+}
+
+uint16_t Settings_KlipperPort() { return s_klipperPort; }
+void Settings_SetKlipperPort(uint16_t port) {
+  if (port == 0) port = KLIPPER_DEFAULT_PORT;
+  if (s_klipperPort == port) return;
+  s_klipperPort = port;
+  putU16("klipPort", port);
+}
+
+const char* Settings_KlipperApiKey() { return s_klipperKey; }
+void Settings_SetKlipperApiKey(const char* key) {
+  if (!key) key = "";
+  if (strcmp(key, "***") == 0) return;
+  if (strcmp(s_klipperKey, key) == 0) return;
+  strncpy(s_klipperKey, key, sizeof(s_klipperKey) - 1);
+  s_klipperKey[sizeof(s_klipperKey) - 1] = '\0';
+  putStr("klipKey", s_klipperKey);
 }
 
 
@@ -1082,6 +1186,7 @@ void Settings_ToJson(JsonObject o) {
   scr["finance"]  = Settings_ScreenEnabled(SCREEN_FINANCE_I);
   scr["iss"]      = Settings_ScreenEnabled(SCREEN_ISS_I);
   scr["youtube"]  = Settings_ScreenEnabled(SCREEN_YOUTUBE_I);
+  scr["klipper"]  = Settings_ScreenEnabled(SCREEN_KLIPPER_I);
   scr["info"]     = Settings_ScreenEnabled(SCREEN_INFO_I);
   o["financeTickers"] = s_finTickers;
   o["financeGraph"]   = s_finGraphType;
@@ -1091,6 +1196,10 @@ void Settings_ToJson(JsonObject o) {
   o["youtubeKey"] = (s_ytApiKey[0] != '\0') ? "***" : "";
   o["youtubeChannel"] = s_ytChannel;
   o["youtubeVideoMode"] = s_ytVideoMode;
+  o["klipperName"] = s_klipperName;
+  o["klipperHost"] = s_klipperHost;
+  o["klipperPort"] = s_klipperPort;
+  o["klipperKey"] = (s_klipperKey[0] != '\0') ? "***" : "";
   o["petEnabled"]     = s_petEnabled;
   o["petCharacter"]   = s_petChar;
   o["geminiKey"]      = (s_geminiApiKey[0] != '\0') ? "***" : "";
@@ -1183,6 +1292,10 @@ bool Settings_FromJson(JsonObjectConst in) {
   setIf("youtubeKey",      [](JsonVariantConst v){ Settings_SetYouTubeApiKey(v.as<const char*>()); });
   setIf("youtubeChannel",  [](JsonVariantConst v){ Settings_SetYouTubeChannel(v.as<const char*>()); });
   setIf("youtubeVideoMode",[](JsonVariantConst v){ Settings_SetYouTubeVideoMode(v.as<uint8_t>()); });
+  setIf("klipperName",     [](JsonVariantConst v){ Settings_SetKlipperName(v.as<const char*>()); });
+  setIf("klipperHost",     [](JsonVariantConst v){ Settings_SetKlipperHost(v.as<const char*>()); });
+  setIf("klipperPort",     [](JsonVariantConst v){ Settings_SetKlipperPort(v.as<uint16_t>()); });
+  setIf("klipperKey",      [](JsonVariantConst v){ Settings_SetKlipperApiKey(v.as<const char*>()); });
   setIf("petEnabled",      [](JsonVariantConst v){ Settings_SetPetEnabled(v.as<bool>()); });
   setIf("petCharacter",    [](JsonVariantConst v){ Settings_SetPetCharacter(v.as<uint8_t>()); });
   setIf("geminiKey",       [](JsonVariantConst v){ Settings_SetGeminiApiKey(v.as<const char*>()); });
@@ -1206,6 +1319,7 @@ bool Settings_FromJson(JsonObjectConst in) {
       { "finance",  SCREEN_FINANCE_I },
       { "iss",      SCREEN_ISS_I },
       { "youtube",  SCREEN_YOUTUBE_I },
+      { "klipper",  SCREEN_KLIPPER_I },
       { "info",     SCREEN_INFO_I },
     };
     for (auto& m : M) {
@@ -1247,7 +1361,7 @@ void Settings_ClearAll() {
               (1 << SCREEN_METEO_I) | (1 << SCREEN_TACTICAL_I) |
               (1 << SCREEN_SONAR_I) | (1 << SCREEN_FORECAST_I) |
               (1 << SCREEN_FINANCE_I) | (1 << SCREEN_ISS_I) |
-              (1 << SCREEN_YOUTUBE_I) | (1 << SCREEN_INFO_I);
+              (1 << SCREEN_YOUTUBE_I) | (1 << SCREEN_KLIPPER_I) | (1 << SCREEN_INFO_I);
   s_issAlert = true;
   strncpy(s_finTickers, DEFAULT_FINANCE_TICKERS, sizeof(s_finTickers) - 1);
   s_autoRot = 0; s_radarSrc = RADAR_SRC_CHMU; s_smoothRadar = true;
