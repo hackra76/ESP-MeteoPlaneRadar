@@ -9,6 +9,27 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [3.5.0] - 2026-10-16
+
+### Added
+- **Custom Screen Ordering & Rotation Sequence Manager:**
+  - Intuitive Tactile Field Instrument drag-and-drop & mechanical `▲`/`▼` step button reordering matrix (`#scrOrderList`) in Common Settings (`tCommon`).
+  - Seamless desktop drag-and-drop reordering with real-time visual guide lines paired with single-tap precision mechanical step buttons for touchscreens (smartphones/tablets).
+  - Configurable sequence array `s_scrOrder[SCREEN_N]` persisted in ESP32 non-volatile storage (NVS key `scrOrd`).
+  - Touchscreen swiping (`UI_SwitchScreenStep`) and remote web step navigation (`/api/screen`) traverse the exact user-configured order.
+  - Auto-rotation cycling (`UI_AutoRotate_Tick`) follows the user-defined order while respecting disabled screen toggles and skipping the Settings screen.
+  - Sidebar Quick Control buttons (`#scrBtns`) dynamically mirror the user's custom sequence in real time.
+  - Instant debounced auto-save (`POST /api/config`) and one-click factory reset button (`↺ Predvolené poradie` / `↺ Default Order`).
+
+### Fixed & Improved
+- **Klipper / Moonraker 3D Printer Screen Overhaul:**
+  - Fixed ETA calculation: Implemented Moonraker `print_duration` vs `total_duration` vs `estimated_time` and layer-time estimation fallbacks; ETA now shows meaningful remaining print time instead of `0s`.
+  - Fixed 3D printer screen in web portal being disabled after reboot: Fixed screen enabled state persistence in NVS and config sync.
+  - Added Current Layer / Total Layers indicator: Parsed from Moonraker status (`print_stats.info.current_layer` / `total_layer`), formatted as clean "X of Y" (e.g., `L 142/350`) on the round LCD and in web portal.
+  - Enlarged XYZ coordinate and homing status indicators with high-contrast readouts and explicit position/target clarity for the 480×480 round screen.
+- **Embedded Web Flash Optimization:**
+  - Re-compressed Web UI (`WebPageGz.h`) using Gzip Level 9 (packed to 65.8 KB, saving 187.8 KB flash PROGMEM).
+
 ## [3.4.0] - 2026-10-15
 
 ### Added

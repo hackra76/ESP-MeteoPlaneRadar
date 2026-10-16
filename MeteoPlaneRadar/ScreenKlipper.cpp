@@ -293,16 +293,17 @@ static void ScreenKlipper_Draw() {
       gfx->drawArc(cx, cy, rGauge, startAngle, startAngle + sweep, arcColor, gaugeWidth);
     }
     snprintf(pctBuf, sizeof(pctBuf), "%d%%", pct);
-    if (k.progress > 0.005f) {
+    uint32_t elapsed = (k.printDuration > 0) ? k.printDuration : k.totalDuration;
+    if (k.progress > 0.005f && elapsed > 0) {
+      uint32_t totalEst = (uint32_t)((float)elapsed / k.progress);
       uint32_t etaSec = 0;
-      uint32_t totalEst = (uint32_t)((float)k.printDuration / k.progress);
-      if (totalEst > k.printDuration) etaSec = totalEst - k.printDuration;
+      if (totalEst > elapsed) etaSec = totalEst - elapsed;
       char durStr[24];
       formatDuration(etaSec, durStr, sizeof(durStr));
       snprintf(subGauge, sizeof(subGauge), "ETA: %s", durStr);
     } else {
       char durStr[24];
-      formatDuration(k.printDuration, durStr, sizeof(durStr));
+      formatDuration(elapsed, durStr, sizeof(durStr));
       snprintf(subGauge, sizeof(subGauge), "%s: %s", isEn ? "Time" : "Čas", durStr);
     }
     UI_TextCenteredBox(pctBuf, cx - 70, cy - 36, 140, 36, C_WHITE, FONT_HERO);
@@ -467,53 +468,72 @@ static void ScreenKlipper_Draw() {
   gfx->drawRoundRect(pill2X, pillY, pillW, pillH, 8, RGB565(48, 66, 92));
   UI_TextCenteredBox(bedTgtBuf, pill2X, pillY, pillW, pillH, bedTgtColor, FONT_TINY);
 
-  // 5. Homing Status & Coordinates Bar (y=334..356)
+  // 5. Homing Status & Coordinates / Layer Telemetry Bar (y=332..358, h=26)
   const bool homedX = (valid && k.connected && strchr(k.homedAxes, 'x') != nullptr);
   const bool homedY = (valid && k.connected && strchr(k.homedAxes, 'y') != nullptr);
   const bool homedZ = (valid && k.connected && strchr(k.homedAxes, 'z') != nullptr);
 
-  const int axisY = 334;
-  const int axW = 26, axH = 20;
+  const int axisY = 332;
+  const int axH = 26;
+  const int axW = 24;
   auto drawAxisBadge = [&](int axX, const char* label, bool homed) {
-    uint16_t bg = homed ? RGB565(20, 83, 45) : RGB565(28, 34, 46);
-    uint16_t br = homed ? RGB565(34, 197, 94) : RGB565(60, 70, 85);
-    uint16_t fg = homed ? RGB565(134, 239, 172) : RGB565(120, 130, 145);
-    gfx->fillRoundRect(axX, axisY, axW, axH, 5, bg);
-    gfx->drawRoundRect(axX, axisY, axW, axH, 5, br);
-    UI_TextCenteredBox(label, axX, axisY, axW, axH, fg, FONT_TINY);
+    uint16_t bg = homed ? RGB565(20, 83, 45) : RGB565(24, 30, 42);
+    uint16_t br = homed ? RGB565(34, 197, 94) : RGB565(55, 65, 80);
+    uint16_t fg = homed ? RGB565(134, 239, 172) : RGB565(110, 120, 135);
+    gfx->fillRoundRect(axX, axisY, axW, axH, 4, bg);
+    gfx->drawRoundRect(axX, axisY, axW, axH, 4, br);
+    UI_TextCenteredBox(label, axX, axisY, axW, axH, fg, FONT_SMALL);
   };
 
-  drawAxisBadge(86, "X", homedX);
-  drawAxisBadge(116, "Y", homedY);
-  drawAxisBadge(146, "Z", homedZ);
+  drawAxisBadge(52, "X", homedX);
+  drawAxisBadge(79, "Y", homedY);
+  drawAxisBadge(106, "Z", homedZ);
 
-  // Toolhead Z position pill
+  const int barPillW = 141;
+  const int posPillX = 138;
+  const int layerPillX = 287;
+
+  // Toolhead Z position pill (x=138, w=141, h=26)
   char posBuf[32];
   if (valid && k.connected) {
     snprintf(posBuf, sizeof(posBuf), "Z: %.2f mm", k.posZ);
   } else {
     snprintf(posBuf, sizeof(posBuf), "Z: ---");
   }
-  gfx->fillRoundRect(178, axisY, 112, axH, 5, RGB565(20, 28, 42));
-  gfx->drawRoundRect(178, axisY, 112, axH, 5, RGB565(42, 58, 82));
-  UI_TextCenteredBox(posBuf, 178, axisY, 112, axH, RGB565(186, 230, 253), FONT_TINY);
+  gfx->fillRoundRect(posPillX, axisY, barPillW, axH, 6, RGB565(16, 24, 38));
+  gfx->drawRoundRect(posPillX, axisY, barPillW, axH, 6, RGB565(42, 58, 82));
+  UI_TextCenteredBox(posBuf, posPillX, axisY, barPillW, axH, RGB565(186, 230, 253), FONT_SMALL);
 
-  // Filament Used / Job Info Pill
-  char chipBuf[32];
-  if (valid && k.connected && k.filamentUsed > 0.0f) {
+  // Layer Indicator / Job Info Pill (x=287, w=141, h=26)
+  char layerBuf[32];
+  uint16_t layerCol = RGB565(253, 230, 138); // Ochre / amber
+  if (valid && k.connected && k.totalLayers > 0 && k.currentLayer > 0) {
+    snprintf(layerBuf, sizeof(layerBuf), "%s %lu/%lu",
+             isEn ? "Layer" : "Vrstva",
+             (unsigned long)k.currentLayer, (unsigned long)k.totalLayers);
+  } else if (valid && k.connected && k.currentLayer > 0) {
+    snprintf(layerBuf, sizeof(layerBuf), "%s %lu",
+             isEn ? "Layer" : "Vrstva",
+             (unsigned long)k.currentLayer);
+  } else if (valid && k.connected && k.filamentUsed > 0.0f && k.detailedState == KLIPPER_STATE_PRINTING) {
     if (k.filamentUsed >= 1000.0f) {
-      snprintf(chipBuf, sizeof(chipBuf), "%.1f m", k.filamentUsed / 1000.0f);
+      snprintf(layerBuf, sizeof(layerBuf), "Fil: %.1f m", k.filamentUsed / 1000.0f);
     } else {
-      snprintf(chipBuf, sizeof(chipBuf), "%.0f mm", k.filamentUsed);
+      snprintf(layerBuf, sizeof(layerBuf), "Fil: %.0f mm", k.filamentUsed);
     }
+    layerCol = RGB565(190, 242, 100);
+  } else if (valid && k.connected && k.detailedState == KLIPPER_STATE_PRINTING) {
+    snprintf(layerBuf, sizeof(layerBuf), "%s 1", isEn ? "Layer" : "Vrstva");
   } else if (valid && k.connected) {
-    snprintf(chipBuf, sizeof(chipBuf), "Flow 100%%");
+    snprintf(layerBuf, sizeof(layerBuf), "%s ---", isEn ? "Layer" : "Vrstva");
+    layerCol = RGB565(120, 135, 150);
   } else {
-    snprintf(chipBuf, sizeof(chipBuf), "---");
+    snprintf(layerBuf, sizeof(layerBuf), "---");
+    layerCol = RGB565(120, 135, 150);
   }
-  gfx->fillRoundRect(296, axisY, 98, axH, 5, RGB565(20, 28, 42));
-  gfx->drawRoundRect(296, axisY, 98, axH, 5, RGB565(42, 58, 82));
-  UI_TextCenteredBox(chipBuf, 296, axisY, 98, axH, RGB565(253, 230, 138), FONT_TINY);
+  gfx->fillRoundRect(layerPillX, axisY, barPillW, axH, 6, RGB565(16, 24, 38));
+  gfx->drawRoundRect(layerPillX, axisY, barPillW, axH, 6, RGB565(42, 58, 82));
+  UI_TextCenteredBox(layerBuf, layerPillX, axisY, barPillW, axH, layerCol, FONT_SMALL);
 
   // 6. Current G-code file Card (y=368..394, w=356, h=26)
   const int fileW = 356, fileH = 26;
@@ -525,9 +545,13 @@ static void ScreenKlipper_Draw() {
   drawDocIcon(fileX + 10, fileY + 6, RGB565(140, 175, 215));
 
   if (valid && k.connected && strlen(k.filename) > 0) {
-    UI_TextCenteredBox(k.filename, fileX + 26, fileY, fileW - 32, fileH, RGB565(210, 230, 255), FONT_TINY);
+    int fnW = Font_TextWidth(k.filename, FONT_SMALL);
+    uint8_t fnFont = (fnW > 0 && fnW <= fileW - 36) ? FONT_SMALL : FONT_TINY;
+    UI_TextCenteredBox(k.filename, fileX + 26, fileY, fileW - 32, fileH, RGB565(210, 230, 255), fnFont);
   } else if (valid && k.connected && strlen(k.message) > 0 && k.detailedState != KLIPPER_STATE_STANDBY) {
-    UI_TextCenteredBox(k.message, fileX + 26, fileY, fileW - 32, fileH, RGB565(160, 175, 195), FONT_TINY);
+    int msgW = Font_TextWidth(k.message, FONT_SMALL);
+    uint8_t msgFont = (msgW > 0 && msgW <= fileW - 36) ? FONT_SMALL : FONT_TINY;
+    UI_TextCenteredBox(k.message, fileX + 26, fileY, fileW - 32, fileH, RGB565(160, 175, 195), msgFont);
   } else {
     UI_TextCenteredBox(isEn ? "No active print job" : (isSk ? "Žiadna aktívna tlač" : "Žádný aktivní tisk"),
                        fileX + 26, fileY, fileW - 32, fileH, RGB565(120, 135, 150), FONT_TINY);

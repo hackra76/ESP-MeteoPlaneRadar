@@ -566,12 +566,21 @@ void UI_NotifyInteraction() {
 
 void UI_SwitchScreenStep(int step) {
     if (step == 0) return;
-    int next = s_activeScreen;
+    int curPos = Settings_GetOrderOfScreen((uint8_t)s_activeScreen);
+    if (curPos < 0) curPos = 0;
+    int nextPos = curPos;
+    uint8_t nextScr = (uint8_t)s_activeScreen;
     for (int guard = 0; guard < SCREEN_N; guard++) {
-        next = (next + step + SCREEN_N) % SCREEN_N;
-        if (Settings_ScreenEnabled(next)) break;
+        nextPos = (nextPos + step + SCREEN_N) % SCREEN_N;
+        uint8_t cand = Settings_GetScreenAtOrder((uint8_t)nextPos);
+        if (Settings_ScreenEnabled(cand)) {
+            nextScr = cand;
+            break;
+        }
     }
-    UI_SwitchScreen(next);
+    if (nextScr != (uint8_t)s_activeScreen) {
+        UI_SwitchScreen(nextScr);
+    }
 }
 
 void UI_AutoRotate_Tick() {
@@ -619,14 +628,21 @@ void UI_AutoRotate_Tick() {
 
     if (now - s_lastAutoRotateMs >= (unsigned long)rotSec * 1000UL) {
         s_lastAutoRotateMs = now;
-        // Advance to next enabled data screen, skipping settings
-        int next = s_activeScreen;
+        // Advance to next enabled data screen in configured order, skipping settings
+        int curPos = Settings_GetOrderOfScreen((uint8_t)s_activeScreen);
+        if (curPos < 0) curPos = 0;
+        int nextPos = curPos;
+        uint8_t nextScr = (uint8_t)s_activeScreen;
         for (int guard = 0; guard < SCREEN_N; guard++) {
-            next = (next + 1) % SCREEN_N;
-            if (next != SCREEN_SETTINGS_I && Settings_ScreenEnabled(next)) break;
+            nextPos = (nextPos + 1) % SCREEN_N;
+            uint8_t cand = Settings_GetScreenAtOrder((uint8_t)nextPos);
+            if (cand != SCREEN_SETTINGS_I && Settings_ScreenEnabled(cand)) {
+                nextScr = cand;
+                break;
+            }
         }
-        if (next != s_activeScreen && next != SCREEN_SETTINGS_I && Settings_ScreenEnabled(next)) {
-            UI_SwitchScreen(next);
+        if (nextScr != (uint8_t)s_activeScreen && nextScr != SCREEN_SETTINGS_I && Settings_ScreenEnabled(nextScr)) {
+            UI_SwitchScreen(nextScr);
         }
     }
 }

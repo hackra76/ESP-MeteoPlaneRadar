@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20SK%20%7C%20CZ-green.svg)
-![Release](https://img.shields.io/badge/Release-v3.4.0-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v3.5.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, ISS orbit tracking, YouTube channel analytics, financial market tickers, Klipper 3D printer telemetry HUD, disaster warning system with hardware seismometer, and an animated virtual pet companion on a round 2.1" IPS touchscreen.**  
@@ -37,12 +37,29 @@ Designed for the **Waveshare ESP32-S3-Touch-LCD-2.1** with smartphone-like touch
 </p>
 
 <p align="center">
-  <em>DigiCat v3.4.0 — Professional 64×64 ginger cat sprites (247 frames, 38 animation sequences, RGB565 PROGMEM, rendered at 3× scale / 192×192 px).</em>
+  <em>DigiCat v3.5.0 — Professional 64×64 ginger cat sprites (247 frames, 38 animation sequences, RGB565 PROGMEM, rendered at 3× scale / 192×192 px).</em>
 </p>
 
 ---
 
 ## 🌟 Features
+
+### 📐 v3.5.0 Custom Screen Sequence & 3D Printer Overhaul Release
+- **Custom Screen Ordering & Rotation Sequence Manager:**
+  - Intuitive Tactile Field Instrument drag-and-drop & mechanical `▲`/`▼` step button matrix (`#scrOrderList`) in Common Settings (`tCommon`).
+  - Seamless desktop drag-and-drop reordering with real-time visual guide lines paired with single-tap precision mechanical step buttons for touchscreens (smartphones/tablets).
+  - Configurable sequence array `s_scrOrder[SCREEN_N]` persisted in ESP32 non-volatile storage (NVS key `scrOrd`).
+  - Touchscreen swiping (`UI_SwitchScreenStep`) and remote web step navigation (`/api/screen`) traverse the exact user-configured order.
+  - Auto-rotation cycling (`UI_AutoRotate_Tick`) follows the user-defined order while respecting disabled screen toggles and skipping the Settings screen.
+  - Sidebar Quick Control buttons (`#scrBtns`) dynamically mirror the user's custom sequence in real time.
+  - Instant debounced auto-save (`POST /api/config`) and one-click factory reset button (`↺ Default Order`).
+- **Klipper / Moonraker 3D Printer Screen Overhaul:**
+  - Accurate print ETA calculations using Moonraker `print_duration` vs `total_duration` vs `estimated_time` and layer-time estimation fallbacks (eliminates stale `0s` bug).
+  - Screen enabled state persistence fix ensuring Screen 9 stays active across reboots.
+  - Live Current Layer / Total Layers indicator parsed from Moonraker status (`L X/Y`, e.g. `L 142/350`).
+  - Enlarged XYZ coordinate and homing status indicators for crisp legibility on the round 480×480 screen.
+- **Embedded Web Flash Optimization:**
+  - Re-compressed Web UI (`WebPageGz.h`) using Gzip Level 9 (packed to 65.8 KB, saving 187.8 KB flash PROGMEM).
 
 ### 🎛️ v3.4.0 Tactile Field Instrument & Industrial Web UI Release
 - **Tactile Field Instrument Design Overhaul:** Embedded web portal completely re-engineered under the aesthetic principles of Braun, Teenage Engineering, and Swiss Architectural Grids.
@@ -190,9 +207,9 @@ Built for the **[Waveshare ESP32-S3-Touch-LCD-2.1](https://www.waveshare.com/esp
 
 ### Method A — Pre-built Binary (Easiest)
 Download from **[Releases](https://github.com/hackra76/ESP-MeteoPlaneRadar/releases)**:
-- `MeteoPlaneRadar-v3.2.1-factory.bin` — full image (bootloader + partitions + firmware).
+- `MeteoPlaneRadar-v3.5.0-factory.bin` — full image (bootloader + partitions + firmware).
 - Flash via [ESP Web Flasher](https://espressif.github.io/esptool-js/) at 921600 baud, address `0x00000000`.
-- Or: `esptool.py -p COM_PORT -b 921600 write_flash 0x0 MeteoPlaneRadar-v3.2.1-factory.bin`
+- Or: `esptool.py -p COM_PORT -b 921600 write_flash 0x0 MeteoPlaneRadar-v3.5.0-factory.bin`
 
 ### Method B — PlatformIO
 ```bash

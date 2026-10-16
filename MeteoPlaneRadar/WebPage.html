@@ -109,6 +109,31 @@ td:first-child{color:var(--mut);width:45%}
 .btn-step:disabled{opacity:0.3;cursor:not-allowed}
 .range-val{min-width:68px;text-align:center;font-size:12px;font-weight:700;color:var(--acc);padding:0 6px;user-select:none;font-variant-numeric:tabular-nums}
 
+/* --- Screen Order Matrix (Tactile Industrial Standard) --- */
+.scr-order-list{display:flex;flex-direction:column;gap:0;border:1px solid var(--line);background:#0B0B0A;margin-top:10px}
+.scr-order-item{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--card);border-bottom:1px solid var(--line);transition:background .1s ease,border-color .1s ease;user-select:none}
+.scr-order-item:last-child{border-bottom:none}
+.scr-order-item:hover{background:#1D1D1B}
+.scr-order-item.dragging{opacity:.45;background:#2A1407;border:1px dashed var(--acc)}
+.scr-order-item.drag-over-top{border-top:2px solid var(--acc)}
+.scr-order-item.drag-over-bottom{border-bottom:2px solid var(--acc)}
+.scr-drag-handle{display:flex;align-items:center;justify-content:center;color:var(--mut);cursor:grab;padding:4px;font-size:14px;line-height:1;opacity:.6;transition:opacity .1s,color .1s}
+.scr-drag-handle:hover{opacity:1;color:var(--acc)}
+.scr-drag-handle:active{cursor:grabbing}
+.scr-order-idx{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:800;color:var(--acc);letter-spacing:.08em;min-width:28px}
+.scr-order-info{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+.scr-order-icon{font-size:14px;line-height:1}
+.scr-order-name{font-family:'Space Grotesk',-apple-system,sans-serif;font-size:12px;font-weight:700;color:var(--fg);letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scr-order-status{font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;letter-spacing:.08em;padding:2px 6px;border:1px solid var(--line);background:#0B0B0A;white-space:nowrap}
+.scr-order-status.on{color:var(--ok);border-color:rgba(0,208,98,.25)}
+.scr-order-status.off{color:#777;border-color:#222}
+.scr-order-actions{display:flex;align-items:center;gap:4px;margin-left:auto}
+.scr-move-btn{background:#111110;color:var(--mut);border:1px solid var(--line);padding:4px 8px;font-size:10px;line-height:1;font-weight:800;cursor:pointer;transition:all .1s ease}
+.scr-move-btn:hover:not(:disabled){background:#2A1407;border-color:var(--acc);color:var(--acc)}
+.scr-move-btn:disabled{opacity:.2;cursor:default}
+.scr-jump-btn{background:#111110;color:var(--mut);border:1px solid var(--line);padding:4px 7px;font-size:10px;line-height:1;font-weight:700;cursor:pointer}
+.scr-jump-btn:hover{background:#222220;color:var(--fg);border-color:#3E3E3A}
+
 @media (max-width:560px){
   .row label{flex:1 1 100%}
   .row input[type=text],.row input[type=password],.row input[type=number],.row select{flex:1 1 100%}
@@ -1127,6 +1152,16 @@ td:first-child{color:var(--mut);width:45%}
           <p class="hint" data-i18n="rotHint">Striedanie pozastaví potiahnutie prstom alebo prepnutie z prehliadača. Otvorený detail lietadla striedanie pozastaví.</p>
         </div>
 
+        <!-- 4b. Poradie a rotácia obrazoviek -->
+        <div class="card" id="cardScreenOrder">
+          <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+            <h2 style="border:none;margin:0;padding:0;" data-i18n="scrOrderHdr">📐 Poradie a rotácia obrazoviek</h2>
+            <button type="button" class="sec" style="font-size:10px;padding:4px 8px;letter-spacing:0.06em;" onclick="resetScreenOrder()" data-i18n="btnResetOrder">↺ Predvolené poradie</button>
+          </div>
+          <p class="hint" style="margin-top:0;" data-i18n="scrOrderHint">Nastavte postupnosť cyklovania a listovania obrazoviek. Presúvajte položky potiahnutím myšou (drag &amp; drop) alebo tlačidlami ▲/▼. Poradie sa aplikuje na automatické striedanie, dotykové gestá aj rýchle tlačidlá.</p>
+          <div id="scrOrderList" class="scr-order-list"></div>
+        </div>
+
         <!-- 5. Orientácia, Kompas & Jednotky -->
         <div class="card">
           <h2 data-i18n="planesView">🧭 Orientácia & Jednotky</h2>
@@ -1527,7 +1562,8 @@ const D={
    sonarPingOk:"Sonar Ping!",buzzerBeepOk:"Píp!",
    tzGrpEurope:"Evropská časová pásma (automatický letní/zimní čas)",tzCet:"Středoevropský čas (CET/CEST: CZ, SK, AT, DE... UTC+1 / léto UTC+2)",tzEet:"Východoevropský čas (EET/EEST: UA, FI, GR, RO... UTC+2 / léto UTC+3)",tzWet:"Západoevropský čas / UK (WET/WEST: UK, IE, PT... UTC+0 / léto UTC+1)",
    tzGrpUtc:"Světový referenční čas",tzUtc:"UTC / Zulu / GMT (UTC+0 bez změny času)",tzGrpFixed:"Fixní posuny vůči UTC (bez změny času)",
-   tzU_03:"UTC-03:00 (Brazílie, Argentina)",tzU_01:"UTC-01:00 (Azory)",tzU_P01:"UTC+01:00 (CET fixní)",tzU_P02:"UTC+02:00 (EET fixní)",tzU_P03:"UTC+03:00 (Moskva, Saúdská Arábie, Turecko)",tzU_P0330:"UTC+03:30 (Teherán)",tzU_P04:"UTC+04:00 (Dubaj, Baku)",tzU_P0430:"UTC+04:30 (Kábul)",tzU_P0530:"UTC+05:30 (Indie, Srí Lanka)",tzU_P06:"UTC+06:00 (Bangladéš, Astana)",tzU_P08:"UTC+08:00 (Singapur, Peking, Perth)",tzU_P09:"UTC+09:00 (Tokio, Soul)",tzU_P11:"UTC+11:00 (Šalamounovy ostrovy)",tzU_P12:"UTC+12:00 (Auckland, Fidži)"
+   tzU_03:"UTC-03:00 (Brazílie, Argentina)",tzU_01:"UTC-01:00 (Azory)",tzU_P01:"UTC+01:00 (CET fixní)",tzU_P02:"UTC+02:00 (EET fixní)",tzU_P03:"UTC+03:00 (Moskva, Saúdská Arábie, Turecko)",tzU_P0330:"UTC+03:30 (Teherán)",tzU_P04:"UTC+04:00 (Dubaj, Baku)",tzU_P0430:"UTC+04:30 (Kábul)",tzU_P0530:"UTC+05:30 (Indie, Srí Lanka)",tzU_P06:"UTC+06:00 (Bangladéš, Astana)",tzU_P08:"UTC+08:00 (Singapur, Peking, Perth)",tzU_P09:"UTC+09:00 (Tokio, Soul)",tzU_P11:"UTC+11:00 (Šalamounovy ostrovy)",tzU_P12:"UTC+12:00 (Auckland, Fidži)",
+   scrOrderHdr:"📐 Pořadí a rotace obrazovek",scrOrderHint:"Nastavte posloupnost cyklování a listování obrazovek. Přetahujte položky myší (drag & drop) nebo tlačítky ▲/▼. Pořadí se aplikuje na automatické střídání, dotyková gesta i rychlá tlačítka.",btnResetOrder:"↺ Výchozí pořadí",scrActiveTag:"AKTIVNÍ",scrDisabledTag:"VYPNUTO",scrConfigure:"Nastavit"
  },
  sk:{
    disasterRangeLbl:"Dosah výstrahy (Maximálna vzdialenosť)",disasterRangeHint:"Udalosti za zvolenou vzdialenosťou nespustia výstražný banner ani zvukovú sirénu (stále sa zobrazujú v tabuľke). Celý svet monitoruje globálne.",disasterRange0:"🌍 Celý svet (Globálne / Bez limitu)",disasterRange100:"📍 Do 100 km (Najbližšie okolie)",disasterRange250:"📍 Do 250 km (Lokálne okolie)",disasterRange500:"🗺️ Do 500 km (Regionálne)",disasterRange1000:"🧭 Do 1 000 km (Stredná Európa)",disasterRange2500:"🇪🇺 Do 2 500 km (Európsky kontinent)",disasterRange5000:"🌐 Do 5 000 km (Širší kontinentálny dosah)",disasterFilterActive:"Filter dosahu",
@@ -1649,7 +1685,8 @@ const D={
    sonarPingOk:"Sonar Ping!",buzzerBeepOk:"Píp!",
    tzGrpEurope:"Európske časové pásma (automatický letný/zimný čas)",tzCet:"Stredoeurópsky čas (CET/CEST: SK, CZ, AT, DE... UTC+1 / leto UTC+2)",tzEet:"Východoeurópsky čas (EET/EEST: UA, FI, GR, RO... UTC+2 / leto UTC+3)",tzWet:"Západoeurópsky čas / UK (WET/WEST: UK, IE, PT... UTC+0 / leto UTC+1)",
    tzGrpUtc:"Svetový referenčný čas",tzUtc:"UTC / Zulu / GMT (UTC+0 bez zmeny času)",tzGrpFixed:"Fixné posuny voči UTC (bez zmeny času)",
-   tzU_03:"UTC-03:00 (Brazília, Argentína)",tzU_01:"UTC-01:00 (Azory)",tzU_P01:"UTC+01:00 (CET fixný)",tzU_P02:"UTC+02:00 (EET fixný)",tzU_P03:"UTC+03:00 (Moskva, Saudská Arábia, Turecko)",tzU_P0330:"UTC+03:30 (Teherán)",tzU_P04:"UTC+04:00 (Dubaj, Baku)",tzU_P0430:"UTC+04:30 (Kábul)",tzU_P0530:"UTC+05:30 (India, Srí Lanka)",tzU_P06:"UTC+06:00 (Bangladéš, Astana)",tzU_P08:"UTC+08:00 (Singapur, Peking, Perth)",tzU_P09:"UTC+09:00 (Tokio, Soul)",tzU_P11:"UTC+11:00 (Šalamúnove ostrovy)",tzU_P12:"UTC+12:00 (Auckland, Fidži)"
+   tzU_03:"UTC-03:00 (Brazília, Argentína)",tzU_01:"UTC-01:00 (Azory)",tzU_P01:"UTC+01:00 (CET fixný)",tzU_P02:"UTC+02:00 (EET fixný)",tzU_P03:"UTC+03:00 (Moskva, Saudská Arábia, Turecko)",tzU_P0330:"UTC+03:30 (Teherán)",tzU_P04:"UTC+04:00 (Dubaj, Baku)",tzU_P0430:"UTC+04:30 (Kábul)",tzU_P0530:"UTC+05:30 (India, Srí Lanka)",tzU_P06:"UTC+06:00 (Bangladéš, Astana)",tzU_P08:"UTC+08:00 (Singapur, Peking, Perth)",tzU_P09:"UTC+09:00 (Tokio, Soul)",tzU_P11:"UTC+11:00 (Šalamúnove ostrovy)",tzU_P12:"UTC+12:00 (Auckland, Fidži)",
+   scrOrderHdr:"📐 Poradie a rotácia obrazoviek",scrOrderHint:"Nastavte postupnosť cyklovania a listovania obrazoviek. Presúvajte položky potiahnutím myšou (drag & drop) alebo tlačidlami ▲/▼. Poradie sa aplikuje na automatické striedanie, dotykové gestá aj rýchle tlačidlá.",btnResetOrder:"↺ Predvolené poradie",scrActiveTag:"AKTÍVNA",scrDisabledTag:"VYPNUTÁ",scrConfigure:"Nastaviť"
  },
  en:{
    disasterRangeLbl:"Alert range (Maximum distance)",disasterRangeHint:"Events beyond the selected distance will not trigger the alert banner or siren (they still appear in the events table). Worldwide monitors globally.",disasterRange0:"🌍 Worldwide (Global / Unlimited)",disasterRange100:"📍 Within 100 km (Immediate area)",disasterRange250:"📍 Within 250 km (Local)",disasterRange500:"🗺️ Within 500 km (Regional)",disasterRange1000:"🧭 Within 1,000 km (Sub-continental)",disasterRange2500:"🇪🇺 Within 2,500 km (Continental)",disasterRange5000:"🌐 Within 5,000 km (Hemispheric)",disasterFilterActive:"Range perimeter",
@@ -1771,7 +1808,8 @@ const D={
    sonarPingOk:"Sonar Ping!",buzzerBeepOk:"Beep!",
    tzGrpEurope:"European time zones (automatic DST)",tzCet:"Central European Time (CET/CEST: UTC+1 / DST UTC+2)",tzEet:"Eastern European Time (EET/EEST: UTC+2 / DST UTC+3)",tzWet:"Western European Time / UK (WET/WEST: UTC+0 / DST UTC+1)",
    tzGrpUtc:"World reference time",tzUtc:"UTC / Zulu / GMT (UTC+0 no DST)",tzGrpFixed:"Fixed UTC offsets (no DST)",
-   tzU_03:"UTC-03:00 (Brazil, Argentina)",tzU_01:"UTC-01:00 (Azores)",tzU_P01:"UTC+01:00 (CET fixed)",tzU_P02:"UTC+02:00 (EET fixed)",tzU_P03:"UTC+03:00 (Moscow, Saudi Arabia, Turkey)",tzU_P0330:"UTC+03:30 (Tehran)",tzU_P04:"UTC+04:00 (Dubai, Baku)",tzU_P0430:"UTC+04:30 (Kabul)",tzU_P0530:"UTC+05:30 (India, Sri Lanka)",tzU_P06:"UTC+06:00 (Bangladesh, Astana)",tzU_P08:"UTC+08:00 (Singapore, Beijing, Perth)",tzU_P09:"UTC+09:00 (Tokyo, Seoul)",tzU_P11:"UTC+11:00 (Solomon Islands)",tzU_P12:"UTC+12:00 (Auckland, Fiji)"
+   tzU_03:"UTC-03:00 (Brazil, Argentina)",tzU_01:"UTC-01:00 (Azores)",tzU_P01:"UTC+01:00 (CET fixed)",tzU_P02:"UTC+02:00 (EET fixed)",tzU_P03:"UTC+03:00 (Moscow, Saudi Arabia, Turkey)",tzU_P0330:"UTC+03:30 (Tehran)",tzU_P04:"UTC+04:00 (Dubai, Baku)",tzU_P0430:"UTC+04:30 (Kabul)",tzU_P0530:"UTC+05:30 (India, Sri Lanka)",tzU_P06:"UTC+06:00 (Bangladesh, Astana)",tzU_P08:"UTC+08:00 (Singapore, Beijing, Perth)",tzU_P09:"UTC+09:00 (Tokyo, Seoul)",tzU_P11:"UTC+11:00 (Solomon Islands)",tzU_P12:"UTC+12:00 (Auckland, Fiji)",
+   scrOrderHdr:"📐 Screen Sequence & Rotation Order",scrOrderHint:"Configure the cycling and navigation sequence for all screens. Reorder via drag & drop or tactile ▲/▼ step buttons. Applied instantly to auto-rotation, touch swipe gestures, and quick buttons.",btnResetOrder:"↺ Default Order",scrActiveTag:"ACTIVE",scrDisabledTag:"OFF",scrConfigure:"Config"
  }
 };
 
@@ -1968,6 +2006,7 @@ function setLang(v){
     $("btnPetRemote").textContent = isOpen ? (D[L].btnPetHide||"🐾 Skryť DigiCat (Pet)") : (D[L].btnPetShow||"🐾 Zobraziť DigiCat (Pet)");
   }
  }
+ if(typeof renderScreenOrderList==="function") renderScreenOrderList();
  if(typeof updateSerialBadge==="function") updateSerialBadge(g_serialRunning);
  if(g_lastDisaster) renderDisasterData(g_lastDisaster);
  pwState();status();updateHardware();initFinPresets();
@@ -1977,7 +2016,7 @@ function showTab(id){
  TAB=id;
  document.querySelectorAll("section.tab").forEach(s=>s.classList.toggle("hide",s.id!=id));
  document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.tab==id));
- if(id=="tCommon"){ if(!g_otaLatest) checkGithubUpdates(false); refreshDisaster(); }
+ if(id=="tCommon"){ if(!g_otaLatest) checkGithubUpdates(false); refreshDisaster(); if(typeof renderScreenOrderList==="function") renderScreenOrderList(); }
  if(id=="tScrInfo") fetchStats();
  if(id=="tScrIss") refreshIssLive();
  if(id=="tSerial") startSerialPolling(); else stopSerialPolling();
@@ -1987,14 +2026,148 @@ document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>showTab(b.dat
 
 function msg(t,c){$("msg").textContent=t;$("msg").className=c||"";setTimeout(()=>{$("msg").textContent=""},4000);}
 
-const SCR=[["scrClock",0],["scrPlanes",1],["scrMeteo",2],["scrTactical",3],["scrSonar",4],["scrForecast",5],["scrFinance",6],["scrIss",7],["scrYouTube",8],["scrKlipper",9],["scrInfo",10],["scrSettings",11]];
+let g_screenOrder=[0,1,2,3,4,5,6,7,8,9,10,11], g_dragSrcIdx=null;
+const SCR_META=[
+ {idx:0,key:"scrClock",icon:"🕒",tab:"tScrClock"},
+ {idx:1,key:"scrPlanes",icon:"✈️",tab:"tScrPlanes"},
+ {idx:2,key:"scrMeteo",icon:"🌧️",tab:"tScrMeteo"},
+ {idx:3,key:"scrTactical",icon:"🎯",tab:"tScrTactical"},
+ {idx:4,key:"scrSonar",icon:"🟢",tab:"tScrSonar"},
+ {idx:5,key:"scrForecast",icon:"⛅",tab:"tScrForecast"},
+ {idx:6,key:"scrFinance",icon:"📈",tab:"tScrFinance"},
+ {idx:7,key:"scrIss",icon:"🛰️",tab:"tScrIss"},
+ {idx:8,key:"scrYouTube",icon:"▶️",tab:"tScrYouTube"},
+ {idx:9,key:"scrKlipper",icon:"🖨️",tab:"tScrKlipper"},
+ {idx:10,key:"scrInfo",icon:"ℹ️",tab:"tScrInfo"},
+ {idx:11,key:"scrSettings",icon:"⚙️",tab:"tCommon"}
+];
+const SCR=SCR_META.map(m=>[m.key,m.idx]);
+
+function isScreenEnabled(idx){
+ if(g_lastStatus&&Array.isArray(g_lastStatus.enabled)&&g_lastStatus.enabled.length>idx){
+  return !!g_lastStatus.enabled[idx];
+ }
+ if(idx===11) return true;
+ if(!CFG||!CFG.screens) return true;
+ const m=["clock","planes","meteo","tactical","sonar","forecast","finance","iss","youtube","klipper","info"];
+ const k=m[idx];
+ return k?(CFG.screens[k]!==false):true;
+}
+
+function renderScreenOrderList(){
+ const listEl=$("scrOrderList");
+ if(!listEl) return;
+ if(!Array.isArray(g_screenOrder)||g_screenOrder.length!==12){
+  g_screenOrder=[0,1,2,3,4,5,6,7,8,9,10,11];
+ }
+ let html="";
+ g_screenOrder.forEach((scrIdx,pos)=>{
+  const meta=SCR_META[scrIdx]||{idx:scrIdx,key:"scrClock",icon:"📺",tab:"tCommon"};
+  const name=(D[L]&&D[L][meta.key])?D[L][meta.key]:meta.key;
+  const isEn=isScreenEnabled(scrIdx);
+  const posNum=String(pos+1).padStart(2,"0");
+  const actTxt=(D[L]&&D[L].scrActiveTag)?D[L].scrActiveTag:"AKTÍVNA";
+  const disTxt=(D[L]&&D[L].scrDisabledTag)?D[L].scrDisabledTag:"VYPNUTÁ";
+  const cfgTxt=(D[L]&&D[L].scrConfigure)?D[L].scrConfigure:"Nastaviť";
+  const stCls=isEn?"on":"off";
+  const stLbl=isEn?("● "+actTxt):("○ "+disTxt);
+  const disUp=(pos===0)?"disabled":"";
+  const disDown=(pos===g_screenOrder.length-1)?"disabled":"";
+
+  html+=`<div class="scr-order-item" draggable="true" data-pos="${pos}" data-idx="${scrIdx}">
+   <span class="scr-drag-handle" title="Presunúť / Drag to reorder">⠿</span>
+   <span class="scr-order-idx">#${posNum}</span>
+   <div class="scr-order-info">
+    <span class="scr-order-icon">${meta.icon}</span>
+    <span class="scr-order-name">${name}</span>
+    <span class="scr-order-status ${stCls}">${stLbl}</span>
+   </div>
+   <div class="scr-order-actions">
+    <button type="button" class="scr-jump-btn" onclick="showTab('${meta.tab}')" title="${cfgTxt}">${cfgTxt}</button>
+    <button type="button" class="scr-move-btn" ${disUp} onclick="moveScreenOrder(${pos},${pos-1})" title="▲">▲</button>
+    <button type="button" class="scr-move-btn" ${disDown} onclick="moveScreenOrder(${pos},${pos+1})" title="▼">▼</button>
+   </div>
+  </div>`;
+ });
+ listEl.innerHTML=html;
+
+ const items=listEl.querySelectorAll(".scr-order-item");
+ items.forEach(item=>{
+  item.addEventListener("dragstart",e=>{
+   g_dragSrcIdx=parseInt(item.dataset.pos,10);
+   item.classList.add("dragging");
+   e.dataTransfer.effectAllowed="move";
+   e.dataTransfer.setData("text/plain",g_dragSrcIdx);
+  });
+  item.addEventListener("dragover",e=>{
+   e.preventDefault();
+   e.dataTransfer.dropEffect="move";
+   const rect=item.getBoundingClientRect();
+   const mid=rect.top+rect.height/2;
+   item.classList.remove("drag-over-top","drag-over-bottom");
+   if(e.clientY<mid){
+    item.classList.add("drag-over-top");
+   }else{
+    item.classList.add("drag-over-bottom");
+   }
+  });
+  item.addEventListener("dragleave",()=>{
+   item.classList.remove("drag-over-top","drag-over-bottom");
+  });
+  item.addEventListener("drop",e=>{
+   e.preventDefault();
+   const targetPos=parseInt(item.dataset.pos,10);
+   const isBottom=item.classList.contains("drag-over-bottom");
+   item.classList.remove("drag-over-top","drag-over-bottom");
+   if(g_dragSrcIdx!==null&&g_dragSrcIdx!==targetPos){
+    const [moved]=g_screenOrder.splice(g_dragSrcIdx,1);
+    let insPos=targetPos;
+    if(isBottom&&targetPos>g_dragSrcIdx){
+     insPos=targetPos;
+    }else if(isBottom&&targetPos<g_dragSrcIdx){
+     insPos=targetPos+1;
+    }
+    g_screenOrder.splice(insPos,0,moved);
+    saveScreenOrder();
+   }
+  });
+  item.addEventListener("dragend",()=>{
+   item.classList.remove("dragging","drag-over-top","drag-over-bottom");
+   items.forEach(it=>it.classList.remove("drag-over-top","drag-over-bottom"));
+   g_dragSrcIdx=null;
+  });
+ });
+}
+
+function moveScreenOrder(fromPos,toPos){
+ if(fromPos<0||fromPos>=g_screenOrder.length||toPos<0||toPos>=g_screenOrder.length)return;
+ const t=g_screenOrder[fromPos];
+ g_screenOrder[fromPos]=g_screenOrder[toPos];
+ g_screenOrder[toPos]=t;
+ saveScreenOrder();
+}
+
+function saveScreenOrder(){
+ if(CFG) CFG.screenOrder=g_screenOrder.slice();
+ renderScreenOrderList();
+ if(g_lastStatus) drawScrBtns(g_lastStatus.screen,g_lastStatus.enabled);
+ autoSave("screenOrder",g_screenOrder);
+}
+
+function resetScreenOrder(){
+ g_screenOrder=[0,1,2,3,4,5,6,7,8,9,10,11];
+ saveScreenOrder();
+}
+
 function drawScrBtns(cur,enabled){
  if(!$("scrBtns")) return;
- $("scrBtns").innerHTML=SCR.map(([k,i])=>{
+ const order=(Array.isArray(g_screenOrder)&&g_screenOrder.length===12)?g_screenOrder:SCR.map(x=>x[1]);
+ $("scrBtns").innerHTML=order.map(i=>{
+  const meta=SCR_META[i]||{key:"scrClock",idx:i};
   const on=enabled?enabled[i]:true;
   const cls=(i==cur)?"":"sec";
   const dis=on?"":" disabled style='opacity:.4'";
-  const label=D[L][k]||(k==="scrSettings"?"Settings":k);
+  const label=(D[L]&&D[L][meta.key])||(meta.key==="scrSettings"?"Settings":meta.key);
   return "<button class='"+cls+"'"+dis+" onclick='goScreen("+i+")'>"+label+"</button>";
  }).join(" ");
 }
@@ -2442,6 +2615,18 @@ async function load(){
  if(CFG.financeTickers !== undefined) loadFinanceTickers(CFG.financeTickers);
  if($("finGraphType") && CFG.financeGraph !== undefined) $("finGraphType").value = CFG.financeGraph;
  $("autoRotate").value=CFG.autoRotate;$("radarSrc").value=CFG.radarSrc;
+ if(Array.isArray(CFG.screenOrder)&&CFG.screenOrder.length>0){
+  const seen=new Set(),valid=[];
+  CFG.screenOrder.forEach(idx=>{
+   const n=Number(idx);
+   if(n>=0&&n<12&&!seen.has(n)){seen.add(n);valid.push(n);}
+  });
+  for(let i=0;i<12;i++){if(!seen.has(i))valid.push(i);}
+  g_screenOrder=valid;
+ }else{
+  g_screenOrder=[0,1,2,3,4,5,6,7,8,9,10,11];
+ }
+ renderScreenOrderList();
  if($("mapProvider") && CFG.mapProvider!==undefined) $("mapProvider").value=CFG.mapProvider;
  if($("showLegends")) $("showLegends").checked=!!CFG.showLegends;
  if($("showLegendsMeteo")) $("showLegendsMeteo").checked=!!CFG.showLegends;
@@ -2533,6 +2718,9 @@ async function status(){
     }
   }
   drawScrBtns(s.screen,s.enabled);
+  if(TAB==="tCommon" && !g_dragSrcIdx && $("scrOrderList")){
+    renderScreenOrderList();
+  }
   if(!CFG.apMode&&$("wifiNow")) $("wifiNow").textContent=D[L].wifiNow+" "+s.ssid+" ("+s.rssi+" dBm).";
   const hasR=(s.range&&s.range.length>0);
   if($("rangeNow")) $("rangeNow").textContent=hasR?s.range:"–";
@@ -2653,7 +2841,8 @@ function body(){return{
  cDisasterRange:parseInt($("cDisasterRange")?$("cDisasterRange").value:($("cDisasterRangeClock")?$("cDisasterRangeClock").value:0),10)||0,
  cOver:$("cOver")?$("cOver").checked:true,
  ovRad:$("ovRad")?parseFloat($("ovRad").value)||10:10,
- screens:{clock:$("sClock").checked,planes:$("sPlanes").checked,meteo:$("sMeteo").checked,tactical:$("sTactical").checked,sonar:$("sSonar")?$("sSonar").checked:true,forecast:$("sForecast").checked,finance:$("sFinance")?$("sFinance").checked:true,iss:$("sIss")?$("sIss").checked:true,youtube:$("sYt")?$("sYt").checked:true,info:$("sInfo")?$("sInfo").checked:true},
+ screens:{clock:$("sClock").checked,planes:$("sPlanes").checked,meteo:$("sMeteo").checked,tactical:$("sTactical").checked,sonar:$("sSonar")?$("sSonar").checked:true,forecast:$("sForecast").checked,finance:$("sFinance")?$("sFinance").checked:true,iss:$("sIss")?$("sIss").checked:true,youtube:$("sYt")?$("sYt").checked:true,klipper:$("sKlipper")?$("sKlipper").checked:true,info:$("sInfo")?$("sInfo").checked:true},
+ screenOrder:g_screenOrder,
  issAlert:$("issAlert")?$("issAlert").checked:false,
  issViewMode:$("issViewMode")?parseInt($("issViewMode").value,10)||0:0,
  sonarViewMode:$("sonarViewMode")?parseInt($("sonarViewMode").value,10)||0:0,

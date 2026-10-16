@@ -48,6 +48,8 @@ struct KlipperStatus {
   uint32_t printDuration; // elapsed printing duration in seconds
   uint32_t totalDuration; // total job duration in seconds
   float filamentUsed;     // filament used in mm
+  uint32_t currentLayer;  // current print layer (from print_stats.info or message)
+  uint32_t totalLayers;   // total print layers (from print_stats.info or message)
   char webhookState[16];  // "ready", "startup", "shutdown", "error"
   char webhookMsg[96];    // shutdown or error details
   char idleState[16];     // "Idle", "Ready", "Printing" from idle_timeout

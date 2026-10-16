@@ -45,6 +45,11 @@ static uint16_t s_scrMask = (1 << SCREEN_CLOCK_I) | (1 << SCREEN_PLANES_I) |
                             (1 << SCREEN_SONAR_I) | (1 << SCREEN_FORECAST_I) |
                             (1 << SCREEN_FINANCE_I) | (1 << SCREEN_ISS_I) |
                             (1 << SCREEN_YOUTUBE_I) | (1 << SCREEN_KLIPPER_I) | (1 << SCREEN_INFO_I);
+static uint8_t  s_scrOrder[SCREEN_N] = {
+  SCREEN_CLOCK_I, SCREEN_PLANES_I, SCREEN_METEO_I, SCREEN_TACTICAL_I,
+  SCREEN_SONAR_I, SCREEN_FORECAST_I, SCREEN_FINANCE_I, SCREEN_ISS_I,
+  SCREEN_YOUTUBE_I, SCREEN_KLIPPER_I, SCREEN_INFO_I, SCREEN_SETTINGS_I
+};
 static char     s_finTickers[128] = DEFAULT_FINANCE_TICKERS;
 static uint8_t  s_finGraphType = FIN_GRAPH_LINE;
 static bool     s_issAlert = true;
@@ -196,6 +201,7 @@ void Settings_Begin() {
   bool migrateYtScr = false;
   bool migrateSonarScr = false;
   bool migrateKlipperScr = false;
+  bool migrateScrOrder = false;
   if (prefs.begin(NS, true)) {
     s_lat    = prefs.getDouble("lat", DEFAULT_LAT);
     s_lon    = prefs.getDouble("lon", DEFAULT_LON);
@@ -234,32 +240,38 @@ void Settings_Begin() {
       s_scrMask |= (1 << SCREEN_SONAR_I);
       migrateSonarScr = true;
     }
-    if (!prefs.isKey("klipScrInit")) {
-      bool oldInfo = (s_scrMask & (1 << 9)) != 0;
-      if (oldInfo) s_scrMask |= (1 << SCREEN_INFO_I);
+    if (!prefs.isKey("klipScrInit") || !prefs.isKey("klipFixedV2")) {
       s_scrMask |= (1 << SCREEN_KLIPPER_I);
       migrateKlipperScr = true;
     }
     if (!prefs.isKey("scrOrderV2")) {
-      uint16_t oldMask = s_scrMask;
-      uint16_t newMask = oldMask & 0x0F; // Clock(0), Planes(1), Meteo(2), Tactical(3) unchanged
-      bool oldSonarOn    = (oldMask & (1 << 9)) != 0;
-      bool oldForecastOn = (oldMask & (1 << 4)) != 0;
-      bool oldFinanceOn  = (oldMask & (1 << 5)) != 0;
-      bool oldIssOn      = (oldMask & (1 << 6)) != 0;
-      bool oldYtOn       = (oldMask & (1 << 7)) != 0;
-      bool oldInfoOn     = (oldMask & (1 << 8)) != 0;
+      if (!prefs.isKey("scrM16")) {
+        uint16_t oldMask = s_scrMask;
+        uint16_t newMask = oldMask & 0x0F; // Clock(0), Planes(1), Meteo(2), Tactical(3) unchanged
+        bool oldSonarOn    = (oldMask & (1 << 9)) != 0;
+        bool oldForecastOn = (oldMask & (1 << 4)) != 0;
+        bool oldFinanceOn  = (oldMask & (1 << 5)) != 0;
+        bool oldIssOn      = (oldMask & (1 << 6)) != 0;
+        bool oldYtOn       = (oldMask & (1 << 7)) != 0;
+        bool oldInfoOn     = (oldMask & (1 << 8)) != 0;
 
-      if (oldSonarOn)    newMask |= (1 << SCREEN_SONAR_I);
-      if (oldForecastOn) newMask |= (1 << SCREEN_FORECAST_I);
-      if (oldFinanceOn)  newMask |= (1 << SCREEN_FINANCE_I);
-      if (oldIssOn)      newMask |= (1 << SCREEN_ISS_I);
-      if (oldYtOn)       newMask |= (1 << SCREEN_YOUTUBE_I);
-      if (oldInfoOn)     newMask |= (1 << SCREEN_INFO_I);
-
-      s_scrMask = newMask;
-      prefs.putUShort("scrm", s_scrMask);
-      prefs.putBool("scrOrderV2", true);
+        if (oldSonarOn)    newMask |= (1 << SCREEN_SONAR_I);
+        if (oldForecastOn) newMask |= (1 << SCREEN_FORECAST_I);
+        if (oldFinanceOn)  newMask |= (1 << SCREEN_FINANCE_I);
+        if (oldIssOn)      newMask |= (1 << SCREEN_ISS_I);
+        if (oldYtOn)       newMask |= (1 << SCREEN_YOUTUBE_I);
+        if (oldInfoOn)     newMask |= (1 << SCREEN_INFO_I);
+        newMask |= (1 << SCREEN_KLIPPER_I);
+        s_scrMask = newMask;
+      }
+      migrateScrOrder = true;
+    }
+    if (prefs.isKey("scrOrd")) {
+      uint8_t raw[SCREEN_N];
+      size_t len = prefs.getBytes("scrOrd", raw, sizeof(raw));
+      if (len > 0) {
+        Settings_SetScreenOrder(raw, (uint8_t)len);
+      }
     }
     s_issAlert = prefs.getBool("issAlert", true);
     s_issViewMode = prefs.getUChar("issVMode", ISS_VIEW_3D_ISS);
@@ -461,6 +473,13 @@ void Settings_Begin() {
   }
   if (migrateKlipperScr && prefs.begin(NS, false)) {
     prefs.putBool("klipScrInit", true);
+    prefs.putBool("klipFixedV2", true);
+    prefs.putUChar("scrM", (uint8_t)s_scrMask);
+    prefs.putUShort("scrM16", s_scrMask);
+    prefs.end();
+  }
+  if (migrateScrOrder && prefs.begin(NS, false)) {
+    prefs.putBool("scrOrderV2", true);
     prefs.putUChar("scrM", (uint8_t)s_scrMask);
     prefs.putUShort("scrM16", s_scrMask);
     prefs.end();
@@ -720,7 +739,10 @@ void Settings_SetScreenEnabled(uint8_t idx, bool on) {
   putBool("finScrInit", true);
   putBool("issScrInit", true);
   putBool("ytScrInit", true);
+  putBool("sonarScrInit", true);
   putBool("klipScrInit", true);
+  putBool("klipFixedV2", true);
+  putBool("scrOrderV2", true);
   Settings_BatchEnd();
 }
 
@@ -735,6 +757,54 @@ void     Settings_SetAutoRotateSec(uint16_t s) {
   if (s > 3600) s = 3600;
   s_autoRot = s;
   putU16("autoRS", s);
+}
+
+void Settings_GetScreenOrder(uint8_t* out, uint8_t count) {
+  if (!out) return;
+  uint8_t n = (count < SCREEN_N) ? count : SCREEN_N;
+  memcpy(out, s_scrOrder, n);
+}
+
+void Settings_SetScreenOrder(const uint8_t* in, uint8_t count) {
+  if (!in || count == 0) return;
+  bool seen[SCREEN_N] = { false };
+  uint8_t newOrder[SCREEN_N];
+  uint8_t pos = 0;
+
+  for (uint8_t i = 0; i < count && pos < SCREEN_N; i++) {
+    uint8_t s = in[i];
+    if (s < SCREEN_N && !seen[s]) {
+      newOrder[pos++] = s;
+      seen[s] = true;
+    }
+  }
+  for (uint8_t s = 0; s < SCREEN_N && pos < SCREEN_N; s++) {
+    if (!seen[s]) {
+      newOrder[pos++] = s;
+      seen[s] = true;
+    }
+  }
+
+  memcpy(s_scrOrder, newOrder, sizeof(s_scrOrder));
+
+  if (s_batchDepth > 0) {
+    prefs.putBytes("scrOrd", s_scrOrder, sizeof(s_scrOrder));
+  } else if (prefs.begin(NS, false)) {
+    prefs.putBytes("scrOrd", s_scrOrder, sizeof(s_scrOrder));
+    prefs.end();
+  }
+}
+
+uint8_t Settings_GetScreenAtOrder(uint8_t pos) {
+  if (pos >= SCREEN_N) return s_scrOrder[0];
+  return s_scrOrder[pos];
+}
+
+int Settings_GetOrderOfScreen(uint8_t screenIdx) {
+  for (uint8_t i = 0; i < SCREEN_N; i++) {
+    if (s_scrOrder[i] == screenIdx) return i;
+  }
+  return -1;
 }
 
 const char* Settings_FinanceTickers() { return s_finTickers; }
@@ -1188,6 +1258,10 @@ void Settings_ToJson(JsonObject o) {
   scr["youtube"]  = Settings_ScreenEnabled(SCREEN_YOUTUBE_I);
   scr["klipper"]  = Settings_ScreenEnabled(SCREEN_KLIPPER_I);
   scr["info"]     = Settings_ScreenEnabled(SCREEN_INFO_I);
+  JsonArray ordArr = o["screenOrder"].to<JsonArray>();
+  for (uint8_t i = 0; i < SCREEN_N; i++) {
+    ordArr.add(s_scrOrder[i]);
+  }
   o["financeTickers"] = s_finTickers;
   o["financeGraph"]   = s_finGraphType;
   o["issAlert"]   = s_issAlert;
@@ -1327,6 +1401,19 @@ bool Settings_FromJson(JsonObjectConst in) {
       if (!v.isNull()) { Settings_SetScreenEnabled(m.idx, v.as<bool>()); changed = true; }
     }
   }
+
+  JsonArrayConst ordArr = in["screenOrder"];
+  if (!ordArr.isNull() && ordArr.size() > 0) {
+    uint8_t newOrder[SCREEN_N];
+    uint8_t count = 0;
+    for (JsonVariantConst v : ordArr) {
+      if (count < SCREEN_N) {
+        newOrder[count++] = v.as<uint8_t>();
+      }
+    }
+    Settings_SetScreenOrder(newOrder, count);
+    changed = true;
+  }
   Settings_BatchEnd();
   return changed;
 }
@@ -1362,6 +1449,12 @@ void Settings_ClearAll() {
               (1 << SCREEN_SONAR_I) | (1 << SCREEN_FORECAST_I) |
               (1 << SCREEN_FINANCE_I) | (1 << SCREEN_ISS_I) |
               (1 << SCREEN_YOUTUBE_I) | (1 << SCREEN_KLIPPER_I) | (1 << SCREEN_INFO_I);
+  const uint8_t defOrder[SCREEN_N] = {
+    SCREEN_CLOCK_I, SCREEN_PLANES_I, SCREEN_METEO_I, SCREEN_TACTICAL_I,
+    SCREEN_SONAR_I, SCREEN_FORECAST_I, SCREEN_FINANCE_I, SCREEN_ISS_I,
+    SCREEN_YOUTUBE_I, SCREEN_KLIPPER_I, SCREEN_INFO_I, SCREEN_SETTINGS_I
+  };
+  memcpy(s_scrOrder, defOrder, sizeof(s_scrOrder));
   s_issAlert = true;
   strncpy(s_finTickers, DEFAULT_FINANCE_TICKERS, sizeof(s_finTickers) - 1);
   s_autoRot = 0; s_radarSrc = RADAR_SRC_CHMU; s_smoothRadar = true;

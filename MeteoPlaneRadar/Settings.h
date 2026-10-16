@@ -88,6 +88,10 @@ uint8_t Settings_EnabledCount();           // data screens currently on
 // 3 seconds" on update. Settings_Begin() converts the old value once.
 uint16_t Settings_AutoRotateSec();
 void     Settings_SetAutoRotateSec(uint16_t s);
+void     Settings_GetScreenOrder(uint8_t* out, uint8_t count);
+void     Settings_SetScreenOrder(const uint8_t* in, uint8_t count);
+uint8_t  Settings_GetScreenAtOrder(uint8_t pos);
+int      Settings_GetOrderOfScreen(uint8_t screenIdx);
 
 // --- Finance / Markets ------------------------------------------------------
 #define FIN_GRAPH_LINE        0

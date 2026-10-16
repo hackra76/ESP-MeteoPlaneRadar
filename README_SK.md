@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-SK%20%7C%20CZ%20%7C%20EN-green.svg)
-![Release](https://img.shields.io/badge/Release-v3.4.0-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v3.5.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunkčná meteorologická stanica, živý ADS-B letecký radar, animovaný radar zrážok (SHMÚ, ČHMÚ, RainViewer), kombinovaný taktický radar, sledovanie dráhy ISS, analytika YouTube, finančné trhy, telemetrický HUD pre Klipper 3D tlačiarne, systém varovania pred katastrofami s hardvérovým seizmometrom a animovaný virtuálny spoločník na okrúhlom 2.1" IPS dotykovom displeji.**  
@@ -37,12 +37,29 @@ Vyvinuté pre **Waveshare ESP32-S3-Touch-LCD-2.1** s dotykovými gestami v štý
 </p>
 
 <p align="center">
-  <em>DigiCat v3.4.0 — Profesionálne 64×64 sprite animácie ryšavej mačky (247 snímok, 38 animačných sekvencií, RGB565 PROGMEM, škálované na 3× / 192×192 px).</em>
+  <em>DigiCat v3.5.0 — Profesionálne 64×64 sprite animácie ryšavej mačky (247 snímok, 38 animačných sekvencií, RGB565 PROGMEM, škálované na 3× / 192×192 px).</em>
 </p>
 
 ---
 
 ## 🌟 Funkcie
+
+### 📐 v3.5.0 Vlastné poradie obrazoviek & Vylepšenia 3D tlačiarne Klipper
+- **Správca vlastného poradia a rotácie obrazoviek:**
+  - Intuitívna matica zmeny poradia prvkov štýlu "Tactile Field Instrument" podporujúca ťahanie myšou (drag & drop) a mechanické krokovacie tlačidlá `▲`/`▼` (`#scrOrderList`) v Spoločných nastaveniach (`tCommon`).
+  - Pohodlné premiestňovanie na dotykových zariadeniach (smartfóny/tablety) jedným ťuknutím aj na desktope s vizuálnymi vodiacimi čiarami.
+  - Ukladanie vlastnej postupnosti `s_scrOrder[SCREEN_N]` do energeticky nezávislej pamäte NVS (`"scrOrd"`).
+  - Dotykové listovanie prstom po displeji (`UI_SwitchScreenStep`) a vzdialené krokovanie z webu (`/api/screen`) rešpektujú nastavenú postupnosť.
+  - Automatické striedanie obrazoviek (`UI_AutoRotate_Tick`) rotuje podľa používateľského poradia s preskakovaním vypnutých obrazoviek a systémových nastavení.
+  - Tlačidlá rýchleho prepínania obrazoviek v bočnom paneli (`#scrBtns`) okamžite zrkadlia zmenu poradia v reálnom čase.
+  - Okamžité debouncované automatické ukladanie na pozadí a tlačidlo pre obnovenie predvoleného továrenského poradia (`↺ Predvolené poradie`).
+- **Kompletné prepracovanie a opravy obrazovky 3D tlačiarne (Klipper / Moonraker):**
+  - Oprava výpočtu zostávajúceho času (ETA) s využitím `print_duration` vs `total_duration` vs `estimated_time` a vrstvových odhadov (odstránená chyba s trvalým zobrazením `0s`).
+  - Oprava perzistencie aktivácie obrazovky 3D tlačiarne vo webovom rozhraní – obrazovka zostáva trvalo zapnutá aj po reštarte.
+  - Indikátor aktuálnej a celkovej vrstvy čítaný priamo z Moonrakera (`L X/Y`, napr. `L 142/350`) na okrúhlom displeji aj vo webovom portáli.
+  - Zväčšené a vysoko kontrastné indikátory osí X/Y/Z a homingu s jednoznačným rozlíšením polohy a cieľa pre okrúhly 480×480 displej.
+- **Optimalizácia flash pamäte PROGMEM:**
+  - Predkomprimovaný gzip archív úrovne 9 (`WebPageGz.h`) zaberá iba 65,8 KB (úspora 187,8 KB flash pamäte).
 
 ### 🎛️ v3.4.0 Priemyselné rozhranie "Tactile Field Instrument" & Anti-Slop Webový portál
 - **Kompletné prepracovanie dizajnu v štýle laboratórnych prístrojov:** Vstavaný webový portál kompletne pretvorený podľa estetiky Braun, Teenage Engineering a švajčiarskej architektonickej mriežky (Swiss Grid).
@@ -190,9 +207,9 @@ Pre **[Waveshare ESP32-S3-Touch-LCD-2.1](https://www.waveshare.com/esp32-s3-touc
 
 ### Možnosť A — Predkompilovaná binárka (Najjednoduchšie)
 Stiahnite z **[Vydania (Releases)](https://github.com/hackra76/ESP-MeteoPlaneRadar/releases)**:
-- `MeteoPlaneRadar-v3.3.0-factory.bin` — kompletný obraz (bootloader + partície + firmvér).
+- `MeteoPlaneRadar-v3.5.0-factory.bin` — kompletný obraz (bootloader + partície + firmvér).
 - Flash cez [ESP Web Flasher](https://espressif.github.io/esptool-js/) pri 921600 baud od adresy `0x00000000`.
-- Alebo: `esptool.py -p COM_PORT -b 921600 write_flash 0x0 MeteoPlaneRadar-v3.3.0-factory.bin`
+- Alebo: `esptool.py -p COM_PORT -b 921600 write_flash 0x0 MeteoPlaneRadar-v3.5.0-factory.bin`
 
 ### Možnosť B — PlatformIO
 ```bash

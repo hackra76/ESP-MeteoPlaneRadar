@@ -248,6 +248,7 @@ bool Klipper_Step() {
   resStatus["print_stats"]["total_duration"] = true;
   resStatus["print_stats"]["filament_used"] = true;
   resStatus["print_stats"]["message"] = true;
+  resStatus["print_stats"]["info"] = true;
   resStatus["extruder"]["temperature"] = true;
   resStatus["extruder"]["target"] = true;
   resStatus["heater_bed"]["temperature"] = true;
@@ -304,15 +305,31 @@ bool Klipper_Step() {
     const char* fn = printStats["filename"] | "";
     sanitizeFilename(fn, s_klipperData.filename, sizeof(s_klipperData.filename));
 
-    s_klipperData.printDuration = printStats["print_duration"] | 0U;
-    s_klipperData.totalDuration = printStats["total_duration"] | 0U;
-    s_klipperData.filamentUsed  = printStats["filament_used"] | 0.0f;
+    s_klipperData.printDuration = (uint32_t)printStats["print_duration"].as<double>();
+    s_klipperData.totalDuration = (uint32_t)printStats["total_duration"].as<double>();
+    s_klipperData.filamentUsed  = printStats["filament_used"].as<float>();
 
     const char* msg = printStats["message"] | "";
     if (msg && *msg) {
       strncpy(s_klipperData.message, msg, sizeof(s_klipperData.message) - 1);
       s_klipperData.message[sizeof(s_klipperData.message) - 1] = '\0';
     }
+
+    uint32_t curLayer = 0;
+    uint32_t totLayer = 0;
+    JsonObject info = printStats["info"];
+    if (!info.isNull()) {
+      curLayer = (uint32_t)info["current_layer"].as<double>();
+      totLayer = (uint32_t)info["total_layer"].as<double>();
+    }
+    if (curLayer == 0) {
+      curLayer = (uint32_t)printStats["current_layer"].as<double>();
+    }
+    if (totLayer == 0) {
+      totLayer = (uint32_t)printStats["total_layer"].as<double>();
+    }
+    s_klipperData.currentLayer = curLayer;
+    s_klipperData.totalLayers = totLayer;
   }
 
   // Temperatures
@@ -381,6 +398,37 @@ bool Klipper_Step() {
     }
   }
   s_klipperData.progress = constrain(prog, 0.0f, 1.0f);
+
+  // Fallback: If layer was not provided by SET_PRINT_STATS_INFO, parse from message (M117 / display_status)
+  if (s_klipperData.currentLayer == 0 && s_klipperData.message[0] != '\0') {
+    const char* p = s_klipperData.message;
+    while (*p) {
+      if (strncasecmp(p, "layer", 5) == 0 || strncasecmp(p, "vrstva", 6) == 0) {
+        p += (strncasecmp(p, "layer", 5) == 0) ? 5 : 6;
+        while (*p == ' ' || *p == ':' || *p == '#') p++;
+        unsigned long cL = 0, tL = 0;
+        if (sscanf(p, "%lu of %lu", &cL, &tL) == 2 ||
+            sscanf(p, "%lu z %lu", &cL, &tL) == 2 ||
+            sscanf(p, "%lu / %lu", &cL, &tL) == 2 ||
+            sscanf(p, "%lu/%lu", &cL, &tL) == 2) {
+          s_klipperData.currentLayer = cL;
+          s_klipperData.totalLayers = tL;
+          break;
+        } else if (sscanf(p, "%lu", &cL) == 1 && cL > 0) {
+          s_klipperData.currentLayer = cL;
+          break;
+        }
+      } else {
+        unsigned long cL = 0, tL = 0;
+        if ((sscanf(p, "%lu/%lu", &cL, &tL) == 2 || sscanf(p, "%lu / %lu", &cL, &tL) == 2) && cL > 0 && tL >= cL) {
+          s_klipperData.currentLayer = cL;
+          s_klipperData.totalLayers = tL;
+          break;
+        }
+      }
+      p++;
+    }
+  }
 
   // Webhooks
   JsonObject webhooks = status["webhooks"];
