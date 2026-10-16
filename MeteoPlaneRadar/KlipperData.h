@@ -60,6 +60,7 @@ struct KlipperStatus {
 void Klipper_Init();
 bool Klipper_Step();
 bool Klipper_GetData(KlipperStatus* out);
+bool Klipper_IsConnected();
 void Klipper_RequestFetch();
 bool Klipper_IsBusy();
 unsigned long Klipper_LastUpdated();

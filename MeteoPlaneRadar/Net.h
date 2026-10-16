@@ -19,7 +19,8 @@
 // Returns false on no link, not enough heap, a non-200 status or an empty body;
 // the reason is printed once, so a caller can just retry later.
 bool Net_GetString(const char* url, String& out, const char* tag,
-                   const char* headerName = nullptr, const char* headerVal = nullptr);
+                   const char* headerName = nullptr, const char* headerVal = nullptr,
+                   uint32_t connectTimeoutMs = 8000, uint32_t reqTimeoutMs = 12000);
 
 // POST a JSON payload to the URL and put the whole response body in `out`.
 // Returns false on failure, error HTTP status, or empty body.

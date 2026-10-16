@@ -165,6 +165,21 @@ void     Settings_SetClockColor(uint16_t c);
 uint16_t Settings_SecondsColor();
 void     Settings_SetSecondsColor(uint16_t c);
 
+// --- Clock complication slots -----------------------------------------------
+#define CLOCK_SLOT_MOON       0
+#define CLOCK_SLOT_SPARKLINE  1
+#define CLOCK_SLOT_WEATHER    2
+#define CLOCK_SLOT_AIRCRAFT   3
+#define CLOCK_SLOT_YOUTUBE    4
+#define CLOCK_SLOT_MARKET     5
+#define CLOCK_SLOT_KLIPPER    6
+#define CLOCK_SLOT_MAX        6
+
+uint8_t  Settings_ClockTopSlot();
+void     Settings_SetClockTopSlot(uint8_t s);
+uint8_t  Settings_ClockBottomSlot();
+void     Settings_SetClockBottomSlot(uint8_t s);
+
 // --- Clock widget toggles ---------------------------------------------------
 bool     Settings_ClockShowDate();
 void     Settings_SetClockShowDate(bool on);

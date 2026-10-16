@@ -46,6 +46,13 @@ bool Klipper_GetData(KlipperStatus* out) {
   return s_klipperData.valid;
 }
 
+bool Klipper_IsConnected() {
+  Async_LockKlipper();
+  bool c = s_klipperData.connected;
+  Async_UnlockKlipper();
+  return c;
+}
+
 // Clean filename by stripping directory path prefix (e.g. "gcodes/sub/test.gcode" -> "test.gcode")
 static void sanitizeFilename(const char* in, char* out, size_t outLen) {
   if (!in || !*in) {
@@ -227,7 +234,7 @@ bool Klipper_Step() {
   }
 
   String body;
-  if (!Net_GetString(url.c_str(), body, "KLIPPER", hdrName, hdrVal)) {
+  if (!Net_GetString(url.c_str(), body, "KLIPPER", hdrName, hdrVal, 1500, 2500)) {
     s_klipperBusy = false;
     s_klipperData.fetching = false;
     Async_LockKlipper();

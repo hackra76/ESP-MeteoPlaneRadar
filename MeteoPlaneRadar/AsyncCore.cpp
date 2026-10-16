@@ -129,10 +129,21 @@ void Async_RequestRoute(const char* callsign, float lat, float lon) {
   Route_Select(callsign, lat, lon);
 }
 
-void Async_RequestFinance() { s_reqFinance = true; }
+void Async_RequestFinance() {
+  s_reqFinance = true;
+  Finance_RequestFetch();
+}
 void Async_RequestIss()     { s_reqIss = true; }
-void Async_RequestYouTube() { s_reqYouTube = true; }
-void Async_RequestKlipper() { s_reqKlipper = true; }
+void Async_RequestYouTube() {
+  s_reqYouTube = true;
+  YouTube_RequestFetch();
+}
+void Async_RequestKlipper() {
+  if (s_activeScreen == SCREEN_KLIPPER_I) {
+    s_reqKlipper = true;
+    Klipper_RequestFetch();
+  }
+}
 void Async_RequestPetThought() { s_reqPetThought = true; }
 
 bool Async_TakeAdsbUpdated() {
@@ -223,6 +234,20 @@ static void asyncWorkerTask(void* param) {
       const uint8_t curScr = s_activeScreen;
       const bool planesActive = (curScr == SCREEN_PLANES_I || curScr == SCREEN_TACTICAL_I || curScr == SCREEN_SONAR_I);
       const bool rvBusy = RainViewer_Busy();
+
+      const bool clockActive = (curScr == SCREEN_CLOCK_I);
+      const uint8_t clkTop = clockActive ? Settings_ClockTopSlot() : 255;
+      const uint8_t clkBot = clockActive ? Settings_ClockBottomSlot() : 255;
+      const bool clockNeedsAircraft = clockActive && (clkTop == CLOCK_SLOT_AIRCRAFT || clkBot == CLOCK_SLOT_AIRCRAFT);
+      const bool clockNeedsFinance  = clockActive && (clkTop == CLOCK_SLOT_MARKET   || clkBot == CLOCK_SLOT_MARKET);
+      const bool clockNeedsYouTube  = clockActive && (clkTop == CLOCK_SLOT_YOUTUBE  || clkBot == CLOCK_SLOT_YOUTUBE);
+      const bool clockNeedsWeather  = clockActive && (clkTop == CLOCK_SLOT_WEATHER  || clkBot == CLOCK_SLOT_WEATHER ||
+                                                      clkTop == CLOCK_SLOT_SPARKLINE|| clkBot == CLOCK_SLOT_SPARKLINE);
+
+      // Klipper fetch requests are strictly discarded when not on Klipper screen
+      if (curScr != SCREEN_KLIPPER_I) {
+        s_reqKlipper = false;
+      }
 
       // Clear background route lookup queue and photo when leaving aircraft screens
       if (!planesActive) {
@@ -343,15 +368,16 @@ static void asyncWorkerTask(void* param) {
             lastTlsTime = millis();
           }
         }
-        // 3. ADS-B Aircraft Fetching (when on Planes or Tactical screen, or periodic background scan for emergency squawks)
+        // 3. ADS-B Aircraft Fetching (when on Planes or Tactical screen, or periodic background scan for emergency squawks, or when clock complication needs aircraft)
         else if ((planesActive && (now - lastAdsbFetch >= adsbPeriod)) ||
+                 (clockNeedsAircraft && (now - lastAdsbFetch >= 8000)) ||
                  (!planesActive && Settings_SquawkAlert() && (now - lastAdsbFetch >= 25000)) ||
                  s_reqAdsb) {
           s_reqAdsb = false;
           lastAdsbFetch = now;
           double lat = planesActive ? s_targetLat : Settings_Lat();
           double lon = planesActive ? s_targetLon : Settings_Lon();
-          float rng = planesActive ? s_targetRangeKm : 250.0f;
+          float rng = planesActive ? s_targetRangeKm : (clockNeedsAircraft ? 25.0f : 250.0f);
           if (ADSB_Fetch(lat, lon, rng)) {
             s_adsbUpdated = true;
             s_adsbFails = 0;
@@ -363,7 +389,7 @@ static void asyncWorkerTask(void* param) {
         // 4. Forecast & Air Quality (immediate on first boot / WiFi connect, then periodic)
         else {
           static bool s_firstForecastDone = false;
-          if (!s_firstForecastDone || (now - lastForecastFetch >= FORECAST_PERIOD_MS) || s_reqForecast) {
+          if (!s_firstForecastDone || (clockNeedsWeather && !Forecast_CurrentValid()) || (now - lastForecastFetch >= FORECAST_PERIOD_MS) || s_reqForecast) {
             s_reqForecast = false;
             s_firstForecastDone = true;
             lastForecastFetch = now;
@@ -378,7 +404,9 @@ static void asyncWorkerTask(void* param) {
             lastTlsTime = millis();
           }
           // 6. Finance Data (Markets, Crypto, Stocks, Commodities)
-          else if (curScr == SCREEN_FINANCE_I || s_reqFinance || (now - lastFinanceFetch >= FINANCE_PERIOD_MS)) {
+          else if (curScr == SCREEN_FINANCE_I || s_reqFinance ||
+                   (clockNeedsFinance && (now - lastFinanceFetch >= 60000UL)) ||
+                   (now - lastFinanceFetch >= FINANCE_PERIOD_MS)) {
             if (Finance_Step()) {
               s_financeUpdated = true;
               lastTlsTime = millis();
@@ -400,6 +428,7 @@ static void asyncWorkerTask(void* param) {
           }
           // 8. YouTube Analytics
           else if (s_reqYouTube ||
+                   (clockNeedsYouTube && (now - lastYouTubeFetch >= YOUTUBE_PERIOD_ACTIVE_MS)) ||
                    (now - lastYouTubeFetch >= (Settings_ScreenEnabled(SCREEN_YOUTUBE_I) ? ((curScr == SCREEN_YOUTUBE_I) ? YOUTUBE_PERIOD_ACTIVE_MS : YOUTUBE_PERIOD_BG_MS) : 3600000UL))) {
             if (YouTube_Step()) {
               s_youtubeUpdated = true;
@@ -408,10 +437,10 @@ static void asyncWorkerTask(void* param) {
             s_reqYouTube = false;
             lastYouTubeFetch = now;
           }
-          // 9. Klipper / Moonraker 3D Printer
-          else if (Settings_ScreenEnabled(SCREEN_KLIPPER_I) &&
+          // 9. Klipper / Moonraker 3D Printer (strictly ONLY when displayed on device screen)
+          else if (curScr == SCREEN_KLIPPER_I &&
                    (s_reqKlipper ||
-                    (now - lastKlipperFetch >= ((curScr == SCREEN_KLIPPER_I) ? KLIPPER_PERIOD_ACTIVE_MS : KLIPPER_PERIOD_BG_MS)))) {
+                    (now - lastKlipperFetch >= (Klipper_IsConnected() ? KLIPPER_PERIOD_ACTIVE_MS : KLIPPER_PERIOD_OFFLINE_MS)))) {
             if (Klipper_Step()) {
               s_klipperUpdated = true;
             }

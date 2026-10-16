@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20SK%20%7C%20CZ-green.svg)
-![Release](https://img.shields.io/badge/Release-v3.5.0-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v3.6.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, ISS orbit tracking, YouTube channel analytics, financial market tickers, Klipper 3D printer telemetry HUD, disaster warning system with hardware seismometer, and an animated virtual pet companion on a round 2.1" IPS touchscreen.**  
@@ -37,12 +37,29 @@ Designed for the **Waveshare ESP32-S3-Touch-LCD-2.1** with smartphone-like touch
 </p>
 
 <p align="center">
-  <em>DigiCat v3.5.0 — Professional 64×64 ginger cat sprites (247 frames, 38 animation sequences, RGB565 PROGMEM, rendered at 3× scale / 192×192 px).</em>
+  <em>DigiCat v3.6.0 — Professional 64×64 ginger cat sprites (247 frames, 38 animation sequences, RGB565 PROGMEM, rendered at 3× scale / 192×192 px).</em>
 </p>
 
 ---
 
 ## 🌟 Features
+
+### ⏱️ v3.6.0 Luxury Dial Complications, Moon Lighting & Network Isolation Release
+- **Configurable Dual Circular Dial Complications (Screen 0):**
+  - Independent configuration of Top ($r=48$, $y=96$) and Bottom ($r=56$, $y=356$) circular subdial apertures on the Luxury Astronomical Chronograph.
+  - 7 interchangeable complication types: 3D Photorealistic Moon Phase, Temperature Trend & Sparkline (24h), Current Weather & Condition Icon, ADS-B Aircraft count within 10 km, YouTube Subscribers count, Primary Market Ticker, and Klipper 3D Printer Progress.
+  - High-resolution dynamic luxury dial background rendering in PSRAM with engraved subdial floors, radial ambient occlusion, and 12 calibrated gold tick marks.
+  - Interactive touch routing: tapping either subdial aperture directly jumps to its full telemetry screen.
+  - Quick Control Center complication selector buttons with tactile buzzer feedback.
+  - Web Portal configuration card with top/bottom slot dropdowns and full i18n (SK, CS, EN).
+- **Astrophysical Moon Phase Lighting Correction:**
+  - Corrected light vector normal calculation in `ScreenClock.cpp` (`float lx = sinf(phaseRad);`). Waxing crescent and quarter moon phases now accurately cast illumination on the right hemisphere, matching physical lunar observations in the northern hemisphere.
+- **Automatic Complication Telemetry Supervision:**
+  - Active complication telemetry (YouTube, Market, ADS-B, Weather) automatically updates in the background without requiring manual rotation through the carousel screens.
+- **Klipper 3D Printer Network Isolation & Fast LAN Timeouts:**
+  - Confined Klipper / Moonraker queries strictly to when the Klipper screen is actively displayed on device (`curScr == SCREEN_KLIPPER_I`). Completely eliminates background connection attempts to offline printers from other screens, preventing socket exhaustion, network freezes, and serial error spam.
+  - Added configurable connect/request timeouts to `Net_GetString`: Klipper uses 1500 ms connect and 2500 ms request timeouts on LAN instead of blocking for 8000 ms.
+  - Added 15-second offline backoff when actively viewing the Klipper screen while the printer is off.
 
 ### 📐 v3.5.0 Custom Screen Sequence & 3D Printer Overhaul Release
 - **Custom Screen Ordering & Rotation Sequence Manager:**

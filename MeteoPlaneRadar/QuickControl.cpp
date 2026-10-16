@@ -464,6 +464,19 @@ static bool handleAssetPickerTap(int x, int y) {
   return true;
 }
 
+static const char* getComplicationShortName(uint8_t slot) {
+  switch (slot) {
+    case CLOCK_SLOT_MOON:      return (Lang_Get() == LANG_EN) ? "Moon" : ((Lang_Get() == LANG_SK) ? "Mesiac" : "Měsíc");
+    case CLOCK_SLOT_SPARKLINE: return "Trend";
+    case CLOCK_SLOT_WEATHER:   return (Lang_Get() == LANG_EN) ? "Weather" : ((Lang_Get() == LANG_SK) ? "Počasie" : "Počasí");
+    case CLOCK_SLOT_AIRCRAFT:  return "Air <10k";
+    case CLOCK_SLOT_YOUTUBE:   return "YouTube";
+    case CLOCK_SLOT_MARKET:    return (Lang_Get() == LANG_EN) ? "Market" : "Trhy";
+    case CLOCK_SLOT_KLIPPER:   return "Klipper";
+    default: return "-";
+  }
+}
+
 static void drawButton(int x, int y, int w, int h, const char* label, bool active, uint16_t activeCol = C_CYAN) {
   uint16_t bg = active ? activeCol : 0x2104; // dark gray if inactive
   uint16_t fg = active ? C_BLACK   : C_WHITE;
@@ -568,16 +581,21 @@ void QuickControl_Draw(int currentScreen) {
     const char* swSrc = (Lang_Get() == LANG_EN) ? "Switch Radar Source" : ((Lang_Get() == LANG_CZ) ? "Prepnout radarovy zdroj" : "Prepnúť radarový zdroj");
     drawButton(CW_X + 16,  y4, CW_W - 32, 34, swSrc, true, 0x07E0);
   } else if (currentScreen == SCREEN_CLOCK_I) {
+    char topBtn[32], botBtn[32];
+    snprintf(topBtn, sizeof(topBtn), "Top: %s", getComplicationShortName(Settings_ClockTopSlot()));
+    snprintf(botBtn, sizeof(botBtn), "Bot: %s", getComplicationShortName(Settings_ClockBottomSlot()));
+    drawButton(CW_X + 16,  y3, 158, 34, topBtn, true, 0x05FF);
+    drawButton(CW_X + 186, y3, 158, 34, botBtn, true, 0x07E0);
+
     const char* secRing = Settings_SecondsStyle() != SEC_STYLE_OFF ?
-        ((Lang_Get() == LANG_EN) ? "Seconds Ring: ON" : ((Lang_Get() == LANG_SK) ? "Sekundový kruh: ZAP" : "Vteřinový prstenec: ZAP")) :
-        ((Lang_Get() == LANG_EN) ? "Seconds Ring: OFF" : ((Lang_Get() == LANG_SK) ? "Sekundový kruh: VYP" : "Vteřinový prstenec: VYP"));
-    drawButton(CW_X + 16,  y3, CW_W - 32, 34, secRing, Settings_SecondsStyle() != SEC_STYLE_OFF);
-    
+        ((Lang_Get() == LANG_EN) ? "Sec: ON" : "Sek: ZAP") :
+        ((Lang_Get() == LANG_EN) ? "Sec: OFF" : "Sek: VYP");
+    drawButton(CW_X + 16,  y4, 158, 34, secRing, Settings_SecondsStyle() != SEC_STYLE_OFF);
+
     const char* sArc = (Lang_Get() == LANG_EN) ? 
-        (Settings_ClockShowAstro() ? "Solar Arc: ON" : "Solar Arc: OFF") :
-        (Settings_ClockShowAstro() ? ((Lang_Get() == LANG_SK) ? "Solárny oblúk: ZAP" : "Solární oblouk: ZAP") :
-                                     ((Lang_Get() == LANG_SK) ? "Solárny oblúk: VYP" : "Solární oblouk: VYP"));
-    drawButton(CW_X + 16,  y4, CW_W - 32, 34, sArc, Settings_ClockShowAstro());
+        (Settings_ClockShowAstro() ? "Sun Arc: ON" : "Sun Arc: OFF") :
+        (Settings_ClockShowAstro() ? "Slnko: ZAP" : "Slnko: VYP");
+    drawButton(CW_X + 186, y4, 158, 34, sArc, Settings_ClockShowAstro());
   } else if (currentScreen == SCREEN_FORECAST_I) {
     const char* uMet = (Lang_Get() == LANG_EN) ? "Units: Metric" : "Jednotky: Metrické";
     const char* uAv = (Lang_Get() == LANG_EN) ? "Units: Aviation" : "Jednotky: Letecké";
@@ -815,13 +833,31 @@ bool QuickControl_HandleTap(int x, int y, int currentScreen) {
     }
   } else if (currentScreen == SCREEN_CLOCK_I) {
     if (y >= y3 && y <= y3 + 34) {
-      uint8_t nextSec = (Settings_SecondsStyle() + 1) % (SEC_STYLE_MAX + 1);
-      Settings_SetSecondsStyle(nextSec);
-      return true;
+      if (x >= CW_X + 16 && x <= CW_X + 174) {
+        uint8_t nextTop = (Settings_ClockTopSlot() + 1) % (CLOCK_SLOT_MAX + 1);
+        Settings_SetClockTopSlot(nextTop);
+        Buzzer_Play(BEEP_CLICK);
+        return true;
+      }
+      if (x >= CW_X + 186 && x <= CW_X + 344) {
+        uint8_t nextBot = (Settings_ClockBottomSlot() + 1) % (CLOCK_SLOT_MAX + 1);
+        Settings_SetClockBottomSlot(nextBot);
+        Buzzer_Play(BEEP_CLICK);
+        return true;
+      }
     }
     if (y >= y4 && y <= y4 + 34) {
-      Settings_SetClockShowAstro(!Settings_ClockShowAstro());
-      return true;
+      if (x >= CW_X + 16 && x <= CW_X + 174) {
+        uint8_t nextSec = (Settings_SecondsStyle() + 1) % (SEC_STYLE_MAX + 1);
+        Settings_SetSecondsStyle(nextSec);
+        Buzzer_Play(BEEP_CLICK);
+        return true;
+      }
+      if (x >= CW_X + 186 && x <= CW_X + 344) {
+        Settings_SetClockShowAstro(!Settings_ClockShowAstro());
+        Buzzer_Play(BEEP_CLICK);
+        return true;
+      }
     }
   } else if (currentScreen == SCREEN_FORECAST_I) {
     if (y >= y3 && y <= y3 + 34) {

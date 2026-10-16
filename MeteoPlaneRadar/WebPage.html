@@ -233,6 +233,34 @@ td:first-child{color:var(--mut);width:45%}
           </div>
         </div>
 
+        <div class="card" style="border-left:3px solid var(--acc);">
+          <h2 data-i18n="clockComplicationsConfig">⚙️ Konfigurácia komplikácií ciferníka</h2>
+          <div class="row" style="margin-top:10px;">
+            <label data-i18n="clockTopSlotLbl">Horná komplikácia (sub-ciferník)</label>
+            <select id="clockTopSlot" style="max-width:300px;">
+              <option value="0" data-i18n="slotMoon">🌕 3D Fotorealistický Mesiac</option>
+              <option value="1" data-i18n="slotSparkline">📈 Trend teploty (Sparkline)</option>
+              <option value="2" data-i18n="slotWeather">⛅ Aktuálne počasie & ikona</option>
+              <option value="3" data-i18n="slotAircraft">✈️ Počet lietadiel do 10 km</option>
+              <option value="4" data-i18n="slotYouTube">▶️ YouTube odberatelia</option>
+              <option value="5" data-i18n="slotMarket">📊 Hlavný trhový ticker</option>
+              <option value="6" data-i18n="slotKlipper">🖨️ Klipper 3D tlačiareň</option>
+            </select>
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <label data-i18n="clockBottomSlotLbl">Dolná komplikácia (sub-ciferník)</label>
+            <select id="clockBottomSlot" style="max-width:300px;">
+              <option value="0" data-i18n="slotMoon">🌕 3D Fotorealistický Mesiac</option>
+              <option value="1" data-i18n="slotSparkline">📈 Trend teploty (Sparkline)</option>
+              <option value="2" data-i18n="slotWeather">⛅ Aktuálne počasie & ikona</option>
+              <option value="3" data-i18n="slotAircraft">✈️ Počet lietadiel do 10 km</option>
+              <option value="4" data-i18n="slotYouTube">▶️ YouTube odberatelia</option>
+              <option value="5" data-i18n="slotMarket">📊 Hlavný trhový ticker</option>
+              <option value="6" data-i18n="slotKlipper">🖨️ Klipper 3D tlačiareň</option>
+            </select>
+          </div>
+        </div>
+
         <div class="card">
           <h2 data-i18n="clockWidgets">Prvky a upozornenia na obrazovke hodín</h2>
           <div class="grid">
@@ -1485,6 +1513,8 @@ const D={
   descWxSub:"Kruhový přístroj ve spodní části s aktuální teplotou a dynamickou 24-hodinovou křivkou vývoje teploty.",
   descSecBead:"Plynulá subpixelová elektricky modrá fosforová kulička obíhající po vnitřní lunetě ciferníku s plynulým 30 FPS pohybem.",
   clockWidgets:"Prvky a upozornění na obrazovce hodin",cDate:"Datum (zobrazeno pod Měsícem)",nightClockOnly:"V noci pouze Hodiny (zastavit radary)",
+  clockComplicationsConfig:"⚙️ Konfigurace komplikací ciferníku",clockTopSlotLbl:"Horní komplikace (sub-ciferník)",clockBottomSlotLbl:"Dolní komplikace (sub-ciferník)",
+  slotMoon:"🌕 3D Fotorealistický Měsíc",slotSparkline:"📈 Trend teploty (Sparkline)",slotWeather:"⛅ Aktuální počasí & ikona",slotAircraft:"✈️ Počet letadel do 10 km",slotYouTube:"▶️ YouTube odběratelé",slotMarket:"📊 Hlavní tržní ticker",slotKlipper:"🖨️ Klipper 3D tiskárna",
   radarWidgets:"Prvky radarové mapy letadel",mapProvider:"Zdroj mapového podkladu",mapProvVector:"Vektorová offline mapa (hranice + města)",mapProvEsri:"Esri World Dark Gray (tmavý podklad)",mapProvOsm:"OpenStreetMap Standard (cesty, terén a města)",
   rBlipStyle:"Styl cílů na radaru",blipChevrons:"Směrové vektorové šipky (Chevrons + vektor rychlosti)",blipSilhouettes:"Siluety letadel podle typu",
   rCompass:"360° Kompasová růžice (obvodový azimut)",rCompassTac:"360° Kompasová růžice (obvodový azimut)",
@@ -1609,6 +1639,8 @@ const D={
   descWxSub:"Kruhový prístroj v spodnej časti s aktuálnou teplotou a dynamickou 24-hodinovou sparkline krivkou vývoja teploty.",
   descSecBead:"Plynulá subpixelová elektricky modrá fosforová guľôčka obiehajúca po vnútornej lunete ciferníka s plynulým 30 FPS pohybom.",
   clockWidgets:"Prvky a upozornenia na obrazovke hodín",cDate:"Dátum (zobrazený pod Mesiacom)",nightClockOnly:"V noci iba Hodiny (zastaviť radary)",
+  clockComplicationsConfig:"⚙️ Konfigurácia komplikácií ciferníka",clockTopSlotLbl:"Horná komplikácia (sub-ciferník)",clockBottomSlotLbl:"Dolná komplikácia (sub-ciferník)",
+  slotMoon:"🌕 3D Fotorealistický Mesiac",slotSparkline:"📈 Trend teploty (Sparkline)",slotWeather:"⛅ Aktuálne počasie & ikona",slotAircraft:"✈️ Počet lietadiel do 10 km",slotYouTube:"▶️ YouTube odberatelia",slotMarket:"📊 Hlavný trhový ticker",slotKlipper:"🖨️ Klipper 3D tlačiareň",
   radarWidgets:"Prvky radarovej mapy lietadiel",mapProvider:"Zdroj mapového podkladu",mapProvVector:"Vektorová offline mapa (hranice + mestá)",mapProvEsri:"Esri World Dark Gray (tmavý podklad)",mapProvOsm:"OpenStreetMap Standard (cesty, terén a mestá)",
   rBlipStyle:"Štýl cieľov na radare",blipChevrons:"Smerové vektorové šípky (Chevrons + vektor rýchlosti)",blipSilhouettes:"Siluety lietadiel podľa typu",
   rCompass:"360° Kompasová ružica (obvodový azimut)",rCompassTac:"360° Kompasová ružica (obvodový azimut)",
@@ -1732,6 +1764,8 @@ const D={
   descWxSub:"Lower dial gauge with real-time temperature and 24-hour dynamic sparkline thermal trend.",
   descSecBead:"Electric cyan phosphor bead orbiting along the inner bezel with smooth 30 FPS subpixel motion.",
   clockWidgets:"Clock screen widgets & alerts",cDate:"Date (displayed under Moon)",nightClockOnly:"Night: Clock only (pause radars)",
+  clockComplicationsConfig:"⚙️ Dial Complications Configuration",clockTopSlotLbl:"Upper Complication (sub-dial)",clockBottomSlotLbl:"Lower Complication (sub-dial)",
+  slotMoon:"🌕 3D Photorealistic Moon Phase",slotSparkline:"📈 Temperature Trend (Sparkline)",slotWeather:"⛅ Current Weather & Condition Icon",slotAircraft:"✈️ Aircraft Count within 10 km",slotYouTube:"▶️ YouTube Subscribers Count",slotMarket:"📊 Primary Market Ticker",slotKlipper:"🖨️ Klipper 3D Printer Progress",
   radarWidgets:"Aircraft radar map elements",mapProvider:"Map Underlay Provider",mapProvVector:"Offline Vector Map (Borders + Cities)",mapProvEsri:"Esri World Dark Gray (Dark Canvas)",mapProvOsm:"OpenStreetMap Standard (Roads, Terrain, Cities)",
   rBlipStyle:"Target Icon Style",blipChevrons:"Tactical Directional Chevrons (TCAS vector)",blipSilhouettes:"Realistic Aircraft Silhouettes by type",
   rCompass:"360° Compass Rose heading bezel",rCompassTac:"360° Compass Rose heading bezel",
@@ -2349,6 +2383,8 @@ const AUTO = [
  ["showLegends","change","showLegends",e=>{ if($("showLegendsMeteo")) $("showLegendsMeteo").checked=e.checked; return e.checked; }],
  ["showLegendsMeteo","change","showLegends",e=>{ if($("showLegends")) $("showLegends").checked=e.checked; return e.checked; }],
  ["smoothRadar","change","smoothRadar",e=>e.checked],
+ ["clockTopSlot","change","clockTopSlot",e=>+e.value],
+ ["clockBottomSlot","change","clockBottomSlot",e=>+e.value],
  ["cDate","change","cDate",e=>e.checked],
  ["nightClockOnly","change","nightClockOnly",e=>e.checked],
  ["mapProvider","change","mapProvider",e=>+e.value],
@@ -2637,6 +2673,8 @@ async function load(){
  if($("rBlipStyle") && CFG.rBlipStyle!==undefined) $("rBlipStyle").value=CFG.rBlipStyle;
  if($("rCompass")) $("rCompass").checked=CFG.rCompass!==false;
  if($("rCompassTac")) $("rCompassTac").checked=CFG.rCompass!==false;
+ if($("clockTopSlot") && CFG.clockTopSlot!==undefined) $("clockTopSlot").value=CFG.clockTopSlot;
+ if($("clockBottomSlot") && CFG.clockBottomSlot!==undefined) $("clockBottomSlot").value=CFG.clockBottomSlot;
  if($("cDate")) $("cDate").checked=CFG.cDate!==false;
  if($("cDisaster")) $("cDisaster").checked=CFG.cDisaster!==false;
  if($("cDisasterClock")) $("cDisasterClock").checked=CFG.cDisaster!==false;
@@ -2807,6 +2845,8 @@ function body(){return{
  rBlipStyle:$("rBlipStyle")?+$("rBlipStyle").value:0,
  showLegends:$("showLegends")?$("showLegends").checked:true,
  smoothRadar:$("smoothRadar")?$("smoothRadar").checked:true,
+ clockTopSlot:$("clockTopSlot")?+$("clockTopSlot").value:0,
+ clockBottomSlot:$("clockBottomSlot")?+$("clockBottomSlot").value:1,
  cDate:$("cDate")?$("cDate").checked:true,
  nightClockOnly:$("nightClockOnly")?$("nightClockOnly").checked:false,
  ultraNight:$("ultraNight")?$("ultraNight").checked:false,

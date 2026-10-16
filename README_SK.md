@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-SK%20%7C%20CZ%20%7C%20EN-green.svg)
-![Release](https://img.shields.io/badge/Release-v3.5.0-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v3.6.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunkčná meteorologická stanica, živý ADS-B letecký radar, animovaný radar zrážok (SHMÚ, ČHMÚ, RainViewer), kombinovaný taktický radar, sledovanie dráhy ISS, analytika YouTube, finančné trhy, telemetrický HUD pre Klipper 3D tlačiarne, systém varovania pred katastrofami s hardvérovým seizmometrom a animovaný virtuálny spoločník na okrúhlom 2.1" IPS dotykovom displeji.**  
@@ -37,12 +37,29 @@ Vyvinuté pre **Waveshare ESP32-S3-Touch-LCD-2.1** s dotykovými gestami v štý
 </p>
 
 <p align="center">
-  <em>DigiCat v3.5.0 — Profesionálne 64×64 sprite animácie ryšavej mačky (247 snímok, 38 animačných sekvencií, RGB565 PROGMEM, škálované na 3× / 192×192 px).</em>
+  <em>DigiCat v3.6.0 — Profesionálne 64×64 sprite animácie ryšavej mačky (247 snímok, 38 animačných sekvencií, RGB565 PROGMEM, škálované na 3× / 192×192 px).</em>
 </p>
 
 ---
 
 ## 🌟 Funkcie
+
+### ⏱️ v3.6.0 Luxusné komplikácie ciferníka, astrofyzikálne osvetlenie Mesiaca a sieťová izolácia
+- **Konfigurovateľné duálne kruhové komplikácie ciferníka (Obrazovka 0):**
+  - Nezávislá konfigurácia hornej ($r=48$, $y=96$) a dolnej ($r=56$, $y=356$) sub-ciferníkovej apertúry na luxusnom astronomickom chronografe.
+  - 7 voliteľných typov komplikácií: 3D fotorealistický Mesiac, trend teploty s grafom (24h Sparkline), aktuálne počasie s ikonou a vetrom, počet lietadiel v okruhu 10 km, odberatelia YouTube, primárny trhový ticker a priebeh tlače 3D tlačiarne Klipper.
+  - Dynamické vykresľovanie luxusného pozadia v PSRAM s mechanicky gravírovanými plochami sub-ciferníkov, radiálnou ambientnou oklúziou a 12 kalibrovanými zlatými indexovými značkami.
+  - Interaktívna dotyková navigácia: ťuknutie na ľubovoľnú komplikáciu okamžite prepne priamo na jej plnohodnotnú obrazovku.
+  - Kolískové prepínače v rýchlom Ovládacom centre (Quick Control) s haptickou/akustickou odozvou bzučiaka.
+  - Konfiguračná karta vo webovom portáli s výberovými zoznamami a kompletnou lokalizáciou (SK, CS, EN).
+- **Astrofyzikálna oprava smeru osvetlenia fázy Mesiaca:**
+  - Oprava normálového vektora dopadu svetla v `ScreenClock.cpp` (`float lx = sinf(phaseRad);`). Dorastajúci kosák a štvrť Mesiaca teraz presne osvetľujú **pravú** pologuľu, čo plne zodpovedá fyzikálnemu pozorovaniu na severnej pologuli.
+- **Automatická supervízia telemetrie komplikácií:**
+  - Aktívne komplikácie (YouTube, trhy, ADS-B, počasie) automaticky načítavajú a udržiavajú čerstvé dáta priamo na obrazovke hodín bez nutnosti manuálneho prepínania obrazoviek.
+- **Sieťová izolácia 3D tlačiarne Klipper a rýchle LAN timeouty:**
+  - Dotazovanie Klipper / Moonraker API je striktne vyhradené iba pre situáciu, keď je obrazovka 3D tlačiarne aktívne zobrazená na displeji (`curScr == SCREEN_KLIPPER_I`). Úplne sa eliminovali pokusy o pripojenie na vypnutú tlačiareň z hodín alebo iných obrazoviek, čo bráni vyčerpaniu soketov, zasekávaniu siete a chybovým výpisom v sériovom monitore.
+  - Nastaviteľný timeout v `Net_GetString`: Klipper využíva 1500 ms pre spojenie a 2500 ms pre požiadavku, namiesto 8000 ms blokovania.
+  - 15-sekundový offline odstup pri aktívnom zobrazení obrazovky Klipper, ak je tlačiareň vypnutá.
 
 ### 📐 v3.5.0 Vlastné poradie obrazoviek & Vylepšenia 3D tlačiarne Klipper
 - **Správca vlastného poradia a rotácie obrazoviek:**

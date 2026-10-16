@@ -12,6 +12,8 @@
 #include <string.h>
 #include <ctype.h>
 
+void ScreenClock_InvalidateDial();
+
 static Preferences prefs;
 static const char* NS = "planeradar";
 
@@ -74,6 +76,8 @@ static uint8_t  s_secStyle   = SEC_STYLE_DOTS;
 static uint8_t  s_clockStyle = CLOCK_STYLE_DIGITAL;
 static uint16_t s_clockCol   = 0xFFFF;   // white
 static uint16_t s_secCol     = 0x05FF;   // cyan
+static uint8_t  s_clockTopSlot = CLOCK_SLOT_MOON;
+static uint8_t  s_clockBotSlot = CLOCK_SLOT_SPARKLINE;
 static bool     s_clkShowDate= true;
 static bool     s_clkShowWx  = true;
 static bool     s_clkShowWind= true;
@@ -346,6 +350,10 @@ void Settings_Begin() {
     if (s_clockStyle > CLOCK_STYLE_MAX) s_clockStyle = CLOCK_STYLE_DIGITAL;
     s_clockCol = prefs.getUShort("clkC", 0xFFFF);
     s_secCol   = prefs.getUShort("secC", 0x05FF);
+    s_clockTopSlot = prefs.getUChar("clkTopS", CLOCK_SLOT_MOON);
+    if (s_clockTopSlot > CLOCK_SLOT_MAX) s_clockTopSlot = CLOCK_SLOT_MOON;
+    s_clockBotSlot = prefs.getUChar("clkBotS", CLOCK_SLOT_SPARKLINE);
+    if (s_clockBotSlot > CLOCK_SLOT_MAX) s_clockBotSlot = CLOCK_SLOT_SPARKLINE;
     s_clkShowDate = prefs.getBool("cDate", true);
     s_clkShowWx   = prefs.getBool("cWx", true);
     s_clkShowWind = prefs.getBool("cWnd", true);
@@ -970,6 +978,24 @@ uint16_t Settings_ClockColor() { return s_clockCol; }
 void     Settings_SetClockColor(uint16_t c) { s_clockCol = c; putU16("clkC", c); }
 uint16_t Settings_SecondsColor() { return s_secCol; }
 void     Settings_SetSecondsColor(uint16_t c) { s_secCol = c; putU16("secC", c); }
+uint8_t  Settings_ClockTopSlot() { return s_clockTopSlot; }
+void     Settings_SetClockTopSlot(uint8_t s) {
+  if (s > CLOCK_SLOT_MAX) s = CLOCK_SLOT_MOON;
+  if (s_clockTopSlot != s) {
+    s_clockTopSlot = s;
+    putU8("clkTopS", s);
+    ScreenClock_InvalidateDial();
+  }
+}
+uint8_t  Settings_ClockBottomSlot() { return s_clockBotSlot; }
+void     Settings_SetClockBottomSlot(uint8_t s) {
+  if (s > CLOCK_SLOT_MAX) s = CLOCK_SLOT_SPARKLINE;
+  if (s_clockBotSlot != s) {
+    s_clockBotSlot = s;
+    putU8("clkBotS", s);
+    ScreenClock_InvalidateDial();
+  }
+}
 
 // --- Clock widget toggles ---
 bool     Settings_ClockShowDate() { return s_clkShowDate; }
@@ -1189,6 +1215,8 @@ void Settings_ToJson(JsonObject o) {
   o["clockStyle"] = s_clockStyle;
   o["clockColor"] = s_clockCol;
   o["secColor"] = s_secCol;
+  o["clockTopSlot"] = s_clockTopSlot;
+  o["clockBottomSlot"] = s_clockBotSlot;
   o["cDate"] = s_clkShowDate;
   o["cWx"] = s_clkShowWx;
   o["cWind"] = s_clkShowWind;
@@ -1310,6 +1338,8 @@ bool Settings_FromJson(JsonObjectConst in) {
   setIf("clockStyle",   [](JsonVariantConst v){ Settings_SetClockStyle(v.as<uint8_t>()); });
   setIf("clockColor",   [](JsonVariantConst v){ Settings_SetClockColor(v.as<uint16_t>()); });
   setIf("secColor",     [](JsonVariantConst v){ Settings_SetSecondsColor(v.as<uint16_t>()); });
+  setIf("clockTopSlot", [](JsonVariantConst v){ Settings_SetClockTopSlot(v.as<uint8_t>()); });
+  setIf("clockBottomSlot", [](JsonVariantConst v){ Settings_SetClockBottomSlot(v.as<uint8_t>()); });
   setIf("cDate",        [](JsonVariantConst v){ Settings_SetClockShowDate(v.as<bool>()); });
   setIf("cWx",          [](JsonVariantConst v){ Settings_SetClockShowWeather(v.as<bool>()); });
   setIf("cWind",        [](JsonVariantConst v){ Settings_SetClockShowWind(v.as<bool>()); });

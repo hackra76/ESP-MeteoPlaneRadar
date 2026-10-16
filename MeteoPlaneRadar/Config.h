@@ -282,9 +282,10 @@
 // ---------------------------------------------------------------------------
 //  3D Printer Telemetry (Moonraker / Klipper)
 // ---------------------------------------------------------------------------
-#define KLIPPER_PERIOD_ACTIVE_MS  (1500UL)                 // 1.5s when active on screen
-#define KLIPPER_PERIOD_BG_MS      (15UL * 1000UL)          // 15s in background
-#define KLIPPER_DEFAULT_PORT      7125
+#define KLIPPER_PERIOD_ACTIVE_MS   (1500UL)                 // 1.5s when active on screen and printer connected
+#define KLIPPER_PERIOD_OFFLINE_MS  (15000UL)                // 15s retry when active on screen and printer is offline
+#define KLIPPER_PERIOD_BG_MS       (15UL * 1000UL)          // Backwards compatibility alias
+#define KLIPPER_DEFAULT_PORT       7125
 
 // ---------------------------------------------------------------------------
 //  YouTube Channel Analytics

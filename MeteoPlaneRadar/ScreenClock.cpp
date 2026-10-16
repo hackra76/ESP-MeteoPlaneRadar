@@ -27,6 +27,10 @@
 #include "FontEngine.h"
 #include "MoonTexture.h"
 #include "SIMD_Blend.h"
+#include "YouTubeData.h"
+#include "FinanceData.h"
+#include "KlipperData.h"
+#include "AsyncCore.h"
 #include <esp_heap_caps.h>
 
 static lv_obj_t* s_screenObj = nullptr;
@@ -61,9 +65,18 @@ static int  s_cardX = 75, s_cardY = 70, s_cardW = 330, s_cardH = 44;
 static bool s_precipActive = false;
 static int  s_precipCardX = 85, s_precipCardY = 66, s_precipCardW = 310, s_precipCardH = 40;
 
-
-
-
+static void routeComplicationTap(uint8_t slot) {
+  switch (slot) {
+    case CLOCK_SLOT_MOON:
+    case CLOCK_SLOT_SPARKLINE:
+    case CLOCK_SLOT_WEATHER:  UI_SwitchScreen(SCREEN_FORECAST_I); break;
+    case CLOCK_SLOT_AIRCRAFT: UI_SwitchScreen(SCREEN_PLANES_I); break;
+    case CLOCK_SLOT_YOUTUBE:  UI_SwitchScreen(SCREEN_YOUTUBE_I); break;
+    case CLOCK_SLOT_MARKET:   UI_SwitchScreen(SCREEN_FINANCE_I); break;
+    case CLOCK_SLOT_KLIPPER:  UI_SwitchScreen(SCREEN_KLIPPER_I); break;
+    default: break;
+  }
+}
 
 static bool ScreenClock_HandleTap(int x, int y) {
   if (s_overheadActive && x >= s_cardX && x <= s_cardX + s_cardW && y >= s_cardY && y <= s_cardY + s_cardH) {
@@ -75,10 +88,16 @@ static bool ScreenClock_HandleTap(int x, int y) {
     UI_SwitchScreen(SCREEN_METEO_I);
     return true;
   }
-  // Tap bottom weather sub-dial to jump to weather forecast
-  int dx = x - CX, dy = y - 356;
-  if (dx * dx + dy * dy <= 58 * 58) {
-    UI_SwitchScreen(SCREEN_FORECAST_I);
+  // Tap top complication aperture to jump to corresponding screen (cy=96, r=48)
+  int dx_top = x - CX, dy_top = y - 96;
+  if (dx_top * dx_top + dy_top * dy_top <= 52 * 52) {
+    routeComplicationTap(Settings_ClockTopSlot());
+    return true;
+  }
+  // Tap bottom complication aperture to jump to corresponding screen (cy=356, r=56)
+  int dx_bot = x - CX, dy_bot = y - 356;
+  if (dx_bot * dx_bot + dy_bot * dy_bot <= 60 * 60) {
+    routeComplicationTap(Settings_ClockBottomSlot());
     return true;
   }
   if (Settings_NightAuto()) return false;
@@ -642,6 +661,9 @@ static void drawSunGlyphToBuf(uint16_t* buf, float sx, float sy, uint8_t type) {
 static void renderLuxuryDialBackground(uint16_t* buf, float moonPhase, time_t now) {
   if (!buf) return;
 
+  uint8_t topSlot = Settings_ClockTopSlot();
+  uint8_t botSlot = Settings_ClockBottomSlot();
+
   SolarTimes st = {0};
   int minSunrise = 6 * 60, minSunset = 20 * 60;
   int minDawn = 5 * 60 + 30, minDusk = 20 * 60 + 30;
@@ -753,7 +775,7 @@ static void renderLuxuryDialBackground(uint16_t* buf, float moonPhase, time_t no
         baseColor = blendColor(baseColor, pack565(12, 20, 35), 0.35f);
       }
 
-      // Top Moon Aperture (cx=240, cy=96, r=48)
+      // Top Complication Aperture (cx=240, cy=96, r=48)
       float dx_m = fx - 240.0f;
       float dy_m = fy - cy_m;
       float dm = sqrtf(dx_m * dx_m + dy_m * dy_m);
@@ -768,54 +790,66 @@ static void renderLuxuryDialBackground(uint16_t* buf, float moonPhase, time_t no
           baseColor = blendColor(pack565(25, 32, 42), pack565(85, 105, 135), glint_m);
         }
       } else if (dm < r_apt_m) {
-        if (dm <= r_moon) {
-          float nx = dx_m / r_moon;
-          float ny = dy_m / r_moon;
-          float nz2 = 1.0f - nx * nx - ny * ny;
-          float nz = sqrtf(nz2 > 0.0f ? nz2 : 0.0f);
+        if (topSlot == CLOCK_SLOT_MOON) {
+          if (dm <= r_moon) {
+            float nx = dx_m / r_moon;
+            float ny = dy_m / r_moon;
+            float nz2 = 1.0f - nx * nx - ny * ny;
+            float nz = sqrtf(nz2 > 0.0f ? nz2 : 0.0f);
 
-          // Photographic NASA Lunar Albedo Map lookup (92x92)
-          int um = (int)floorf((nx + 1.0f) * 0.5f * 91.0f);
-          int vm = (int)floorf((ny + 1.0f) * 0.5f * 91.0f);
-          if (um < 0) um = 0; if (um > 91) um = 91;
-          if (vm < 0) vm = 0; if (vm > 91) vm = 91;
-          float albedo = (float)pgm_read_byte(&s_moonAlbedo92[vm * 92 + um]) / 255.0f;
+            // Photographic NASA Lunar Albedo Map lookup (92x92)
+            int um = (int)floorf((nx + 1.0f) * 0.5f * 91.0f);
+            int vm = (int)floorf((ny + 1.0f) * 0.5f * 91.0f);
+            if (um < 0) um = 0; if (um > 91) um = 91;
+            if (vm < 0) vm = 0; if (vm > 91) vm = 91;
+            float albedo = (float)pgm_read_byte(&s_moonAlbedo92[vm * 92 + um]) / 255.0f;
 
-          float phaseRad = moonPhase * 2.0f * (float)M_PI;
-          float lx = -sinf(phaseRad);
-          float lz = -cosf(phaseRad);
-          float dot = nx * lx + nz * lz;
-          float limb = powf(nz, 0.35f);
+            float phaseRad = moonPhase * 2.0f * (float)M_PI;
+            float lx = sinf(phaseRad);
+            float lz = -cosf(phaseRad);
+            float dot = nx * lx + nz * lz;
+            float limb = powf(nz, 0.35f);
 
-          float lit = 1.0f / (1.0f + expf(-dot * 26.0f));
-          float diffuse = (dot > 0.0f) ? (dot * 0.88f + 0.12f) : 0.0f;
-          float intensity = lit * diffuse * limb * albedo;
+            float lit = 1.0f / (1.0f + expf(-dot * 26.0f));
+            float diffuse = (dot > 0.0f) ? (dot * 0.88f + 0.12f) : 0.0f;
+            float intensity = lit * diffuse * limb * albedo;
 
-          uint16_t moonCol;
-          if (intensity > 0.02f) {
-            uint8_t mr = (uint8_t)fminf(255.0f, 238.0f * intensity * 1.35f);
-            uint8_t mg = (uint8_t)fminf(255.0f, 242.0f * intensity * 1.35f);
-            uint8_t mb = (uint8_t)fminf(255.0f, 250.0f * intensity * 1.35f);
-            moonCol = pack565(mr, mg, mb);
+            uint16_t moonCol;
+            if (intensity > 0.02f) {
+              uint8_t mr = (uint8_t)fminf(255.0f, 238.0f * intensity * 1.35f);
+              uint8_t mg = (uint8_t)fminf(255.0f, 242.0f * intensity * 1.35f);
+              uint8_t mb = (uint8_t)fminf(255.0f, 250.0f * intensity * 1.35f);
+              moonCol = pack565(mr, mg, mb);
+            } else {
+              float earth = 0.07f * limb * albedo;
+              moonCol = pack565((uint8_t)(145.0f * earth), (uint8_t)(175.0f * earth), (uint8_t)(225.0f * earth));
+            }
+
+            float topDist = fy - (cy_m - r_apt_m);
+            float aoShadow = (topDist < 14.0f) ? (1.0f - (topDist / 14.0f)) * 0.65f : 0.0f;
+            float rimDist = r_moon - dm;
+            if (rimDist < 3.0f) {
+              float rimS = (1.0f - (rimDist / 3.0f)) * 0.75f;
+              if (rimS > aoShadow) aoShadow = rimS;
+            }
+            baseColor = blendColor(moonCol, pack565(0, 0, 0), aoShadow);
           } else {
-            float earth = 0.07f * limb * albedo;
-            moonCol = pack565((uint8_t)(145.0f * earth), (uint8_t)(175.0f * earth), (uint8_t)(225.0f * earth));
+            baseColor = pack565(4, 5, 7);
           }
-
-          float topDist = fy - (cy_m - r_apt_m);
-          float aoShadow = (topDist < 14.0f) ? (1.0f - (topDist / 14.0f)) * 0.65f : 0.0f;
-          float rimDist = r_moon - dm;
-          if (rimDist < 3.0f) {
-            float rimS = (1.0f - (rimDist / 3.0f)) * 0.75f;
-            if (rimS > aoShadow) aoShadow = rimS;
-          }
-          baseColor = blendColor(moonCol, pack565(0, 0, 0), aoShadow);
         } else {
-          baseColor = pack565(4, 5, 7);
+          uint16_t subdialFloor = pack565(10, 12, 16);
+          float topDistM = fy - (cy_m - r_apt_m);
+          float ao_m = (topDistM < 16.0f) ? (1.0f - (topDistM / 16.0f)) : 0.0f;
+          float rimDistM = r_apt_m - dm;
+          if (rimDistM < 4.0f) {
+            float rimS = 1.0f - (rimDistM / 4.0f);
+            if (rimS > ao_m) ao_m = rimS;
+          }
+          baseColor = blendColor(subdialFloor, pack565(0, 0, 0), ao_m * 0.85f);
         }
       }
 
-      // Bottom Weather Aperture (cx=240, cy=356, r=56)
+      // Bottom Complication Aperture (cx=240, cy=356, r=56)
       float dx_w = fx - 240.0f;
       float dy_w = fy - cy_w;
       float dw = sqrtf(dx_w * dx_w + dy_w * dy_w);
@@ -830,15 +864,63 @@ static void renderLuxuryDialBackground(uint16_t* buf, float moonPhase, time_t no
           baseColor = blendColor(pack565(25, 32, 42), pack565(80, 100, 130), glint_w);
         }
       } else if (dw < r_apt_w) {
-        uint16_t subdialFloor = pack565(10, 12, 16);
-        float topDistW = fy - (cy_w - r_apt_w);
-        float ao_w = (topDistW < 18.0f) ? (1.0f - (topDistW / 18.0f)) : 0.0f;
-        float rimDistW = r_apt_w - dw;
-        if (rimDistW < 5.0f) {
-          float rimS = 1.0f - (rimDistW / 5.0f);
-          if (rimS > ao_w) ao_w = rimS;
+        if (botSlot == CLOCK_SLOT_MOON) {
+          const float r_moon_w = 54.0f;
+          if (dw <= r_moon_w) {
+            float nx = dx_w / r_moon_w;
+            float ny = dy_w / r_moon_w;
+            float nz2 = 1.0f - nx * nx - ny * ny;
+            float nz = sqrtf(nz2 > 0.0f ? nz2 : 0.0f);
+
+            int um = (int)floorf((nx + 1.0f) * 0.5f * 91.0f);
+            int vm = (int)floorf((ny + 1.0f) * 0.5f * 91.0f);
+            if (um < 0) um = 0; if (um > 91) um = 91;
+            if (vm < 0) vm = 0; if (vm > 91) vm = 91;
+            float albedo = (float)pgm_read_byte(&s_moonAlbedo92[vm * 92 + um]) / 255.0f;
+
+            float phaseRad = moonPhase * 2.0f * (float)M_PI;
+            float lx = sinf(phaseRad);
+            float lz = -cosf(phaseRad);
+            float dot = nx * lx + nz * lz;
+            float limb = powf(nz, 0.35f);
+
+            float lit = 1.0f / (1.0f + expf(-dot * 26.0f));
+            float diffuse = (dot > 0.0f) ? (dot * 0.88f + 0.12f) : 0.0f;
+            float intensity = lit * diffuse * limb * albedo;
+
+            uint16_t moonCol;
+            if (intensity > 0.02f) {
+              uint8_t mr = (uint8_t)fminf(255.0f, 238.0f * intensity * 1.35f);
+              uint8_t mg = (uint8_t)fminf(255.0f, 242.0f * intensity * 1.35f);
+              uint8_t mb = (uint8_t)fminf(255.0f, 250.0f * intensity * 1.35f);
+              moonCol = pack565(mr, mg, mb);
+            } else {
+              float earth = 0.07f * limb * albedo;
+              moonCol = pack565((uint8_t)(145.0f * earth), (uint8_t)(175.0f * earth), (uint8_t)(225.0f * earth));
+            }
+
+            float topDist = fy - (cy_w - r_apt_w);
+            float aoShadow = (topDist < 16.0f) ? (1.0f - (topDist / 16.0f)) * 0.65f : 0.0f;
+            float rimDist = r_moon_w - dw;
+            if (rimDist < 3.0f) {
+              float rimS = (1.0f - (rimDist / 3.0f)) * 0.75f;
+              if (rimS > aoShadow) aoShadow = rimS;
+            }
+            baseColor = blendColor(moonCol, pack565(0, 0, 0), aoShadow);
+          } else {
+            baseColor = pack565(4, 5, 7);
+          }
+        } else {
+          uint16_t subdialFloor = pack565(10, 12, 16);
+          float topDistW = fy - (cy_w - r_apt_w);
+          float ao_w = (topDistW < 18.0f) ? (1.0f - (topDistW / 18.0f)) : 0.0f;
+          float rimDistW = r_apt_w - dw;
+          if (rimDistW < 5.0f) {
+            float rimS = 1.0f - (rimDistW / 5.0f);
+            if (rimS > ao_w) ao_w = rimS;
+          }
+          baseColor = blendColor(subdialFloor, pack565(0, 0, 0), ao_w * 0.85f);
         }
-        baseColor = blendColor(subdialFloor, pack565(0, 0, 0), ao_w * 0.85f);
       }
 
       return baseColor;
@@ -847,8 +929,8 @@ static void renderLuxuryDialBackground(uint16_t* buf, float moonPhase, time_t no
 
   // Edge radii (centre-relative for the dial, aperture-relative for the subdials)
   static const float kDialEdges[] = {216.0f, 220.0f, 228.0f, 235.0f, 239.0f};
-  static const float kMoonEdges[] = {46.0f, 48.0f, 51.0f, 52.0f};
-  static const float kWxEdges[]   = {56.0f, 59.0f, 60.0f};
+  static const float kTopEdges[]  = {46.0f, 48.0f, 51.0f, 52.0f};
+  static const float kBotEdges[]  = {54.0f, 56.0f, 59.0f, 60.0f};
   auto nearEdge = [](float d, const float* e, int n) {
     for (int i = 0; i < n; i++) if (fabsf(d - e[i]) < 1.5f) return true;
     return false;
@@ -860,7 +942,7 @@ static void renderLuxuryDialBackground(uint16_t* buf, float moonPhase, time_t no
       const float dm0 = sqrtf((fx - 240.0f) * (fx - 240.0f) + (fy - cy_m) * (fy - cy_m));
       const float dw0 = sqrtf((fx - 240.0f) * (fx - 240.0f) + (fy - cy_w) * (fy - cy_w));
       uint16_t col;
-      if (nearEdge(d0, kDialEdges, 5) || nearEdge(dm0, kMoonEdges, 4) || nearEdge(dw0, kWxEdges, 3)) {
+      if (nearEdge(d0, kDialEdges, 5) || nearEdge(dm0, kTopEdges, 4) || nearEdge(dw0, kBotEdges, 4)) {
         int sr = 0, sg = 0, sb = 0;
         for (int sy = 0; sy < 4; sy++) for (int sx = 0; sx < 4; sx++) {
           uint8_t r, g, b;
@@ -904,13 +986,26 @@ static void renderLuxuryDialBackground(uint16_t* buf, float moonPhase, time_t no
     }
   }
 
-  // 12 ticks in bottom subdial (r = 47 to 52)
-  for (int i = 0; i < 12; i++) {
-    float th = (float)i * (float)(M_PI / 6.0);
-    float sx = sinf(th);
-    float cxVal = cosf(th);
-    drawCapsuleToBuf(buf, 240.0f + 47.0f * sx, cy_w - 47.0f * cxVal,
-                          240.0f + 52.0f * sx, cy_w - 52.0f * cxVal, 0.7f, colGold);
+  // 12 ticks in bottom subdial (r = 47 to 52) when not displaying moon
+  if (botSlot != CLOCK_SLOT_MOON) {
+    for (int i = 0; i < 12; i++) {
+      float th = (float)i * (float)(M_PI / 6.0);
+      float sx = sinf(th);
+      float cxVal = cosf(th);
+      drawCapsuleToBuf(buf, 240.0f + 47.0f * sx, cy_w - 47.0f * cxVal,
+                            240.0f + 52.0f * sx, cy_w - 52.0f * cxVal, 0.7f, colGold);
+    }
+  }
+
+  // 12 ticks in top subdial (r = 40 to 44) when not displaying moon
+  if (topSlot != CLOCK_SLOT_MOON) {
+    for (int i = 0; i < 12; i++) {
+      float th = (float)i * (float)(M_PI / 6.0);
+      float sx = sinf(th);
+      float cxVal = cosf(th);
+      drawCapsuleToBuf(buf, 240.0f + 40.0f * sx, cy_m - 40.0f * cxVal,
+                            240.0f + 44.0f * sx, cy_m - 44.0f * cxVal, 0.7f, colGold);
+    }
   }
 
   // Noon index indicator on 24h solar track (12 o'clock / 0 deg)
@@ -928,21 +1023,20 @@ static void renderLuxuryDialBackground(uint16_t* buf, float moonPhase, time_t no
   }
 }
 
-static void drawLuxuryWeatherDynamic() {
-  // Temperature text at top of bottom sub-dial
+static void drawComplicationSparkline(int cx, int cy, int r, bool isTop) {
   char tbuf[16];
   if (Forecast_CurrentValid()) {
     snprintf(tbuf, sizeof(tbuf), "%.1f\xC2\xB0""C", Forecast_CurrentTemp());
   } else {
     snprintf(tbuf, sizeof(tbuf), "--\xC2\xB0""C");
   }
-  Font_DrawCentered(tbuf, CX, 326, C_WHITE, FONT_TITLE);
+  Font_DrawCentered(tbuf, cx, isTop ? (cy - 22) : (cy - 30), C_WHITE, FONT_TITLE);
 
   // Sparkline trend curve
-  const int spW = 70;
-  const int spH = 22;
-  const int spX = CX - spW / 2;
-  const int spY = 356 + 2;
+  const int spW = isTop ? 60 : 70;
+  const int spH = isTop ? 18 : 22;
+  const int spX = cx - spW / 2;
+  const int spY = isTop ? (cy + 2) : (cy + 2);
 
   int hCount = Forecast_HourCount();
   const FcHour* hours = Forecast_Hours();
@@ -1004,9 +1098,207 @@ static void drawLuxuryWeatherDynamic() {
       gfx->fillCircle(lx, ly, 1, C_WHITE);
     }
   } else {
-    gfx->drawFastHLine(CX - 24, 356 + 12, 48, RGB565(25, 45, 65));
+    gfx->drawFastHLine(cx - 24, cy + 12, 48, RGB565(25, 45, 65));
   }
 }
+
+static void drawComplicationWeather(int cx, int cy, int r, bool isTop) {
+  if (Forecast_CurrentValid()) {
+    int code = Forecast_CurrentCode();
+    int iconR = isTop ? 12 : 15;
+    int iconY = isTop ? (cy - 18) : (cy - 22);
+    WxIcon_Draw(cx, iconY, iconR, code, Settings_IsNight());
+
+    char tbuf[16];
+    snprintf(tbuf, sizeof(tbuf), "%.1f\xC2\xB0""C", Forecast_CurrentTemp());
+    Font_DrawCentered(tbuf, cx, isTop ? (cy - 2) : (cy - 2), C_WHITE, FONT_TITLE);
+
+    char wbuf[16];
+    float wind = Forecast_CurrentWind();
+    snprintf(wbuf, sizeof(wbuf), "%.0f km/h", wind);
+    Font_DrawCentered(wbuf, cx, isTop ? (cy + 20) : (cy + 22), RGB565(145, 155, 170), FONT_TINY);
+  } else {
+    Font_DrawCentered("WEATHER", cx, cy - 10, RGB565(145, 155, 170), FONT_TINY);
+    Font_DrawCentered("--\xC2\xB0""C", cx, cy + 8, C_WHITE, FONT_TITLE);
+  }
+}
+
+static void drawComplicationAircraft(int cx, int cy, int r, bool isTop) {
+  int count10km = 0;
+  double homeLat = Settings_Lat(), homeLon = Settings_Lon();
+  if (Settings_HasLocation()) {
+    int acCount = ADSB_Count();
+    const Aircraft* list = ADSB_List();
+    if (list && acCount > 0) {
+      for (int i = 0; i < acCount; i++) {
+        const Aircraft& a = list[i];
+        if (a.lat == 0.0f || a.lon == 0.0f) continue;
+        float dLat = (a.lat - (float)homeLat) * 0.0174532925f;
+        float dLon = (a.lon - (float)homeLon) * 0.0174532925f;
+        float sinLat = sinf(dLat * 0.5f);
+        float sinLon = sinf(dLon * 0.5f);
+        float aTerm = sinLat * sinLat + cosf((float)homeLat * 0.0174532925f) * cosf(a.lat * 0.0174532925f) * sinLon * sinLon;
+        float d = 6371.0f * 2.0f * asinf(fminf(1.0f, sqrtf(aTerm)));
+        if (d <= 10.0f) {
+          count10km++;
+        }
+      }
+    }
+  }
+
+  // Draw crisp vector jet airplane icon
+  int iconY = isTop ? (cy - 18) : (cy - 22);
+  uint16_t jetCol = RGB565(56, 189, 248); // Electric Sky Blue
+  gfx->drawLine(cx, iconY - 8, cx, iconY + 8, jetCol);
+  gfx->drawLine(cx - 1, iconY - 6, cx + 1, iconY - 6, jetCol);
+  gfx->drawLine(cx - 10, iconY - 1, cx + 10, iconY - 1, jetCol);
+  gfx->drawLine(cx - 8, iconY, cx + 8, iconY, jetCol);
+  gfx->drawLine(cx - 4, iconY + 7, cx + 4, iconY + 7, jetCol);
+
+  char buf[16];
+  snprintf(buf, sizeof(buf), "%d", count10km);
+  Font_DrawCentered(buf, cx, isTop ? (cy - 2) : (cy - 2), C_WHITE, FONT_TITLE);
+
+  Font_DrawCentered("< 10 KM", cx, isTop ? (cy + 20) : (cy + 22), RGB565(145, 155, 170), FONT_TINY);
+}
+
+static void drawComplicationYouTube(int cx, int cy, int r, bool isTop) {
+  YouTubeStats stats;
+  bool ok = YouTube_GetData(&stats);
+
+  int iconY = isTop ? (cy - 20) : (cy - 24);
+  gfx->fillRoundRect(cx - 11, iconY - 7, 22, 14, 3, RGB565(255, 0, 0));
+  gfx->fillTriangle(cx - 3, iconY - 4, cx - 3, iconY + 4, cx + 4, iconY, C_WHITE);
+
+  char subBuf[32];
+  if (ok && stats.valid) {
+    if (stats.subscriberCount >= 1000000ULL) {
+      snprintf(subBuf, sizeof(subBuf), "%.2f M", (double)stats.subscriberCount / 1000000.0);
+    } else if (stats.subscriberCount >= 1000ULL) {
+      snprintf(subBuf, sizeof(subBuf), "%.1f K", (double)stats.subscriberCount / 1000.0);
+    } else {
+      snprintf(subBuf, sizeof(subBuf), "%llu", (unsigned long long)stats.subscriberCount);
+    }
+  } else {
+    snprintf(subBuf, sizeof(subBuf), "--");
+  }
+
+  Font_DrawCentered(subBuf, cx, isTop ? (cy - 2) : (cy - 2), C_WHITE, FONT_TITLE);
+  Font_DrawCentered("SUBS", cx, isTop ? (cy + 20) : (cy + 22), RGB565(255, 100, 100), FONT_TINY);
+}
+
+static void drawComplicationMarket(int cx, int cy, int r, bool isTop) {
+  const FinanceItem* item = Finance_GetItemPtr(0);
+  if (!item || !item->valid) {
+    item = Finance_GetItemPtr(Finance_ActiveIndex());
+  }
+
+  if (item && item->valid && item->symbol[0]) {
+    char sym[12];
+    strncpy(sym, item->symbol, sizeof(sym) - 1);
+    sym[sizeof(sym) - 1] = '\0';
+    char* dash = strchr(sym, '-');
+    if (dash) *dash = '\0';
+    Font_DrawCentered(sym, cx, isTop ? (cy - 20) : (cy - 24), RGB565(235, 185, 135), FONT_TINY);
+
+    char pBuf[24];
+    if (item->price >= 10000.0f) {
+      snprintf(pBuf, sizeof(pBuf), "$%.1fk", item->price / 1000.0f);
+    } else if (item->price >= 100.0f) {
+      snprintf(pBuf, sizeof(pBuf), "$%.1f", item->price);
+    } else {
+      snprintf(pBuf, sizeof(pBuf), "$%.2f", item->price);
+    }
+    Font_DrawCentered(pBuf, cx, isTop ? (cy - 2) : (cy - 2), C_WHITE, FONT_TITLE);
+
+    char chgBuf[16];
+    snprintf(chgBuf, sizeof(chgBuf), "%+.1f%%", item->changePct);
+    uint16_t chgCol = (item->changePct >= 0.0f) ? RGB565(0, 208, 98) : RGB565(255, 75, 75);
+    Font_DrawCentered(chgBuf, cx, isTop ? (cy + 18) : (cy + 22), chgCol, FONT_TINY);
+  } else {
+    Font_DrawCentered("MARKET", cx, cy - 8, RGB565(145, 155, 170), FONT_TINY);
+    Font_DrawCentered("--", cx, cy + 10, C_WHITE, FONT_TITLE);
+  }
+}
+
+static void drawComplicationKlipper(int cx, int cy, int r, bool isTop) {
+  KlipperStatus status;
+  bool ok = Klipper_GetData(&status);
+
+  if (ok && status.valid && status.connected) {
+    float prog = status.progress;
+    if (prog < 0.0f) prog = 0.0f;
+    if (prog > 1.0f) prog = 1.0f;
+
+    // Draw calibrated radial progress arc along interior bezel
+    float arcR = (float)r - 4.0f;
+    int arcSteps = (int)(prog * 60.0f);
+    uint16_t arcCol = (status.detailedState == KLIPPER_STATE_PRINTING) ? RGB565(0, 208, 98) : RGB565(255, 175, 50);
+    for (int i = 0; i < arcSteps; i++) {
+      float ang = ((float)i / 60.0f) * 2.0f * (float)M_PI - 0.5f * (float)M_PI;
+      int px = cx + (int)(arcR * cosf(ang));
+      int py = cy + (int)(arcR * sinf(ang));
+      gfx->drawPixel(px, py, arcCol);
+      int px2 = cx + (int)((arcR - 1.0f) * cosf(ang));
+      int py2 = cy + (int)((arcR - 1.0f) * sinf(ang));
+      gfx->drawPixel(px2, py2, arcCol);
+    }
+
+    char tBuf[16];
+    snprintf(tBuf, sizeof(tBuf), "%.0f\xC2\xB0""C", status.extruderTemp);
+    Font_DrawCentered(tBuf, cx, isTop ? (cy - 20) : (cy - 24), RGB565(255, 140, 50), FONT_TINY);
+
+    char pBuf[16];
+    snprintf(pBuf, sizeof(pBuf), "%.0f%%", prog * 100.0f);
+    Font_DrawCentered(pBuf, cx, isTop ? (cy - 2) : (cy - 2), C_WHITE, FONT_TITLE);
+
+    char lBuf[20];
+    if (status.totalLayers > 0) {
+      snprintf(lBuf, sizeof(lBuf), "L%u/%u", status.currentLayer, status.totalLayers);
+    } else if (status.currentLayer > 0) {
+      snprintf(lBuf, sizeof(lBuf), "L%u", status.currentLayer);
+    } else {
+      snprintf(lBuf, sizeof(lBuf), "%s", status.state);
+    }
+    Font_DrawCentered(lBuf, cx, isTop ? (cy + 18) : (cy + 22), RGB565(145, 155, 170), FONT_TINY);
+  } else {
+    Font_DrawCentered("3D PRINT", cx, cy - 8, RGB565(145, 155, 170), FONT_TINY);
+    Font_DrawCentered("OFFLINE", cx, cy + 10, RGB565(140, 140, 140), FONT_SMALL);
+  }
+}
+
+static void drawClockComplication(uint8_t slotType, int cx, int cy, int r, bool isTop, const MoonInfo& moon) {
+  switch (slotType) {
+    case CLOCK_SLOT_MOON: {
+      char mbuf[32];
+      snprintf(mbuf, sizeof(mbuf), "%.0f%%", moon.illumination);
+      int textY = isTop ? 146 : 284;
+      Font_DrawCentered(mbuf, cx, textY, RGB565(145, 155, 170), FONT_TINY);
+      break;
+    }
+    case CLOCK_SLOT_SPARKLINE:
+      drawComplicationSparkline(cx, cy, r, isTop);
+      break;
+    case CLOCK_SLOT_WEATHER:
+      drawComplicationWeather(cx, cy, r, isTop);
+      break;
+    case CLOCK_SLOT_AIRCRAFT:
+      drawComplicationAircraft(cx, cy, r, isTop);
+      break;
+    case CLOCK_SLOT_YOUTUBE:
+      drawComplicationYouTube(cx, cy, r, isTop);
+      break;
+    case CLOCK_SLOT_MARKET:
+      drawComplicationMarket(cx, cy, r, isTop);
+      break;
+    case CLOCK_SLOT_KLIPPER:
+      drawComplicationKlipper(cx, cy, r, isTop);
+      break;
+    default:
+      break;
+  }
+}
+
 
 static void ScreenClock_Draw() {
   if (!s_luxuryBg) {
@@ -1079,12 +1371,20 @@ static void ScreenClock_Draw() {
 
   MoonInfo moon = Astro_GetMoon(now);
 
+  uint8_t topSlot = Settings_ClockTopSlot();
+  uint8_t botSlot = Settings_ClockBottomSlot();
+  static uint8_t s_lastTopSlot = 255;
+  static uint8_t s_lastBotSlot = 255;
+
   // Background Cache Regeneration Check
-  if (s_bgDirty || s_lastBgDay != lt.tm_yday || fabsf(moon.phase - s_lastBgMoonPhase) >= 0.01f) {
+  if (s_bgDirty || topSlot != s_lastTopSlot || botSlot != s_lastBotSlot ||
+      s_lastBgDay != lt.tm_yday || fabsf(moon.phase - s_lastBgMoonPhase) >= 0.01f) {
     if (s_luxuryBg) {
       renderLuxuryDialBackground(s_luxuryBg, moon.phase, now);
       s_lastBgMoonPhase = moon.phase;
       s_lastBgDay = lt.tm_yday;
+      s_lastTopSlot = topSlot;
+      s_lastBotSlot = botSlot;
       s_bgDirty = false;
       resetFrameCache();
     }
@@ -1223,12 +1523,10 @@ static void ScreenClock_Draw() {
     gfx->fillScreen(C_BLACK);
   }
 
-  // 2. Moon Illumination percentage under top complication
-  char mbuf[32];
-  snprintf(mbuf, sizeof(mbuf), "%.0f%%", moon.illumination);
-  Font_DrawCentered(mbuf, CX, 146, RGB565(145, 155, 170), FONT_TINY);
+  // 2. Top Complication
+  drawClockComplication(topSlot, CX, 96, 48, true, moon);
 
-  // Date complication placed between Moon phase percentage and Time
+  // Date complication placed between top complication and Time
   if (Settings_ClockShowDate()) {
     char dateBuf[48];
     if (Lang_Get() == LANG_EN) {
@@ -1246,8 +1544,8 @@ static void ScreenClock_Draw() {
   snprintf(hhmm, sizeof(hhmm), "%02d:%02d", lt.tm_hour, lt.tm_min);
   Font_DrawCenteredBox(hhmm, 0, 192, LCD_WIDTH, 80, C_WHITE, FONT_CLOCK);
 
-  // 4. Bottom Complication (Temperature & Sparkline)
-  drawLuxuryWeatherDynamic();
+  // 4. Bottom Complication
+  drawClockComplication(botSlot, CX, 356, 56, false, moon);
 
   // 5. Orbiting Electric-Blue Seconds Bead at leading edge of active arc (occluded behind moon bezel)
   float sRad = (lt.tm_sec * 6.0f - 90.0f) * 0.0174532925f;
@@ -1275,6 +1573,23 @@ static void ScreenClock_Draw() {
   DisasterAlert_DrawOverlay();
 }
 
+static void ScreenClock_RequestComplications() {
+  uint8_t topS = Settings_ClockTopSlot();
+  uint8_t botS = Settings_ClockBottomSlot();
+  auto reqSlot = [](uint8_t s) {
+    switch (s) {
+      case CLOCK_SLOT_SPARKLINE:
+      case CLOCK_SLOT_WEATHER:  Async_RequestForecast(); break;
+      case CLOCK_SLOT_AIRCRAFT: Async_RequestAdsb();     break;
+      case CLOCK_SLOT_YOUTUBE:  Async_RequestYouTube();  break;
+      case CLOCK_SLOT_MARKET:   Async_RequestFinance();  break;
+      default: break;
+    }
+  };
+  reqSlot(topS);
+  if (botS != topS) reqSlot(botS);
+}
+
 static void ScreenClock_TimerCb(lv_timer_t* t) {
   if (UI_GetActiveScreen() != SCREEN_CLOCK_I) return;
   static int s_prevSec = -1;
@@ -1284,6 +1599,50 @@ static void ScreenClock_TimerCb(lv_timer_t* t) {
   if (lt.tm_sec != s_prevSec) {
     s_prevSec = lt.tm_sec;
     lv_obj_invalidate(s_screenObj);
+
+    // Periodic check to keep active complication telemetry fresh while on clock screen
+    static unsigned long s_lastComplicationCheck = 0;
+    unsigned long ms = millis();
+    if (ms - s_lastComplicationCheck >= 4000) {
+      s_lastComplicationCheck = ms;
+      uint8_t topS = Settings_ClockTopSlot();
+      uint8_t botS = Settings_ClockBottomSlot();
+
+      bool needAircraft = (topS == CLOCK_SLOT_AIRCRAFT || botS == CLOCK_SLOT_AIRCRAFT);
+      bool needMarket   = (topS == CLOCK_SLOT_MARKET   || botS == CLOCK_SLOT_MARKET);
+      bool needYouTube  = (topS == CLOCK_SLOT_YOUTUBE  || botS == CLOCK_SLOT_YOUTUBE);
+      bool needWeather  = (topS == CLOCK_SLOT_WEATHER  || botS == CLOCK_SLOT_WEATHER ||
+                           topS == CLOCK_SLOT_SPARKLINE|| botS == CLOCK_SLOT_SPARKLINE);
+
+      static unsigned long s_lastAdsbPoll = 0;
+      if (needAircraft && (ms - s_lastAdsbPoll >= 8000)) {
+        s_lastAdsbPoll = ms;
+        Async_RequestAdsb();
+      }
+
+      static unsigned long s_lastMktPoll = 0;
+      const FinanceItem* mktItem = Finance_GetItemPtr(0);
+      bool mktMissing = (!mktItem || !mktItem->valid);
+      if (needMarket && (mktMissing || (ms - s_lastMktPoll >= 60000))) {
+        s_lastMktPoll = ms;
+        Async_RequestFinance();
+      }
+
+      static unsigned long s_lastYtPoll = 0;
+      YouTubeStats ytStats;
+      bool ytMissing = (!YouTube_GetData(&ytStats) || !ytStats.valid);
+      if (needYouTube && (ytMissing || (ms - s_lastYtPoll >= 180000))) {
+        s_lastYtPoll = ms;
+        Async_RequestYouTube();
+      }
+
+      static unsigned long s_lastWxPoll = 0;
+      bool wxMissing = !Forecast_CurrentValid();
+      if (needWeather && (wxMissing || (ms - s_lastWxPoll >= 300000))) {
+        s_lastWxPoll = ms;
+        Async_RequestForecast();
+      }
+    }
   }
 }
 
@@ -1296,6 +1655,7 @@ static void ScreenClock_EventCb(lv_event_t* e) {
     gfx->setLayer(nullptr);
   } else if (code == LV_EVENT_SCREEN_LOADED) {
     resetFrameCache();
+    ScreenClock_RequestComplications();
     lv_obj_invalidate(s_screenObj);
   } else if (code == LV_EVENT_CLICKED) {
     if (UI_IsSwipeActive()) return;
@@ -1324,6 +1684,7 @@ void ScreenClock_Init(lv_obj_t* parent) {
     s_frameBg = (uint16_t*)heap_caps_malloc(LCD_WIDTH * LCD_HEIGHT * sizeof(uint16_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
   }
   s_bgDirty = true;
+  ScreenClock_RequestComplications();
 
   s_timer = lv_timer_create(ScreenClock_TimerCb, 100, nullptr);
 }
@@ -1338,5 +1699,11 @@ void ScreenClock_FreeBuffers() {
     s_frameBg = nullptr;
   }
   s_bgDirty = true;
+}
+
+void ScreenClock_InvalidateDial() {
+  s_bgDirty = true;
+  ScreenClock_RequestComplications();
+  if (s_screenObj) lv_obj_invalidate(s_screenObj);
 }
 

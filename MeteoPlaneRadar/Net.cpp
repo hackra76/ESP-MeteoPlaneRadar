@@ -66,7 +66,8 @@ void Net_FreeBuffers() {
 }
 
 bool Net_GetString(const char* url, String& out, const char* tag,
-                   const char* headerName, const char* headerVal) {
+                   const char* headerName, const char* headerVal,
+                   uint32_t connectTimeoutMs, uint32_t reqTimeoutMs) {
   out = "";
   if (WiFi.status() != WL_CONNECTED) return false;
 
@@ -87,8 +88,8 @@ bool Net_GetString(const char* url, String& out, const char* tag,
                            : static_cast<WiFiClient&>(plain);
 
   HTTPClient http;
-  http.setConnectTimeout(8000);
-  http.setTimeout(12000);
+  http.setConnectTimeout(connectTimeoutMs);
+  http.setTimeout(reqTimeoutMs);
   http.setReuse(false);
   http.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
   if (!http.begin(client, url)) {
