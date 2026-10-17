@@ -3,7 +3,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <title>MeteoPlaneRadar · H4CKR4</title>
-<script async src="https://js.stripe.com/v3/buy-button.js"></script>
 <style>
 :root{
   --bg:#121211;--card:#171716;--card-hdr:#1D1D1B;--line:#2A2A28;--fg:#F4F3EF;--mut:#B2B1AC;
@@ -134,6 +133,64 @@ td:first-child{color:var(--mut);width:45%}
 .scr-jump-btn{background:#111110;color:var(--mut);border:1px solid var(--line);padding:4px 7px;font-size:10px;line-height:1;font-weight:700;cursor:pointer}
 .scr-jump-btn:hover{background:#222220;color:var(--fg);border-color:#3E3E3A}
 
+/* Buy Me a Coffee Action Badges & Widget Overrides */
+.coffee-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #FFDD00;
+  background: #1D1D1B;
+  border: 1px solid var(--line);
+  text-decoration: none;
+  letter-spacing: 0.05em;
+  transition: all 0.1s;
+  cursor: pointer;
+}
+.coffee-badge:hover {
+  background: #242422;
+  border-color: #FFDD00;
+  color: #FFE640;
+}
+.footer-coffee-link {
+  color: #FFDD00;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  transition: opacity 0.15s;
+  cursor: pointer;
+}
+.footer-coffee-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+.terminal-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--card);
+  font-size: 10px;
+  color: var(--mut);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  letter-spacing: 0.08em;
+  margin-top: 24px;
+}
+/* Buy Me a Coffee Widget Overrides against Global 0px Border-Radius */
+#bmc-wbtn {
+  border-radius: 50% !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.4) !important;
+}
+#bmc-close-btn {
+  border-radius: 50% !important;
+}
+#bmc-iframe {
+  border-radius: 8px !important;
+}
+
 @media (max-width:560px){
   .row label{flex:1 1 100%}
   .row input[type=text],.row input[type=password],.row input[type=number],.row select{flex:1 1 100%}
@@ -157,6 +214,10 @@ td:first-child{color:var(--mut);width:45%}
       <span class="pulse-dot"></span>
       <span id="liveDispName">Hodiny</span>
     </div>
+    <a href="https://buymeacoffee.com/hackra" target="_blank" rel="noopener noreferrer" class="coffee-badge" onclick="openBmc(event)" title="Buy Me a Coffee (@hackra)">
+      <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" style="display:inline-block;vertical-align:middle;"><path d="M20.216 6.415l-.132-.666c-.119-.597-.384-1.144-.766-1.583-.564-.647-1.355-.985-2.288-.985H4.07c-.477 0-.917.184-1.25.518-.337.338-.52.782-.516 1.25.045 5.344.408 10.22 1.077 14.502.585 3.738 2.658 5.464 6.16 5.464 3.513 0 5.586-1.726 6.171-5.464.444-2.836.733-5.99.883-9.452.484-.047.935-.187 1.309-.434.577-.381.94-.972 1.022-1.666l.006-.051c.074-.593-.053-1.182-.366-1.668-.31-.482-.78-.813-1.32-.931l-.38-.083zm-2.846-1.815c.571 0 1.05.195 1.385.579.222.255.374.571.442.915l.094.475c-.65.178-1.353.284-2.1.317l-.208-1.84c.129-.278.267-.446.387-.446zm-2.903 16.985c-.482 3.08-2.094 4.38-5.018 4.38-2.934 0-4.545-1.3-5.027-4.38-.636-4.07-.985-8.73-1.03-13.88h12.11c-.13 4.254-.42 8.784-1.035 13.88z"/></svg>
+      <span>COFFEE</span>
+    </a>
     <select id="uiLang" onchange="setLang(this.value)">
       <option value="2">🇸🇰 Slovenčina</option>
       <option value="0">🇨🇿 Čeština</option>
@@ -1447,24 +1508,23 @@ td:first-child{color:var(--mut);width:45%}
         </table>
       </div>
 
-      <!-- Podpora projektu -->
-      <div class="card" style="text-align:center; padding:20px 16px;">
-        <h2 style="justify-content:center; border:none; margin-bottom:16px;" data-i18n="supportProject">☕ Podporiť projekt</h2>
-        <stripe-buy-button
-          buy-button-id="buy_btn_1UI5iNQplpQY7KFTu1mwo8UY"
-          publishable-key="pk_live_51UI3XaQplpQY7KFTrrcPgwncD5NybMDWp0hkPxN9W6KbndIvEoqtSEyOLHTprr3hw6nYR3DrzyiLOHVNM32SIVLH00Jeyo2iVM"
-        >
-        </stripe-buy-button>
-      </div>
-
     </aside>
 
   </div>
+
+  <!-- TERMINAL FOOTER -->
+  <footer class="terminal-footer">
+    <div>METEO PLANE RADAR // TACTILE FIELD INSTRUMENT &bull; <a href="https://buymeacoffee.com/hackra" target="_blank" rel="noopener noreferrer" class="footer-coffee-link" onclick="openBmc(event)">☕ BUY ME A COFFEE</a></div>
+    <div>FIRMWARE <span id="footerVer"></span> &bull; NVS ARMED</div>
+  </footer>
 </div>
 
 <div class="bar" id="saveBar">
   <button onclick="save()" data-i18n="save">💾 Uložiť nastavenia</button>
   <span id="msg"></span>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:12px;padding-right:74px;">
+    <a href="https://buymeacoffee.com/hackra" target="_blank" rel="noopener noreferrer" class="footer-coffee-link" onclick="openBmc(event)">☕ BUY ME A COFFEE</a>
+  </div>
 </div>
 
 <script>
@@ -2625,6 +2685,7 @@ async function load(){
  const r=await fetch("/api/config");CFG=await r.json();
  setLang(CFG.lang);
  $("ver").textContent="v"+CFG.version;
+ if($("footerVer")) $("footerVer").textContent="v"+CFG.version;
  if($("otaCurVer")) $("otaCurVer").textContent="v"+CFG.version;
  $("lat").value=CFG.lat;$("lon").value=CFG.lon;
  $("sClock").checked=CFG.screens.clock;$("sPlanes").checked=CFG.screens.planes;
@@ -3525,6 +3586,15 @@ async function sendSerialCmd(){
   } catch(e) {}
 }
 
+function openBmc(e) {
+  var btn = document.getElementById('bmc-wbtn');
+  if (btn) {
+    if (e && e.preventDefault) e.preventDefault();
+    btn.click();
+  }
+}
+
 window.onload=load;
 </script>
+<script data-name="BMC-Widget" data-cfasync="false" src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js" data-id="hackra" data-description="Support me on Buy me a coffee!" data-message="" data-color="#FFDD00" data-position="Right" data-x_margin="18" data-y_margin="18"></script>
 </body></html>
