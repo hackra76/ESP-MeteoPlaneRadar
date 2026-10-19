@@ -8,9 +8,9 @@
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunkčná meteorologická stanica, živý ADS-B letecký radar, animovaný radar zrážok (SHMÚ, ČHMÚ, RainViewer), kombinovaný taktický radar, sledovanie dráhy ISS, analytika YouTube, finančné trhy, telemetrický HUD pre Klipper 3D tlačiarne, systém varovania pred katastrofami s hardvérovým seizmometrom a animovaný virtuálny spoločník na okrúhlom 2.1" IPS dotykovom displeji.**  
-Vyvinuté pre **Waveshare ESP32-S3-Touch-LCD-2.1** s dotykovými gestami v štýle smartfónu, sťahovacím Ovládacím centrom, reálnymi fotografiami lietadiel, bilineárnym vyhladzovaním radaru a webovým ovládacím panelom.
+Vyvinuté pre **Waveshare ESP32-S3-Touch-LCD-2.1** s dotykovými gestami v štýle smartfónu, sťahovacím Ovládacím centrom, reálnymi fotografiami lietadiel, bilineárnym vyhladzovaním radaru a priemyselným webovým ovládacím panelom.
 
-> 🇬🇧 English documentation: **[README.md](README.md)**  
+> 🇬🇧 English documentation: **[README.md](README.md)** · 📋 História vydaní: **[CHANGELOG.md](CHANGELOG.md)**  
 > 📌 Forknuté a výrazne rozšírené z **[petus/MeteoPlaneRadar](https://github.com/petus/MeteoPlaneRadar)**.
 
 *Ak sa vám projekt páči, zvážte podporu vývoja!* ☕  
@@ -37,135 +37,63 @@ Vyvinuté pre **Waveshare ESP32-S3-Touch-LCD-2.1** s dotykovými gestami v štý
 </p>
 
 <p align="center">
-  <em>DigiCat v3.7.0 — Profesionálne 64×64 sprite animácie ryšavej mačky (247 snímok, 38 animačných sekvencií, RGB565 PROGMEM, škálované na 3× / 192×192 px).</em>
+  <em>Profesionálne 64×64 sprite animácie ryšavej mačky (247 snímok, 38 animačných sekvencií, RGB565 PROGMEM, škálované na 3× / 192×192 px).</em>
 </p>
 
 ---
 
 ## 🌟 Funkcie
 
-### ⚡ v3.7.0 Audit a výkonnostné optimalizácie
-- **Spracovanie ADS-B telemetrie lietadiel**: Nahradenie $O(N^2)$ výberového triedenia rýchlym $O(N)$ ohraničeným min-heap top-$K$ parserom priamo počas spracovania JSON toku; načítanie globálnych nastavení mimo cyklov lietadiel; migrácia z haldových reťazcov `String` na streamingové PSRAM buffery.
-- **Súbežnosť jadier a plánovanie (Core 0/1)**: Posilnenie stability a eliminácia uviaznutí. Implementovaný RAII `NetBusyGuard` pre sieťové transakcie; oprava logiky plánovača radaru (`radarDue`) pre hladké sťahovanie snímok bez blokovania ostatných úloh; limitovanie opakovaných pokusov o počasie s okamžitou invalidáciou cache proti 503 bootovacím slučkám.
-- **Vykresľovanie displeja bez trhania (Anti-Tearing)**: Aktivácia Bounce Bufferu (`480 * 10` pixelov) v paneli `Arduino_ESP32RGBPanel` pre elimináciu vyhladovania PSRAM zbernice a trhania obrazu počas sieťových a flash zápisov.
-- **Dekódovanie progresívnych JPEG fotografií lietadiel**: Integrácia knižnice `stb_image.h` s vlastnými PSRAM alokátormi a box-filter downsamplingom do 200×133 RGB565 bufferov, čo zabezpečuje bezchybné zobrazenie progresívnych JPEG náhľadov zo siete Planespotters bez pádov či orezania.
-- **Taktický a sonarový radar**: Predpočítané goniometrické tabuľky (`LUT_SinDeg` / `LUT_CosDeg`), presun čítania nastavení mimo cyklov a cachovanie desaturovaných nočných radarových podkladov v PSRAM.
-- **3D sledovanie ISS**: Zníženie vzorkovania orbitálnej dráhy na 90 bodov s orezávaním podľa bounding-boxu; dirty-flag detekcia (`s_prevIssX`/`s_prevIssY`) zamedzujúca zbytočnému prekresľovaniu celého plátna každú sekundu; presun 12 KB JSON buffera zo zásobníka do PSRAM.
-- **Streaming webového servera a zníženie pamäte**: Pridaný adaptér `WebServerPrint` pre priame odosielanie HTML stránok po častiach bez 6–14 KB haldových rezervácií; optimalizované snímanie obrazovky `/api/screenshot.bmp` po riadkoch priamo pod LVGL zámkom bez potreby 460.8 KB PSRAM buffera.
+### 🕒 Luxusný astronomický chronograf a komplikácie
+- **24-hodinový solárny oblúk súmraku**: Vonkajší prstenec zobrazujúci pohyb Slnka (obed na 12. hodine, polnoc na 6. hodine), astronomický východ/západ slnka, zlatú hodinku a dynamický symbol Slnka podľa miestneho solárneho času.
+- **Konfigurovateľné duálne komplikácie ciferníka**: Nezávislá horná a dolná kruhová apertúra so 7 vymeniteľnými modulmi:
+  - **3D fotorealistický Mesiac**: Fotografická NASA LROC albedo textúra (92×92 px) s 3D Lambertovým difúznym osvetlením (presné osvetlenie pravej/ľavej pologule pre severnú pologuľu) a percentom osvetlenia.
+  - **Trend teploty so Sparkline (24h)**: Vonkajšia teplota s 24-hodinovou krivkou vývoja.
+  - **Aktuálne počasie a vietor**: Ikona počasia, teplota a rýchlosť vetra.
+  - **Živé telemetrické moduly**: Počet lietadiel v okruhu 10 km, počet odberateľov YouTube, primárny trhový ticker alebo priebeh tlače 3D tlačiarne Klipper.
+- **Interaktívna navigácia**: Ťuknutie na ľubovoľný subciferník alebo výstražný štítok (prelet lietadla / blížiaci sa dážď) okamžite prepne na príslušnú obrazovku.
+- **Dynamická sekundová dráha**: Plynulá obiehajúca svetelná perla (~30 FPS) s Gaussian bloom stopou a vyhladzovanou 76 px švajčiarskou typografiou.
 
-### ⏱️ v3.6.0 Luxusné komplikácie ciferníka, astrofyzikálne osvetlenie Mesiaca a sieťová izolácia
-- **Konfigurovateľné duálne kruhové komplikácie ciferníka (Obrazovka 0):**
-  - Nezávislá konfigurácia hornej ($r=48$, $y=96$) a dolnej ($r=56$, $y=356$) sub-ciferníkovej apertúry na luxusnom astronomickom chronografe.
-  - 7 voliteľných typov komplikácií: 3D fotorealistický Mesiac, trend teploty s grafom (24h Sparkline), aktuálne počasie s ikonou a vetrom, počet lietadiel v okruhu 10 km, odberatelia YouTube, primárny trhový ticker a priebeh tlače 3D tlačiarne Klipper.
-  - Dynamické vykresľovanie luxusného pozadia v PSRAM s mechanicky gravírovanými plochami sub-ciferníkov, radiálnou ambientnou oklúziou a 12 kalibrovanými zlatými indexovými značkami.
-  - Interaktívna dotyková navigácia: ťuknutie na ľubovoľnú komplikáciu okamžite prepne priamo na jej plnohodnotnú obrazovku.
-  - Kolískové prepínače v rýchlom Ovládacom centre (Quick Control) s haptickou/akustickou odozvou bzučiaka.
-  - Konfiguračná karta vo webovom portáli s výberovými zoznamami a kompletnou lokalizáciou (SK, CS, EN).
-- **Astrofyzikálna oprava smeru osvetlenia fázy Mesiaca:**
-  - Oprava normálového vektora dopadu svetla v `ScreenClock.cpp` (`float lx = sinf(phaseRad);`). Dorastajúci kosák a štvrť Mesiaca teraz presne osvetľujú **pravú** pologuľu, čo plne zodpovedá fyzikálnemu pozorovaniu na severnej pologuli.
-- **Automatická supervízia telemetrie komplikácií:**
-  - Aktívne komplikácie (YouTube, trhy, ADS-B, počasie) automaticky načítavajú a udržiavajú čerstvé dáta priamo na obrazovke hodín bez nutnosti manuálneho prepínania obrazoviek.
-- **Sieťová izolácia 3D tlačiarne Klipper a rýchle LAN timeouty:**
-  - Dotazovanie Klipper / Moonraker API je striktne vyhradené iba pre situáciu, keď je obrazovka 3D tlačiarne aktívne zobrazená na displeji (`curScr == SCREEN_KLIPPER_I`). Úplne sa eliminovali pokusy o pripojenie na vypnutú tlačiareň z hodín alebo iných obrazoviek, čo bráni vyčerpaniu soketov, zasekávaniu siete a chybovým výpisom v sériovom monitore.
-  - Nastaviteľný timeout v `Net_GetString`: Klipper využíva 1500 ms pre spojenie a 2500 ms pre požiadavku, namiesto 8000 ms blokovania.
-  - 15-sekundový offline odstup pri aktívnom zobrazení obrazovky Klipper, ak je tlačiareň vypnutá.
+### 🛩️ ADS-B letecký radar a Aero Glass HUD
+- **360° letecký radar (14–200 km)**: Živé sledovanie lietadiel cez `adsb.fi` / `adsb.lol` s kružnicami dosahu, letiskami, online mapovými podkladmi a 360° kompasovou ružicou.
+- **Symbolika Glass Cockpit**: Voliteľné aerodynamické vektory chevron (s dvojitým chevronom pre stíhačky) alebo siluety lietadiel, 1-minútové vektory kurzu a 3-riadkové avionické štítky bez prekrývania.
+- **Špeciálne lety a núdzové squawky**: Farebné zvýraznenie pre záchranárov (zelená), vládne/VIP lety (zlatá), obrie lietadlá (azúrová) a vojenské lety (červená), plus automatické uzamknutie a akustický alarm pri núdzových kódoch (`7500` / `7600` / `7700`).
+- **Offline databáza trás**: Okamžité dekódovanie trasy z volacieho znaku (`ODKIAĽ→KAM`) a vektor k najbližšiemu lietadlu.
+- **Reálne fotografie lietadiel a Flight Deck HUD**: Ťuknutie na lietadlo zobrazí detailnú kartu so živou fotografiou z Planespotters.net (vrátane podpory progresívnych JPEG); ťuknutie na fotografiu otvorí celoobrazovkový Aero Glass HUD.
 
-### 📐 v3.5.0 Vlastné poradie obrazoviek & Vylepšenia 3D tlačiarne Klipper
-- **Správca vlastného poradia a rotácie obrazoviek:**
-  - Intuitívna matica zmeny poradia prvkov štýlu "Tactile Field Instrument" podporujúca ťahanie myšou (drag & drop) a mechanické krokovacie tlačidlá `▲`/`▼` (`#scrOrderList`) v Spoločných nastaveniach (`tCommon`).
-  - Pohodlné premiestňovanie na dotykových zariadeniach (smartfóny/tablety) jedným ťuknutím aj na desktope s vizuálnymi vodiacimi čiarami.
-  - Ukladanie vlastnej postupnosti `s_scrOrder[SCREEN_N]` do energeticky nezávislej pamäte NVS (`"scrOrd"`).
-  - Dotykové listovanie prstom po displeji (`UI_SwitchScreenStep`) a vzdialené krokovanie z webu (`/api/screen`) rešpektujú nastavenú postupnosť.
-  - Automatické striedanie obrazoviek (`UI_AutoRotate_Tick`) rotuje podľa používateľského poradia s preskakovaním vypnutých obrazoviek a systémových nastavení.
-  - Tlačidlá rýchleho prepínania obrazoviek v bočnom paneli (`#scrBtns`) okamžite zrkadlia zmenu poradia v reálnom čase.
-  - Okamžité debouncované automatické ukladanie na pozadí a tlačidlo pre obnovenie predvoleného továrenského poradia (`↺ Predvolené poradie`).
-- **Kompletné prepracovanie a opravy obrazovky 3D tlačiarne (Klipper / Moonraker):**
-  - Oprava výpočtu zostávajúceho času (ETA) s využitím `print_duration` vs `total_duration` vs `estimated_time` a vrstvových odhadov (odstránená chyba s trvalým zobrazením `0s`).
-  - Oprava perzistencie aktivácie obrazovky 3D tlačiarne vo webovom rozhraní – obrazovka zostáva trvalo zapnutá aj po reštarte.
-  - Indikátor aktuálnej a celkovej vrstvy čítaný priamo z Moonrakera (`L X/Y`, napr. `L 142/350`) na okrúhlom displeji aj vo webovom portáli.
-  - Zväčšené a vysoko kontrastné indikátory osí X/Y/Z a homingu s jednoznačným rozlíšením polohy a cieľa pre okrúhly 480×480 displej.
-- **Optimalizácia flash pamäte PROGMEM:**
-  - Predkomprimovaný gzip archív úrovne 9 (`WebPageGz.h`) zaberá iba 65,8 KB (úspora 187,8 KB flash pamäte).
+### 🌧️ Radar zrážok, Taktický radar a Akustický sonar
+- **Animovaný meteorologický radar**: Plynulé slučky zrážok zo zdrojov **SHMÚ**, **ČHMÚ** alebo **RainViewer** s časovým prelínaním (cross-dissolve) a kruhovou maskou.
+- **TREC 2D nowcasting zrážok**: Vektorové sledovanie búrok, ktoré upozorní iba vtedy, keď zrážky skutočne smerujú k vašej polohe (ETA ≤ 35 min, odchýlka ≤ 6 km), s automatickou klasifikáciou (Dážď / Dážď so snehom / Sneh / Krupobitie).
+- **Kombinovaný taktický radar**: Súčasné zobrazenie radaru zrážok a živej ADS-B leteckej premávky na jednej obrazovke.
+- **Taktický akustický sonar**: 25 FPS CRT fosforový lúč, vodopádový spektrogram (BTR), dopplerovské kódovanie rýchlosti a voliteľné akustické pípnutie.
 
-### 🎛️ v3.4.0 Priemyselné rozhranie "Tactile Field Instrument" & Anti-Slop Webový portál
-- **Kompletné prepracovanie dizajnu v štýle laboratórnych prístrojov:** Vstavaný webový portál kompletne pretvorený podľa estetiky Braun, Teenage Engineering a švajčiarskej architektonickej mriežky (Swiss Grid).
-- **Striktný zákaz generických AI prvkov (Anti-Slop Ban List):** Úplné odstránenie bridlicovo-modrých tmavých pozadí (`#0f172a`, `#1e293b`), neónových fialových/azúrových radiálnych rozmazaní, glassmorphismu (`backdrop-filter: blur`), mäkkých 8–20px zaoblených bento kariet, generických pilulkových odznakov a bezpätkových systémových fontov pre čísla.
-- **Matná industriálna paleta:** Základ z hlbokého matného karbónu (`#121211`), frézovaného šasi (`#171716`), konštrukčných vlasových liniek (`#2A2A28`) a prémiovej lomenej bielej (`#F4F3EF`) so striktne vyhradenými funkčnými akcentmi: Medzinárodná signálna oranžová (`#FF4F00`), laboratórny okrový akcent (`#E5A93C`) a fosforová zelená (`#00D062`).
-- **Otvorená švajčiarska mriežka:** Geometria s nulovou medzerou (`gap: 0; 1px solid #2A2A28`), technickými zameriavacími krížikmi (`+`) na križovatkách a ostrými 0px–2px zrazenými rohmi.
-- **Extrémny kontrast typografickej mierky:** Groteskné technické nadpisy (`Space Grotesk`) spojené so striktným tabulárnym neproporcionálnym písmom (`JetBrains Mono`, `tabular-nums`) pre všetky čísla, koordináty, napätia a logy (mikroštítky `10px` verzálok verzus masívne `42px` hlavné hodnoty).
-- **Taktilné prístrojové ovládače:** Segmentované mechanické kolískové prepínače, kruhové vektorové SVG ukazovatele s kalibrovanými ryskami pre teplotu jadra a PSRAM a fosforové LED matrix diódy.
-- **Samostatný simulátor prístroja (`portal.html`):** Integrovaný radarový CRT osciloskop 480×480 s plynulým lúčom, perzistentným fosforovým dosvitom a telemetriou cieľov.
-- **Optimalizácia flash pamäte PROGMEM:** Predkomprimovaný gzip archív úrovne 9 (`WebPageGz.h`) zmenšený na 62,7 KB (kompresný pomer 25,4 %, úspora 184,8 KB flash).
+### 🌤️ Predpoveď počasia, Kvalita ovzdušia a Nočný režim
+- **Hodinová a 3-dňová predpoveď**: Hodinové krivky teploty, vetra a zrážok spolu s 3-dňovým výhľadom cez Open-Meteo.
+- **Kvalita ovzdušia a peľ**: Európsky index AQI, koncentrácia prachových častíc PM2.5 a peľové alergény (jelša, breza, trávy, palina, ambrózia).
+- **Hlboký červený nočný režim**: Automatický solárny alebo časovaný nočný režim (0,5 % jas v červenom spektre) s voliteľným uzamknutím na obrazovku hodín (`nightClockOnly`).
 
-### 🖨️ v3.3.0 Telemetrický HUD pre Klipper & Moonraker 3D tlačiarne
-- **Kruhový HUD inšpirovaný Cyberpunkom a KNOMI:** Samostatná obrazovka živej telemetrie 3D tlačiarne (Obrazovka 9) komunikujúca s rozhraním Moonraker cez lokálnu Wi-Fi sieť.
-- **Hardvérovo vykresľované vektorové mikroikony:** Vlastná izometrická 3D tieňovaná kalibračná kocka s drôtenými hranami, hotend tryska s vyhrievacím blokom, vyhrievaná podložka so stúpajúcimi vlnami tepla, letecký zameriavací kríž homingu, mriežka bed meshu a symbol G-code dokumentu.
-- **Dynamický stavový odznak a stavová LED:** Real-time detekcia stavu s farebne podsvietenými LED indikátormi pre 16 prevádzkových stavov: `STANDBY`, `HOMING`, `PROBING / MESH`, `HEATING`, `HEAT SOAKING`, `PRINTING`, `PAUSED`, `FILAMENT RUNOUT`, `PURGING / CLEAN`, `COOLING DOWN`, `COMPLETED`, `CANCELLED`, `ERROR`, `MCU SHUTDOWN`, `STARTING UP` a `DISCONNECTED`.
-- **Inteligentné riadenie životného cyklu makier:** Podmienenie prechodných stavov podľa `idle_timeout` Moonrakeru (`state: "Printing"` vs `"Ready"`/`"Idle"`) a `motion_report` (`live_velocity`), čo zabraňuje uviaznutiu displeja na doznievajúcich správach LCD ako `"Z tilt adjusting...."`.
-- **Dvojité karty teplôt v štýle Glassmorphism:** Karty hotendu a podložky s neónovými akcentovými pásikmi, vysoko presnými teplotami a štítkami cieľovej teploty (`OFF` / `TGT XX°C`).
-- **Živá elevácia a telemetria nástroja:** Dynamické odznaky zahómovaných osí X/Y/Z, pilulka výšky osi Z a štítok objemového prietoku / spotreby filamentu.
-- **Konfigurácia vo webovom rozhraní:** Samostatná sekcia nastavení 3D tlačiarne vo webovom paneli s vlastným názvom tlačiarne, IP/hostiteľom, portom a voliteľným API kľúčom s automatickým riešením mDNS.
+### 🛰️ 3D dráha ISS, Finančné trhy a YouTube analytika
+- **3D sledovanie ISS**: Ortografická 3D guľa Zeme s atmosférickým Rayleighovým halom, slnečným terminátorom deň/noc, predikciou dráhy a 3 režimami pohľadu (`3D ISS`, `3D Domov`, `2D mapa`).
+- **Finančné trhy a krypto**: Až 8 vlastných tickerov z Yahoo Finance (akcie, ETF, kryptomeny, komodity, forex) s čiarovým a sviečkovým grafom.
+- **YouTube analytika**: Živý počet odberateľov, celkové zhliadnutia a štatistiky najnovšieho/najsledovanejšieho videa cez YouTube Data API v3.
 
-### 🕒 Luxusný astronomický chronograf
-- **24-hodinový solárny oblúk súmraku:** Vonkajší prstenec zobrazujúci pohyb Slnka (obed na 12. hodine, polnoc na 6. hodine), astronomický východ a západ slnka, 24K zlaté pásma rannej a večernej zlatej hodinky a dynamický symbol Slnka obiehajúci podľa aktuálneho miestneho solárneho času.
-- **Fotorealistická 3D lunárna komplikácia:** Horný subciferník s fotografickou NASA LROC albedo textúrou (92×92 px) vykresľovaný s 3D Lambertovým difúznym osvetlením, zatienením okraja, plynulou fázovou líniou tieňa a percentom osvetlenia.
-- **Subciferník vývoja teploty:** Dolný subciferník s 12 lúčmi, vonkajšou teplotou a elektricky modrou krivkou vývoja teploty sparkline so svietiacou koncovou perlou. Ťuknutie prepne priamo na 3-dňovú predpoveď počasia.
-- **Dynamická sekundová stopa a žiara:** Elektricky modrý sústredný kruh s plynulou obiehajúcou sekundovou perlou (~30 FPS) a aktívnym Gaussian bloom oblúkom od 12. hodiny po aktuálnu sekundu.
-- **Švajčiarska vyhladzovaná typografia:** Čisté biele 76px číslice digitálneho času (HH:MM) s vyhladzovanými okrajmi a lokalizovaným dátumom.
-- **Interaktívne výstražné lišty:** Plávajúci štítok preletu lietadla priamo nad vami a štítok blížiaceho sa dažďa s možnosťou prekliknutia na príslušný radar.
+### 🖨️ Telemetrický HUD pre 3D tlačiarne Klipper / Moonraker
+- **Kruhový HUD pre 3D tlačiareň**: Živá LAN telemetria z rozhrania Moonraker s hardvérovo vykresľovanými vektorovými ikonami (izometrická 3D kocka, tryska, vyhrievaná podložka, zameriavací kríž homingu, bed mesh).
+- **16 prevádzkových stavov**: Farebne podsvietená stavová LED (`STANDBY`, `HOMING`, `PROBING / MESH`, `HEATING`, `PRINTING`, `PAUSED`, `FILAMENT RUNOUT`, `COMPLETED`, `ERROR` atď.) s inteligentným filtrovaním prechodných makier.
+- **Teploty, vrstvy a ETA**: Karty teplôt trysky a podložky s cieľovými hodnotami, stav homingu X/Y/Z, výška Z, počítadlo vrstiev (`L X/Y`) a presný výpočet zostávajúceho času tlače.
+- **Striktná sieťová izolácia**: Dotazovanie Moonraker API prebieha výhradne vtedy, keď je obrazovka 3D tlačiarne aktívne zobrazená na displeji, s rýchlym LAN timeoutom (1,5 s).
 
-### 🛩️ Sledovanie lietadiel & Glass Cockpit radar
-- **360° radar** (14–200 km) cez adsb.fi / adsb.lol s kružnicami dosahu, letiskami a 360° leteckou kompasovou ružicou.
-- **Voľba štýlu cieľov**: Možnosť prepínania medzi aerodynamickými vektormi chevron (s dvojitým chevronom pre stíhačky) a siluetami lietadiel.
-- **Prediktívne vektory rýchlosti**: 1-minútové vodiace čiary kurzu letu s koncovým indikátorom rýchlosti.
-- **Avionické dátové štítky**: 3-riadkové plávajúce bloky (volací znak alebo ODKIAĽ>KAM, letová hladina a trend vertikálnej rýchlosti, rýchlosť a trasa) s ochranou pred prekrývaním a prepínaním metrických/leteckých jednotiek.
-- **Špeciálne kategórie**: Záchranári (zelená), vládne lety (zlatá), obrie lietadlá (azúrová), vojenské (červená) — pulzujúce kruhy a alert štítok navrchu.
-- **Auto-fokus na núdzové lety** (7500/7600/7700): uzamkne lietadlo, stmaví ostatné, zobrazí živú telemetriu.
-- **Vektor k najbližšiemu lietadlu** so vzdialenosťou, smerom a prevýšením.
-- **Offline databáza trás**: volací znak → odlet/prístup (napr. `BOJ→WAW`).
-- **Aero Glass Flight Deck HUD**: Ťuknutie na lietadlo otvorí kartu s reálnou fotografiou z Planespotters.net; ťuknutie na fotografiu otvorí celoobrazovkový HUD bez orezania s kompletnou leteckou telemetriou.
+### 🐾 DigiCat — Interaktívny virtuálny spoločník
+- **Hi-Res Sprite engine**: 247 snímok v 38 animačných sekvenciách vykresľovaných v mierke 3× (`192×192 px`) vo výsuvnej zásuvke.
+- **Režim Aero-Cat kopilota**: Ťuknutie na čelo prepne do režimu Top Gun so zlatými okuliarmi, mini radarom a živou telemetriou 6-osého IMU senzora (`PITCH`, `ROLL`, `KURZ`).
+- **Reakcie na počasie a lietadlá**: Dáždnik v daždi, šál v mraze, letecké okuliare za jasného počasia; naháňanie a chňapanie po skutočných lietadlách prelietajúcich nad hlavou.
+- **Autonómny AI mozog a Gemini komentáre**: Bohaté pokojové animácie, spánkový režim, štatistiky Hladu/Šťastia, letecké XP hodnosti a voliteľné živé komentovanie premávky cez Google Gemini Flash (so 100 % offline zálohou v SK/CZ/EN).
 
-### 🌧️ Radar zrážok & Nowcasting
-- Animované radarové slučky (SHMÚ / ČHMÚ / RainViewer) s plynulým prechodom, kruhovou maskou a riadkovým vzorkovaním bez pamäťovej fragmentácie.
-- **TREC 2D nowcasting**: upozorňuje iba keď zrážky skutočne smerujú k vám (ETA ≤ 35 min, odchýlka ≤ 6 km).
-- **Automatická klasifikácia**: Dážď / Dážď so snehom (1–3°C) / Sneh (≤1°C) / Krupobitie (>50 dBZ).
-
-### 🛰️ Taktický radar, Sonar, ISS, YouTube & Finance
-- **Kombinovaný taktický radar**: radar zrážok + živá ADS-B premávka na jednej obrazovke s avionikou Glass Cockpit.
-- **Taktický akustický sonar**: 25 FPS CRT fosforové skenovanie, BTR spektrogram, dopplerovské rýchlosti a akustické pípnutie.
-- **3D sledovanie ISS**: 3D ortografická guľa Zeme s Rayleighovým atmosférickým halo, slnečným terminátorom deň/noc, orbitami a 3 režimami pohľadu (3D ISS, 3D Domov, 2D mapa).
-- **YouTube analytika**: živý počet odberateľov, celkové zhliadnutia a štatistiky nového / najsledovanejšieho videa (YouTube Data API v3).
-- **Finančné trhy**: až 8 vlastných tickerov (ETF, akcie, krypto, forex) s čiarovým a sviečkovým grafom (Yahoo Finance v8).
-
-### 🌤️ Počasie, Kvalita ovzdušia & Nočný režim
-- Hodinové krivky teploty, vetra a zrážok, 3-dňová predpoveď, AQI, PM2.5 a peľ (Open-Meteo).
-- **Ultra nočný režim** (0,5% jas) a `nightClockOnly` (zamkne displej na ciferníku v nočných hodinách).
-
-### 🐾 DigiCat — Virtuálny spoločník (v3.0.0)
-Celoobrazovková interaktívna zásuvka (Swipe Up zospodu alebo ikona labky v Ovládacom centre).
-
-- **247 snímok · 38 animačných sekvencií** — profesionálne 64×64 RGBA sprite animácie ryšavej mačky, RGB565 PROGMEM, škálované na **3× (192×192 px)**.
-- **Aero-Cat letový kopilot**: Taktický vojenský režim Top Gun so zlatými leteckými okuliarmi, animovaným mini radarom a živou telemetriou 6-osého IMU senzora (PITCH, ROLL, GYRO KURZ).
-- **Bohatá pokojová osobnosť (9 sub-animácií)**: vrtenie chvosta v sede, lízanie labky v sede/v ľahu, mňaukanie v sede/v ľahu/v stoji, škrabanie ľavého/pravého ucha, zívanie — náhodne každých 4–10 s.
-- **Šťastná reakcia (3 varianty)**: vrtenie chvosta v sede, v stoji spredu, v stoji vpravo — cykli každých 1,5–4 s.
-- **Lovenie lietadla (3 varianty)**: státie + mávnutie, sedenie + pravá labka, sedenie + ľavá labka — vylosuje sa pri každom stretnutí.
-- **5 náhodných spánkových póz**: variant + smer ležania zamknutý na celú noc.
-- **Smerovo-vedomá lokomócia**: autentická `cat_run_left` pri vstupe sprava; `cat_slide_left` pri náklone doľava.
-- **Doplnky podľa počasia**: dáždnik (dážď/búrka), pletený šál (sneh/zima ≤2°C), letecké okuliare (jasno).
-- **Dráha reagujúca na počasie**: suchý asfalt / mokrý lesklý povrch / snehový poprašok.
-- **Autonómny mačací mozog**: náhodný príchod, prechádzky, výskoky, umývanie, strečing, výlety z obrazovky každých 6–12 s.
-- **Interakcia s lietadlami**: lietadlo letí s kondenzačnými stopami → DigiCat beží a chňapá; lietadlo uhýba; DigiCat skáče v naháňačke.
-- **Nočné správanie**: 2-minútový čas bdenia pri interakcii; zívanie → strečing → spánok; ťuknutie = prebudenie.
-- **Štatistiky zvieratka**: Hlad & Šťastie (0–100%); letecké XP hodnosti (*Mačací kadet → Radarový navigátor → Letecké eso*).
-- **Google Gemini Live AI**: voliteľné prepojenie s Gemini Flash pre živé komentovanie premávky (100% offline fallback, SK/CZ/EN).
-
-### ⚡ Systém & Konektivita
-- **Dvojjadrový FreeRTOS**: Jadro 1 pre LVGL 9 RGB (dvojitý framebuffer, nulové blikanie) + dotyk; Jadro 0 pre sieť, radar a ADS-B.
-- **Stabilný ST7701 ovládač**: kalibrovaný 8 MHz RGB clock, bez zápisov do Flash pri striedaní obrazoviek, auto-resync VSYNC.
-- **Hardvérové RTC** (PCF85063) s voliteľným superkondenzátorom (3,3 V, 1,0–1,5 F).
-- **Webový panel**: konfigurácia, OTA, živý sériový monitor (64 KB PSRAM), virtuálne zrkadlo displeja s dotykovou simuláciou, diaľkové ovládanie.
-- **Smart Home REST API**: `/api/status`, `/api/screen`, `/api/display/resync`, `/api/toggle-legends`, `/api/rtc/sync_ntp`.
-- **Aktívny bzučiak**: núdzové squawk alarmy, búrkové výstrahy, sonarové pípnutie ISS, akustické skenovacie pípnutie, hodinové odbíjanie, nočné stíšenie.
+### 🎛️ Priemyselný webový portál, Vlastné poradie obrazoviek a Architektúra
+- **Webový panel "Tactile Field Instrument"**: Responzívny Gzip-komprimovaný portál so živým 480×480 zrkadlením displeja a dotykovou simuláciou, CRT radarovým simulátorom, 64 KB PSRAM sériovým monitorom a OTA aktualizáciami.
+- **Vlastné poradie obrazoviek**: Drag-and-drop a tlačidlový správca poradia obrazoviek uložený v NVS — riadi dotykové listovanie, automatickú rotáciu aj diaľkové ovládanie.
+- **Dvojjadrový FreeRTOS a Anti-Tearing displej**: Jadro 1 vyhradené pre 60 FPS LVGL v9 vykresľovanie (s ST7701 RGB bounce bufferom proti trhaniu obrazu) a dotykové gestá; Jadro 0 pre asynchrónnu sieťovú komunikáciu a dekódovanie obrázkov.
+- **Hardvérový seizmometer a výstrahy**: Kontinuálne monitorovanie otrasov cez IMU QMI8658 spojené s globálnymi výstrahami pred zemetraseniami a cunami (USGS).
 
 ---
 
@@ -173,18 +101,18 @@ Celoobrazovková interaktívna zásuvka (Swipe Up zospodu alebo ikona labky v Ov
 
 | Obrazovka | Náhľad | Popis | Zdroj |
 | :--- | :---: | :--- | :--- |
-| **0. Hodiny** | <img src="docs/media/clock_luxury.png" width="70" /> | Luxusný astronomický chronograf (24h solárny oblúk, 3D mesiac, krivka teploty) | Open-Meteo |
+| **0. Hodiny** | <img src="docs/media/clock_luxury.png" width="70" /> | Luxusný astronomický chronograf (24h solárny oblúk, duálne komplikácie) | Open-Meteo / RTC |
 | **1. Lietadlá** | <img src="docs/media/plane_radar_live.png" width="70" /> | Glass Cockpit ADS-B radar, 360° kompas, vektory rýchlosti, mapové podklady | adsb.fi / adsb.lol |
 | **1b. Detail lietadla** | <img src="docs/media/plane_detail_photo.png" width="70" /> | Aero Glass Flight Deck HUD s kompletnou telemetriou a reálnou fotografiou | Planespotters.net |
-| **2. Radar zrážok** | <img src="docs/media/weather_radar_chmu.gif" width="70" /> | Animovaná slučka radaru, pamäťovo bezpečné dekódovanie, nowcasting zrážok | SHMÚ / ČHMÚ / RainViewer |
+| **2. Radar zrážok** | <img src="docs/media/weather_radar_chmu.gif" width="70" /> | Animovaná slučka radaru, plynulé prelínanie, TREC nowcasting zrážok | SHMÚ / ČHMÚ / RainViewer |
 | **3. Taktický radar** | <img src="docs/media/tactical_radar_live.gif" width="70" /> | Radar zrážok + živá ADS-B premávka v štýle Glass Cockpit | SHMÚ / ČHMÚ + adsb.fi |
-| **4. Sonar** | <img src="docs/media/screen_sonar.png" width="70" /> | CRT fosforový radar, BTR spektrogram, dopplerovské rýchlosti, akustické pípnutie | adsb.fi |
+| **4. Sonar** | <img src="docs/media/screen_sonar.png" width="70" /> | CRT fosforový radar, BTR spektrogram, dopplerovské rýchlosti | adsb.fi |
 | **5. Predpoveď** | <img src="docs/media/forecast_screen.png" width="70" /> | Hodinové krivky teploty, 3-dňová predpoveď, AQI, PM2.5, peľ | Open-Meteo |
 | **6. Trhy & Krypto** | <img src="docs/media/finance_screen.png" width="70" /> | Až 8 vlastných tickerov, čiarový a sviečkový graf | Yahoo Finance v8 |
 | **7. Dráha ISS** | <img src="docs/media/screen_iss_live.png" width="70" /> | 3D ortografická guľa Zeme, slnečný terminátor, Rayleighovo halo, orbity | WhereTheISS API |
 | **8. YouTube** | <img src="docs/media/youtube_screen.png" width="70" /> | Živý počet odberateľov, celkové zhliadnutia, štatistiky nového / top videa | YouTube Data API v3 |
-| **9. 3D tlačiareň (Klipper)** | <img src="docs/media/screen_klipper.png" width="70" /> | Živý telemetrický HUD pre Klipper, vektorové ikony, teploty trysky a podložky, homing, priebeh tlače | Moonraker API |
-| **10. Štatistiky letov & Info** | <img src="docs/media/flight_stats_screen.png" width="70" /> | 24h aktivita vzdušného priestoru v 6 rozsahoch, telemetria pamäte SRAM a PSRAM | PSRAM Tracker |
+| **9. 3D tlačiareň (Klipper)** | <img src="docs/media/screen_klipper.png" width="70" /> | Živý telemetrický HUD pre Klipper, teploty trysky/podložky, vrstvy, ETA | Moonraker API |
+| **10. Štatistiky letov & Info** | <img src="docs/media/flight_stats_screen.png" width="70" /> | 24h aktivita vzdušného priestoru v 6 rozsahoch, telemetria SRAM a PSRAM | PSRAM Tracker |
 | **11. Nastavenia** | <img src="docs/media/settings_screen.png" width="70" /> | Telemetria zariadenia, IP, jas, jazyk, poskytovateľ máp, zvuk, OTA | Systém |
 
 ---
@@ -193,23 +121,20 @@ Celoobrazovková interaktívna zásuvka (Swipe Up zospodu alebo ikona labky v Ov
 
 | Gesto | Výsledok |
 | :--- | :--- |
-| **Potiahnutie doľava / doprava** | Predchádzajúca / nasledujúca obrazovka |
-| **Stiahnutie z horného okraja** | Rýchle ovládacie centrum (jas, nočný režim, stopy letu, štýl cieľov, mapy) |
-| **Potiahnutie zospodu nahor** | Zásuvka DigiCat |
-| **Ťuknutie na pravý okraj (Radary)** | Zobrazenie priesvitných tlačidiel zoomu `+` / `-` (zmiznú po 3,5 s) |
-| **Ťuknutie na tlačidlá `+` / `-`** | Priblíženie / oddialenie dosahu radaru |
-| **Ťuknutie na dolný subciferník (Hodiny)** | Prechod na obrazovku Predpovede počasia |
+| **Potiahnutie doľava / doprava** | Predchádzajúca / nasledujúca obrazovka (podľa vlastného poradia) |
+| **Stiahnutie z horného okraja** | Rýchle ovládacie centrum (jas, komplikácie, nočný režim, stopy letu, mapy) |
+| **Potiahnutie zospodu nahor** | Otvorenie zásuvky DigiCat |
+| **Ťuknutie na pravý okraj (Radary)** | Zobrazenie tlačidiel zoomu `+` / `-` (automaticky zmiznú po 3,5 s) |
+| **Ťuknutie na horný / dolný subciferník (Hodiny)** | Okamžitý prechod na obrazovku danej komplikácie |
 | **Ťuknutie na výstražný štítok (Hodiny)** | Prechod na Lietadlá (prelet) alebo Radar zrážok (dážď) |
 | **Ťuknutie na lietadlo** | Otvorenie detailnej karty s reálnou fotografiou |
 | **Ťuknutie na fotografiu** | Otvorenie celoobrazovkového Aero Glass Flight Deck HUD (ťuknutie = späť) |
 | **Dvojité ťuknutie na obrazovku (Radary)** | Prepnutie čistého režimu mapy (skrytie / zobrazenie legiend a textov) |
-| **Ťuknutie na štítok vpravo hore (Sonar)** | Prepnutie režimu zobrazenia (Klasický PPI → Rozdelený Split → Vodopád) |
-| **Ťuknutie na spodný dosah (Sonar)** | Prepnutie rozsahu sonaru (25, 50, 100, 150 km) |
-| **Ťuknutie na guľu Zeme (ISS)** | Prepnutie režimu zobrazenia (3D ISS → 3D Domov → 2D mapa) |
+| **Ťuknutie na štítok / dosah (Sonar)** | Prepnutie režimu (`Klasický PPI` → `Split` → `Vodopád`) / rozsahu (`25–150 km`) |
+| **Ťuknutie na guľu Zeme (ISS)** | Prepnutie režimu zobrazenia (`3D ISS` → `3D Domov` → `2D mapa`) |
 | **Ťuknutie na obrazovku (Klipper)** | Okamžité vyžiadanie obnovy telemetrie z Moonraker |
-| **Ťuknutie na mačku (DigiCat)** | Pohladkanie (pradenie, dialóg); ťuknutie na čelo prepína Top Gun režim |
-| **Dvojité ťuknutie na mačku** | Kŕmenie maškrtou (obnoví hlad a šťastie) |
-| **Podržanie tlačidla BOOT ~3 s** | Továrenský reset (vymazanie Wi-Fi a nastavení) |
+| **Ťuknutie / Dvojité ťuknutie na mačku (DigiCat)** | Pohladkanie (ťuknutie na čelo prepína Top Gun režim) / nakŕmenie maškrtou |
+| **Podržanie tlačidla BOOT ~3 s** | Továrenský reset (vymazanie Wi-Fi a NVS nastavení) |
 
 ---
 
@@ -224,7 +149,7 @@ Pre **[Waveshare ESP32-S3-Touch-LCD-2.1](https://www.waveshare.com/esp32-s3-touc
 | **Displej** | Okrúhly 2.1" IPS · 480×480 px · ST7701 RGB |
 | **Dotyk** | CST820 / CHSC6540 kapacitný (I2C) |
 | **IMU** | QMI8658 6-osový akcelerometer + gyroskop |
-| **RTC** | PCF85063 (I2C `0x51`) |
+| **RTC** | PCF85063 (I2C `0x51`) s voliteľným superkondenzátorom |
 | **Konektivita** | USB-C · Wi-Fi 802.11 b/g/n 2.4 GHz |
 
 ---
@@ -234,8 +159,11 @@ Pre **[Waveshare ESP32-S3-Touch-LCD-2.1](https://www.waveshare.com/esp32-s3-touc
 ### Možnosť A — Predkompilovaná binárka (Najjednoduchšie)
 Stiahnite z **[Vydania (Releases)](https://github.com/hackra76/ESP-MeteoPlaneRadar/releases)**:
 - `MeteoPlaneRadar-v3.7.0-factory.bin` — kompletný obraz (bootloader + partície + firmvér).
-- Flash cez [ESP Web Flasher](https://espressif.github.io/esptool-js/) pri 921600 baud od adresy `0x00000000`.
-- Alebo: `esptool.py -p COM_PORT -b 921600 write_flash 0x0 MeteoPlaneRadar-v3.7.0-factory.bin`
+- Flash cez [ESP Web Flasher](https://espressif.github.io/esptool-js/) pri `921600` baud od adresy `0x00000000`.
+- Alebo cez príkazový riadok:
+  ```bash
+  esptool.py -p COM_PORT -b 921600 write_flash 0x0 MeteoPlaneRadar-v3.7.0-factory.bin
+  ```
 
 ### Možnosť B — PlatformIO
 ```bash
@@ -244,17 +172,17 @@ pio run -t upload  # nahratie
 ```
 
 ### Prvé zapnutie & Wi-Fi
-1. Zariadenie vytvorí sieť **`MeteoPlaneRadar`** a zobrazí QR kód.
-2. Pripojte sa → otvorte `http://192.168.4.1/` → zadajte Wi-Fi heslo → Uložiť.
-3. Ovládací panel na **`http://meteoplaneradar.local/`** (alebo IP zariadenia).
+1. Zariadenie vytvorí sieť **`MeteoPlaneRadar`** a zobrazí QR kód na displeji.
+2. Pripojte sa k sieti → otvorte `http://192.168.4.1/` → zadajte prihlasovacie údaje k domácej Wi-Fi → **Uložiť**.
+3. Ovládací panel je dostupný na **`http://meteoplaneradar.local/`** (alebo IP adrese zariadenia).
 
 ---
 
 ## 🔑 Nastavenie YouTube Data API kľúča
 
-1. Vytvorte projekt na [Google Cloud Console](https://console.cloud.google.com/).
-2. Povoľte **YouTube Data API v3** a vytvorte **API Key** (APIs & Services → Credentials).
-3. V webovom paneli → záložka **YouTube** → vložte kľúč + handle kanála (`@meno`) alebo Channel ID (`UC...`).
+1. Vytvorte projekt v [Google Cloud Console](https://console.cloud.google.com/).
+2. Povoľte **YouTube Data API v3** a vytvorte **API Key** (*APIs & Services → Credentials*).
+3. Vo webovom paneli zariadenia → záložka **YouTube** → vložte API kľúč a handle kanála (`@meno`) alebo Channel ID (`UC...`).
 
 ---
 
@@ -262,12 +190,13 @@ pio run -t upload  # nahratie
 
 | Endpoint | Metóda | Popis |
 | :--- | :---: | :--- |
-| `/api/status` | GET | Kompletný JSON stav (počasie, lietadlá, pamäť, ISS) |
-| `/api/hardware` | GET | Periférie, RTC, I2C scan, dôvod resetu |
-| `/api/screen` | POST | Prepnutie obrazovky `{"index": 0}` (0–11) |
-| `/api/display/resync` | POST | Hardvérová resynchronizácia displeja |
-| `/api/toggle-legends` | POST | Prepnutie čistého režimu mapy |
-| `/api/rtc/sync_ntp` | POST | Vynútenie NTP → RTC synchronizácie |
+| `/api/status` | `GET` | Kompletná JSON telemetria (počasie, lietadlá, pamäť, ISS) |
+| `/api/hardware` | `GET` | Periférie, RTC, I2C scan, dôvod resetu |
+| `/api/screen` | `POST` | Prepnutie obrazovky (`{"index": 0}` alebo `{"step": 1}`) |
+| `/api/screenshot.bmp` | `GET` | Živý 480×480 24-bitový BMP snímok obrazovky |
+| `/api/display/resync` | `POST` | Hardvérová resynchronizácia ST7701 RGB displeja |
+| `/api/toggle-legends` | `POST` | Prepnutie čistého režimu mapy na radaroch |
+| `/api/rtc/sync_ntp` | `POST` | Vynútenie NTP → RTC synchronizácie |
 
 ---
 
@@ -276,5 +205,4 @@ pio run -t upload  # nahratie
 MIT License.
 - Pôvodný projekt: **[petus/MeteoPlaneRadar](https://github.com/petus/MeteoPlaneRadar)**
 - DigiCat herné mechaniky: **[aquascape123/digicat](https://github.com/aquascape123/digicat)** (MIT)
-- Vylepšenia, SHMÚ radar, ISS tracker, ciferníky, dotykové ovládanie, DigiCat hi-res sprite, AI mačací mozog, webový panel, slovenská lokalizácia: **Rado & Antigravity AI**
-
+- Vylepšenia, SHMÚ radar, ISS tracker, luxusný chronograf, dotykové ovládanie, DigiCat hi-res sprite, AI mačací mozog, priemyselný webový panel, slovenská lokalizácia: **Rado & Antigravity AI**
