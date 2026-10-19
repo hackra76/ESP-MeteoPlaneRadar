@@ -9,6 +9,24 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [3.7.0] - 2026-10-19
+
+### Added & Improved
+- **Audit & Performance Optimizations across Subsystems:**
+  - **ADS-B Telemetry Processing**: Replaced $O(N^2)$ selection sorting with an $O(N)$ bounded min-heap top-$K$ insertion parser; hoisted settings lookups outside per-aircraft iteration; migrated raw String JSON payloads to streaming PSRAM buffers.
+  - **Core Concurrency & Dispatch**: Hardened Core 0/1 separation. Implemented RAII `NetBusyGuard` protecting network dispatch; fixed radar scheduler logic (`radarDue`) ensuring regular fetches without branch starvation; rate-limited complication weather retries with cache invalidation to prevent 503 boot loops.
+  - **Display Pipeline & Anti-Tearing**: Configured Bounce Buffer (`480 * 10` pixels) in `Arduino_ESP32RGBPanel` to eliminate PSRAM bus contention and screen tearing during network and flash I/O.
+  - **Tactical & Sonar Radars**: Pre-computed trigonometric lookups (`LUT_SinDeg` / `LUT_CosDeg`), hoisted settings lookups outside render loops, and cached dark-mode desaturated radar frames in PSRAM.
+  - **ISS Orbit Tracker**: Downsampled orbital ground track to 90 points with bounding-box culling; added redraw dirty-flag caching (`s_prevIssX`/`s_prevIssY`) preventing unneeded full-canvas repaints every second; relocated 12 KB JSON buffer from task stack to PSRAM.
+  - **Embedded Web Server Streaming**: Added `WebServerPrint` streaming adapter to stream large HTML templates directly without 6–14 KB heap reservations; optimized `/api/screenshot.bmp` to stream line-by-line under the LVGL mutex, freeing 460.8 KB PSRAM snapshot allocations.
+  - **Network Tile Fetching**: Enabled HTTP keep-alive connection reuse (`http.setReuse(true)`) across sequential Slippy Map tile fetches.
+
+### Fixed
+- **Aircraft Photo Progressive JPEG Decoding**:
+  - Fixed progressive JPEG rendering (SOF2 marker) served by Planespotters CDN thumbnails: integrated `stb_image.h` with PSRAM custom allocators and box-filter downsampling into 200×133 RGB565 buffers, preventing truncation and distorted rendering.
+- **Weather Radar Blending Bounds**:
+  - Corrected cross-dissolve downsampled bounds checking (`blitRainViewerCrossDissolve`) to prevent reading beyond 480×480 framebuffers at 200 km range.
+
 ## [3.6.0] - 2026-10-16
 
 ### Added

@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20SK%20%7C%20CZ-green.svg)
-![Release](https://img.shields.io/badge/Release-v3.6.0-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v3.7.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, ISS orbit tracking, YouTube channel analytics, financial market tickers, Klipper 3D printer telemetry HUD, disaster warning system with hardware seismometer, and an animated virtual pet companion on a round 2.1" IPS touchscreen.**  
@@ -37,12 +37,21 @@ Designed for the **Waveshare ESP32-S3-Touch-LCD-2.1** with smartphone-like touch
 </p>
 
 <p align="center">
-  <em>DigiCat v3.6.0 — Professional 64×64 ginger cat sprites (247 frames, 38 animation sequences, RGB565 PROGMEM, rendered at 3× scale / 192×192 px).</em>
+  <em>DigiCat v3.7.0 — Professional 64×64 ginger cat sprites (247 frames, 38 animation sequences, RGB565 PROGMEM, rendered at 3× scale / 192×192 px).</em>
 </p>
 
 ---
 
 ## 🌟 Features
+
+### ⚡ v3.7.0 Audit & Performance Optimizations Release
+- **ADS-B Telemetry Processing**: Replaced $O(N^2)$ selection sorting with an $O(N)$ bounded min-heap top-$K$ insertion parser; hoisted settings lookups outside per-aircraft iteration; migrated raw String JSON payloads to streaming PSRAM buffers.
+- **Core Concurrency & Dispatch**: Hardened Core 0/1 separation. Implemented RAII `NetBusyGuard` protecting network dispatch; fixed radar scheduler logic (`radarDue`) ensuring regular fetches without branch starvation; rate-limited complication weather retries with cache invalidation.
+- **Display Pipeline & Anti-Tearing**: Configured Bounce Buffer (`480 * 10` pixels) in `Arduino_ESP32RGBPanel` to eliminate PSRAM bus contention and screen tearing during network and flash I/O.
+- **Aircraft Photo Progressive JPEG Decoding**: Integrated `stb_image.h` with PSRAM custom allocators and box-filter downsampling into 200×133 RGB565 buffers, preventing truncation and distorted rendering on Planespotters CDN progressive JPEGs.
+- **Tactical & Sonar Radars**: Pre-computed trigonometric lookups (`LUT_SinDeg` / `LUT_CosDeg`), hoisted settings lookups outside render loops, and cached dark-mode desaturated radar frames in PSRAM.
+- **ISS Orbit Tracker**: Downsampled orbital ground track to 90 points with bounding-box culling; added redraw dirty-flag caching (`s_prevIssX`/`s_prevIssY`) preventing unneeded full-canvas repaints every second; relocated 12 KB JSON buffer from task stack to PSRAM.
+- **Embedded Web Server Streaming**: Added `WebServerPrint` streaming adapter to stream large HTML templates directly without 6–14 KB heap reservations; optimized `/api/screenshot.bmp` to stream line-by-line under the LVGL mutex, freeing 460.8 KB PSRAM snapshot allocations.
 
 ### ⏱️ v3.6.0 Luxury Dial Complications, Moon Lighting & Network Isolation Release
 - **Configurable Dual Circular Dial Complications (Screen 0):**
@@ -224,9 +233,9 @@ Built for the **[Waveshare ESP32-S3-Touch-LCD-2.1](https://www.waveshare.com/esp
 
 ### Method A — Pre-built Binary (Easiest)
 Download from **[Releases](https://github.com/hackra76/ESP-MeteoPlaneRadar/releases)**:
-- `MeteoPlaneRadar-v3.5.0-factory.bin` — full image (bootloader + partitions + firmware).
+- `MeteoPlaneRadar-v3.7.0-factory.bin` — full image (bootloader + partitions + firmware).
 - Flash via [ESP Web Flasher](https://espressif.github.io/esptool-js/) at 921600 baud, address `0x00000000`.
-- Or: `esptool.py -p COM_PORT -b 921600 write_flash 0x0 MeteoPlaneRadar-v3.5.0-factory.bin`
+- Or: `esptool.py -p COM_PORT -b 921600 write_flash 0x0 MeteoPlaneRadar-v3.7.0-factory.bin`
 
 ### Method B — PlatformIO
 ```bash

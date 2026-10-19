@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-SK%20%7C%20CZ%20%7C%20EN-green.svg)
-![Release](https://img.shields.io/badge/Release-v3.6.0-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v3.7.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunkčná meteorologická stanica, živý ADS-B letecký radar, animovaný radar zrážok (SHMÚ, ČHMÚ, RainViewer), kombinovaný taktický radar, sledovanie dráhy ISS, analytika YouTube, finančné trhy, telemetrický HUD pre Klipper 3D tlačiarne, systém varovania pred katastrofami s hardvérovým seizmometrom a animovaný virtuálny spoločník na okrúhlom 2.1" IPS dotykovom displeji.**  
@@ -37,12 +37,21 @@ Vyvinuté pre **Waveshare ESP32-S3-Touch-LCD-2.1** s dotykovými gestami v štý
 </p>
 
 <p align="center">
-  <em>DigiCat v3.6.0 — Profesionálne 64×64 sprite animácie ryšavej mačky (247 snímok, 38 animačných sekvencií, RGB565 PROGMEM, škálované na 3× / 192×192 px).</em>
+  <em>DigiCat v3.7.0 — Profesionálne 64×64 sprite animácie ryšavej mačky (247 snímok, 38 animačných sekvencií, RGB565 PROGMEM, škálované na 3× / 192×192 px).</em>
 </p>
 
 ---
 
 ## 🌟 Funkcie
+
+### ⚡ v3.7.0 Audit a výkonnostné optimalizácie
+- **Spracovanie ADS-B telemetrie lietadiel**: Nahradenie $O(N^2)$ výberového triedenia rýchlym $O(N)$ ohraničeným min-heap top-$K$ parserom priamo počas spracovania JSON toku; načítanie globálnych nastavení mimo cyklov lietadiel; migrácia z haldových reťazcov `String` na streamingové PSRAM buffery.
+- **Súbežnosť jadier a plánovanie (Core 0/1)**: Posilnenie stability a eliminácia uviaznutí. Implementovaný RAII `NetBusyGuard` pre sieťové transakcie; oprava logiky plánovača radaru (`radarDue`) pre hladké sťahovanie snímok bez blokovania ostatných úloh; limitovanie opakovaných pokusov o počasie s okamžitou invalidáciou cache proti 503 bootovacím slučkám.
+- **Vykresľovanie displeja bez trhania (Anti-Tearing)**: Aktivácia Bounce Bufferu (`480 * 10` pixelov) v paneli `Arduino_ESP32RGBPanel` pre elimináciu vyhladovania PSRAM zbernice a trhania obrazu počas sieťových a flash zápisov.
+- **Dekódovanie progresívnych JPEG fotografií lietadiel**: Integrácia knižnice `stb_image.h` s vlastnými PSRAM alokátormi a box-filter downsamplingom do 200×133 RGB565 bufferov, čo zabezpečuje bezchybné zobrazenie progresívnych JPEG náhľadov zo siete Planespotters bez pádov či orezania.
+- **Taktický a sonarový radar**: Predpočítané goniometrické tabuľky (`LUT_SinDeg` / `LUT_CosDeg`), presun čítania nastavení mimo cyklov a cachovanie desaturovaných nočných radarových podkladov v PSRAM.
+- **3D sledovanie ISS**: Zníženie vzorkovania orbitálnej dráhy na 90 bodov s orezávaním podľa bounding-boxu; dirty-flag detekcia (`s_prevIssX`/`s_prevIssY`) zamedzujúca zbytočnému prekresľovaniu celého plátna každú sekundu; presun 12 KB JSON buffera zo zásobníka do PSRAM.
+- **Streaming webového servera a zníženie pamäte**: Pridaný adaptér `WebServerPrint` pre priame odosielanie HTML stránok po častiach bez 6–14 KB haldových rezervácií; optimalizované snímanie obrazovky `/api/screenshot.bmp` po riadkoch priamo pod LVGL zámkom bez potreby 460.8 KB PSRAM buffera.
 
 ### ⏱️ v3.6.0 Luxusné komplikácie ciferníka, astrofyzikálne osvetlenie Mesiaca a sieťová izolácia
 - **Konfigurovateľné duálne kruhové komplikácie ciferníka (Obrazovka 0):**
@@ -224,9 +233,9 @@ Pre **[Waveshare ESP32-S3-Touch-LCD-2.1](https://www.waveshare.com/esp32-s3-touc
 
 ### Možnosť A — Predkompilovaná binárka (Najjednoduchšie)
 Stiahnite z **[Vydania (Releases)](https://github.com/hackra76/ESP-MeteoPlaneRadar/releases)**:
-- `MeteoPlaneRadar-v3.5.0-factory.bin` — kompletný obraz (bootloader + partície + firmvér).
+- `MeteoPlaneRadar-v3.7.0-factory.bin` — kompletný obraz (bootloader + partície + firmvér).
 - Flash cez [ESP Web Flasher](https://espressif.github.io/esptool-js/) pri 921600 baud od adresy `0x00000000`.
-- Alebo: `esptool.py -p COM_PORT -b 921600 write_flash 0x0 MeteoPlaneRadar-v3.5.0-factory.bin`
+- Alebo: `esptool.py -p COM_PORT -b 921600 write_flash 0x0 MeteoPlaneRadar-v3.7.0-factory.bin`
 
 ### Možnosť B — PlatformIO
 ```bash
