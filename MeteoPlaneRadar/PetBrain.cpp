@@ -15,6 +15,9 @@
 #include "AsyncCore.h"
 #include "Lang.h"
 #include "PetDrawer.h"
+#include "Forecast.h"
+#include "IssData.h"
+#include "DisasterAlert.h"
 #include <ArduinoJson.h>
 #include "SpiRamAllocator.h"
 #include <Preferences.h>
@@ -26,6 +29,16 @@ static bool     s_fetchRequested = false;
 static bool     s_isBusy = false;
 static unsigned long s_lastAutoThought = 0;
 static unsigned long s_moodResetMs = 0;
+
+// Virtual Pet Stats (inspired by DigiCat under MIT License)
+static PetStats s_stats = { 92, 18, 0, 0 }; // Initial: 92% happy, 18% hunger, stage 0
+static unsigned long s_lastStatTick = 0;
+static bool s_lastWasFeed = false;
+static bool s_lastWasUserTap = false;
+static unsigned long s_lastGeminiReqMs = 0;
+static unsigned long s_rateLimitedUntilMs = 0;
+static bool s_statsDirty = false;
+static unsigned long s_statsDirtyMs = 0;
 
 
 // Earth distance calculation in km
@@ -124,18 +137,24 @@ static void generateOfflineThought(char* buf, size_t cap) {
   const uint8_t lang = Settings_Language();
   float bDeg = 0, dist = 9999.0f;
   char cs[16] = "";
-  SkyPlaneType dummyType;
-  bool hasPlane = PetBrain_GetClosestPlaneTarget(bDeg, dist, cs, sizeof(cs), dummyType);
-
-  char tempBuf[OUTSIDE_TEXT_MAX] = "";
-  Outside_StatusText(tempBuf, sizeof(tempBuf));
+  SkyPlaneType pType = PLANE_TYPE_JET;
+  bool hasPlane = PetBrain_GetClosestPlaneTarget(bDeg, dist, cs, sizeof(cs), pType);
 
   const bool isNight = Settings_IsNight() && !PetDrawer_IsNightAwake();
   const PrecipAlert* alert = PrecipTracker_GetAlert();
   bool isApproaching = (alert && alert->status == PRECIP_STAT_APPROACHING);
   bool isActive = (alert && alert->status == PRECIP_STAT_CURRENTLY_ACTIVE);
-  const bool isRaining = (isApproaching || isActive);
 
+  // 1. Seismic / Disaster Alert
+  if (DisasterAlert_IsLocalTremorActive() || DisasterAlert_HasActiveAlert()) {
+    s_mood = PET_MOOD_SCARED;
+    if (lang == LANG_SK) snprintf(buf, cap, "Hiss! Cítim chvenie zeme v labkách! Seizmický poplach!");
+    else if (lang == LANG_CZ) snprintf(buf, cap, "Hiss! Cítím chvění země v tlapkách! Seismický poplach!");
+    else snprintf(buf, cap, "Hiss! My whiskers feel seismic vibrations! Tremor alert!");
+    return;
+  }
+
+  // 2. Sleeping at night
   if (isNight) {
     s_mood = PET_MOOD_SLEEPY;
     if (lang == LANG_SK) snprintf(buf, cap, "Prrrr... DigiCat spinká pod hviezdami. Zzz...");
@@ -144,6 +163,16 @@ static void generateOfflineThought(char* buf, size_t cap) {
     return;
   }
 
+  // 3. Hungry tummy check
+  if (s_stats.hunger >= 75) {
+    s_mood = PET_MOOD_IDLE;
+    if (lang == LANG_SK) snprintf(buf, cap, "Mňau... bruško mi škvŕka (%d%% hlad)! Prosím chrumkavú rybičku!", s_stats.hunger);
+    else if (lang == LANG_CZ) snprintf(buf, cap, "Mňau... v bříšku mi kručí (%d%% hlad)! Prosím křupavou rybičku!", s_stats.hunger);
+    else snprintf(buf, cap, "Mrow... tummy rumbling (%d%% hunger)! Toss a crispy fish treat?", s_stats.hunger);
+    return;
+  }
+
+  // 4. Precipitation / Storm alerts
   if (isApproaching) {
     s_mood = PET_MOOD_RAIN;
     if (lang == LANG_SK) snprintf(buf, cap, "Pozor! Búrka sa blíži! Podľa môjho výpočtu dorazí o %d minút!", alert->etaMin);
@@ -154,28 +183,51 @@ static void generateOfflineThought(char* buf, size_t cap) {
   
   if (isActive) {
     s_mood = PET_MOOD_RAIN;
-    if (lang == LANG_SK) snprintf(buf, cap, "Vonku prší! Teplé pradenie a útulný radar v teple.");
-    else if (lang == LANG_CZ) snprintf(buf, cap, "Venku prší! Teplé předení a útulný radar v teple.");
-    else snprintf(buf, cap, "Rain outside! Warm purrs and cozy whiskers inside.");
+    if (lang == LANG_SK) snprintf(buf, cap, "Vonku prší! Dáždnik nad hlavou a teplé pradenie pri radare.");
+    else if (lang == LANG_CZ) snprintf(buf, cap, "Venku prší! Deštník nad hlavou a teplé předení u radaru.");
+    else snprintf(buf, cap, "Rain outside! Holding my umbrella with warm purrs inside.");
     return;
   }
 
-  if (hasPlane && dummyType == PLANE_TYPE_FIGHTER && dist < 65.0f) {
+  // 5. Military fighter intercept
+  if (hasPlane && pType == PLANE_TYPE_FIGHTER && dist < 65.0f) {
     s_mood = PET_MOOD_MILITARY;
-    if (lang == LANG_SK) snprintf(buf, cap, "Poplach! Stihacka %s na radare (%.0fkm)! DigiCat nasadzuje letecke okuliare!", cs, dist);
-    else if (lang == LANG_CZ) snprintf(buf, cap, "Poplach! Stihacka %s na radaru (%.0fkm)! DigiCat nasazuje letecke bryle!", cs, dist);
+    if (lang == LANG_SK) snprintf(buf, cap, "Poplach! Stíhačka %s na radare (%.0fkm)! DigiCat nasadzuje letecké okuliare!", cs, dist);
+    else if (lang == LANG_CZ) snprintf(buf, cap, "Poplach! Stíhačka %s na radaru (%.0fkm)! DigiCat nasazuje letecké brýle!", cs, dist);
     else snprintf(buf, cap, "Intercept alert! Fighter %s at %.0fkm! DigiCat locks tactical radar!", cs, dist);
     return;
   }
 
+  // 6. Close overhead aircraft (with type awareness)
   if (hasPlane && dist <= 10.0f) {
     s_mood = PET_MOOD_EXCITED;
-    if (lang == LANG_SK) snprintf(buf, cap, "Mňau! Pozri hore! %s fičí nad nami! Skáčem a chytám ho labkou! ✈️🐾", cs);
-    else if (lang == LANG_CZ) snprintf(buf, cap, "Mňau! Koukej nahoru! %s fičí nad námi! Skáču a chytám ho tlapkou! ✈️🐾", cs);
-    else snprintf(buf, cap, "Mrow! Look up! %s zooming right above! Swatting paws at it! ✈️🐾", cs);
+    if (pType == PLANE_TYPE_RESCUE || pType == PLANE_TYPE_HELI) {
+      if (lang == LANG_SK) snprintf(buf, cap, "Vrtuľník %s bzučí priamo nad nami (%.0fkm)! Ušká v pozore! 🚁🐾", cs, dist);
+      else if (lang == LANG_CZ) snprintf(buf, cap, "Vrtulník %s bzučí přímo nad námi (%.0fkm)! Ouška v pozoru! 🚁🐾", cs, dist);
+      else snprintf(buf, cap, "Chopper %s buzzing right overhead (%.0fkm)! Ears swiveling! 🚁🐾", cs, dist);
+    } else if (pType == PLANE_TYPE_HEAVY) {
+      if (lang == LANG_SK) snprintf(buf, cap, "Obrie lietadlo %s priamo nad hlavou! Aký obrovský tieň! ✈️🐾", cs);
+      else if (lang == LANG_CZ) snprintf(buf, cap, "Obří letadlo %s přímo nad hlavou! Jaký obrovský stín! ✈️🐾", cs);
+      else snprintf(buf, cap, "Heavy jumbo %s roaring overhead! Look at those contrails! ✈️🐾", cs);
+    } else {
+      if (lang == LANG_SK) snprintf(buf, cap, "Mňau! Pozri hore! %s fičí nad nami! Skáčem a chytám ho labkou! ✈️🐾", cs);
+      else if (lang == LANG_CZ) snprintf(buf, cap, "Mňau! Koukej nahoru! %s fičí nad námi! Skáču a chytám ho tlapkou! ✈️🐾", cs);
+      else snprintf(buf, cap, "Mrow! Look up! %s zooming right above! Swatting paws at it! ✈️🐾", cs);
+    }
     return;
   }
 
+  // 7. ISS Space Station overhead pass
+  const IssData* iss = Iss_GetDataPtr();
+  if (iss && iss->valid && iss->inRange) {
+    s_mood = PET_MOOD_EXCITED;
+    if (lang == LANG_SK) snprintf(buf, cap, "Pozri na hviezdy! Vesmírna stanica ISS letí nad nami (%.0fkm)! 🛰️🐾", iss->distanceKm);
+    else if (lang == LANG_CZ) snprintf(buf, cap, "Koukej na hvězdy! Vesmírná stanice ISS letí nad námi (%.0fkm)! 🛰️🐾", iss->distanceKm);
+    else snprintf(buf, cap, "Look up! The ISS space station is passing overhead (%.0fkm)! 🛰️🐾", iss->distanceKm);
+    return;
+  }
+
+  // 8. Medium-range aircraft on radar
   if (hasPlane && dist < 45.0f) {
     s_mood = PET_MOOD_HAPPY;
     if (lang == LANG_SK) snprintf(buf, cap, "%s na radare (%.0fkm). DigiCat sleduje jeho let! 📡🐾", cs, dist);
@@ -184,28 +236,55 @@ static void generateOfflineThought(char* buf, size_t cap) {
     return;
   }
 
-  // General idle
+  // 9. General idle with outdoor temperature awareness
   s_mood = PET_MOOD_IDLE;
   static uint8_t s_idleSeq = 0;
-  s_idleSeq = (s_idleSeq + 1) % 4;
+  s_idleSeq = (s_idleSeq + 1) % 8;
 
-  const char* phrasesEN[] = {
+  if (s_idleSeq == 6 && Forecast_CurrentValid()) {
+    float t = Forecast_CurrentTemp();
+    if (t <= 2.0f) {
+      if (lang == LANG_SK) snprintf(buf, cap, "Vonku je %.1f°C! Ešteže mám teplý červený šál a horúci radar!", t);
+      else if (lang == LANG_CZ) snprintf(buf, cap, "Venku je %.1f°C! Ještě že mám teplou šálu a horký radar!", t);
+      else snprintf(buf, cap, "Brrr, %.1f°C outside! Cozy knit scarf keeps my whiskers warm!", t);
+      return;
+    } else if (t >= 23.0f) {
+      if (lang == LANG_SK) snprintf(buf, cap, "Slnečných %.1f°C! Vyhrievam si kožúšok na teplej dráhe!", t);
+      else if (lang == LANG_CZ) snprintf(buf, cap, "Slunečných %.1f°C! Vyhřívám si kožíšek na teplé dráze!", t);
+      else snprintf(buf, cap, "Sunny %.1f°C! Sunbathing my ginger fur on the warm tarmac!", t);
+      return;
+    }
+  }
+
+  const char* phrasesEN[8] = {
     "Purrrrr... DigiCat is scanning the skies with you!",
     "Watching airplanes zoom by... tail swishing happily!",
-    "Virtual happiness high! Cozy radar warm on paws.",
-    "Cozy radar screen keeps me company. Purrr meow."
+    "Drag your finger on the runway to shine my laser pointer!",
+    "Cozy radar screen keeps me company. Purrr meow.",
+    "Ears tuned to 1090 MHz ADS-B! Ready for the next jet!",
+    "Paws clean, whiskers calibrated, radar sweeping smoothly!",
+    "Tap my ears for scratches or toss a fish cracker!",
+    "Stalking runway butterflies while airspace is quiet..."
   };
-  const char* phrasesSK[] = {
+  const char* phrasesSK[8] = {
     "Prrrrr... DigiCat s tebou skenuje oblohu!",
     "Sledujem lietadlá na radare... chvostík vrtí radosťou!",
-    "Spokojnosť na maxime! Teplý radar hreje na labky.",
-    "Pracujem na radare a pradkám. Mňau!"
+    "Potiahni prstom po dráhe a zasvieť mi laserovým ukazovátkom!",
+    "Pracujem na radare a pradkám. Mňau!",
+    "Ušká naladené na 1090 MHz ADS-B! Čakám na ďalšie lietadlo!",
+    "Labky umyté, fúziky nakalibrované, radar beží hladko!",
+    "Ťukni mi na uško pre poškrabkanie alebo hoď rybičku!",
+    "Sledujem motýle pri dráhe, kým je na oblohe pokoj..."
   };
-  const char* phrasesCZ[] = {
+  const char* phrasesCZ[8] = {
     "Prrrrr... DigiCat s tebou skenuje oblohu!",
     "Sleduji letadla na radaru... ocásek vrtí radostí!",
-    "Spokojenost na maximu! Teplý radar hřeje na tlapky.",
-    "Pracuji na radaru a předu. Mňau!"
+    "Potáhni prstem po dráze a posviť mi laserovým ukazovátkem!",
+    "Pracuji na radaru a předu. Mňau!",
+    "Ouška naladěna na 1090 MHz ADS-B! Čekám na další letadlo!",
+    "Tlapky umyté, vousky zkalibrované, radar běží hladce!",
+    "Klepni mi na ouško pro podrbání nebo hoď rybičku!",
+    "Pozoruji motýly u dráhy, dokud je na obloze klid..."
   };
   const char** pTable = (lang == LANG_SK) ? phrasesSK : ((lang == LANG_CZ) ? phrasesCZ : phrasesEN);
   snprintf(buf, cap, "%s", pTable[s_idleSeq]);
@@ -217,39 +296,35 @@ static void generatePettingThought(char* buf, size_t cap) {
   s_mood = PET_MOOD_HAPPY;
 
   static uint8_t s_petSeq = 0;
-  s_petSeq = (s_petSeq + 1) % 4;
+  s_petSeq = (s_petSeq + 1) % 6;
 
-  const char* phrasesEN[] = {
-    "Purrrrr! *happy head bonk* Best human friend!",
+  const char* phrasesEN[6] = {
+    "Purrrrr! *happy head bonk* Best human co-pilot!",
     "Mrow! More chin scratches please! <3",
-    "Kneading paws happily! DigiCat loves you!",
-    "Purrr purrr! Tail vibrating with joy! <3"
+    "Kneading biscuits on the runway! DigiCat loves you!",
+    "Purrr purrr! Tail vibrating like a turboprop! <3",
+    "Slow-blinking at you with big happy cat eyes! <3",
+    "So warm and cozy! Best radar crew in the world!"
   };
-  const char* phrasesSK[] = {
-    "Prrrrrr! *šťastné štuchnutie hlávkou* Najlepší kamarát!",
+  const char* phrasesSK[6] = {
+    "Prrrrrr! *šťastné štuchnutie hlávkou* Najlepší kopilot!",
     "Mňau! Ešte poškrabkať pod bradičkou, prosím! <3",
     "Prešľapujem labkami od radosti! DigiCat ťa ľúbi!",
-    "Prrr prrr! Chvostík vibruje šťastím! <3"
+    "Prrr prrr! Chvostík vibruje ako vrtuľa lietadla! <3",
+    "Pomaly na teba žmurkám veľkými mačacími očkami! <3",
+    "Také príjemné hladkanie! Najlepšia posádka radaru!"
   };
-  const char* phrasesCZ[] = {
-    "Prrrrrr! *šťastné drcnutí hlavičkou* Nejlepší kamarád!",
+  const char* phrasesCZ[6] = {
+    "Prrrrrr! *šťastné drcnutí hlavičkou* Nejlepší kopilot!",
     "Mňau! Ještě podrbat pod bradičkou, prosím! <3",
     "Přešlapuji pacičkami radostí! DigiCat tě má rád!",
-    "Prrr prrr! Ocásek vibruje štěstím! <3"
+    "Prrr prrr! Ocásek vibruje jako vrtule letadla! <3",
+    "Pomalu na tebe mrkám velkýma kočičíma očima! <3",
+    "Takové příjemné hlazení! Nejlepší posádka radaru!"
   };
   const char** pTable = (lang == LANG_SK) ? phrasesSK : ((lang == LANG_CZ) ? phrasesCZ : phrasesEN);
   snprintf(buf, cap, "%s", pTable[s_petSeq]);
 }
-
-// Virtual Pet Stats (inspired by DigiCat under MIT License)
-static PetStats s_stats = { 92, 18, 0, 0 }; // Initial: 92% happy, 18% hunger, stage 0
-static unsigned long s_lastStatTick = 0;
-static bool s_lastWasFeed = false;
-static bool s_lastWasUserTap = false;
-static unsigned long s_lastGeminiReqMs = 0;
-static unsigned long s_rateLimitedUntilMs = 0;
-static bool s_statsDirty = false;
-static unsigned long s_statsDirtyMs = 0;
 
 PetStats PetBrain_GetStats() {
   return s_stats;
@@ -283,25 +358,31 @@ static void generateFeedingThought(char* buf, size_t cap) {
   s_mood = PET_MOOD_HAPPY;
 
   static uint8_t s_feedSeq = 0;
-  s_feedSeq = (s_feedSeq + 1) % 4;
+  s_feedSeq = (s_feedSeq + 1) % 6;
 
-  const char* phrasesEN[] = {
-    "Nom nom nom! Crispy fish cracker! Purrrrr!",
-    "Crunch! Best cat treat ever! Energy recharged!",
-    "Mrow! Licking my whiskers clean! So tasty!",
-    "Purrr! Full belly, happy DigiCat ready to watch planes!"
+  const char* phrasesEN[6] = {
+    "Nom nom nom! Crispy salmon cracker! Purrrrr!",
+    "Crunch! Best aviation cat treat ever! Tank refueled!",
+    "Mrow! Licking every crumb off my whiskers! So tasty!",
+    "Purrr! Full belly, happy DigiCat ready to watch planes!",
+    "Yum! Caught that fish snack mid-air! 10/10 landing!",
+    "Crunchy perfection! My radar senses are supercharged!"
   };
-  const char* phrasesSK[] = {
-    "Mňam mňam mňam! Chrumkavá rybička! Prrrrrr!",
-    "Chrum! Najlepšia maškrta! Energia doplnená!",
-    "Mňau! Oblizujem si fúziky! To bolo chutné!",
-    "Prrr! Plné bruško, spokojná mačička pripravená na radary!"
+  const char* phrasesSK[6] = {
+    "Mňam mňam mňam! Chrumkavá lososová rybička! Prrrrrr!",
+    "Chrum! Najlepšia letecká maškrta! Nádrž dotankovaná!",
+    "Mňau! Oblizujem každú omrvinku z fúzikov! To bolo chutné!",
+    "Prrr! Plné bruško, spokojná mačička pripravená na radary!",
+    "Mňam! Chytil som tú rybičku na prvé skočenie! 10/10!",
+    "Chrumkavá dokonalosť! Moje radarové zmysly sú nabité!"
   };
-  const char* phrasesCZ[] = {
-    "Mňam mňam mňam! Křupavá rybička! Prrrrrr!",
-    "Křup! Nejlepší kočičí pamlsek! Energie doplněna!",
-    "Mňau! Olizuji si vousky! To bylo skvělé!",
-    "Prrr! Plné bříško, spokojená kočička připravena na radary!"
+  const char* phrasesCZ[6] = {
+    "Mňam mňam mňam! Křupavá lososová rybička! Prrrrrr!",
+    "Křup! Nejlepší letecký pamlsek! Nádrž dotankována!",
+    "Mňau! Olizuji každou drobku z vousků! To bylo skvělé!",
+    "Prrr! Plné bříško, spokojená kočička připravena na radary!",
+    "Mňam! Chytil jsem tu rybičku na první skočení! 10/10!",
+    "Křupavá dokonalost! Moje radarové smysly jsou nabité!"
   };
   const char** pTable = (lang == LANG_SK) ? phrasesSK : ((lang == LANG_CZ) ? phrasesCZ : phrasesEN);
   snprintf(buf, cap, "%s", pTable[s_feedSeq]);

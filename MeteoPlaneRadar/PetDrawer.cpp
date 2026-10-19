@@ -13,6 +13,8 @@
 #include "QMI8658.h"
 #include "Forecast.h"
 #include "PrecipTracker.h"
+#include "IssData.h"
+#include "DisasterAlert.h"
 #include "AirplaneSprite.h"
 #include "CatSpritesHiRes.h"
 #include <math.h>
@@ -41,7 +43,8 @@ enum CatAnimState : uint8_t {
   CAT_STATE_AWAY,         // Off-screen exploring airfield; returns on tap/call or timer
   CAT_STATE_SLIDE,        // Gentle tilt fun slide/surf across runway!
   CAT_STATE_TUMBLE,       // Steep tilt tumbling, scrambling claws & rolling!
-  CAT_STATE_CLING         // Extreme tilt Option A: Clinging to circular bezel rim!
+  CAT_STATE_CLING,        // Extreme tilt Option A: Clinging to circular bezel rim!
+  CAT_STATE_HISS          // Startled arched-back hiss (thunder, tremor, or starving!)
 };
 
 struct TrackedPlaneDisplay {
@@ -78,9 +81,11 @@ static unsigned long s_autoReturnMs = 0;
 static unsigned long s_watchPlaneUntilMs = 0;
 static unsigned long s_planeChasePauseUntilMs = 0;
 
-// Dynamic Contextual Dialogue
+// Dynamic Contextual Dialogue & Typewriter Speech Bubble
 static char          s_customThought[128] = "";
 static bool          s_hasCustomThought = false;
+static char          s_lastBubbleText[192] = "";
+static unsigned long s_typewriterStartMs = 0;
 
 // Tactile Petting & Stroking Interaction
 static bool          s_isStroking = false;
@@ -92,10 +97,30 @@ static int           s_strokeHeartY = 0;
 static unsigned long s_lastUserInteractMs = 0;
 static unsigned long s_petBounceUntilMs = 0;
 static unsigned long s_petFeedUntilMs = 0;
+static unsigned long s_hissUntilMs = 0;
+static uint8_t       s_forcedIdleSub = 0;
+static unsigned long s_forcedIdleSubUntilMs = 0;
 static unsigned long s_nightWakeUntilMs = 0;
 static bool          s_isDrowsy = false;
 static const unsigned long NIGHT_WAKE_DURATION_MS = 120000; // 2 minutes awake after interaction
 static const unsigned long NIGHT_DROWSY_DURATION_MS = 20000; // 20 seconds yawning / slow blinks before sleep
+
+// Interactive Red Laser Pointer Toy
+static bool          s_laserActive = false;
+static unsigned long s_laserUntilMs = 0;
+static int           s_laserX = 240;
+static int           s_laserY = 335;
+
+// Tactile Fish Treat Toss & Bowl
+static unsigned long s_treatStartMs = 0;
+static int           s_treatTargetX = 240;
+
+// Ambient Runway Critter (Daytime Butterfly / Nighttime Firefly)
+static bool          s_critterActive = false;
+static float         s_critterX = 60.0f;
+static float         s_critterY = 250.0f;
+static float         s_critterVx = 1.1f;
+static unsigned long s_nextCritterSpawnMs = 15000;
 
 // IMU Reactive Inertia & Physics Tilt Interactions
 static float         s_imuTiltX = 0.0f;
@@ -427,6 +452,39 @@ void PetDrawer_HandleTouchMove(int x, int y) {
     return;
   }
 
+  // If touching/dragging on the runway or sky away from DigiCat's body -> Red Laser Pointer Toy!
+  if (y >= 175 && y <= 375 && (abs(x - (int)s_catX) > 68 || s_laserActive)) {
+    s_laserActive = true;
+    s_laserUntilMs = now + 900;
+    s_laserX = constrain(x, 75, 405);
+    s_laserY = constrain(y, 265, 355);
+    s_isStroking = false;
+
+    float targetX = constrain((float)s_laserX, 110.0f, 370.0f);
+    s_catTargetX = targetX;
+    float distToDot = fabsf(s_catX - targetX);
+    if (distToDot <= 24.0f) {
+      if (s_catState != CAT_STATE_SWAT && s_catState != CAT_STATE_JUMP) {
+        s_catState = CAT_STATE_SWAT;
+        s_catFlipX = (s_laserX < (int)s_catX);
+        s_animFrame = 0;
+        s_nextFrameMs = now + 95;
+        PetBrain_AwardXP(1);
+        setThought(
+          "🔴 *POUNCE!* Got the red laser dot! Wait, where did it go?! 🐾",
+          "🔴 *CHŇAP!* Mám tú červenú bodku! Počkať, kam zmizla?! 🐾",
+          "🔴 *CHŇAP!* Mám tu červenou tečku! Počkat, kam zmizela?! 🐾"
+        );
+      }
+    } else if (s_catState != CAT_STATE_ENTERING) {
+      s_catState = CAT_STATE_ENTERING; // fast sprint after laser dot!
+      s_catFlipX = (targetX < s_catX);
+      s_animFrame = 0;
+      s_nextFrameMs = now + 65;
+    }
+    return;
+  }
+
   s_isStroking = true;
   s_petStrokeUntilMs = now + 700;
 
@@ -448,6 +506,7 @@ void PetDrawer_HandleTouchMove(int x, int y) {
 
 void PetDrawer_HandleTouchRelease() {
   s_isStroking = false;
+  s_laserActive = false;
 }
 
 // -----------------------------------------------------------------------------
@@ -460,6 +519,28 @@ bool PetDrawer_Tick() {
   if (now - s_lastAnimTick < 40) return false;
   s_lastAnimTick = now;
   s_frameCounter++;
+
+  if (s_laserActive && now >= s_laserUntilMs) {
+    s_laserActive = false;
+  }
+
+  // Seismic tremor / disaster alert triggers arched-back hiss reaction
+  static unsigned long s_lastTremorHissMs = 0;
+  if ((DisasterAlert_IsLocalTremorActive() || DisasterAlert_HasActiveAlert()) &&
+      (now - s_lastTremorHissMs > 18000UL) &&
+      s_catState != CAT_STATE_AWAY && s_catState != CAT_STATE_CLING) {
+    s_lastTremorHissMs = now;
+    s_hissUntilMs = now + 2600;
+    s_catState = CAT_STATE_HISS;
+    s_animFrame = 0;
+    s_nextFrameMs = now + 180;
+    PetBrain_SetMood(PET_MOOD_SCARED);
+    setThought(
+      "😾 *HISS!* The ground is shaking! Seismic alert! 🌋🐾",
+      "😾 *KŠŠŠ!* Zem sa trasie! Seizmický poplach! 🌋🐾",
+      "😾 *KŠŠŠ!* Země se třese! Seismický poplach! 🌋🐾"
+    );
+  }
 
   // IMU reading for physical inertia & dynamic tilt interactions
   float tiltG = 0.0f;
@@ -641,6 +722,7 @@ bool PetDrawer_Tick() {
     s_skyPlane.bearingDeg = bDeg;
     strncpy(s_skyPlane.callsign, cs, sizeof(s_skyPlane.callsign) - 1);
     s_skyPlane.callsign[sizeof(s_skyPlane.callsign) - 1] = '\0';
+    s_critterActive = false; // planes scare away butterflies/fireflies
 
     if (s_skyPlane.vx == 0.0f) {
       float spd = (pType == PLANE_TYPE_FIGHTER) ? 3.0f : 1.6f;
@@ -669,11 +751,12 @@ bool PetDrawer_Tick() {
     s_skyPlane.y = baseY;
 
     // Cat reaction: chase or swat only when active, not in autonomous routine, and pause expired
-    if (s_catState != CAT_STATE_SLEEPING && s_catState != CAT_STATE_AWAY &&
+    if (!s_laserActive &&
+        s_catState != CAT_STATE_SLEEPING && s_catState != CAT_STATE_AWAY &&
         s_catState != CAT_STATE_LEAVING && s_catState != CAT_STATE_EATING &&
         s_catState != CAT_STATE_HAPPY && s_catState != CAT_STATE_ENTERING &&
         s_catState != CAT_STATE_GROOM && s_catState != CAT_STATE_STRETCH &&
-        s_catState != CAT_STATE_WATCH_PLANE &&
+        s_catState != CAT_STATE_WATCH_PLANE && s_catState != CAT_STATE_HISS &&
         s_catState != CAT_STATE_SLIDE && s_catState != CAT_STATE_TUMBLE &&
         s_catState != CAT_STATE_CLING &&
         now >= s_planeChasePauseUntilMs) {
@@ -701,8 +784,35 @@ bool PetDrawer_Tick() {
   } else {
     s_skyPlane.active = false;
     s_skyPlane.vx = 0.0f;
-    if (s_catState == CAT_STATE_SWAT) {
+    if (s_catState == CAT_STATE_SWAT && !s_laserActive) {
       s_catState = CAT_STATE_IDLE;
+    }
+
+    // Ambient Critter (Butterfly in day, Firefly at night) when airspace is quiet
+    if (!isNight || nightAwake) {
+      if (!s_critterActive && now >= s_nextCritterSpawnMs) {
+        s_critterActive = true;
+        bool fromLeft = (rand() % 2 == 0);
+        s_critterX = fromLeft ? 55.0f : 425.0f;
+        s_critterVx = fromLeft ? 1.15f : -1.15f;
+        s_critterY = 248.0f;
+      } else if (s_critterActive) {
+        s_critterX += s_critterVx;
+        s_critterY = 252.0f + sinf((float)now * 0.006f) * 14.0f;
+        if (s_critterX < 45.0f || s_critterX > 435.0f) {
+          s_critterActive = false;
+          s_nextCritterSpawnMs = now + 14000 + (rand() % 12000);
+        } else if (!s_laserActive && s_catState == CAT_STATE_IDLE && fabsf(s_critterX - s_catX) < 28.0f && (rand() % 100 < 12)) {
+          // Playful leap at the fluttering butterfly / firefly!
+          s_catState = CAT_STATE_JUMP;
+          s_catFlipX = (s_critterVx < 0);
+          s_animFrame = 0;
+          s_nextFrameMs = now + 80;
+          s_critterVx *= 1.8f; // critter flutters away faster!
+        }
+      }
+    } else {
+      s_critterActive = false;
     }
   }
 
@@ -721,15 +831,31 @@ bool PetDrawer_Tick() {
     }
   }
 
-  // 1. Direct interactive overrides (Feeding & Petting)
-  if (now < s_petFeedUntilMs) {
-    s_catState = CAT_STATE_EATING;
+  // 1. Direct interactive overrides (Hiss, Feeding, Petting, Laser)
+  if (now < s_hissUntilMs) {
+    s_catState = CAT_STATE_HISS;
     s_catTargetX = s_catX;
+    if (now >= s_nextFrameMs) {
+      s_nextFrameMs = now + 180;
+      s_animFrame = (s_animFrame + 1) % HIRES_CAT_HISS_FRAMES;
+    }
+    return true;
+  } else if (s_catState == CAT_STATE_HISS) {
+    s_catState = CAT_STATE_IDLE;
+    s_animFrame = 0;
+  }
+
+  if (now < s_petFeedUntilMs) {
+    // Wait 360ms for the tossed fish treat to land before munching!
+    if (now >= s_treatStartMs + 360) {
+      s_catState = CAT_STATE_EATING;
+      s_catTargetX = s_catX;
+    }
   } else if (s_isStroking || now < s_petStrokeUntilMs || now < s_petBounceUntilMs) {
     s_catState = CAT_STATE_HAPPY;
     s_catTargetX = s_catX;
   } else if (s_catState == CAT_STATE_ENTERING) {
-    // Entering motion in progress: allow DigiCat to trot onto screen before sleeping or idling
+    // Entering or laser-sprint motion in progress
   } else if (isNight && !nightAwake) {
     if (s_catState != CAT_STATE_SLEEPING) {
       s_catState = CAT_STATE_SLEEPING;
@@ -750,7 +876,7 @@ bool PetDrawer_Tick() {
     }
     return true;
   } else if (s_catState == CAT_STATE_LEAVING) {
-    // Walking off-screen
+    // Walking off-screen (full 12-frame walk cycle)
     float dx = s_catTargetX - s_catX;
     float step = 3.6f;
     if (fabsf(dx) <= step || (s_catTargetX < 0 && s_catX <= -60.0f) || (s_catTargetX > LCD_WIDTH && s_catX >= LCD_WIDTH + 60.0f)) {
@@ -761,12 +887,12 @@ bool PetDrawer_Tick() {
       s_catFlipX = (dx < 0);
     }
     if (now >= s_nextFrameMs) {
-      s_nextFrameMs = now + 90;
-      s_animFrame = (s_animFrame + 1) % 8;
+      s_nextFrameMs = now + 85;
+      s_animFrame = (s_animFrame + 1) % HIRES_CAT_WALK_FRAMES;
     }
     return true;
   } else if (s_catState == CAT_STATE_SWAT) {
-    // Swatting & scratching overhead aircraft
+    // Swatting & scratching overhead aircraft or laser dot
     if (now >= s_nextFrameMs) {
       s_nextFrameMs = now + 110;
       s_animFrame++;
@@ -857,8 +983,8 @@ bool PetDrawer_Tick() {
       s_nextBrainDecisionMs = now + 6000 + (rand() % 6000);
     } else {
       if (now >= s_nextFrameMs) {
-        s_nextFrameMs = now + 350;
-        s_animFrame = (s_animFrame + 1) % 4;
+        s_nextFrameMs = now + 320;
+        s_animFrame = (s_animFrame + 1) % HIRES_CAT_WATCH_PLANE_FRAMES;
       }
     }
     return true;
@@ -875,7 +1001,7 @@ bool PetDrawer_Tick() {
       s_catFlipX = (bDeg > 180.0f);
       s_watchPlaneUntilMs = now + 3800;
       s_animFrame = 0;
-      s_nextFrameMs = now + 350;
+      s_nextFrameMs = now + 320;
       return true;
     }
 
@@ -904,7 +1030,7 @@ bool PetDrawer_Tick() {
           s_catFlipX = (bDeg > 180.0f);
           s_watchPlaneUntilMs = now + 3500;
           s_animFrame = 0;
-          s_nextFrameMs = now + 350;
+          s_nextFrameMs = now + 320;
         } else if (roll < 42) {
           // 1. Patrol to a new spot on the runway deck (160..320)
           float targetX = 160.0f + (float)(rand() % 160);
@@ -912,7 +1038,7 @@ bool PetDrawer_Tick() {
           s_catFlipX = (targetX < s_catX);
           s_catState = CAT_STATE_PATROL;
           s_animFrame = 0;
-          s_nextFrameMs = now + 90;
+          s_nextFrameMs = now + 85;
         } else if (roll < 60) {
           // 2. Playful Jump / Pounce
           s_catState = CAT_STATE_JUMP;
@@ -938,7 +1064,7 @@ bool PetDrawer_Tick() {
           s_catFlipX = (s_catTargetX < s_catX);
           s_catState = CAT_STATE_LEAVING;
           s_animFrame = 0;
-          s_nextFrameMs = now + 90;
+          s_nextFrameMs = now + 85;
 
           int dep = rand() % 3;
           if (dep == 0) {
@@ -968,10 +1094,10 @@ bool PetDrawer_Tick() {
   // Movement & Walk animation
   if (s_catState == CAT_STATE_ENTERING || s_catState == CAT_STATE_PATROL) {
     float dx = s_catTargetX - s_catX;
-    float step = (s_catState == CAT_STATE_ENTERING) ? 5.2f : (s_skyPlane.active ? 4.5f : 3.2f);
+    float step = (s_catState == CAT_STATE_ENTERING) ? (s_laserActive ? 6.4f : 5.2f) : (s_skyPlane.active ? 4.5f : 3.2f);
     if (fabsf(dx) <= step) {
       s_catX = s_catTargetX;
-      if (s_skyPlane.active) {
+      if (s_laserActive || s_skyPlane.active) {
         s_catState = CAT_STATE_SWAT;
         s_animFrame = 0;
         s_nextFrameMs = now + 110;
@@ -980,7 +1106,7 @@ bool PetDrawer_Tick() {
         s_animFrame = 0;
         s_nextBrainDecisionMs = now + 8000 + (rand() % 8000);
       }
-      if (s_hasCustomThought) {
+      if (s_hasCustomThought && !s_laserActive) {
         s_hasCustomThought = false; // resume normal thoughts
       }
     } else {
@@ -988,18 +1114,19 @@ bool PetDrawer_Tick() {
       s_catFlipX = (dx < 0);
     }
     if (now >= s_nextFrameMs) {
-      s_nextFrameMs = now + (s_catState == CAT_STATE_ENTERING ? 75 : 90);
-      s_animFrame = (s_animFrame + 1) % 8;
+      s_nextFrameMs = now + (s_catState == CAT_STATE_ENTERING ? 70 : 85);
+      uint8_t maxF = (s_catState == CAT_STATE_ENTERING) ? HIRES_CAT_RUN_FRAMES : HIRES_CAT_WALK_FRAMES;
+      s_animFrame = (s_animFrame + 1) % maxF;
     }
   } else if (s_catState == CAT_STATE_EATING) {
     if (now >= s_nextFrameMs) {
       s_nextFrameMs = now + 140;
-      s_animFrame = (s_animFrame + 1) % 8;
+      s_animFrame = (s_animFrame + 1) % HIRES_CAT_EAT_FRAMES;
     }
   } else if (s_catState == CAT_STATE_HAPPY) {
     if (now >= s_nextFrameMs) {
       s_nextFrameMs = now + 110;
-      s_animFrame = (s_animFrame + 1) % 8;
+      s_animFrame = (s_animFrame + 1) % HIRES_CAT_HAPPY_FRAMES;
     }
   } else if (s_catState == CAT_STATE_SLEEPING) {
     if (now >= s_nextFrameMs) {
@@ -1009,43 +1136,22 @@ bool PetDrawer_Tick() {
   } else if (s_catState == CAT_STATE_SLIDE) {
     if (now >= s_nextFrameMs) {
       s_nextFrameMs = now + 90;
-      s_animFrame = (s_animFrame + 1) % 8;
+      s_animFrame = (s_animFrame + 1) % HIRES_CAT_SLIDE_FRAMES;
     }
   } else if (s_catState == CAT_STATE_TUMBLE) {
     if (now >= s_nextFrameMs) {
       s_nextFrameMs = now + 65;
-      s_animFrame = (s_animFrame + 1) % 4;
+      s_animFrame = (s_animFrame + 1) % HIRES_CAT_JUMP_FRAMES;
     }
   } else if (s_catState == CAT_STATE_CLING) {
     if (now >= s_nextFrameMs) {
       s_nextFrameMs = now + 120;
-      s_animFrame = (s_animFrame + 1) % 4;
+      s_animFrame = (s_animFrame + 1) % HIRES_CAT_CLING_FRAMES;
     }
-  } else { // CAT_STATE_IDLE
+  } else { // CAT_STATE_IDLE (full 10-frame cycle + sub-animation pacing)
     if (now >= s_nextFrameMs) {
-      if (s_animFrame >= 4 && s_animFrame <= 6) {
-        s_animFrame = (s_animFrame == 6) ? 0 : s_animFrame + 1;
-        s_nextFrameMs = now + (nightDrowsy ? 280 : 140);
-      } else if (s_animFrame == 7) {
-        s_animFrame = 0;
-        s_nextFrameMs = now + 350;
-      } else {
-        s_animFrame = (s_animFrame + 1) % 4;
-        if (s_animFrame == 0) {
-          int roll = rand() % 100;
-          if (nightDrowsy || roll < 25) {
-            s_animFrame = 4; // slow blink
-            s_nextFrameMs = now + (nightDrowsy ? 280 : 140);
-          } else if (roll < 40) {
-            s_animFrame = 7; // ear flick
-            s_nextFrameMs = now + 260;
-          } else {
-            s_nextFrameMs = now + (nightDrowsy ? 500 : 350);
-          }
-        } else {
-          s_nextFrameMs = now + (nightDrowsy ? 500 : 350);
-        }
-      }
+      s_animFrame = (s_animFrame + 1) % HIRES_CAT_IDLE_FRAMES;
+      s_nextFrameMs = now + (nightDrowsy ? 340 : 210);
     }
   }
 
@@ -1151,6 +1257,32 @@ static void drawSpeechBubble(int bx, int by, int bw, int bh, const char* text) {
 
   if (!text || !*text) return;
 
+  const unsigned long now = millis();
+  if (strcmp(text, s_lastBubbleText) != 0) {
+    strncpy(s_lastBubbleText, text, sizeof(s_lastBubbleText) - 1);
+    s_lastBubbleText[sizeof(s_lastBubbleText) - 1] = '\0';
+    s_typewriterStartMs = now;
+  }
+
+  // UTF-8 safe progressive typewriter reveal (~45 chars/sec)
+  char revealBuf[196];
+  int maxChars = (int)((now - s_typewriterStartMs) / 22) + 2;
+  int charCount = 0;
+  int byteIdx = 0;
+  while (text[byteIdx] != '\0' && charCount < maxChars && byteIdx < (int)sizeof(revealBuf) - 5) {
+    uint8_t c = (uint8_t)text[byteIdx];
+    int seqLen = 1;
+    if ((c & 0xE0) == 0xC0) seqLen = 2;
+    else if ((c & 0xF0) == 0xE0) seqLen = 3;
+    else if ((c & 0xF8) == 0xF0) seqLen = 4;
+    for (int k = 0; k < seqLen && text[byteIdx] != '\0'; k++) {
+      revealBuf[byteIdx] = text[byteIdx];
+      byteIdx++;
+    }
+    charCount++;
+  }
+  revealBuf[byteIdx] = '\0';
+
   const int maxW = bw - 24;
   char lines[4][64];
   int lineCount = 0;
@@ -1159,24 +1291,25 @@ static void drawSpeechBubble(int bx, int by, int bw, int bh, const char* text) {
   int fontH = 13;
   int lineSpacing = 18;
 
-  // Prefer FONT_MEDIUM (bold, highly legible) with up to 3 lines
+  // Evaluate layout against full text so vertical centering stays rock-steady while typing!
   wrapSpeechText(text, maxW, FONT_MEDIUM, 3, lines, lineCount, allFit);
-
-  // Fall back to FONT_SMALL (up to 4 lines) if text is unusually long
   if (!allFit) {
     fontSize = FONT_SMALL;
     fontH = 10;
     lineSpacing = 14;
     wrapSpeechText(text, maxW, FONT_SMALL, 4, lines, lineCount, allFit);
   }
-
   if (lineCount <= 0) return;
 
-  // Center text block vertically within the bubble
   int totalTextH = (lineCount - 1) * lineSpacing + fontH;
   int startY = by + (bh - totalTextH) / 2;
 
-  for (int i = 0; i < lineCount; i++) {
+  // Wrap the revealed prefix using the chosen fontSize
+  int revLineCount = 0;
+  bool revFit = false;
+  wrapSpeechText(revealBuf, maxW, fontSize, (fontSize == FONT_MEDIUM) ? 3 : 4, lines, revLineCount, revFit);
+
+  for (int i = 0; i < revLineCount; i++) {
     UI_TextCenteredIn(lines[i], bx, bw, startY + i * lineSpacing, C_WHITE, fontSize);
   }
 }
@@ -1241,7 +1374,31 @@ static PetWeather getPetWeather() {
 static void drawWeatherBackdrop(PetWeather weather) {
   const unsigned long now = millis();
 
-  // Clear night sky: twinkling stars
+  // Golden Hour / Sunrise & Sunset Horizon Glow above runway (Y = 286..341)
+  if (weather == WEATHER_CLEAR) {
+    time_t nowSec = time(nullptr);
+    time_t riseT = 0, setT = 0;
+    if (nowSec > 100000 && Forecast_SunTimes(&riseT, &setT) && riseT > 0 && setT > 0) {
+      int dRise = (int)(labs((long)(nowSec - riseT)) / 60);
+      int dSet  = (int)(labs((long)(nowSec - setT)) / 60);
+      int minDiff = (dRise < dSet) ? dRise : dSet;
+      if (minDiff <= 55) {
+        // Warm amber/magenta twilight horizon bands above runway curb
+        static const uint16_t kGlowCols[5] = { 0x1804, 0x3086, 0x5106, 0x7A04, 0x9B02 };
+        for (int b = 0; b < 5; b++) {
+          int by = 292 + b * 10;
+          gfx->fillRect(36, by, 408, 10, kGlowCols[b]);
+        }
+        // Low golden sun disc near horizon
+        int sunX = (dRise < dSet) ? 105 : 375;
+        int sunY = 318 + (minDiff / 5);
+        gfx->fillCircle(sunX, sunY, 12, 0xFD20);
+        gfx->fillCircle(sunX, sunY, 8, 0xFFE0);
+      }
+    }
+  }
+
+  // Clear night sky: twinkling stars + occasional shooting star
   if (Settings_IsNight() && weather == WEATHER_CLEAR) {
     static const struct { int16_t x, y; uint8_t period; } STARS[18] = {
       { 65, 80, 7 }, { 110, 70, 5 }, { 160, 48, 9 }, { 320, 48, 6 }, { 380, 74, 8 }, { 425, 90, 5 },
@@ -1253,18 +1410,34 @@ static void drawWeatherBackdrop(PetWeather weather) {
       uint16_t starCol = (phase == 0) ? 0xFFFF : ((phase == 1) ? 0xCE79 : ((phase == 2) ? 0x8410 : 0x4208));
       gfx->drawPixel(STARS[i].x, STARS[i].y, starCol);
     }
+    // Periodic shooting star streak every ~16 seconds
+    unsigned long shootCycle = now % 16000;
+    if (shootCycle < 480) {
+      int sx = 370 - (int)(shootCycle / 3);
+      int sy = 56 + (int)(shootCycle / 8);
+      gfx->drawLine(sx, sy, sx + 18, sy - 7, 0xFFFF);
+      gfx->drawLine(sx + 18, sy - 7, sx + 30, sy - 12, 0x8410);
+    }
     return;
   }
 
-  // Thunderstorm with lightning flashes
+  // Thunderstorm with lightning flashes -> startles DigiCat into CAT_STATE_HISS!
   if (weather == WEATHER_THUNDERSTORM) {
     static unsigned long s_nextLightningMs = 0;
     static unsigned long s_lightningEndMs = 0;
     if (now >= s_nextLightningMs) {
       s_nextLightningMs = now + 8000 + (rand() % 9000);
-      s_lightningEndMs = now + 70;
+      s_lightningEndMs = now + 90;
       if (Settings_BuzzerEnabled() && Settings_BuzzerPet()) {
         Buzzer_Play(BEEP_PET_CHIRP);
+      }
+      if (s_catState != CAT_STATE_AWAY && s_catState != CAT_STATE_LEAVING && s_catState != CAT_STATE_CLING) {
+        s_hissUntilMs = now + 1800;
+        setThought(
+          "⚡ *HISS!* Thunder on the runway! My fur is standing up! 🙀⚡",
+          "⚡ *KŠŠŠ!* Hrom nad dráhou! Všetky chlpy mi stoja dupkom! 🙀⚡",
+          "⚡ *KŠŠŠ!* Hrom nad dráhou! Všechny chlupy mi stojí! 🙀⚡"
+        );
       }
     }
     if (now < s_lightningEndMs) {
@@ -1304,6 +1477,145 @@ static void drawWeatherBackdrop(PetWeather weather) {
         gfx->drawPixel(sx, sy, (i % 2 == 0) ? 0xFFFF : 0xCE79);
       }
     }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Living World Cameos & Interactive Toys (ISS, Critter, Fish Treat, Laser, Hiss)
+// -----------------------------------------------------------------------------
+static void drawIssCameo() {
+  const IssData* iss = Iss_GetDataPtr();
+  if (!iss || !iss->valid || !iss->inRange) return;
+
+  const unsigned long now = millis();
+  int ix = 75 + (int)((now / 45) % 330);
+  int iy = 172;
+
+  // H-shaped ISS solar array wings + central pressurized module
+  gfx->drawFastHLine(ix - 10, iy, 21, 0x8410);
+  gfx->fillRect(ix - 2, iy - 2, 5, 5, 0xFFFF);
+  // Copper/gold solar array panels
+  gfx->fillRect(ix - 11, iy - 5, 4, 11, 0xFD20);
+  gfx->fillRect(ix + 8,  iy - 5, 4, 11, 0xFD20);
+  gfx->drawRect(ix - 11, iy - 5, 4, 11, 0xFFE0);
+  gfx->drawRect(ix + 8,  iy - 5, 4, 11, 0xFFE0);
+
+  // Tiny orbital telemetry tag
+  char issTag[20];
+  snprintf(issTag, sizeof(issTag), "ISS %.0fkm", iss->distanceKm);
+  UI_Text(issTag, ix + 15, iy - 4, C_CYAN, FONT_TINY);
+}
+
+static void drawAmbientCritter() {
+  if (!s_critterActive) return;
+  const unsigned long now = millis();
+  int cx = (int)s_critterX;
+  int cy = (int)s_critterY;
+  bool flapOpen = ((now / 90) % 2 == 0);
+
+  if (Settings_IsNight()) {
+    // Glowing firefly / night moth
+    uint16_t glowCol = ((now / 180) % 2 == 0) ? 0xFFE0 : 0x07E0;
+    gfx->fillCircle(cx, cy, flapOpen ? 4 : 2, 0x2124);
+    gfx->fillCircle(cx, cy, 2, glowCol);
+    gfx->drawPixel(cx, cy, 0xFFFF);
+    if (flapOpen) {
+      gfx->drawLine(cx - 4, cy - 2, cx + 4, cy - 2, 0xCE79);
+    }
+  } else {
+    // Pixel butterfly with flapping wings
+    uint16_t wingCol = 0xFD20; // monarch orange/gold
+    uint16_t tipCol  = 0xF814; // magenta wing tips
+    if (flapOpen) {
+      gfx->fillTriangle(cx, cy, cx - 6, cy - 5, cx - 5, cy + 4, wingCol);
+      gfx->fillTriangle(cx, cy, cx + 6, cy - 5, cx + 5, cy + 4, wingCol);
+      gfx->drawPixel(cx - 5, cy - 4, tipCol);
+      gfx->drawPixel(cx + 5, cy - 4, tipCol);
+    } else {
+      gfx->fillTriangle(cx, cy, cx - 2, cy - 6, cx - 1, cy + 3, wingCol);
+      gfx->fillTriangle(cx, cy, cx + 2, cy - 6, cx + 1, cy + 3, wingCol);
+    }
+    gfx->drawFastVLine(cx, cy - 2, 5, 0xFFFF); // body
+  }
+}
+
+static void drawFishTreatAndBowl() {
+  const unsigned long now = millis();
+  if (now >= s_petFeedUntilMs && (s_treatStartMs == 0 || now >= s_treatStartMs + 360)) return;
+
+  const int startX = 160; // center of FEED TREAT button
+  const int startY = 394;
+  const int endX = s_treatTargetX;
+  const int endY = 338;
+
+  // Phase 1: Parabolic flying fish cracker (0..360 ms)
+  if (s_treatStartMs > 0 && now < s_treatStartMs + 360) {
+    float t = (float)(now - s_treatStartMs) / 360.0f;
+    int fx = startX + (int)((endX - startX) * t);
+    int fy = (int)((1.0f - t) * startY + t * endY - 58.0f * 4.0f * t * (1.0f - t));
+
+    // Draw cute gold fish cracker in flight
+    gfx->fillRoundRect(fx - 6, fy - 3, 11, 7, 3, 0xFD20);
+    gfx->fillTriangle(fx + 4, fy, fx + 9, fy - 4, fx + 9, fy + 4, 0xFD20);
+    gfx->drawPixel(fx - 3, fy - 1, 0x0821); // fish eye
+    return;
+  }
+
+  // Phase 2: Ceramic Red Cat Bowl + Fish Snack + Flying Crunch Crumbs on runway
+  if (now < s_petFeedUntilMs) {
+    int bx = endX;
+    int by = 337;
+
+    // Red ceramic bowl with silver rim
+    gfx->fillRoundRect(bx - 13, by, 26, 7, 2, 0xF800);
+    gfx->drawFastHLine(bx - 14, by, 28, 0xDEFB);
+    gfx->drawFastHLine(bx - 11, by + 6, 22, 0x8000);
+
+    // Fish snack peeking out of bowl (shrinks as DigiCat eats)
+    unsigned long remMs = s_petFeedUntilMs - now;
+    if (remMs > 500) {
+      gfx->fillRoundRect(bx - 6, by - 4, 10, 5, 2, 0xFD20);
+      gfx->fillTriangle(bx + 3, by - 2, bx + 7, by - 5, bx + 7, by + 1, 0xFD20);
+    }
+
+    // Crunch crumb particles bouncing around the bowl
+    for (int i = 0; i < 4; i++) {
+      int phase = (int)((now / 55 + i * 3) % 10);
+      int cx = bx + ((i % 2 == 0) ? -1 : 1) * (5 + phase);
+      int cy = by - 2 - (phase < 5 ? phase * 2 : (10 - phase) * 2);
+      gfx->drawPixel(cx, cy, (i % 2 == 0) ? 0xFFE0 : 0xFD20);
+      gfx->drawPixel(cx + 1, cy, 0xFFFF);
+    }
+  }
+}
+
+static void drawLaserPointer() {
+  if (!s_laserActive) return;
+  const unsigned long now = millis();
+  if (now >= s_laserUntilMs) return;
+
+  int lx = (int)s_laserX;
+  int ly = (int)s_laserY;
+
+  // Faint tactical red laser emitter line from upper radar bezel (240, 42)
+  gfx->drawLine(240, 42, lx, ly, 0x4000);
+
+  // Glowing concentric red/magenta/white laser dot
+  int pulseR = 5 + (int)((now / 60) % 3);
+  gfx->drawCircle(lx, ly, pulseR, 0x8000);
+  gfx->fillCircle(lx, ly, 4, C_RED);
+  gfx->fillCircle(lx, ly, 2, 0xFFFF);
+}
+
+static void drawHissEffects(int catX, int catY) {
+  const unsigned long now = millis();
+  // Spiky static/startle arcs above DigiCat's arched back
+  int baseY = catY - 52;
+  for (int i = -1; i <= 1; i++) {
+    int bx = catX + i * 20;
+    int jitter = ((now / 60 + i) % 2 == 0) ? -3 : 3;
+    gfx->drawLine(bx, baseY + 8, bx + jitter, baseY, 0xFFE0);
+    gfx->drawLine(bx + jitter, baseY, bx + i * 5, baseY - 8, C_RED);
   }
 }
 
@@ -1477,9 +1789,9 @@ static void drawCatAccessories(int catDrawX, int catDrawY, bool flipX, CatAnimSt
       // Clean non-destructive upper dome
       drawUmbrellaCanopy(cx, cy, r, 0xFDC0, 0xF800);
     } else {
-      // Suppress umbrella during active acrobatic actions (jumping, swatting, eating, away, slide, tumble, cling)
+      // Suppress umbrella during active acrobatic actions (jumping, swatting, eating, away, slide, tumble, cling, hiss)
       if (state == CAT_STATE_JUMP || state == CAT_STATE_SWAT || state == CAT_STATE_EATING || state == CAT_STATE_AWAY ||
-          state == CAT_STATE_SLIDE || state == CAT_STATE_TUMBLE || state == CAT_STATE_CLING) {
+          state == CAT_STATE_SLIDE || state == CAT_STATE_TUMBLE || state == CAT_STATE_CLING || state == CAT_STATE_HISS) {
         return;
       }
       // Handheld umbrella held upright in front paw
@@ -1765,6 +2077,8 @@ void PetDrawer_Draw() {
   PetWeather curWeather = getPetWeather();
   drawWeatherBackdrop(curWeather);
   drawRunwayDeck(curWeather);
+  drawIssCameo();
+  drawAmbientCritter();
   drawTrackedSkyPlane();
 
   // 2. Clock & Outside Temperature status line
@@ -1898,9 +2212,14 @@ void PetDrawer_Draw() {
 
     switch (s_catState) {
       case CAT_STATE_IDLE:
-        // Rotate idle personality sub-animations every 4-10 seconds
-        if (millis() > s_nextIdleSubMs) {
-          uint8_t roll = (uint8_t)(millis() & 0xFF);
+        if (now < s_forcedIdleSubUntilMs) {
+          s_idleSubAnim = s_forcedIdleSub;
+        } else if (now - s_typewriterStartMs < 850) {
+          // Mouth-moving talking animation while typewriter bubble reveals new speech!
+          s_idleSubAnim = 3; // cat_idle_meow
+        } else if (now > s_nextIdleSubMs) {
+          // Rotate idle personality sub-animations every 4-10 seconds
+          uint8_t roll = (uint8_t)(now & 0xFF);
           if      (roll < 100) s_idleSubAnim = 0;  // 39% tail-wag sit
           else if (roll < 140) s_idleSubAnim = 1;  // 16% lick paw sit
           else if (roll < 165) s_idleSubAnim = 2;  // 10% lick paw lie
@@ -1910,7 +2229,7 @@ void PetDrawer_Draw() {
           else if (roll < 230) s_idleSubAnim = 6;  //  8% scratch left
           else if (roll < 245) s_idleSubAnim = 7;  //  6% scratch right
           else                 s_idleSubAnim = 8;  //  4% yawn
-          s_nextIdleSubMs = millis() + 4000 + (millis() % 6000);
+          s_nextIdleSubMs = now + 4000 + (now % 6000);
         }
         switch (s_idleSubAnim) {
           case 1:  hiResFrame = cat_idle_lick          [s_animFrame % HIRES_CAT_IDLE_LICK_FRAMES];          break;
@@ -1927,9 +2246,9 @@ void PetDrawer_Draw() {
 
       case CAT_STATE_HAPPY:
         // Cycle between 3 happy variants every ~2 seconds
-        if (millis() > s_nextHappySubMs) {
+        if (now > s_nextHappySubMs) {
           s_happySubAnim   = (uint8_t)(rand() % 3);
-          s_nextHappySubMs = millis() + 1500 + (millis() % 2500);
+          s_nextHappySubMs = now + 1500 + (now % 2500);
         }
         switch (s_happySubAnim) {
           case 1:  hiResFrame = cat_happy_stand_front[s_animFrame % HIRES_CAT_HAPPY_STAND_FRONT_FRAMES]; break;
@@ -1940,6 +2259,10 @@ void PetDrawer_Draw() {
 
       case CAT_STATE_WATCH_PLANE:
         hiResFrame = cat_watch_plane[s_animFrame % HIRES_CAT_WATCH_PLANE_FRAMES];
+        break;
+
+      case CAT_STATE_HISS:
+        hiResFrame = cat_hiss[s_animFrame % HIRES_CAT_HISS_FRAMES];
         break;
 
       case CAT_STATE_GROOM:
@@ -1957,7 +2280,16 @@ void PetDrawer_Draw() {
 
       case CAT_STATE_PATROL:
       case CAT_STATE_LEAVING:
-        hiResFrame = cat_walk[s_animFrame % HIRES_CAT_WALK_FRAMES];
+        if (s_laserActive) {
+          if (s_catFlipX) {
+            hiResFrame  = cat_run_left[s_animFrame % HIRES_CAT_RUN_LEFT_FRAMES];
+            renderFlipX = false;
+          } else {
+            hiResFrame  = cat_run[s_animFrame % HIRES_CAT_RUN_FRAMES];
+          }
+        } else {
+          hiResFrame = cat_walk[s_animFrame % HIRES_CAT_WALK_FRAMES];
+        }
         break;
 
       case CAT_STATE_ENTERING:
@@ -2040,18 +2372,24 @@ void PetDrawer_Draw() {
       drawCatSpriteHiRes2x(hiResFrame, catDrawX, catDrawY - 15, renderFlipX);
     }
 
-    // Dynamic particles & effects for tilt physics
+    // Dynamic particles & effects for tilt physics & hiss
     if (s_catState == CAT_STATE_SLIDE) {
       drawSlideParticles((int)s_catX, 340, s_catFlipX, s_catVx);
     } else if (s_catState == CAT_STATE_TUMBLE) {
       drawTumbleEffects((int)s_catX, 340, s_catFlipX);
     } else if (s_catState == CAT_STATE_CLING) {
       drawClingEffects((int)s_catX, 340, s_clingLeft);
+    } else if (s_catState == CAT_STATE_HISS) {
+      drawHissEffects((int)s_catX, (int)s_catY);
     }
 
     // Weather and Tactical Accessories (Umbrella/Scarf/Top Gun Aviators & Scope)
     drawCatAccessories(catDrawX, catDrawY + 26, s_catFlipX, s_catState, curWeather, PetBrain_GetMood(),
                        hiResFrame, renderFlipX, catDrawX, catDrawY - 15);
+
+    // Tactile Fish Treat Toss, Bowl & Crumbs + Laser Pointer Dot
+    drawFishTreatAndBowl();
+    drawLaserPointer();
 
     // Floating animated "Zzz" drifting upward when sleeping
     if (s_catState == CAT_STATE_SLEEPING) {
@@ -2099,7 +2437,7 @@ void PetDrawer_Draw() {
   gfx->drawRoundRect(petBtnX, btnY, petBtnW, btnH, 14, C_CYAN);
   UI_TextCenteredIn("PET / TALK", petBtnX, petBtnW, btnY + 7, C_WHITE, 1);
 
-  // 9. Cockpit Attitude Telemetry Readout (IMU Pitch / Roll / Gyro Heading)
+  // 9. Cockpit Attitude Readout (IMU Pitch / Roll / Gyro Heading)
   if (QMI8658_Available()) {
     QMI_Data imu;
     QMI8658_GetData(&imu);
@@ -2213,10 +2551,13 @@ bool PetDrawer_HandleTap(int x, int y) {
 
   // Bottom action buttons
   if (y >= 385 && y <= 430) {
-    // Feed Treat
+    // Feed Treat -> launches parabolic fish cracker + ceramic cat bowl!
     if (x >= 80 && x <= 235) {
       if (Settings_BuzzerTouch()) Buzzer_Play(BEEP_CLICK);
-      s_petFeedUntilMs = now + 2400;
+      s_treatStartMs = now;
+      s_treatTargetX = constrain((int)s_catX + (s_catFlipX ? -34 : 34), 135, 345);
+      s_petFeedUntilMs = now + 2800;
+      s_hissUntilMs = 0; // feeding immediately cures cranky hunger hiss!
       s_catTargetX = s_catX; // halt walk if moving
       PetBrain_Feed();
       return true;
@@ -2256,26 +2597,79 @@ bool PetDrawer_HandleTap(int x, int y) {
     }
   }
 
-  // Tap directly on Cat area
-  if (y >= 175 && y < 385) {
-    if (Settings_BuzzerEnabled()) Buzzer_Play(BEEP_PET_PURR);
-    s_petBounceUntilMs = now + 1800;
-    s_catTargetX = s_catX;
+  // Body-Zone Touch Reactions on Cat area (Forehead, Left/Right Ears, Tail/Flank, Belly/Body)
+  if (y >= 175 && y < 385 && abs(x - (int)s_catX) <= 78) {
+    int dx = x - (int)s_catX;
 
-    // Tapping the cat's forehead / head area toggles Top Gun Aviator Shades & Scope
-    if (y <= 245) {
+    // 1. Center Forehead Tap (y <= 235, |dx| <= 22) -> Top Gun Aviator Shades & Tactical Scope toggle!
+    if (y <= 235 && abs(dx) <= 22) {
+      if (Settings_BuzzerEnabled() && Settings_BuzzerPet()) Buzzer_Play(BEEP_PET_CHIRP);
       s_hasMilitaryFighter = !s_hasMilitaryFighter;
       PetBrain_SetMood(s_hasMilitaryFighter ? PET_MOOD_MILITARY : PET_MOOD_HAPPY);
       if (s_hasMilitaryFighter) {
         setThought(
-          "Top Gun mode active! Intercepting bogey on tactical scope!",
-          "Top Gun rezim aktivny! Zameriavam stihacku na radare!",
-          "Top Gun rezim aktivni! Zameruji stihacku na radaru!"
+          "🕶️ Top Gun mode active! Intercepting bogey on tactical scope!",
+          "🕶️ Top Gun režim aktívny! Zameriavam stíhačku na radare!",
+          "🕶️ Top Gun režim aktivní! Zaměřuji stíhačku na radaru!"
         );
-        return true;
+      } else {
+        setThought(
+          "🐾 Stowing aviator shades... Back to visual flight rules! 😺",
+          "🐾 Odkladám letecké okuliare... Späť na vizuálny dohľad! 😺",
+          "🐾 Odkládám letecké brýle... Zpět na vizuální dohled! 😺"
+        );
       }
+      return true;
     }
 
+    // 2. Left or Right Ear Tap (y <= 255, 22 < |dx| <= 58) -> Immediate Ear-Scratch Animation!
+    if (y <= 255 && abs(dx) > 22 && abs(dx) <= 58) {
+      if (Settings_BuzzerEnabled() && Settings_BuzzerPet()) Buzzer_Play(BEEP_PET_PURR);
+      s_catState = CAT_STATE_IDLE;
+      s_forcedIdleSub = (dx < 0) ? 6 : 7; // 6=cat_idle_scratch (left), 7=cat_idle_scratch_right
+      s_forcedIdleSubUntilMs = now + 3800;
+      s_nextBrainDecisionMs = now + 4500;
+      setThought(
+        "🐾 *Scratch-scratch-purr!* Ohhh right behind my ear! That's the spot! 😸✨",
+        "🐾 *Škrab-škrab-prrrr!* Óóó presne za uškom! To je ono! 😸✨",
+        "🐾 *Škrab-škrab-prrrr!* Óóó přesně za ouškem! To je ono! 😸✨"
+      );
+      return true;
+    }
+
+    // 3. Starving Cranky Hiss if hunger >= 85% when tapping body/tail!
+    if (PetBrain_GetStats().hunger >= 85) {
+      if (Settings_BuzzerEnabled() && Settings_BuzzerPet()) Buzzer_Play(BEEP_PET_CHIRP);
+      s_hissUntilMs = now + 2200;
+      s_catState = CAT_STATE_HISS;
+      s_animFrame = 0;
+      setThought(
+        "😾 *HISS!* My tummy is completely empty! Tap FEED TREAT first! 🐟",
+        "😾 *KŠŠŠ!* Bruško mám úplne prázdne! Najprv mi hoď rybičku! 🐟",
+        "😾 *KŠŠŠ!* Bříško mám úplně prázdné! Nejdřív mi hoď rybičku! 🐟"
+      );
+      return true;
+    }
+
+    // 4. Tail / Outer Flank Tap (y > 255, |dx| >= 34) -> Playful Tail-Tickle Pounce!
+    if (y > 255 && abs(dx) >= 34) {
+      if (Settings_BuzzerEnabled() && Settings_BuzzerPet()) Buzzer_Play(BEEP_PET_CHIRP);
+      s_catState = CAT_STATE_JUMP;
+      s_animFrame = 0;
+      s_nextFrameMs = now + 80;
+      s_nextBrainDecisionMs = now + 4500;
+      setThought(
+        "🐾 *Mrrrow!* Hey! My tail is not a cockpit joystick! Hehe! 😹✈️",
+        "🐾 *Mňau!* Hej! Môj chvostík nie je knipel v kokpite! Hehe! 😹✈️",
+        "🐾 *Mňau!* Hej! Můj ocásek není knipl v kokpitu! Hehe! 😹✈️"
+      );
+      return true;
+    }
+
+    // 5. Default Belly / Chest Tap -> Happy Bounce & Purr!
+    if (Settings_BuzzerEnabled()) Buzzer_Play(BEEP_PET_PURR);
+    s_petBounceUntilMs = now + 1800;
+    s_catTargetX = s_catX;
     PetBrain_RequestThought(true);
     return true;
   }
@@ -2283,7 +2677,78 @@ bool PetDrawer_HandleTap(int x, int y) {
   return true;
 }
 
+// -----------------------------------------------------------------------------
+// Mini "Peek-In" Cameo Overlay on Main Screens (Clock & Radar)
+// -----------------------------------------------------------------------------
+static bool isPeekActive() {
+  if (s_isOpen) return false;
+  // Always peek when hungry (>= 75%), when military fighter is tracked, or for 12s every 75s
+  if (PetBrain_GetStats().hunger >= 75) return true;
+  if (s_hasMilitaryFighter) return true;
+  if (s_skyPlane.active && s_skyPlane.distKm <= 8.0f) return true;
+  unsigned long cycle = millis() % 75000;
+  return (cycle >= 18000 && cycle < 30000);
+}
 
+void PetDrawer_DrawPeekOverlay() {
+  if (!isPeekActive()) return;
+
+  const unsigned long now = millis();
+  const int cx = 240;
+  const int baseY = 478;
+  int bob = (int)(sinf((float)now * 0.005f) * 2.0f);
+  int headY = baseY - 14 + bob;
+
+  // Ginger ears poking up from bottom bezel
+  gfx->fillTriangle(cx - 18, headY + 2, cx - 12, headY - 12, cx - 5, headY + 1, 0xCA47);
+  gfx->fillTriangle(cx + 5,  headY + 1, cx + 12, headY - 12, cx + 18, headY + 2, 0xCA47);
+  // Inner pink ear triangles
+  gfx->fillTriangle(cx - 15, headY + 1, cx - 12, headY - 8, cx - 8, headY + 1, 0xE4B1);
+  gfx->fillTriangle(cx + 8,  headY + 1, cx + 12, headY - 8, cx + 15, headY + 1, 0xE4B1);
+
+  // Ginger forehead dome peeking up
+  gfx->fillCircle(cx, headY + 9, 15, 0xDC89);
+  gfx->drawFastVLine(cx, headY - 4, 5, 0xA385);     // tabby forehead stripe
+  gfx->drawFastVLine(cx - 3, headY - 3, 4, 0xA385);
+  gfx->drawFastVLine(cx + 3, headY - 3, 4, 0xA385);
+
+  // Blinking curious eyes with specular glints
+  bool blink = ((now % 3800) < 160);
+  if (blink) {
+    gfx->drawFastHLine(cx - 8, headY + 4, 5, 0x1062);
+    gfx->drawFastHLine(cx + 4, headY + 4, 5, 0x1062);
+  } else {
+    gfx->fillCircle(cx - 6, headY + 4, 3, 0x1062);
+    gfx->fillCircle(cx + 6, headY + 4, 3, 0x1062);
+    gfx->drawPixel(cx - 7, headY + 3, 0xD6FC);
+    gfx->drawPixel(cx + 5, headY + 3, 0xD6FC);
+  }
+
+  // White paws gripping the bottom bezel on either side of head
+  gfx->fillRoundRect(cx - 24, baseY - 6, 9, 6, 2, 0xFFFF);
+  gfx->fillRoundRect(cx + 15, baseY - 6, 9, 6, 2, 0xFFFF);
+  gfx->drawFastVLine(cx - 20, baseY - 5, 4, 0x8410);
+  gfx->drawFastVLine(cx + 19, baseY - 5, 4, 0x8410);
+
+  // Tiny status icon above peeking head if hungry or military alert
+  if (PetBrain_GetStats().hunger >= 75 && ((now / 400) % 2 == 0)) {
+    UI_Text("!", cx + 18, headY - 12, 0xFD20, FONT_TINY);
+  } else if (s_hasMilitaryFighter) {
+    UI_Text("!", cx + 18, headY - 12, C_RED, FONT_TINY);
+  }
+}
+
+bool PetDrawer_HandlePeekTap(int x, int y) {
+  if (!isPeekActive()) return false;
+  if (y >= 442 && abs(x - 240) <= 36) {
+    if (Settings_BuzzerEnabled() && Settings_BuzzerPet()) {
+      Buzzer_Play(BEEP_PET_CHIRP);
+    }
+    PetDrawer_Open();
+    return true;
+  }
+  return false;
+}
 
 // -----------------------------------------------------------------------------
 // LVGL Integration

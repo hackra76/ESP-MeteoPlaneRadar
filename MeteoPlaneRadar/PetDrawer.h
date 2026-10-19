@@ -34,3 +34,7 @@ bool PetDrawer_IsNightAwake();
 
 // Free PSRAM sprite buffers when Pet Drawer is closed or before OTA
 void PetDrawer_FreeBuffers();
+
+// Mini "Peek-In" cameo overlay on main screens (Clock / Radars) when hungry or close flight
+void PetDrawer_DrawPeekOverlay();
+bool PetDrawer_HandlePeekTap(int x, int y);

@@ -1575,6 +1575,11 @@ static void ScreenClock_Draw() {
 
   // 8. Draw Global Disaster Alert Overlay if detected
   DisasterAlert_DrawOverlay();
+
+  // 9. Draw DigiCat Peek-In Cameo at bottom bezel if enabled
+  if (Settings_PetEnabled()) {
+    PetDrawer_DrawPeekOverlay();
+  }
 }
 
 static void ScreenClock_RequestComplications() {

@@ -239,6 +239,9 @@ static void handleRelease(int startX, int startY, int endX, int endY) {
             UI_InvalidateActiveScreen();
             return;
         }
+        if (Settings_PetEnabled() && PetDrawer_HandlePeekTap(endX, endY)) {
+            return;
+        }
 
         // Zoom button interaction or wake-up on zoomable screens
         if (UI_IsZoomScreen(s_activeScreen)) {
@@ -855,6 +858,9 @@ void UI_DrawRangeIndicator(const char* text, int activeIdx, int totalCount, bool
 
   UI_DrawZoomControls();
   DisasterAlert_DrawOverlay();
+  if (Settings_PetEnabled()) {
+    PetDrawer_DrawPeekOverlay();
+  }
 }
 
 void UI_DrawHomeMarker(int x, int y) {
