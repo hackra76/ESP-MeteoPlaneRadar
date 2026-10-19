@@ -564,8 +564,10 @@ void UI_SwitchScreen(int screenIdx) {
         if (screenIdx != SCREEN_METEO_I && screenIdx != SCREEN_TACTICAL_I) {
             // Neither screen is a radar screen -> free all radar buffers immediately
             RainViewer_FreeBuffers();
-            CHMU_FreeBuffers();
-            SHMU_FreeBuffers();
+            if (!Async_IsRadarBusy()) {
+                CHMU_FreeBuffers();
+                SHMU_FreeBuffers();
+            }
             ScreenWeather_FreeBuffers();
             ScreenTactical_FreeBuffers();
         }

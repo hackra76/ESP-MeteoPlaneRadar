@@ -524,6 +524,7 @@ static bool rebuildCrops() {
 
   int okc = 0;
   for (int f = 0; f < cnt; f++) {
+    Watchdog_Feed();
     if (!s_frame565[f]) {
       s_frame565[f] = (uint16_t*)heap_caps_malloc((size_t)need * 2, MALLOC_CAP_SPIRAM);
       if (!s_frame565[f]) s_frame565[f] = (uint16_t*)malloc((size_t)need * 2);
@@ -538,6 +539,7 @@ static bool rebuildCrops() {
     if (s_png->openRAM(fData, fSize, pngDraw) != PNG_SUCCESS) { s_png->close(); break; }
     s_png->decode(nullptr, 0);
     s_png->close();
+    Watchdog_Feed();
     okc++;
   }
   s_frameCount = okc;
@@ -627,6 +629,7 @@ void ScreenWeather_FreeBuffers() {
   }
   s_crop565 = nullptr;
   s_frameCount = 0;
+  s_loading = false;
 }
 
 bool ScreenWeather_IsLoading() {
@@ -1141,6 +1144,10 @@ void ScreenWeather_Draw() {
     int nextF = (f < have - 1) ? (f + 1) : f;
     if (rvMode()) {
       blitRainViewerCrossDissolve(RainViewer_Frame(f), RainViewer_Frame(nextF), s_blendAlpha64);
+    } else if (s_downsampled) {
+      if (s_frame565[f]) {
+        blitRainViewerCrossDissolve(s_frame565[f], s_frame565[nextF], s_blendAlpha64);
+      }
     } else {
       if (s_frame565[f]) {
         if (s_blendAlpha64 > 0 && f != nextF && s_frame565[nextF]) {

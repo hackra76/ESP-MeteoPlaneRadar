@@ -125,7 +125,10 @@ void Async_SetAdsbTarget(double lat, double lon, float rangeKm) {
 
 void Async_RequestAdsb()     { s_reqAdsb = true; }
 void Async_RequestRadar()    { s_reqRadar = true; }
-void Async_RequestForecast() { s_reqForecast = true; }
+void Async_RequestForecast() {
+  Forecast_Invalidate();
+  s_reqForecast = true;
+}
 
 void Async_RequestRoute(const char* callsign, float lat, float lon) {
   Route_Select(callsign, lat, lon);
@@ -259,10 +262,6 @@ static void asyncWorkerTask(void* param) {
 
       // Fast clock sync on first WiFi connect if time is not yet valid from RTC
       if (!s_firstTimeReseed && !Outside_TimeValid() && !rvBusy) {
-        if (ScreenWeather_IsLoading()) {
-          vTaskDelay(pdMS_TO_TICKS(50));
-          continue;
-        }
         s_firstTimeReseed = true;
         s_core0NetBusy = true;
         Outside_Tick();
@@ -311,11 +310,6 @@ static void asyncWorkerTask(void* param) {
         vTaskDelay(pdMS_TO_TICKS(15));
       }
       else if (now - lastTlsTime >= 1000) {
-        if (ScreenWeather_IsLoading()) {
-          vTaskDelay(pdMS_TO_TICKS(50));
-          continue;
-        }
-
         s_core0NetBusy = true;
         // RAII guard: ensures s_core0NetBusy is always cleared even if a called
         // function returns early or the WiFi condition changes mid-chain.
@@ -333,6 +327,16 @@ static void asyncWorkerTask(void* param) {
           adsbPeriod <<= shift;
         }
 
+        static int s_radarFails = 0;
+        unsigned long radarPeriod = TACTICAL_RADAR_PERIOD_MS;
+        if (s_radarFails > 0) {
+          int shift = s_radarFails > 3 ? 3 : s_radarFails;
+          radarPeriod <<= shift;
+        }
+        const bool radarDue = (Settings_RadarSource() != RADAR_SRC_RAINVIEWER) &&
+                              ((curScr == SCREEN_METEO_I && s_reqRadar) ||
+                               (curScr == SCREEN_TACTICAL_I && (s_reqRadar || (now - lastRadarFetch >= radarPeriod))));
+
         // 2. Pending Route Lookups (only when active on planes screen, queue not empty, and not right after ADS-B)
         if (planesActive && (now - lastAdsbFetch >= 1000) && Route_HasPending()) {
           Route_Tick();
@@ -349,29 +353,21 @@ static void asyncWorkerTask(void* param) {
             s_routeUpdated = true;
           }
         }
-        // 2c. Weather & Tactical Radar Fetch for CHMU / SHMU on Core 0 (when on Weather or Tactical screen and not RainViewer)
-        else if ((curScr == SCREEN_TACTICAL_I || curScr == SCREEN_METEO_I) && (Settings_RadarSource() != RADAR_SRC_RAINVIEWER)) {
-          static int s_radarFails = 0;
-          unsigned long radarPeriod = TACTICAL_RADAR_PERIOD_MS;
-          if (s_radarFails > 0) {
-            int shift = s_radarFails > 3 ? 3 : s_radarFails;
-            radarPeriod <<= shift;
+        // 2c. Weather & Tactical Radar Fetch for CHMU / SHMU on Core 0 (only when actually due)
+        else if (radarDue) {
+          s_reqRadar = false;
+          lastRadarFetch = now;
+          s_radarBusy = true;
+          int wantFrames = (curScr == SCREEN_METEO_I) ? CHMU_ANIM_MAX : 1;
+          int n = (Settings_RadarSource() == RADAR_SRC_SHMU) ? SHMU_FetchAnim(wantFrames) : CHMU_FetchAnim(wantFrames);
+          s_radarBusy = false;
+          s_radarUpdated = true;
+          if (n > 0) {
+            s_radarFails = 0;
+          } else {
+            s_radarFails++;
           }
-          if (s_reqRadar || (curScr == SCREEN_TACTICAL_I && (now - lastRadarFetch >= radarPeriod))) {
-            s_reqRadar = false;
-            lastRadarFetch = now;
-            s_radarBusy = true;
-            int wantFrames = (curScr == SCREEN_METEO_I) ? CHMU_ANIM_MAX : 1;
-            int n = (Settings_RadarSource() == RADAR_SRC_SHMU) ? SHMU_FetchAnim(wantFrames) : CHMU_FetchAnim(wantFrames);
-            s_radarBusy = false;
-            s_radarUpdated = true;
-            if (n > 0) {
-              s_radarFails = 0;
-            } else {
-              s_radarFails++;
-            }
-            lastTlsTime = millis();
-          }
+          lastTlsTime = millis();
         }
         // 3. ADS-B Aircraft Fetching (when on Planes or Tactical screen, or periodic background scan for emergency squawks, or when clock complication needs aircraft)
         else if ((planesActive && (now - lastAdsbFetch >= adsbPeriod)) ||
@@ -394,7 +390,13 @@ static void asyncWorkerTask(void* param) {
         // 4. Forecast & Air Quality (immediate on first boot / WiFi connect, then periodic)
         else {
           static bool s_firstForecastDone = false;
-          if (!s_firstForecastDone || (clockNeedsWeather && !Forecast_CurrentValid()) || (now - lastForecastFetch >= FORECAST_PERIOD_MS) || s_reqForecast) {
+          const bool needAqNow = Settings_ScreenEnabled(SCREEN_FORECAST_I) && !AirQuality_Valid();
+          if (!s_firstForecastDone ||
+              (clockNeedsWeather && !Forecast_CurrentValid() && (now - lastForecastFetch >= 15000UL)) ||
+              (curScr == SCREEN_FORECAST_I && (!Forecast_Valid() || !AirQuality_Valid()) && (now - lastForecastFetch >= 5000UL)) ||
+              (needAqNow && (now - lastForecastFetch >= 15000UL)) ||
+              (now - lastForecastFetch >= FORECAST_PERIOD_MS) || s_reqForecast) {
+            if (!Forecast_Valid()) Forecast_Invalidate();
             s_reqForecast = false;
             s_firstForecastDone = true;
             lastForecastFetch = now;
@@ -409,7 +411,9 @@ static void asyncWorkerTask(void* param) {
             lastTlsTime = millis();
           }
           // 6. Finance Data (Markets, Crypto, Stocks, Commodities)
-          else if (curScr == SCREEN_FINANCE_I || s_reqFinance ||
+          else if (Finance_IsBusy() || s_reqFinance ||
+                   (Finance_LastUpdated() == 0 && (now - lastFinanceFetch >= 15000UL)) ||
+                   (curScr == SCREEN_FINANCE_I && (now - lastFinanceFetch >= 30000UL)) ||
                    (clockNeedsFinance && (now - lastFinanceFetch >= 60000UL)) ||
                    (now - lastFinanceFetch >= FINANCE_PERIOD_MS)) {
             if (Finance_Step()) {

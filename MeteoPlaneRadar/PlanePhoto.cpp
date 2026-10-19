@@ -22,7 +22,34 @@
 #include "ScreenWeather.h"
 #include "ScreenTactical.h"
 
-#include <JPEGDEC.h>
+#define STB_IMAGE_STATIC
+#define STB_IMAGE_IMPLEMENTATION
+#define STBI_ONLY_JPEG
+#define STBI_NO_STDIO
+static void* stbi_realloc_safe(void* ptr, size_t new_size) {
+  if (new_size == 0) {
+    heap_caps_free(ptr);
+    return nullptr;
+  }
+  if (!ptr) {
+    return heap_caps_malloc(new_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  }
+  void* new_ptr = heap_caps_malloc(new_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  if (!new_ptr) return nullptr;
+  size_t old_size = heap_caps_get_allocated_size(ptr);
+  size_t copy_size = (old_size < new_size) ? old_size : new_size;
+  memcpy(new_ptr, ptr, copy_size);
+  heap_caps_free(ptr);
+  return new_ptr;
+}
+
+#define STBI_MALLOC(sz)      heap_caps_malloc(sz, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)
+#define STBI_REALLOC(p, sz)  stbi_realloc_safe(p, sz)
+#define STBI_FREE(p)         heap_caps_free(p)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+#include "stb_image.h"
+#pragma GCC diagnostic pop
 
 #define PHOTO_CACHE_N   4
 #define PHOTO_BUF_MAX   49152   // up to 48 KB JPEG buffer
@@ -44,30 +71,6 @@ static int  s_activeSlot = -1;
 static bool s_pending = false;
 static bool s_changed = false;
 static uint8_t* s_tempJpeg = nullptr;
-static JPEGDEC* s_jpeg = nullptr;
-static uint16_t* s_decodeTarget = nullptr;
-static int s_decodeW = 0;
-static int s_decodeH = 0;
-
-static int photoJpegDrawCallback(JPEGDRAW* pDraw) {
-  if (!s_decodeTarget) return 0;
-  const int rowW = pDraw->iWidth;
-  const int rowH = pDraw->iHeight;
-  for (int r = 0; r < rowH; r++) {
-    int y = pDraw->y + r;
-    if (y < 0 || y >= s_decodeH) continue;
-    int x0 = pDraw->x;
-    if (x0 < 0 || x0 >= s_decodeW) continue;
-    int copyW = rowW;
-    if (x0 + copyW > s_decodeW) copyW = s_decodeW - x0;
-    if (copyW > 0) {
-      memcpy(s_decodeTarget + (size_t)y * s_decodeW + x0,
-             pDraw->pPixels + (size_t)r * rowW,
-             (size_t)copyW * sizeof(uint16_t));
-    }
-  }
-  return 1;
-}
 
 static void lock() {
   if (!s_mtx) s_mtx = xSemaphoreCreateMutex();
@@ -170,10 +173,6 @@ void PlanePhoto_Clear() {
   if (s_tempJpeg) {
     heap_caps_free(s_tempJpeg);
     s_tempJpeg = nullptr;
-  }
-  if (s_jpeg) {
-    heap_caps_free(s_jpeg);
-    s_jpeg = nullptr;
   }
   unlock();
 }
@@ -439,66 +438,60 @@ void PlanePhoto_Tick() {
           return;
         }
 
-        if (!s_jpeg) {
-          s_jpeg = (JPEGDEC*)heap_caps_malloc(sizeof(JPEGDEC), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-          if (s_jpeg) memset(s_jpeg, 0, sizeof(JPEGDEC));
-        }
+        int w = 0, h = 0, channels = 0;
+        stbi_uc* rgb = stbi_load_from_memory(s_tempJpeg, (int)jpegLen, &w, &h, &channels, 3);
 
-        if (s_jpeg && s_jpeg->openRAM(s_tempJpeg, (int)jpegLen, photoJpegDrawCallback)) {
-          int w = s_jpeg->getWidth();
-          int h = s_jpeg->getHeight();
-          if (w > 0 && h > 0 && w <= 320 && h <= 240) {
-            size_t pixelCount = (size_t)w * (size_t)h;
-            uint16_t* rgb565 = (uint16_t*)heap_caps_malloc(pixelCount * sizeof(uint16_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-            if (rgb565) {
-              s_decodeTarget = rgb565;
-              s_decodeW = w;
-              s_decodeH = h;
-              s_jpeg->setPixelType(RGB565_LITTLE_ENDIAN);
-              bool decodeOk = (s_jpeg->decode(0, 0, 0) == 1);
-              s_jpeg->close();
-              s_decodeTarget = nullptr;
-
-              if (s_tempJpeg) {
-                heap_caps_free(s_tempJpeg);
-                s_tempJpeg = nullptr;
-              }
-
-              if (decodeOk) {
-                lock();
-                if (!s_pending || s_activeSlot != slot) {
-                  unlock();
-                  heap_caps_free(rgb565);
-                  return;
-                }
-                if (s_cache[slot].rgb565) heap_caps_free(s_cache[slot].rgb565);
-                s_cache[slot].rgb565 = rgb565;
-                s_cache[slot].width = w;
-                s_cache[slot].height = h;
-                strncpy(s_cache[slot].photographer, photog, sizeof(s_cache[slot].photographer) - 1);
-                s_cache[slot].state = PHOTO_OK;
-                s_cache[slot].stamp = millis();
-                s_pending = false;
-                s_changed = true;
-                unlock();
-                Serial.printf("PlanePhoto: Photo loaded and decoded: %dx%d for %s\n", w, h, reg[0] ? reg : hex);
-                return;
-              }
-              heap_caps_free(rgb565);
-            } else {
-              s_jpeg->close();
-            }
-          } else {
-            s_jpeg->close();
-          }
-        } else {
-          Serial.printf("PlanePhoto: JPEGDEC openRAM failed for %s (len=%u, Free PSRAM=%u B)\n",
-                        reg[0] ? reg : hex, (unsigned)jpegLen, (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
-        }
-
+        // Immediately free temporary JPEG download buffer since decoding is done
         if (s_tempJpeg) {
           heap_caps_free(s_tempJpeg);
           s_tempJpeg = nullptr;
+        }
+
+        if (rgb && w > 0 && h > 0 && w <= 320 && h <= 240) {
+          lock();
+          aborted = (!s_pending || s_activeSlot != slot);
+          unlock();
+          if (aborted) {
+            stbi_image_free(rgb);
+            return;
+          }
+
+          size_t pixelCount = (size_t)w * (size_t)h;
+          uint16_t* rgb565 = (uint16_t*)heap_caps_malloc(pixelCount * sizeof(uint16_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+          if (rgb565) {
+            for (size_t i = 0; i < pixelCount; i++) {
+              uint8_t r = rgb[3 * i];
+              uint8_t g = rgb[3 * i + 1];
+              uint8_t b = rgb[3 * i + 2];
+              rgb565[i] = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+            }
+            stbi_image_free(rgb);
+
+            lock();
+            if (!s_pending || s_activeSlot != slot) {
+              unlock();
+              heap_caps_free(rgb565);
+              return;
+            }
+            if (s_cache[slot].rgb565) heap_caps_free(s_cache[slot].rgb565);
+            s_cache[slot].rgb565 = rgb565;
+            s_cache[slot].width = w;
+            s_cache[slot].height = h;
+            strncpy(s_cache[slot].photographer, photog, sizeof(s_cache[slot].photographer) - 1);
+            s_cache[slot].state = PHOTO_OK;
+            s_cache[slot].stamp = millis();
+            s_pending = false;
+            s_changed = true;
+            unlock();
+            Serial.printf("PlanePhoto: Photo loaded and decoded: %dx%d for %s\n", w, h, reg[0] ? reg : hex);
+            return;
+          }
+          stbi_image_free(rgb);
+        } else if (rgb) {
+          stbi_image_free(rgb);
+        } else {
+          Serial.printf("PlanePhoto: stbi_load_from_memory failed for %s (len=%u, Free PSRAM=%u B)\n",
+                        reg[0] ? reg : hex, (unsigned)jpegLen, (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
         }
       }
     }

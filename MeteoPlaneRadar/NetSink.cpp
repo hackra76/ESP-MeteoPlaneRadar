@@ -5,6 +5,7 @@
 // =============================================================================
 #include "NetSink.h"
 #include "Config.h"      // NET_BODY_BUDGET_MS
+#include "Watchdog.h"
 #include <HTTPClient.h>
 #include <string.h>      // memcpy / memmove
 #include <esp_heap_caps.h>
@@ -94,6 +95,7 @@ size_t NetBufSink::write(uint8_t b) {
 }
 
 size_t NetBufSink::write(const uint8_t* data, size_t len) {
+  Watchdog_Feed();
   if (_poll) _poll();          // yield + feed the watchdog on every block
 
   // A short write is how a Stream tells writeToStreamDataBlock() to stop: it
@@ -166,6 +168,7 @@ size_t NetScanSink::write(uint8_t b) {
 }
 
 size_t NetScanSink::write(const uint8_t* data, size_t len) {
+  Watchdog_Feed();
   if (_poll) _poll();          // yield + feed the watchdog on every block
 
   if (_stopped) return 0;
