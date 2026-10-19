@@ -290,17 +290,21 @@ static void blitRainViewerCrossDissolve(const uint16_t* fbA, const uint16_t* fbB
     if (!s_radarFb) return;
   }
   const long R2 = (long)DISP_R * DISP_R;
-  memset(s_radarFb, 0, (size_t)LCD_WIDTH * LCD_HEIGHT * sizeof(uint16_t));
   for (int dy = 0; dy < LCD_HEIGHT; dy++) {
     long ddy = dy - CY;
+    uint16_t* dst = s_radarFb + dy * LCD_WIDTH;
     long room = R2 - ddy * ddy;
-    if (room <= 0) continue;
+    if (room <= 0) {
+      memset(dst, 0, LCD_WIDTH * sizeof(uint16_t));
+      continue;
+    }
     int half = (int)sqrtf((float)room);
     int x0 = CX - half, x1 = CX + half;
     if (x0 < 0) x0 = 0;
     if (x1 > LCD_WIDTH - 1) x1 = LCD_WIDTH - 1;
+    if (x0 > 0) memset(dst, 0, x0 * sizeof(uint16_t));
+    if (x1 < LCD_WIDTH - 1) memset(dst + x1 + 1, 0, (LCD_WIDTH - 1 - x1) * sizeof(uint16_t));
     const uint16_t* rowA = fbA + (int32_t)dy * LCD_WIDTH;
-    uint16_t* dst = s_radarFb + dy * LCD_WIDTH;
     if (a64 > 0 && fbB && fbB != fbA) {
       const uint16_t* rowB = fbB + (int32_t)dy * LCD_WIDTH;
       blendFrames565_SIMD(rowA + x0, rowB + x0, dst + x0, (size_t)(x1 - x0 + 1), a64);
@@ -354,37 +358,24 @@ static void blitCrop() {
   const long R2 = (long)DISP_R * DISP_R;
   const bool smooth = Settings_SmoothRadar() && (cw > 1) && (ch > 1);
 
-  memset(s_radarFb, 0, (size_t)LCD_WIDTH * LCD_HEIGHT * sizeof(uint16_t));
-
-  if (s_downsampled) {
+  if (!smooth) {
     for (int dy = 0; dy < LCD_HEIGHT; dy++) {
       long ddy = dy - CY;
-      long room = R2 - ddy * ddy;
-      if (room <= 0) continue;
-      int half = (int)sqrtf((float)room);
-      int x0 = CX - half, x1 = CX + half;
-      if (x0 < 0) x0 = 0;
-      if (x1 >= LCD_WIDTH) x1 = LCD_WIDTH - 1;
-
-      const uint16_t* row = srcBuf + dy * LCD_WIDTH;
       uint16_t* dst = s_radarFb + dy * LCD_WIDTH;
-      for (int dx = x0; dx <= x1; dx++) {
-        dst[dx] = row[dx];
-      }
-    }
-  } else if (!smooth) {
-    for (int dy = 0; dy < LCD_HEIGHT; dy++) {
-      long ddy = dy - CY;
       long room = R2 - ddy * ddy;
-      if (room <= 0) continue;
+      if (room <= 0) {
+        memset(dst, 0, LCD_WIDTH * sizeof(uint16_t));
+        continue;
+      }
       int half = (int)sqrtf((float)room);
       int x0 = CX - half, x1 = CX + half;
       if (x0 < 0) x0 = 0;
       if (x1 >= LCD_WIDTH) x1 = LCD_WIDTH - 1;
+      if (x0 > 0) memset(dst, 0, x0 * sizeof(uint16_t));
+      if (x1 < LCD_WIDTH - 1) memset(dst + x1 + 1, 0, (LCD_WIDTH - 1 - x1) * sizeof(uint16_t));
 
       int srcRow = clampI((int)((int64_t)dy * ch / LCD_HEIGHT), 0, ch - 1);
       const uint16_t* row = srcBuf + (int64_t)srcRow * cw;
-      uint16_t* dst = s_radarFb + dy * LCD_WIDTH;
       for (int dx = x0; dx <= x1; dx++) {
         int srcCol = clampI((int)((int64_t)dx * cw / LCD_WIDTH), 0, cw - 1);
         dst[dx] = row[srcCol];
@@ -405,12 +396,18 @@ static void blitCrop() {
 
     for (int dy = 0; dy < LCD_HEIGHT; dy++) {
       long ddy = dy - CY;
+      uint16_t* dst = s_radarFb + dy * LCD_WIDTH;
       long room = R2 - ddy * ddy;
-      if (room <= 0) continue;
+      if (room <= 0) {
+        memset(dst, 0, LCD_WIDTH * sizeof(uint16_t));
+        continue;
+      }
       int half = (int)sqrtf((float)room);
       int sx0 = CX - half, sx1 = CX + half;
       if (sx0 < 0) sx0 = 0;
       if (sx1 >= LCD_WIDTH) sx1 = LCD_WIDTH - 1;
+      if (sx0 > 0) memset(dst, 0, sx0 * sizeof(uint16_t));
+      if (sx1 < LCD_WIDTH - 1) memset(dst + sx1 + 1, 0, (LCD_WIDTH - 1 - sx1) * sizeof(uint16_t));
 
       int fy = (int)(((int64_t)dy * (ch - 1) * 256 + (LCD_HEIGHT / 2)) / (LCD_HEIGHT - 1));
       int y0 = fy >> 8;
@@ -418,12 +415,9 @@ static void blitCrop() {
       if (y0 >= ch) y0 = ch - 1;
       int y1 = (y0 < ch - 1) ? y0 + 1 : y0;
       int qy = fy & 0xFF;
-      int wy0 = 256 - qy;
-      int wy1 = qy;
 
       const uint16_t* r0 = srcBuf + (int64_t)y0 * cw;
       const uint16_t* r1 = srcBuf + (int64_t)y1 * cw;
-      uint16_t* dst = s_radarFb + dy * LCD_WIDTH;
 
       uint32_t qy64 = (uint32_t)(qy >> 2);
       for (int dx = sx0; dx <= sx1; dx++) {
@@ -639,29 +633,11 @@ bool ScreenWeather_IsLoading() {
   return s_loading;
 }
 
-// Download frames + build crops. The fetch blocks for a few seconds, so the
-// screen is repainted first WITH the "Nacitam" note on it - the last good
-// animation stays visible the whole time instead of going black.
-static void loadAndBuild() {
-  s_loading = true;
-  ScreenWeather_Draw();          // last good frame + the note
-  gfx->flush();
-
-  // Core 0 worker task needs to be paused while ScreenWeather downloads
-  // heavy multi-frame radar radar images from SHMU/CHMU on Core 1 to guarantee
-  // zero concurrent TLS handshakes.
-  uint32_t waitStart = millis();
-  while (Async_IsNetBusy() && (millis() - waitStart < 2000)) {
-    Watchdog_Feed();
-    delay(20);
-  }
-  Async_Pause();
-
+// Build crops after Core 0 finishes downloading the CHMU/SHMU animation frames.
+static void finishRadarBuild() {
   const int prevCount = s_frameCount;   // what we already have on screen
-  int n = shmuMode() ? SHMU_FetchAnim(ANIM_FRAMES) : CHMU_FetchAnim(ANIM_FRAMES);
+  int n = shmuMode() ? SHMU_AnimCount() : CHMU_AnimCount();
   bool ok = (n > 0) && rebuildCrops();
-
-  Async_Resume();
 
   // rebuildCrops() zeroes the frame count when it gives up. If we had frames
   // before, put them back rather than leaving the screen empty.
@@ -1071,6 +1047,19 @@ bool ScreenWeather_Tick() {
   if (rvMode()) return tickRainViewer();
   unsigned long now = millis();
 
+  // Check if an asynchronous Core 0 radar fetch has completed
+  if (s_loading) {
+    if (Async_TakeRadarUpdated()) {
+      finishRadarBuild();
+      s_lastFetch = now;
+      s_curFrame = 0;
+      s_gap = false;
+      s_lastStep = now;
+      return true;
+    }
+    return false;
+  }
+
   // Range changed -> just re-crop (frames already downloaded).
   int curCount = shmuMode() ? SHMU_AnimCount() : CHMU_AnimCount();
   if (s_needRebuild && curCount > 0) {
@@ -1084,16 +1073,18 @@ bool ScreenWeather_Tick() {
   // second, every second.
   if (s_frameCount == 0) {
     if (s_lastFail && (now - s_lastFetch < RADAR_RETRY_MS)) return false;
-    loadAndBuild();
-    s_lastFetch = now; s_curFrame = 0; s_gap = false; s_lastStep = now;
+    s_loading = true;
+    s_lastFetch = now;
+    Async_RequestRadar();
     return true;
   }
 
   // Periodic refresh - only during the pause (last frame shown).
   // Poll every 60 s so newly published 5-minute frames appear without lag (Issue #6).
   if (s_gap && (now - s_lastFetch >= 60000UL)) {
-    loadAndBuild();
-    s_lastFetch = now; s_curFrame = 0; s_gap = false; s_lastStep = now;
+    s_loading = true;
+    s_lastFetch = now;
+    Async_RequestRadar();
     return true;
   }
 

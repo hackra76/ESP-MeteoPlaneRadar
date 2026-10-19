@@ -482,11 +482,79 @@ void UI_Init() {
     PetDrawer_Init();
 }
 
+static lv_obj_t* s_otaScreen = nullptr;
+static volatile bool s_otaActive = false;
+static volatile bool s_otaDirty  = false;
+static volatile bool s_otaStaticMode = false;
+static volatile int  s_otaPercent = 0;
+static volatile size_t s_otaBytesWritten = 0;
+static volatile size_t s_otaTotalBytes   = 0;
+static char s_otaSource[32] = "OTA Update";
+static char s_otaStatus[80] = "";
+
+static void ota_screen_draw_cb(lv_event_t* e) {
+    lv_layer_t* layer = lv_event_get_layer(e);
+    gfx->setLayer(layer);
+
+    gfx->fillScreen(C_BLACK);
+    gfx->drawCircle(LCD_WIDTH / 2, LCD_HEIGHT / 2, 236, C_CYAN);
+    gfx->drawCircle(LCD_WIDTH / 2, LCD_HEIGHT / 2, 237, 0x03EF);
+
+    UI_TextCentered(s_otaSource[0] ? s_otaSource : "OTA Update", 96, C_CYAN, 2);
+
+    if (s_otaStaticMode) {
+        const uint8_t lang = Lang_Get();
+        const char* defaultMsg = (lang == LANG_EN) ? "Writing to flash... Do not power off!"
+                               : ((lang == LANG_SK) ? "Zapisujem do flash... Nevypinajte!" : "Zapisuji do flash... Nevypinejte!");
+        const char* msg = s_otaStatus[0] ? s_otaStatus : defaultMsg;
+        UI_TextCentered(msg, 224, C_YELLOW, 2);
+    } else {
+        int pct = s_otaPercent;
+        if (pct < 0) pct = 0;
+        if (pct > 100) pct = 100;
+
+        char pctBuf[16];
+        snprintf(pctBuf, sizeof(pctBuf), "%d %%", pct);
+        UI_TextCentered(pctBuf, 176, C_WHITE, 3);
+
+        const int barW = 280, barH = 22;
+        const int barX = (LCD_WIDTH - barW) / 2;
+        const int barY = 232;
+        gfx->fillRoundRect(barX, barY, barW, barH, 6, 0x10A2);
+        gfx->drawRoundRect(barX, barY, barW, barH, 6, C_CYAN);
+        int fillW = ((barW - 4) * pct) / 100;
+        if (fillW > 0) {
+            gfx->fillRoundRect(barX + 2, barY + 2, fillW, barH - 4, 4, C_GREEN);
+        }
+
+        if (s_otaTotalBytes > 0) {
+            char szBuf[48];
+            snprintf(szBuf, sizeof(szBuf), "%u / %u KB",
+                     (unsigned)(s_otaBytesWritten / 1024), (unsigned)(s_otaTotalBytes / 1024));
+            UI_TextCentered(szBuf, 272, C_GRAY, 1);
+        }
+        if (s_otaStatus[0]) {
+            UI_TextCentered(s_otaStatus, 312, C_YELLOW, 1);
+        }
+    }
+
+    gfx->setLayer(nullptr);
+}
+
 void UI_SwitchScreen(int screenIdx) {
     if (screenIdx < 0 || screenIdx >= SCREEN_N) return;
     int prevScreen = s_activeScreen;
     if (prevScreen != screenIdx) {
         // Free screen buffers and downloaded data no longer needed for inactive screens
+        if (prevScreen == SCREEN_CLOCK_I && screenIdx != SCREEN_CLOCK_I) {
+            ScreenClock_FreeBuffers();
+        }
+        if (prevScreen == SCREEN_ISS_I && screenIdx != SCREEN_ISS_I) {
+            ScreenIss_FreeBuffers();
+        }
+        if (prevScreen == SCREEN_SONAR_I && screenIdx != SCREEN_SONAR_I) {
+            ScreenSonar_FreeBuffers();
+        }
         if (prevScreen == SCREEN_METEO_I && screenIdx != SCREEN_METEO_I) {
             ScreenWeather_FreeBuffers();
         }
@@ -584,6 +652,23 @@ void UI_SwitchScreenStep(int step) {
 }
 
 void UI_AutoRotate_Tick() {
+    if (s_otaActive) {
+        if (!s_otaScreen) {
+            s_otaScreen = lv_obj_create(NULL);
+            lv_obj_set_style_bg_color(s_otaScreen, lv_color_black(), 0);
+            lv_obj_set_style_bg_opa(s_otaScreen, LV_OPA_COVER, 0);
+            lv_obj_add_event_cb(s_otaScreen, ota_screen_draw_cb, LV_EVENT_DRAW_MAIN, NULL);
+        }
+        if (lv_screen_active() != s_otaScreen) {
+            lv_screen_load(s_otaScreen);
+            s_otaDirty = false;
+        } else if (s_otaDirty) {
+            s_otaDirty = false;
+            lv_obj_invalidate(s_otaScreen);
+        }
+        return;
+    }
+
     UI_ZoomTick();
 
     // Night: Clock only or Ultra Night mode (freeze on Clock screen during night)
@@ -848,6 +933,7 @@ static bool s_photoFullscreen = false;
 
 bool UI_IsPhotoFullscreen() { return s_photoFullscreen; }
 static uint16_t* s_fsPhotoBuf = nullptr;
+static uint16_t* s_thumbPhotoBuf = nullptr;
 
 void UI_FreeFullscreenPhotoBuffer() {
   if (s_fsPhotoBuf) {
@@ -865,6 +951,26 @@ void UI_SetPhotoFullscreen(bool en) {
 
 static void drawScaledPhoto(const uint16_t* pixels, int iw, int ih, int targetX, int targetY, int tw, int th) {
   if (!pixels || iw <= 0 || ih <= 0 || tw <= 0 || th <= 0) return;
+  if (tw <= 200 && th <= 133) {
+    if (!s_thumbPhotoBuf) {
+      s_thumbPhotoBuf = (uint16_t*)heap_caps_malloc(200 * 133 * sizeof(uint16_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    }
+    if (s_thumbPhotoBuf) {
+      for (int y = 0; y < th; y++) {
+        int srcY = (y * ih) / th;
+        if (srcY >= ih) srcY = ih - 1;
+        const uint16_t* srcRow = pixels + (int32_t)srcY * iw;
+        uint16_t* dstRow = s_thumbPhotoBuf + y * tw;
+        for (int x = 0; x < tw; x++) {
+          int srcX = (x * iw) / tw;
+          if (srcX >= iw) srcX = iw - 1;
+          dstRow[x] = srcRow[srcX];
+        }
+      }
+      gfx->draw16bitRGBBitmap(targetX, targetY, s_thumbPhotoBuf, tw, th);
+      return;
+    }
+  }
   for (int y = 0; y < th; y++) {
     int srcY = (y * ih) / th;
     if (srcY >= ih) srcY = ih - 1;
@@ -1155,13 +1261,49 @@ void UI_DrawAircraftDetail(const Aircraft& ac, const RouteInfo* rt, int routeSta
   }
 }
 
-void UI_DrawOtaProgress(const char* sourceName, int percent, size_t bytesWritten, size_t totalBytes, const char* statusMsg) {}
-void UI_DrawOtaWritingStaticScreen(const char* sourceName, const char* customMsg) {}
+void UI_DrawOtaProgress(const char* sourceName, int percent, size_t bytesWritten, size_t totalBytes, const char* statusMsg) {
+  if (sourceName && sourceName[0]) {
+    strncpy(s_otaSource, sourceName, sizeof(s_otaSource) - 1);
+    s_otaSource[sizeof(s_otaSource) - 1] = '\0';
+  }
+  s_otaPercent = percent;
+  s_otaBytesWritten = bytesWritten;
+  s_otaTotalBytes = totalBytes;
+  if (statusMsg) {
+    strncpy(s_otaStatus, statusMsg, sizeof(s_otaStatus) - 1);
+    s_otaStatus[sizeof(s_otaStatus) - 1] = '\0';
+  } else {
+    s_otaStatus[0] = '\0';
+  }
+  s_otaStaticMode = false;
+  s_otaActive = true;
+  s_otaDirty  = true;
+}
+
+void UI_DrawOtaWritingStaticScreen(const char* sourceName, const char* customMsg) {
+  if (sourceName && sourceName[0]) {
+    strncpy(s_otaSource, sourceName, sizeof(s_otaSource) - 1);
+    s_otaSource[sizeof(s_otaSource) - 1] = '\0';
+  }
+  if (customMsg) {
+    strncpy(s_otaStatus, customMsg, sizeof(s_otaStatus) - 1);
+    s_otaStatus[sizeof(s_otaStatus) - 1] = '\0';
+  } else {
+    s_otaStatus[0] = '\0';
+  }
+  s_otaStaticMode = true;
+  s_otaActive = true;
+  s_otaDirty  = true;
+}
 
 void UI_FreePhotoBuffer() {
   if (s_fsPhotoBuf) {
     if (esp_ptr_external_ram(s_fsPhotoBuf)) heap_caps_free(s_fsPhotoBuf); else free(s_fsPhotoBuf);
     s_fsPhotoBuf = nullptr;
+  }
+  if (s_thumbPhotoBuf) {
+    if (esp_ptr_external_ram(s_thumbPhotoBuf)) heap_caps_free(s_thumbPhotoBuf); else free(s_thumbPhotoBuf);
+    s_thumbPhotoBuf = nullptr;
   }
 }
 

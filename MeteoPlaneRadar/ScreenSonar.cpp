@@ -413,6 +413,7 @@ void ScreenSonar_Draw() {
   const float currentRangeKm = SONAR_RANGES[s_rangeIdx];
   const uint8_t viewMode = Settings_SonarView();
 
+  Async_LockAdsb();
   if (viewMode == SONAR_VIEW_SPLIT) {
     drawSplitView(currentRangeKm);
   } else if (viewMode == SONAR_VIEW_WATERFALL) {
@@ -420,6 +421,7 @@ void ScreenSonar_Draw() {
   } else {
     drawClassicPPI(currentRangeKm);
   }
+  Async_UnlockAdsb();
 
   // Range Indicator (Bottom Center)
   char rbuf[24];
@@ -459,6 +461,7 @@ static void tick_timer_cb(lv_timer_t* timer) {
         curRow[c] = RGB565(0, noise, noise + 6);
       }
 
+      Async_LockAdsb();
       int count = ADSB_Count();
       if (count > 0) {
         const Aircraft* list = ADSB_List();
@@ -509,12 +512,15 @@ static void tick_timer_cb(lv_timer_t* timer) {
           }
         }
       }
+      Async_UnlockAdsb();
     }
   }
 
   // Trigger a single short click whenever the sweep arm passes over an aircraft
   if (Settings_SonarPing()) {
+    Async_LockAdsb();
     int count = ADSB_Count();
+    bool hit = false;
     if (count > 0) {
       const Aircraft* list = ADSB_List();
       double clat = Settings_Lat();
@@ -523,7 +529,6 @@ static void tick_timer_cb(lv_timer_t* timer) {
       float cosLat = cosf(latRad);
       float currentRangeKm = SONAR_RANGES[s_rangeIdx];
       float maxDistSq = currentRangeKm * currentRangeKm;
-      bool hit = false;
 
       for (int i = 0; i < count; i++) {
         float eLat, eLon;
@@ -547,10 +552,10 @@ static void tick_timer_cb(lv_timer_t* timer) {
           }
         }
       }
-
-      if (hit) {
-        Buzzer_Play(BEEP_SONAR_PING);
-      }
+    }
+    Async_UnlockAdsb();
+    if (hit) {
+      Buzzer_Play(BEEP_SONAR_PING);
     }
   }
 

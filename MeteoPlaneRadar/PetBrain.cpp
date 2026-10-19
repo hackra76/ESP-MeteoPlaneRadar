@@ -61,9 +61,13 @@ bool PetBrain_GetClosestPlaneTarget(float& bearingDeg, float& distKm, char* outC
   const double myLat = Settings_Lat();
   const double myLon = Settings_Lon();
 
+  Async_LockAdsb();
   const int count = ADSB_Count();
   const Aircraft* list = ADSB_List();
-  if (count <= 0 || !list) return false;
+  if (count <= 0 || !list) {
+    Async_UnlockAdsb();
+    return false;
+  }
 
   int closestIdx = -1;
   float minD = 99999.0f;
@@ -108,8 +112,10 @@ bool PetBrain_GetClosestPlaneTarget(float& bearingDeg, float& distKm, char* outC
         outType = PLANE_TYPE_SMALL;
       }
     }
+    Async_UnlockAdsb();
     return true;
   }
+  Async_UnlockAdsb();
   return false;
 }
 

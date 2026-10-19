@@ -343,8 +343,24 @@ void PetDrawer_Open() {
   PetBrain_RequestThought(false);
 }
 
+void PetDrawer_FreeBuffers() {
+  for (int i = 0; i < 2; i++) {
+    if (s_catBuf[i]) {
+      heap_caps_free(s_catBuf[i]);
+      s_catBuf[i] = nullptr;
+    }
+    if (s_planeBuf[i]) {
+      heap_caps_free(s_planeBuf[i]);
+      s_planeBuf[i] = nullptr;
+    }
+  }
+  s_cachedCatFrame = nullptr;
+  s_cachedPlaneArray = nullptr;
+}
+
 void PetDrawer_Close() {
   s_isOpen = false;
+  PetDrawer_FreeBuffers();
   lv_obj_t* baseScr = UI_GetScreenObj(UI_GetActiveScreen());
   if (baseScr) {
     lv_screen_load(baseScr);

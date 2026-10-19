@@ -84,19 +84,35 @@ const char* ADSB_EmergencyCode(const Aircraft& a) {
 }
 
 const Aircraft* ADSB_GetEmergencyAircraft() {
-  if (!s_list) return nullptr;
+  Async_LockAdsb();
+  if (!s_list) {
+    Async_UnlockAdsb();
+    return nullptr;
+  }
   for (int i = 0; i < s_count; i++) {
     if (s_list[i].onGround) continue;
-    if (ADSB_EmergencyCode(s_list[i])) return &s_list[i];
+    if (ADSB_EmergencyCode(s_list[i])) {
+      const Aircraft* res = &s_list[i];
+      Async_UnlockAdsb();
+      return res;
+    }
   }
+  Async_UnlockAdsb();
   return nullptr;
 }
 
 const Aircraft* ADSB_GetOverheadAircraft(float maxDistKm, float* outDistKm) {
-  if (!s_list || s_count <= 0) return nullptr;
+  Async_LockAdsb();
+  if (!s_list || s_count <= 0) {
+    Async_UnlockAdsb();
+    return nullptr;
+  }
   double homeLat = Settings_Lat();
   double homeLon = Settings_Lon();
-  if (homeLat == 0.0 && homeLon == 0.0) return nullptr;
+  if (homeLat == 0.0 && homeLon == 0.0) {
+    Async_UnlockAdsb();
+    return nullptr;
+  }
 
   const Aircraft* best = nullptr;
   float minD = maxDistKm;
@@ -116,14 +132,24 @@ const Aircraft* ADSB_GetOverheadAircraft(float maxDistKm, float* outDistKm) {
     }
   }
   if (best && outDistKm) *outDistKm = minD;
+  Async_UnlockAdsb();
   return best;
 }
 
 int ADSB_FindByHex(const char* hex) {
-  if (!hex || !hex[0] || !s_list) return -1;
-  for (int i = 0; i < s_count; i++) {
-    if (strcmp(s_list[i].hex, hex) == 0) return i;
+  if (!hex || !hex[0]) return -1;
+  Async_LockAdsb();
+  if (!s_list) {
+    Async_UnlockAdsb();
+    return -1;
   }
+  for (int i = 0; i < s_count; i++) {
+    if (strcmp(s_list[i].hex, hex) == 0) {
+      Async_UnlockAdsb();
+      return i;
+    }
+  }
+  Async_UnlockAdsb();
   return -1;   // no longer in the data
 }
 

@@ -14,8 +14,24 @@
 #include <string.h>
 #include <memory>
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+
 // Kept open across a burst of tile requests - see Net.h.
 static WiFiClientSecure* s_sess = nullptr;
+static SemaphoreHandle_t s_txtMtx = nullptr;
+
+static inline void lockTxt() {
+  if (!s_txtMtx) s_txtMtx = xSemaphoreCreateRecursiveMutex();
+  if (s_txtMtx) xSemaphoreTakeRecursive(s_txtMtx, pdMS_TO_TICKS(15000));
+}
+static inline void unlockTxt() {
+  if (s_txtMtx) xSemaphoreGiveRecursive(s_txtMtx);
+}
+struct TxtLockGuard {
+  TxtLockGuard()  { lockTxt(); }
+  ~TxtLockGuard() { unlockTxt(); }
+};
 
 static void (*s_poll)() = nullptr;
 void Net_SetPollFn(void (*fn)()) { s_poll = fn; }
@@ -48,7 +64,7 @@ static char*  s_txt    = nullptr;
 static size_t s_txtCap = 0;
 
 static bool txtReserve(size_t need) {
-  if (need <= s_txtCap) return true;
+  if (need <= s_txtCap && s_txt) return true;
   char* nb = (char*)heap_caps_malloc(need, MALLOC_CAP_SPIRAM);
   if (!nb) { Serial.println("NET: body does not fit into PSRAM"); return false; }
   if (s_txt) heap_caps_free(s_txt);
@@ -57,6 +73,7 @@ static bool txtReserve(size_t need) {
 }
 
 void Net_FreeBuffers() {
+  TxtLockGuard _lk;
   Net_SessionEnd();
   if (s_txt) {
     heap_caps_free(s_txt);
@@ -65,11 +82,15 @@ void Net_FreeBuffers() {
   }
 }
 
-bool Net_GetString(const char* url, String& out, const char* tag,
-                   const char* headerName, const char* headerVal,
-                   uint32_t connectTimeoutMs, uint32_t reqTimeoutMs) {
-  out = "";
+bool Net_GetCString(const char* url, const char** outPtr, const char* tag,
+                    const char* headerName, const char* headerVal,
+                    uint32_t connectTimeoutMs, uint32_t reqTimeoutMs,
+                    size_t* outLen) {
+  if (outPtr) *outPtr = nullptr;
+  if (outLen) *outLen = 0;
   if (WiFi.status() != WL_CONNECTED) return false;
+
+  TxtLockGuard _lk;
 
   // Plain http:// endpoints exist too - ip-api.com serves TLS to paying users
   // only - and they belong on the same path as everything else instead of
@@ -139,7 +160,21 @@ bool Net_GetString(const char* url, String& out, const char* tag,
     Serial.printf("%s: empty response\n", tag);
     return false;
   }
-  out = s_txt;
+  if (outPtr) *outPtr = s_txt;
+  if (outLen) *outLen = (size_t)len;
+  return true;
+}
+
+bool Net_GetString(const char* url, String& out, const char* tag,
+                   const char* headerName, const char* headerVal,
+                   uint32_t connectTimeoutMs, uint32_t reqTimeoutMs) {
+  out = "";
+  TxtLockGuard _lk;
+  const char* ptr = nullptr;
+  if (!Net_GetCString(url, &ptr, tag, headerName, headerVal, connectTimeoutMs, reqTimeoutMs, nullptr) || !ptr) {
+    return false;
+  }
+  out = ptr;
   return true;
 }
 
@@ -148,6 +183,8 @@ bool Net_PostJson(const char* url, const char* jsonPayload, String& out, const c
   out = "";
   if (WiFi.status() != WL_CONNECTED) return false;
   if (!jsonPayload) return false;
+
+  TxtLockGuard _lk;
 
   const bool tls = (strncmp(url, "http://", 7) != 0);
   if (tls && !Net_HeapOk(tag)) return false;

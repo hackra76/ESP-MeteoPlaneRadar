@@ -22,6 +22,13 @@ bool Net_GetString(const char* url, String& out, const char* tag,
                    const char* headerName = nullptr, const char* headerVal = nullptr,
                    uint32_t connectTimeoutMs = 8000, uint32_t reqTimeoutMs = 12000);
 
+// GET the URL into the internal PSRAM text buffer and return a pointer to it in `*outPtr`
+// without duplicating the payload into an internal-SRAM Arduino `String`.
+bool Net_GetCString(const char* url, const char** outPtr, const char* tag,
+                    const char* headerName = nullptr, const char* headerVal = nullptr,
+                    uint32_t connectTimeoutMs = 8000, uint32_t reqTimeoutMs = 12000,
+                    size_t* outLen = nullptr);
+
 // POST a JSON payload to the URL and put the whole response body in `out`.
 // Returns false on failure, error HTTP status, or empty body.
 bool Net_PostJson(const char* url, const char* jsonPayload, String& out, const char* tag, int* outStatusCode = nullptr);

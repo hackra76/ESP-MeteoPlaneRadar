@@ -21,6 +21,7 @@ void Async_Pause();
 void Async_Resume();
 bool Async_IsPaused();
 bool Async_IsNetBusy();
+bool Async_IsRadarBusy();
 
 // Set active screen and parameters so Core 0 knows what to poll
 void Async_SetActiveScreen(uint8_t screenIdx);

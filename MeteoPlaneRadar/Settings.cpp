@@ -4,6 +4,7 @@
 //
 // =============================================================================
 #include "Settings.h"
+#include "AsyncCore.h"
 #include "FlightStats.h"
 #include "Lang.h"
 #include "Display_ST7701.h"
@@ -141,6 +142,7 @@ static void markDirty() { s_uiDirty = true; s_uiDirtyAt = millis(); }
 static int s_batchDepth = 0;
 
 void Settings_BatchBegin() {
+  Async_LockSettings();
   if (s_batchDepth == 0) {
     prefs.begin(NS, false);
   }
@@ -154,47 +156,58 @@ void Settings_BatchEnd() {
       prefs.end();
     }
   }
+  Async_UnlockSettings();
 }
 
 static void putU8(const char* k, uint8_t v) {
+  Async_LockSettings();
   if (s_batchDepth > 0) {
     prefs.putUChar(k, v);
   } else if (prefs.begin(NS, false)) {
     prefs.putUChar(k, v);
     prefs.end();
   }
+  Async_UnlockSettings();
 }
 static void putI8(const char* k, int8_t v) {
+  Async_LockSettings();
   if (s_batchDepth > 0) {
     prefs.putChar(k, v);
   } else if (prefs.begin(NS, false)) {
     prefs.putChar(k, v);
     prefs.end();
   }
+  Async_UnlockSettings();
 }
 static void putU16(const char* k, uint16_t v) {
+  Async_LockSettings();
   if (s_batchDepth > 0) {
     prefs.putUShort(k, v);
   } else if (prefs.begin(NS, false)) {
     prefs.putUShort(k, v);
     prefs.end();
   }
+  Async_UnlockSettings();
 }
 static void putBool(const char* k, bool v) {
+  Async_LockSettings();
   if (s_batchDepth > 0) {
     prefs.putBool(k, v);
   } else if (prefs.begin(NS, false)) {
     prefs.putBool(k, v);
     prefs.end();
   }
+  Async_UnlockSettings();
 }
 static void putStr(const char* k, const char* v) {
+  Async_LockSettings();
   if (s_batchDepth > 0) {
     prefs.putString(k, v);
   } else if (prefs.begin(NS, false)) {
     prefs.putString(k, v);
     prefs.end();
   }
+  Async_UnlockSettings();
 }
 
 void Settings_Begin() {
@@ -498,6 +511,7 @@ void Settings_Begin() {
 
 // --- WiFi -------------------------------------------------------------------
 static void saveWifiNets() {
+  Async_LockSettings();
   if (prefs.begin(NS, false)) {
     for (int i = 0; i < MAX_WIFI_NETWORKS; i++) {
       char ks[8], kp[8];
@@ -526,6 +540,7 @@ static void saveWifiNets() {
     }
     prefs.end();
   }
+  Async_UnlockSettings();
 }
 
 const char* Settings_WifiSsid() {
@@ -654,6 +669,7 @@ double Settings_Lon() { return s_lon; }
 bool   Settings_HasLocation() { return s_hasLoc; }
 
 void Settings_SetLocation(double lat, double lon) {
+  Async_LockSettings();
   s_lat = lat; s_lon = lon; s_hasLoc = true;
   if (s_batchDepth > 0) {
     prefs.putDouble("lat", lat);
@@ -665,6 +681,7 @@ void Settings_SetLocation(double lat, double lon) {
     prefs.putBool("hasLoc", true);
     prefs.end();
   }
+  Async_UnlockSettings();
 }
 
 // --- Brightness -------------------------------------------------------------
@@ -707,6 +724,7 @@ void    Settings_SetLanguage(uint8_t l) {
 const char* Settings_Timezone() { return s_tz; }
 void Settings_SetTimezone(const char* tz) {
   if (!tz || !*tz) tz = TZ_INFO;
+  Async_LockSettings();
   strncpy(s_tz, tz, sizeof(s_tz) - 1);
   s_tz[sizeof(s_tz) - 1] = '\0';
   if (s_batchDepth > 0) {
@@ -716,6 +734,7 @@ void Settings_SetTimezone(const char* tz) {
     prefs.end();
   }
   Settings_ApplyTimezone();
+  Async_UnlockSettings();
 }
 
 void Settings_ApplyTimezone() {
@@ -793,6 +812,7 @@ void Settings_SetScreenOrder(const uint8_t* in, uint8_t count) {
     }
   }
 
+  Async_LockSettings();
   memcpy(s_scrOrder, newOrder, sizeof(s_scrOrder));
 
   if (s_batchDepth > 0) {
@@ -801,6 +821,7 @@ void Settings_SetScreenOrder(const uint8_t* in, uint8_t count) {
     prefs.putBytes("scrOrd", s_scrOrder, sizeof(s_scrOrder));
     prefs.end();
   }
+  Async_UnlockSettings();
 }
 
 uint8_t Settings_GetScreenAtOrder(uint8_t pos) {
@@ -1018,6 +1039,7 @@ float    Settings_OverheadRadiusKm() { return s_overheadRadiusKm; }
 void     Settings_SetOverheadRadiusKm(float r) {
   if (r < 1.0f) r = 1.0f;
   if (r > 50.0f) r = 50.0f;
+  Async_LockSettings();
   s_overheadRadiusKm = r;
   if (s_batchDepth > 0) {
     prefs.putFloat("ovRad", r);
@@ -1025,6 +1047,7 @@ void     Settings_SetOverheadRadiusKm(float r) {
     prefs.putFloat("ovRad", r);
     prefs.end();
   }
+  Async_UnlockSettings();
 }
 
 // --- Radar widget toggles ---
@@ -1451,6 +1474,7 @@ bool Settings_FromJson(JsonObjectConst in) {
 // --- Debounced flush --------------------------------------------------------
 void Settings_Commit() {
   if (!s_uiDirty) return;
+  Async_LockSettings();
   if (prefs.begin(NS, false)) {
     prefs.putUChar("rngP", s_rngP);
     prefs.putUChar("rngM", s_rngM);
@@ -1461,6 +1485,7 @@ void Settings_Commit() {
     prefs.end();
   }
   s_uiDirty = false;
+  Async_UnlockSettings();
 }
 
 void Settings_Tick() {
@@ -1470,6 +1495,7 @@ void Settings_Tick() {
 }
 
 void Settings_ClearAll() {
+  Async_LockSettings();
   if (prefs.begin(NS, false)) { prefs.clear(); prefs.end(); }
   s_lat = DEFAULT_LAT; s_lon = DEFAULT_LON; s_hasLoc = false;
   s_briDay = 80; s_briNight = 25; s_nightAuto = true; s_nightOff = 0; s_isNight = false;
@@ -1504,4 +1530,5 @@ void Settings_ClearAll() {
   memset(s_wifiNets, 0, sizeof(s_wifiNets));
   strncpy(s_hostname, WEB_HOSTNAME, sizeof(s_hostname) - 1);
   s_uiDirty = false;
+  Async_UnlockSettings();
 }

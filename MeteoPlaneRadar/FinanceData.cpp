@@ -152,8 +152,9 @@ static bool fetchOneItem(int idx) {
   char url[160];
   snprintf(url, sizeof(url), "https://query1.finance.yahoo.com/v8/finance/chart/%s?range=1d&interval=1h", symEnc);
 
-  String body;
-  if (!Net_GetString(url, body, "FINANCE")) {
+  const char* body = nullptr;
+  size_t bodyLen = 0;
+  if (!Net_GetCString(url, &body, "FINANCE", nullptr, nullptr, 8000, 12000, &bodyLen) || !body) {
     Serial.printf("FINANCE: Failed fetching %s\n", s_items[idx].symbol);
     return false;
   }
@@ -173,7 +174,7 @@ static bool fetchOneItem(int idx) {
   filter["chart"]["result"][0]["indicators"]["quote"][0]["close"] = true;
 
   JsonDocument doc(SpiRamAllocator::instance());
-  DeserializationError err = deserializeJson(doc, body, DeserializationOption::Filter(filter));
+  DeserializationError err = deserializeJson(doc, body, bodyLen, DeserializationOption::Filter(filter));
   if (err) {
     Serial.printf("FINANCE: JSON parse error for %s: %s\n", s_items[idx].symbol, err.c_str());
     return false;

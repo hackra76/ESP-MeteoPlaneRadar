@@ -26,6 +26,8 @@
 #include "ScreenClock.h"
 #include "ScreenSonar.h"
 #include "ScreenPlanes.h"
+#include "ScreenIss.h"
+#include "PetDrawer.h"
 #include "PlaneTrail.h"
 
 #include <WiFi.h>
@@ -119,7 +121,7 @@ static bool isNewerVersion(const char* latest, const char* current) {
 
   if (latMaj > curMaj) return true;
   if (latMaj == curMaj && latMin > curMin) return true;
-  if (latMaj == curMaj && latMin == curMin && latPat >= curPat) return true;
+  if (latMaj == curMaj && latMin == curMin && latPat > curPat) return true;
   return false;
 }
 
@@ -293,6 +295,8 @@ void GithubOTA_FreeAllBuffers() {
   ScreenClock_FreeBuffers();
   ScreenSonar_FreeBuffers();
   ScreenPlanes_FreeBuffers();
+  ScreenIss_FreeBuffers();
+  PetDrawer_FreeBuffers();
   PlaneTrail_FreeBuffers();
   UI_FreePhotoBuffer();
   RainViewer_FreeBuffers();

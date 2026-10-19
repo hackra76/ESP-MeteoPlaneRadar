@@ -23,13 +23,41 @@ static lv_timer_t* s_timer = nullptr;
 #include <WiFi.h>
 #include <math.h>
 
+#include <esp_heap_caps.h>
+
 #define MAP_X 80
 #define MAP_Y 138
 #define MAP_W 320
 #define MAP_H 160
+#define GLOBE_R 136
+#define GLOBE_DIAM (2 * GLOBE_R + 1) // 273
+#define ISS_BUF_PIXELS (MAP_W * GLOBE_DIAM) // 320 * 273 = 87,360 pixels (~174.7 KB)
 
 static unsigned long s_lastDrawTick = 0;
 static unsigned long s_lastTapTime = 0;
+
+static uint16_t* s_issMapBuf = nullptr;
+static int   s_cacheMode = -1;
+static float s_cacheCLat = -999.0f;
+static float s_cacheCLon = -999.0f;
+static float s_cacheSolLat = -999.0f;
+static float s_cacheSolLon = -999.0f;
+
+void ScreenIss_FreeBuffers() {
+  if (s_issMapBuf) {
+    heap_caps_free(s_issMapBuf);
+    s_issMapBuf = nullptr;
+  }
+  s_cacheMode = -1;
+}
+
+static bool ensureIssMapBuf() {
+  if (!s_issMapBuf) {
+    s_issMapBuf = (uint16_t*)heap_caps_malloc(ISS_BUF_PIXELS * sizeof(uint16_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    s_cacheMode = -1;
+  }
+  return s_issMapBuf != nullptr;
+}
 
 static inline bool getMapBit(int x, int y) {
   if (x < 0 || x >= WORLD_MAP_W || y < 0 || y >= WORLD_MAP_H) return false;
@@ -52,58 +80,67 @@ static void drawWorldMap(const IssData& iss) {
   gfx->fillRoundRect(MAP_X - 4, MAP_Y - 4, MAP_W + 8, MAP_H + 8, 8, RGB565(8, 16, 28));
   gfx->drawRoundRect(MAP_X - 4, MAP_Y - 4, MAP_W + 8, MAP_H + 8, 8, RGB565(35, 65, 95));
 
-  // Solar sub-point for Day/Night terminator shading
-  float solLatRad = iss.solarLat * (float)M_PI / 180.0f;
-  float solLonRad = iss.solarLon * (float)M_PI / 180.0f;
-  float sinSolLat = sinf(solLatRad);
-  float cosSolLat = cosf(solLatRad);
+  if (ensureIssMapBuf()) {
+    bool cacheHit = (s_cacheMode == 0 &&
+                     fabsf(iss.solarLat - s_cacheSolLat) < 0.1f &&
+                     fabsf(iss.solarLon - s_cacheSolLon) < 0.1f);
+    if (!cacheHit) {
+      // Solar sub-point for Day/Night terminator shading
+      float solLatRad = iss.solarLat * (float)M_PI / 180.0f;
+      float solLonRad = iss.solarLon * (float)M_PI / 180.0f;
+      float sinSolLat = sinf(solLatRad);
+      float cosSolLat = cosf(solLatRad);
 
-  uint16_t lineBuf[MAP_W];
+      for (int y = 0; y < MAP_H; y++) {
+        float latDeg = 90.0f - (float)y / (float)(MAP_H - 1) * 180.0f;
+        float latRad = latDeg * (float)M_PI / 180.0f;
+        float sinLat = sinf(latRad);
+        float cosLat = cosf(latRad);
+        int srcY = (y * (WORLD_MAP_H - 1)) / (MAP_H - 1);
+        uint16_t* rowBuf = s_issMapBuf + (size_t)y * MAP_W;
 
-  for (int y = 0; y < MAP_H; y++) {
-    float latDeg = 90.0f - (float)y / (float)(MAP_H - 1) * 180.0f;
-    float latRad = latDeg * (float)M_PI / 180.0f;
-    float sinLat = sinf(latRad);
-    float cosLat = cosf(latRad);
-    int srcY = (y * (WORLD_MAP_H - 1)) / (MAP_H - 1);
+        for (int x = 0; x < MAP_W; x++) {
+          float lonDeg = (float)x / (float)(MAP_W - 1) * 360.0f - 180.0f;
+          float lonRad = lonDeg * (float)M_PI / 180.0f;
 
-    for (int x = 0; x < MAP_W; x++) {
-      float lonDeg = (float)x / (float)(MAP_W - 1) * 360.0f - 180.0f;
-      float lonRad = lonDeg * (float)M_PI / 180.0f;
+          float cosZenith = sinLat * sinSolLat + cosLat * cosSolLat * cosf(lonRad - solLonRad);
+          bool isDay = (cosZenith > 0.0f);
 
-      float cosZenith = sinLat * sinSolLat + cosLat * cosSolLat * cosf(lonRad - solLonRad);
-      bool isDay = (cosZenith > 0.0f);
+          int srcX = (x * (WORLD_MAP_W - 1)) / (MAP_W - 1);
+          bool isLand = getMapBit(srcX, srcY);
 
-      int srcX = (x * (WORLD_MAP_W - 1)) / (MAP_W - 1);
-      bool isLand = getMapBit(srcX, srcY);
+          if (isLand) {
+            bool isCoast = (!getMapBit(srcX - 1, srcY) || !getMapBit(srcX + 1, srcY) ||
+                            !getMapBit(srcX, srcY - 1) || !getMapBit(srcX, srcY + 1));
+            if (isCoast) {
+              rowBuf[x] = isDay ? RGB565(56, 189, 248) : RGB565(26, 95, 130);
+            } else {
+              rowBuf[x] = isDay ? RGB565(24, 52, 68) : RGB565(13, 26, 36);
+            }
+          } else {
+            rowBuf[x] = isDay ? RGB565(10, 22, 38) : RGB565(4, 10, 18);
+          }
 
-      if (isLand) {
-        bool isCoast = (!getMapBit(srcX - 1, srcY) || !getMapBit(srcX + 1, srcY) ||
-                        !getMapBit(srcX, srcY - 1) || !getMapBit(srcX, srcY + 1));
-        if (isCoast) {
-          lineBuf[x] = isDay ? RGB565(56, 189, 248) : RGB565(26, 95, 130);
-        } else {
-          lineBuf[x] = isDay ? RGB565(24, 52, 68) : RGB565(13, 26, 36);
+          // Subtle dotted grid lines
+          bool isEq = (y == (MAP_H / 2));
+          bool isLatGrid = (y == (MAP_H / 4) || y == (3 * MAP_H / 4));
+          bool isLonGrid = (x == (MAP_W / 6) || x == (2 * MAP_W / 6) || x == (3 * MAP_W / 6) ||
+                            x == (4 * MAP_W / 6) || x == (5 * MAP_W / 6));
+
+          if (isEq) {
+            if ((x & 3) == 0) rowBuf[x] = RGB565(35, 65, 95);
+          } else if (isLatGrid && (x & 7) == 0) {
+            rowBuf[x] = RGB565(22, 40, 60);
+          } else if (isLonGrid && (y & 7) == 0) {
+            rowBuf[x] = RGB565(22, 40, 60);
+          }
         }
-      } else {
-        lineBuf[x] = isDay ? RGB565(10, 22, 38) : RGB565(4, 10, 18);
       }
-
-      // Subtle dotted grid lines
-      bool isEq = (y == (MAP_H / 2));
-      bool isLatGrid = (y == (MAP_H / 4) || y == (3 * MAP_H / 4));
-      bool isLonGrid = (x == (MAP_W / 6) || x == (2 * MAP_W / 6) || x == (3 * MAP_W / 6) ||
-                        x == (4 * MAP_W / 6) || x == (5 * MAP_W / 6));
-
-      if (isEq) {
-        if ((x & 3) == 0) lineBuf[x] = RGB565(35, 65, 95);
-      } else if (isLatGrid && (x & 7) == 0) {
-        lineBuf[x] = RGB565(22, 40, 60);
-      } else if (isLonGrid && (y & 7) == 0) {
-        lineBuf[x] = RGB565(22, 40, 60);
-      }
+      s_cacheMode = 0;
+      s_cacheSolLat = iss.solarLat;
+      s_cacheSolLon = iss.solarLon;
     }
-    gfx->draw16bitRGBBitmap(MAP_X, MAP_Y + y, lineBuf, MAP_W, 1);
+    gfx->draw16bitRGBBitmap(MAP_X, MAP_Y, s_issMapBuf, MAP_W, MAP_H);
   }
 
   // Draw ISS orbit ground track (past 45 min to next 45 min)
@@ -200,88 +237,106 @@ static void draw3DGlobe(const IssData& iss, bool centerHome) {
 
   const int X0 = 240;
   const int Y0 = 216;
-  const int R  = 136;
+  const int R  = GLOBE_R;
   const float invR = 1.0f / (float)R;
 
-  // Render Earth sphere line by line
-  uint16_t lineBuf[310];
-
-  for (int dy = -R; dy <= R; dy++) {
-    int sy = Y0 + dy;
-    float ny = -(float)dy * invR; // +ny = North
-    float r2_max = 1.0f - ny * ny;
-    if (r2_max <= 0.0f) continue;
-
-    float maxNx = sqrtf(r2_max);
-    int maxDx = (int)(maxNx * (float)R);
-    if (maxDx > 140) maxDx = 140;
-    int lineW = 2 * maxDx + 1;
-
-    for (int dx = -maxDx; dx <= maxDx; dx++) {
-      float nx = (float)dx * invR;
-      float nz2 = r2_max - nx * nx;
-      if (nz2 < 0.0f) {
-        lineBuf[dx + maxDx] = C_BLACK;
-        continue;
-      }
-      float nz = sqrtf(nz2);
-
-      // Reconstruct surface point P
-      float Px = nx * V_right.x + ny * V_up.x + nz * V_center.x;
-      float Py = nx * V_right.y + ny * V_up.y + nz * V_center.y;
-      float Pz = nx * V_right.z + ny * V_up.z + nz * V_center.z;
-
-      // Latitude and Longitude
-      float lat = asinf(fmaxf(-1.0f, fminf(1.0f, Pz))) * 57.2957795f;
-      float lon = atan2f(Py, Px) * 57.2957795f;
-
-      // Sample bitmap
-      int srcX = (int)((lon + 180.0f) * (float)(WORLD_MAP_W - 1) / 360.0f);
-      if (srcX < 0) srcX = 0; else if (srcX >= WORLD_MAP_W) srcX = WORLD_MAP_W - 1;
-      int srcY = (int)((90.0f - lat) * (float)(WORLD_MAP_H - 1) / 180.0f);
-      if (srcY < 0) srcY = 0; else if (srcY >= WORLD_MAP_H) srcY = WORLD_MAP_H - 1;
-
-      bool isLand = getMapBit(srcX, srcY);
-
-      // Solar angle: cos(zenith) = P . S
-      float cosZenith = Px * S.x + Py * S.y + Pz * S.z;
-      bool isDay = (cosZenith > 0.0f);
-      float dayFactor = fmaxf(0.0f, fminf(1.0f, cosZenith * 3.5f + 0.35f));
-
-      // Rayleigh atmospheric limb
-      float limb = (1.0f - nz); // 0 at center, 1 at horizon edge
-
-      uint16_t col;
-      if (isLand) {
-        bool isCoast = (!getMapBit(srcX - 1, srcY) || !getMapBit(srcX + 1, srcY) ||
-                        !getMapBit(srcX, srcY - 1) || !getMapBit(srcX, srcY + 1));
-        if (isCoast) {
-          col = isDay ? RGB565(60, 200, 255) : RGB565(20, 80, 115);
-        } else {
-          uint8_t r = (uint8_t)(10 + 26 * dayFactor);
-          uint8_t g = (uint8_t)(22 + 65 * dayFactor);
-          uint8_t b = (uint8_t)(28 + 42 * dayFactor);
-          col = RGB565(r, g, b);
+  if (ensureIssMapBuf()) {
+    int wantMode = centerHome ? 2 : 1;
+    bool cacheHit = (s_cacheMode == wantMode &&
+                     fabsf(cLat - s_cacheCLat) < 0.05f &&
+                     fabsf(cLon - s_cacheCLon) < 0.05f &&
+                     fabsf(iss.solarLat - s_cacheSolLat) < 0.1f &&
+                     fabsf(iss.solarLon - s_cacheSolLon) < 0.1f);
+    if (!cacheHit) {
+      for (int dy = -R; dy <= R; dy++) {
+        uint16_t* rowBuf = s_issMapBuf + (size_t)(dy + R) * GLOBE_DIAM;
+        float ny = -(float)dy * invR; // +ny = North
+        float r2_max = 1.0f - ny * ny;
+        if (r2_max <= 0.0f) {
+          memset(rowBuf, 0, GLOBE_DIAM * sizeof(uint16_t));
+          continue;
         }
-      } else {
-        uint8_t r = (uint8_t)(4 + 14 * dayFactor);
-        uint8_t g = (uint8_t)(10 + 32 * dayFactor);
-        uint8_t b = (uint8_t)(20 + 70 * dayFactor);
-        if (limb > 0.5f) {
-          float lg = (limb - 0.5f) * 2.0f;
-          g = (uint8_t)fminf(255.0f, g + 40.0f * lg);
-          b = (uint8_t)fminf(255.0f, b + 80.0f * lg);
+
+        float maxNx = sqrtf(r2_max);
+        int maxDx = (int)(maxNx * (float)R);
+        if (maxDx > R) maxDx = R;
+        int xStart = R - maxDx;
+        int xEnd   = R + maxDx;
+        if (xStart > 0) memset(rowBuf, 0, xStart * sizeof(uint16_t));
+        if (xEnd < GLOBE_DIAM - 1) memset(rowBuf + xEnd + 1, 0, (GLOBE_DIAM - 1 - xEnd) * sizeof(uint16_t));
+
+        for (int dx = -maxDx; dx <= maxDx; dx++) {
+          float nx = (float)dx * invR;
+          float nz2 = r2_max - nx * nx;
+          if (nz2 < 0.0f) {
+            rowBuf[dx + R] = C_BLACK;
+            continue;
+          }
+          float nz = sqrtf(nz2);
+
+          // Reconstruct surface point P
+          float Px = nx * V_right.x + ny * V_up.x + nz * V_center.x;
+          float Py = nx * V_right.y + ny * V_up.y + nz * V_center.y;
+          float Pz = nx * V_right.z + ny * V_up.z + nz * V_center.z;
+
+          // Latitude and Longitude
+          float lat = asinf(fmaxf(-1.0f, fminf(1.0f, Pz))) * 57.2957795f;
+          float lon = atan2f(Py, Px) * 57.2957795f;
+
+          // Sample bitmap
+          int srcX = (int)((lon + 180.0f) * (float)(WORLD_MAP_W - 1) / 360.0f);
+          if (srcX < 0) srcX = 0; else if (srcX >= WORLD_MAP_W) srcX = WORLD_MAP_W - 1;
+          int srcY = (int)((90.0f - lat) * (float)(WORLD_MAP_H - 1) / 180.0f);
+          if (srcY < 0) srcY = 0; else if (srcY >= WORLD_MAP_H) srcY = WORLD_MAP_H - 1;
+
+          bool isLand = getMapBit(srcX, srcY);
+
+          // Solar angle: cos(zenith) = P . S
+          float cosZenith = Px * S.x + Py * S.y + Pz * S.z;
+          bool isDay = (cosZenith > 0.0f);
+          float dayFactor = fmaxf(0.0f, fminf(1.0f, cosZenith * 3.5f + 0.35f));
+
+          // Rayleigh atmospheric limb
+          float limb = (1.0f - nz); // 0 at center, 1 at horizon edge
+
+          uint16_t col;
+          if (isLand) {
+            bool isCoast = (!getMapBit(srcX - 1, srcY) || !getMapBit(srcX + 1, srcY) ||
+                            !getMapBit(srcX, srcY - 1) || !getMapBit(srcX, srcY + 1));
+            if (isCoast) {
+              col = isDay ? RGB565(60, 200, 255) : RGB565(20, 80, 115);
+            } else {
+              uint8_t r = (uint8_t)(10 + 26 * dayFactor);
+              uint8_t g = (uint8_t)(22 + 65 * dayFactor);
+              uint8_t b = (uint8_t)(28 + 42 * dayFactor);
+              col = RGB565(r, g, b);
+            }
+          } else {
+            uint8_t r = (uint8_t)(4 + 14 * dayFactor);
+            uint8_t g = (uint8_t)(10 + 32 * dayFactor);
+            uint8_t b = (uint8_t)(20 + 70 * dayFactor);
+            if (limb > 0.5f) {
+              float lg = (limb - 0.5f) * 2.0f;
+              g = (uint8_t)fminf(255.0f, g + 40.0f * lg);
+              b = (uint8_t)fminf(255.0f, b + 80.0f * lg);
+            }
+            col = RGB565(r, g, b);
+          }
+
+          // Graticule: Equator and 30 deg parallels
+          if (fabsf(lat) < 1.4f && (dx & 3) == 0) col = RGB565(45, 90, 130);
+          else if ((fabsf(lat - 30.0f) < 1.0f || fabsf(lat + 30.0f) < 1.0f) && (dx & 7) == 0) col = RGB565(30, 60, 90);
+
+          rowBuf[dx + R] = col;
         }
-        col = RGB565(r, g, b);
       }
-
-      // Graticule: Equator and 30 deg parallels
-      if (fabsf(lat) < 1.4f && (dx & 3) == 0) col = RGB565(45, 90, 130);
-      else if ((fabsf(lat - 30.0f) < 1.0f || fabsf(lat + 30.0f) < 1.0f) && (dx & 7) == 0) col = RGB565(30, 60, 90);
-
-      lineBuf[dx + maxDx] = col;
+      s_cacheMode = wantMode;
+      s_cacheCLat = cLat;
+      s_cacheCLon = cLon;
+      s_cacheSolLat = iss.solarLat;
+      s_cacheSolLon = iss.solarLon;
     }
-    gfx->draw16bitRGBBitmap(X0 - maxDx, sy, lineBuf, lineW, 1);
+    gfx->draw16bitRGBBitmap(X0 - R, Y0 - R, s_issMapBuf, GLOBE_DIAM, GLOBE_DIAM);
   }
 
   // Multi-layer atmospheric limb glow rings

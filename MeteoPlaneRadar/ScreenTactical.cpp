@@ -365,8 +365,6 @@ static void buildTacticalComposite() {
     if (y0 >= ch) y0 = ch - 1;
     int y1 = (y0 < ch - 1) ? y0 + 1 : y0;
     int qy = fy & 0xFF;
-    int wy0 = 256 - qy;
-    int wy1 = qy;
 
     const uint16_t* r0 = s_crop565 + (int64_t)y0 * cw;
     const uint16_t* r1 = s_crop565 + (int64_t)y1 * cw;
@@ -413,22 +411,24 @@ static void blitRainViewer(const uint16_t* fb) {
     if (!s_dimBuf) return;
   }
   const long R2 = (long)DISP_R * DISP_R;
-  memset(s_dimBuf, 0, (size_t)LCD_WIDTH * LCD_HEIGHT * sizeof(uint16_t));
   for (int dy = 0; dy < LCD_HEIGHT; dy++) {
     long ddy = dy - R_CY;
+    uint16_t* dst = s_dimBuf + dy * LCD_WIDTH;
     long room = R2 - ddy * ddy;
-    if (room <= 0) continue;
+    if (room <= 0) {
+      memset(dst, 0, LCD_WIDTH * sizeof(uint16_t));
+      continue;
+    }
     int half = (int)sqrtf((float)room);
     int x0 = R_CX - half, x1 = R_CX + half;
     if (x0 < 0) x0 = 0;
     if (x1 >= LCD_WIDTH) x1 = LCD_WIDTH - 1;
+    if (x0 > 0) memset(dst, 0, x0 * sizeof(uint16_t));
+    if (x1 < LCD_WIDTH - 1) memset(dst + x1 + 1, 0, (LCD_WIDTH - 1 - x1) * sizeof(uint16_t));
     const uint16_t* src = fb + (int32_t)dy * LCD_WIDTH;
-    uint16_t* dst = s_dimBuf + dy * LCD_WIDTH;
     for (int dx = x0; dx <= x1; dx++) {
       uint16_t c = src[dx];
-      if (c != 0x0000) {
-        dst[dx] = dimRadarPixel(c);
-      }
+      dst[dx] = (c != 0x0000) ? dimRadarPixel(c) : 0x0000;
     }
   }
   gfx->draw16bitRGBBitmap(0, 0, s_dimBuf, LCD_WIDTH, LCD_HEIGHT);

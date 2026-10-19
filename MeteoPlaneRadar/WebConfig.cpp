@@ -882,16 +882,7 @@ static void otaFreeRam() {
 }
 
 static void otaClearPsramCaches() {
-  RainViewer_FreeBuffers();
-  CHMU_FreeBuffers();
-  SHMU_FreeBuffers();
-  ScreenWeather_FreeBuffers();
-  ScreenTactical_FreeBuffers();
-  PlanePhoto_ClearCache();
-  Route_ClearQueue();
-  Serial.printf("OTA: Cleared PSRAM caches. Free PSRAM: %u B, Largest Block: %u B\n",
-                (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
-                (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
+  GithubOTA_FreeAllBuffers();
 }
 
 static void otaStart() {

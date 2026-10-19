@@ -79,8 +79,9 @@ static bool fetchForecast() {
     FORECAST_URL, Settings_Lat(), Settings_Lon(),
     FORECAST_HOURS, FORECAST_DAYS + 1);
 
-  String body;
-  if (!Net_GetString(url, body, "FORECAST")) {
+  const char* body = nullptr;
+  size_t bodyLen = 0;
+  if (!Net_GetCString(url, &body, "FORECAST", nullptr, nullptr, 8000, 12000, &bodyLen) || !body) {
     Status_Set(ST_FORECAST, "fetch error");
     return false;
   }
@@ -103,9 +104,8 @@ static bool fetchForecast() {
   fd["sunrise"] = true; fd["sunset"] = true;
 
   JsonDocument doc(SpiRamAllocator::instance());
-  DeserializationError err = deserializeJson(doc, body,
+  DeserializationError err = deserializeJson(doc, body, bodyLen,
                                              DeserializationOption::Filter(filter));
-  body = String();                 // free the payload before touching anything else
   if (err) { Serial.printf("FORECAST: JSON %s\n", err.c_str()); return false; }
 
   // --- current ---
@@ -185,8 +185,9 @@ static bool fetchAirQuality() {
     "&timeformat=unixtime&timezone=UTC",
     AIRQUALITY_URL, Settings_Lat(), Settings_Lon());
 
-  String body;
-  if (!Net_GetString(url, body, "AIR_QUALITY")) return false;
+  const char* body = nullptr;
+  size_t bodyLen = 0;
+  if (!Net_GetCString(url, &body, "AIR_QUALITY", nullptr, nullptr, 8000, 12000, &bodyLen) || !body) return false;
 
   JsonDocument filter;
   JsonObject fc = filter["current"].to<JsonObject>();
@@ -194,9 +195,8 @@ static bool fetchAirQuality() {
   fc["alder_pollen"] = true; fc["birch_pollen"] = true; fc["grass_pollen"] = true;
 
   JsonDocument doc(SpiRamAllocator::instance());
-  DeserializationError err = deserializeJson(doc, body,
+  DeserializationError err = deserializeJson(doc, body, bodyLen,
                                              DeserializationOption::Filter(filter));
-  body = String();
   if (err) { Serial.printf("AIR_QUALITY: JSON %s\n", err.c_str()); return false; }
 
   JsonObjectConst cur = doc["current"];

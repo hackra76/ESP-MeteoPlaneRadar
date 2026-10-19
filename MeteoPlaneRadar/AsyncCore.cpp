@@ -48,7 +48,9 @@ static SemaphoreHandle_t s_mtxRoute    = NULL;
 static TaskHandle_t s_netTaskHandle = NULL;
 static volatile bool s_paused = false;
 static volatile bool s_core0NetBusy = false;
-bool Async_IsNetBusy() { return s_core0NetBusy; }
+static volatile bool s_radarBusy = false;
+bool Async_IsNetBusy()   { return s_core0NetBusy; }
+bool Async_IsRadarBusy() { return s_radarBusy; }
 
 // Flags for Core 1 (UI)
 static volatile bool s_adsbUpdated = false;
@@ -74,30 +76,30 @@ static volatile bool s_reqYouTube = false;
 static volatile bool s_reqKlipper = false;
 static volatile bool s_reqPetThought = false;
 
-// Mutex Helpers
-void Async_LockSettings()  { if (s_mtxSettings) xSemaphoreTake(s_mtxSettings, pdMS_TO_TICKS(200)); }
-void Async_UnlockSettings(){ if (s_mtxSettings) xSemaphoreGive(s_mtxSettings); }
+// Mutex Helpers (Recursive mutexes prevent same-core self-deadlock)
+void Async_LockSettings()  { if (s_mtxSettings) xSemaphoreTakeRecursive(s_mtxSettings, pdMS_TO_TICKS(1000)); }
+void Async_UnlockSettings(){ if (s_mtxSettings) xSemaphoreGiveRecursive(s_mtxSettings); }
 
-void Async_LockAdsb()      { if (s_mtxAdsb)     { if (xSemaphoreTake(s_mtxAdsb,     pdMS_TO_TICKS(300)) != pdTRUE) Serial.println("AsyncCore: ADSB mutex timeout!"); } }
-void Async_UnlockAdsb()    { if (s_mtxAdsb)     xSemaphoreGive(s_mtxAdsb); }
+void Async_LockAdsb()      { if (s_mtxAdsb)     xSemaphoreTakeRecursive(s_mtxAdsb,     pdMS_TO_TICKS(1000)); }
+void Async_UnlockAdsb()    { if (s_mtxAdsb)     xSemaphoreGiveRecursive(s_mtxAdsb); }
 
-void Async_LockRadar()     { if (s_mtxRadar)    { if (xSemaphoreTake(s_mtxRadar,    pdMS_TO_TICKS(300)) != pdTRUE) Serial.println("AsyncCore: Radar mutex timeout!"); } }
-void Async_UnlockRadar()   { if (s_mtxRadar)    xSemaphoreGive(s_mtxRadar); }
+void Async_LockRadar()     { if (s_mtxRadar)    xSemaphoreTakeRecursive(s_mtxRadar,    pdMS_TO_TICKS(1000)); }
+void Async_UnlockRadar()   { if (s_mtxRadar)    xSemaphoreGiveRecursive(s_mtxRadar); }
 
-void Async_LockForecast()  { if (s_mtxForecast) { if (xSemaphoreTake(s_mtxForecast, pdMS_TO_TICKS(300)) != pdTRUE) Serial.println("AsyncCore: Forecast mutex timeout!"); } }
-void Async_UnlockForecast(){ if (s_mtxForecast) xSemaphoreGive(s_mtxForecast); }
+void Async_LockForecast()  { if (s_mtxForecast) xSemaphoreTakeRecursive(s_mtxForecast, pdMS_TO_TICKS(1000)); }
+void Async_UnlockForecast(){ if (s_mtxForecast) xSemaphoreGiveRecursive(s_mtxForecast); }
 
-void Async_LockFinance()   { if (s_mtxFinance)  { if (xSemaphoreTake(s_mtxFinance,  pdMS_TO_TICKS(300)) != pdTRUE) Serial.println("AsyncCore: Finance mutex timeout!"); } }
-void Async_UnlockFinance() { if (s_mtxFinance)  xSemaphoreGive(s_mtxFinance); }
+void Async_LockFinance()   { if (s_mtxFinance)  xSemaphoreTakeRecursive(s_mtxFinance,  pdMS_TO_TICKS(1000)); }
+void Async_UnlockFinance() { if (s_mtxFinance)  xSemaphoreGiveRecursive(s_mtxFinance); }
 
-void Async_LockIss()       { if (s_mtxIss)      { if (xSemaphoreTake(s_mtxIss,      pdMS_TO_TICKS(300)) != pdTRUE) Serial.println("AsyncCore: ISS mutex timeout!"); } }
-void Async_UnlockIss()     { if (s_mtxIss)      xSemaphoreGive(s_mtxIss); }
+void Async_LockIss()       { if (s_mtxIss)      xSemaphoreTakeRecursive(s_mtxIss,      pdMS_TO_TICKS(1000)); }
+void Async_UnlockIss()     { if (s_mtxIss)      xSemaphoreGiveRecursive(s_mtxIss); }
 
-void Async_LockKlipper()   { if (s_mtxKlipper)  { if (xSemaphoreTake(s_mtxKlipper,  pdMS_TO_TICKS(300)) != pdTRUE) Serial.println("AsyncCore: Klipper mutex timeout!"); } }
-void Async_UnlockKlipper() { if (s_mtxKlipper)  xSemaphoreGive(s_mtxKlipper); }
+void Async_LockKlipper()   { if (s_mtxKlipper)  xSemaphoreTakeRecursive(s_mtxKlipper,  pdMS_TO_TICKS(1000)); }
+void Async_UnlockKlipper() { if (s_mtxKlipper)  xSemaphoreGiveRecursive(s_mtxKlipper); }
 
-void Async_LockRoute()     { if (s_mtxRoute)    { if (xSemaphoreTake(s_mtxRoute,    pdMS_TO_TICKS(300)) != pdTRUE) Serial.println("AsyncCore: Route mutex timeout!"); } }
-void Async_UnlockRoute()   { if (s_mtxRoute)    xSemaphoreGive(s_mtxRoute); }
+void Async_LockRoute()     { if (s_mtxRoute)    xSemaphoreTakeRecursive(s_mtxRoute,    pdMS_TO_TICKS(1000)); }
+void Async_UnlockRoute()   { if (s_mtxRoute)    xSemaphoreGiveRecursive(s_mtxRoute); }
 
 static SemaphoreHandle_t s_mtxI2c = NULL;
 void Async_LockI2C()       { if (s_mtxI2c) xSemaphoreTakeRecursive(s_mtxI2c, pdMS_TO_TICKS(150)); }
@@ -347,20 +349,23 @@ static void asyncWorkerTask(void* param) {
             s_routeUpdated = true;
           }
         }
-        // 2c. Tactical Radar Fetch for CHMU / SHMU (when on Tactical screen and not RainViewer)
-        else if ((curScr == SCREEN_TACTICAL_I) && (Settings_RadarSource() != RADAR_SRC_RAINVIEWER)) {
+        // 2c. Weather & Tactical Radar Fetch for CHMU / SHMU on Core 0 (when on Weather or Tactical screen and not RainViewer)
+        else if ((curScr == SCREEN_TACTICAL_I || curScr == SCREEN_METEO_I) && (Settings_RadarSource() != RADAR_SRC_RAINVIEWER)) {
           static int s_radarFails = 0;
           unsigned long radarPeriod = TACTICAL_RADAR_PERIOD_MS;
           if (s_radarFails > 0) {
             int shift = s_radarFails > 3 ? 3 : s_radarFails;
             radarPeriod <<= shift;
           }
-          if (s_reqRadar || (now - lastRadarFetch >= radarPeriod)) {
+          if (s_reqRadar || (curScr == SCREEN_TACTICAL_I && (now - lastRadarFetch >= radarPeriod))) {
             s_reqRadar = false;
             lastRadarFetch = now;
-            int n = (Settings_RadarSource() == RADAR_SRC_SHMU) ? SHMU_FetchAnim(1) : CHMU_FetchAnim(1);
+            s_radarBusy = true;
+            int wantFrames = (curScr == SCREEN_METEO_I) ? CHMU_ANIM_MAX : 1;
+            int n = (Settings_RadarSource() == RADAR_SRC_SHMU) ? SHMU_FetchAnim(wantFrames) : CHMU_FetchAnim(wantFrames);
+            s_radarBusy = false;
+            s_radarUpdated = true;
             if (n > 0) {
-              s_radarUpdated = true;
               s_radarFails = 0;
             } else {
               s_radarFails++;
@@ -469,14 +474,14 @@ static void asyncWorkerTask(void* param) {
 }
 
 void Async_Begin() {
-  if (!s_mtxSettings) s_mtxSettings = xSemaphoreCreateMutex();
-  if (!s_mtxAdsb)     s_mtxAdsb     = xSemaphoreCreateMutex();
-  if (!s_mtxRadar)    s_mtxRadar    = xSemaphoreCreateMutex();
-  if (!s_mtxForecast) s_mtxForecast = xSemaphoreCreateMutex();
-  if (!s_mtxFinance)  s_mtxFinance  = xSemaphoreCreateMutex();
-  if (!s_mtxIss)      s_mtxIss      = xSemaphoreCreateMutex();
-  if (!s_mtxKlipper)  s_mtxKlipper  = xSemaphoreCreateMutex();
-  if (!s_mtxRoute)    s_mtxRoute    = xSemaphoreCreateMutex();
+  if (!s_mtxSettings) s_mtxSettings = xSemaphoreCreateRecursiveMutex();
+  if (!s_mtxAdsb)     s_mtxAdsb     = xSemaphoreCreateRecursiveMutex();
+  if (!s_mtxRadar)    s_mtxRadar    = xSemaphoreCreateRecursiveMutex();
+  if (!s_mtxForecast) s_mtxForecast = xSemaphoreCreateRecursiveMutex();
+  if (!s_mtxFinance)  s_mtxFinance  = xSemaphoreCreateRecursiveMutex();
+  if (!s_mtxIss)      s_mtxIss      = xSemaphoreCreateRecursiveMutex();
+  if (!s_mtxKlipper)  s_mtxKlipper  = xSemaphoreCreateRecursiveMutex();
+  if (!s_mtxRoute)    s_mtxRoute    = xSemaphoreCreateRecursiveMutex();
   if (!s_mtxI2c)      s_mtxI2c      = xSemaphoreCreateRecursiveMutex();
 
   MapTiles_Init();

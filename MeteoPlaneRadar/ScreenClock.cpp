@@ -1074,12 +1074,14 @@ static void drawComplicationSparkline(int cx, int cy, int r, bool isTop) {
         int curX = (int)roundf(cx_pt);
         int curY = (int)roundf(cy_pt);
 
-        // Vertical gradient fill under curve
-        for (int fy = curY + 1; fy <= spY + spH + 2; fy++) {
-          float frac = (float)(fy - curY) / (float)(spH + 4);
-          if (frac > 1.0f) frac = 1.0f;
-          uint16_t c = blendColor(pack565(20, 65, 110), pack565(10, 12, 16), frac);
-          gfx->drawPixel(curX, fy, c);
+        // Vertical gradient fill under curve (only once per column X)
+        if (curX != prevX) {
+          for (int fy = curY + 1; fy <= spY + spH + 2; fy++) {
+            float frac = (float)(fy - curY) / (float)(spH + 4);
+            if (frac > 1.0f) frac = 1.0f;
+            uint16_t c = blendColor(pack565(20, 65, 110), pack565(10, 12, 16), frac);
+            gfx->drawPixel(curX, fy, c);
+          }
         }
 
         if (prevX >= 0) {
@@ -1127,6 +1129,7 @@ static void drawComplicationAircraft(int cx, int cy, int r, bool isTop) {
   int count10km = 0;
   double homeLat = Settings_Lat(), homeLon = Settings_Lon();
   if (Settings_HasLocation()) {
+    Async_LockAdsb();
     int acCount = ADSB_Count();
     const Aircraft* list = ADSB_List();
     if (list && acCount > 0) {
@@ -1144,6 +1147,7 @@ static void drawComplicationAircraft(int cx, int cy, int r, bool isTop) {
         }
       }
     }
+    Async_UnlockAdsb();
   }
 
   // Draw crisp vector jet airplane icon

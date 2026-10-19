@@ -126,9 +126,20 @@ void Font_DrawCenteredBox(const char* str, int16_t x, int16_t y, int16_t w, int1
     lv_point_t size_res;
     lv_text_get_size(&size_res, clean, font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
 
-    // Calculate vertical centering within the bounding box
+    int16_t cx = x + w / 2;
     int16_t textY = y + (h - size_res.y) / 2;
-    Font_DrawCentered(clean, x + w / 2, textY, color, size);
+
+    lv_draw_label_dsc_t dsc;
+    lv_draw_label_dsc_init(&dsc);
+    dsc.color = r565_to_lv(color);
+    dsc.font = font;
+    dsc.text = clean;
+    dsc.align = LV_TEXT_ALIGN_CENTER;
+    dsc.text_local = 1;
+
+    lv_area_t a;
+    lv_area_set(&a, cx - size_res.x / 2, textY, cx + size_res.x / 2, textY + size_res.y);
+    lv_draw_label(gfx->layer, &dsc, &a);
 }
 
 int16_t Font_TextWidth(const char* str, uint8_t size) {

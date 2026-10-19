@@ -240,8 +240,9 @@ static int rvPngDraw(PNGDRAW* d) {
 // --- Index ------------------------------------------------------------------
 static bool fetchIndex(int wantFrames) {
   poll();
-  String body;
-  if (!Net_GetString(RV_INDEX_URL, body, "RAINVIEWER")) return false;
+  const char* body = nullptr;
+  size_t bodyLen = 0;
+  if (!Net_GetCString(RV_INDEX_URL, &body, "RAINVIEWER", nullptr, nullptr, 8000, 12000, &bodyLen) || !body) return false;
   poll();
 
   JsonDocument filter;
@@ -251,9 +252,8 @@ static bool fetchIndex(int wantFrames) {
   fp["path"] = true;
 
   JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, body,
+  DeserializationError err = deserializeJson(doc, body, bodyLen,
                                              DeserializationOption::Filter(filter));
-  body = String();
   if (err) { Serial.printf("RAINVIEWER: JSON %s\n", err.c_str()); return false; }
 
   const char* host = doc["host"] | "https://tilecache.rainviewer.com";

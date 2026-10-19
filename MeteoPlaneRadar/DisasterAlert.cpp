@@ -10,6 +10,7 @@
 #include "UI.h"
 #include "Display_ST7701.h"
 #include "QMI8658.h"
+#include "SpiRamAllocator.h"
 #include <WiFi.h>
 #include <math.h>
 
@@ -114,8 +115,8 @@ static void evaluateEventSeverity(DisasterEvent& ev, double homeLat, double home
   }
 }
 
-static void parseUsgsFeed(const String& json) {
-  if (json.length() < 50) return;
+static void parseUsgsFeed(const char* json, size_t len) {
+  if (!json || len < 50) return;
 
   JsonDocument filter;
   filter["features"][0]["properties"]["mag"] = true;
@@ -126,8 +127,8 @@ static void parseUsgsFeed(const String& json) {
   filter["features"][0]["geometry"]["coordinates"] = true;
   filter["features"][0]["id"] = true;
 
-  JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, json, DeserializationOption::Filter(filter));
+  JsonDocument doc(SpiRamAllocator::instance());
+  DeserializationError err = deserializeJson(doc, json, len, DeserializationOption::Filter(filter));
   if (err) {
     Serial.printf("Disaster: JSON parse error: %s\n", err.c_str());
     return;
@@ -219,9 +220,10 @@ bool DisasterAlert_Step() {
   // Poll all_hour feed every 60 seconds
   if (now - s_lastPollMs >= 60000UL || s_lastPollMs == 0) {
     s_lastPollMs = now;
-    String body;
-    if (Net_GetString(USGS_ALL_HOUR_URL, body, "Disaster")) {
-      parseUsgsFeed(body);
+    const char* body = nullptr;
+    size_t bodyLen = 0;
+    if (Net_GetCString(USGS_ALL_HOUR_URL, &body, "Disaster", nullptr, nullptr, 8000, 12000, &bodyLen) && body) {
+      parseUsgsFeed(body, bodyLen);
     }
     return true;
   }
@@ -229,9 +231,10 @@ bool DisasterAlert_Step() {
   // Poll significant_week feed every 10 minutes
   if (now - s_lastSigPollMs >= 600000UL || s_lastSigPollMs == 0) {
     s_lastSigPollMs = now;
-    String body;
-    if (Net_GetString(USGS_SIGNIFICANT_URL, body, "DisasterSig")) {
-      parseUsgsFeed(body);
+    const char* body = nullptr;
+    size_t bodyLen = 0;
+    if (Net_GetCString(USGS_SIGNIFICANT_URL, &body, "DisasterSig", nullptr, nullptr, 8000, 12000, &bodyLen) && body) {
+      parseUsgsFeed(body, bodyLen);
     }
     return true;
   }

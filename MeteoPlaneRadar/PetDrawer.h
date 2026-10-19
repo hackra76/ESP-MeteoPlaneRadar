@@ -31,3 +31,6 @@ void PetDrawer_Draw();
 
 // Returns true if pet is currently in the active wake period during night hours
 bool PetDrawer_IsNightAwake();
+
+// Free PSRAM sprite buffers when Pet Drawer is closed or before OTA
+void PetDrawer_FreeBuffers();

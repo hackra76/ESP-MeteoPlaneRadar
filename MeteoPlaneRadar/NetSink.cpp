@@ -240,9 +240,14 @@ bool Net_HeapOk(const char* tag) {
   size_t maxBlock = heap_caps_get_largest_free_block(caps);
   bool ok = (freeInt >= NET_MIN_HEAP && maxBlock >= NET_MIN_BLOCK);
   if (ok) {
-    // free/largest-block say nothing about whether TWO record buffers fit:
-    // probe the real mbedTLS allocation pattern (in + out buffer + handshake
-    // state) and give it straight back.
+    // Fast-path: if a single contiguous block can hold all three TLS allocations
+    // (2x record buffers + handshake state + allocator overhead), skip heap probing.
+    const size_t combinedNeed = (2 * NET_TLS_BUF_BYTES) + NET_TLS_STATE_BYTES + 2048;
+    if (maxBlock >= combinedNeed && freeInt >= NET_MIN_HEAP + 12288) {
+      return true;
+    }
+    // Otherwise probe the real mbedTLS allocation pattern (in + out buffer + handshake
+    // state) to verify fragmentation and give it straight back.
     void* in  = heap_caps_malloc(NET_TLS_BUF_BYTES, caps);
     void* out = in  ? heap_caps_malloc(NET_TLS_BUF_BYTES, caps) : nullptr;
     void* hs  = out ? heap_caps_malloc(NET_TLS_STATE_BYTES, caps) : nullptr;

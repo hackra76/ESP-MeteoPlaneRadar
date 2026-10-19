@@ -8,3 +8,4 @@
 #include <lvgl.h>
 
 void ScreenIss_Init(lv_obj_t* parent);
+void ScreenIss_FreeBuffers();
