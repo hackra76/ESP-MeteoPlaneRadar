@@ -22,6 +22,7 @@ void Async_Resume();
 bool Async_IsPaused();
 bool Async_IsNetBusy();
 bool Async_IsRadarBusy();
+void Async_DebugInfo(char* buf, size_t n);
 
 // Set active screen and parameters so Core 0 knows what to poll
 void Async_SetActiveScreen(uint8_t screenIdx);
@@ -72,6 +73,9 @@ void Async_UnlockKlipper();
 
 void Async_LockRoute();
 void Async_UnlockRoute();
+
+void Async_LockYouTube();
+void Async_UnlockYouTube();
 
 void Async_LockI2C();
 void Async_UnlockI2C();

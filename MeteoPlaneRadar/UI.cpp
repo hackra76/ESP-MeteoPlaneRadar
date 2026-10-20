@@ -547,6 +547,7 @@ static void ota_screen_draw_cb(lv_event_t* e) {
 void UI_SwitchScreen(int screenIdx) {
     if (screenIdx < 0 || screenIdx >= SCREEN_N) return;
     int prevScreen = s_activeScreen;
+    Serial.printf("[UI] SwitchScreen: %d -> %d\n", prevScreen, screenIdx);
     if (prevScreen != screenIdx) {
         // Free screen buffers and downloaded data no longer needed for inactive screens
         if (prevScreen == SCREEN_CLOCK_I && screenIdx != SCREEN_CLOCK_I) {
@@ -732,6 +733,7 @@ void UI_AutoRotate_Tick() {
             }
         }
         if (nextScr != (uint8_t)s_activeScreen && nextScr != SCREEN_SETTINGS_I && Settings_ScreenEnabled(nextScr)) {
+            Serial.printf("[UI] AutoRotate triggered: %d -> %d\n", s_activeScreen, nextScr);
             UI_SwitchScreen(nextScr);
         }
     }

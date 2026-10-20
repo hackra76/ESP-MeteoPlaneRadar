@@ -44,6 +44,7 @@ static SemaphoreHandle_t s_mtxFinance  = NULL;
 static SemaphoreHandle_t s_mtxIss      = NULL;
 static SemaphoreHandle_t s_mtxKlipper  = NULL;
 static SemaphoreHandle_t s_mtxRoute    = NULL;
+static SemaphoreHandle_t s_mtxYouTube  = NULL;
 
 static TaskHandle_t s_netTaskHandle = NULL;
 static volatile bool s_paused = false;
@@ -51,6 +52,13 @@ static volatile bool s_core0NetBusy = false;
 static volatile bool s_radarBusy = false;
 bool Async_IsNetBusy()   { return s_core0NetBusy; }
 bool Async_IsRadarBusy() { return s_radarBusy; }
+
+// Diagnostics: which stage Core 0's worker is in and whether it keeps looping.
+static volatile uint32_t s_dbgLoops = 0;
+static const char* volatile s_dbgStage = "init";
+void Async_DebugInfo(char* buf, size_t n) {
+  snprintf(buf, n, "w=%lu st=%s nb=%d", (unsigned long)s_dbgLoops, s_dbgStage, (int)s_core0NetBusy);
+}
 
 // Flags for Core 1 (UI)
 static volatile bool s_adsbUpdated = false;
@@ -100,6 +108,9 @@ void Async_UnlockKlipper() { if (s_mtxKlipper)  xSemaphoreGiveRecursive(s_mtxKli
 
 void Async_LockRoute()     { if (s_mtxRoute)    xSemaphoreTakeRecursive(s_mtxRoute,    pdMS_TO_TICKS(1000)); }
 void Async_UnlockRoute()   { if (s_mtxRoute)    xSemaphoreGiveRecursive(s_mtxRoute); }
+
+void Async_LockYouTube()   { if (s_mtxYouTube)  xSemaphoreTakeRecursive(s_mtxYouTube,  pdMS_TO_TICKS(1000)); }
+void Async_UnlockYouTube() { if (s_mtxYouTube)  xSemaphoreGiveRecursive(s_mtxYouTube); }
 
 static SemaphoreHandle_t s_mtxI2c = NULL;
 void Async_LockI2C()       { if (s_mtxI2c) xSemaphoreTakeRecursive(s_mtxI2c, pdMS_TO_TICKS(150)); }
@@ -206,10 +217,28 @@ static void asyncWorkerTask(void* param) {
   unsigned long lastYouTubeFetch = 0;
   unsigned long lastKlipperFetch = 0;
 
+extern volatile const char* g_mainStage;
+extern volatile uint32_t g_mainStageMs;
+
   Serial.println("AsyncCore: Worker task running on Core 0");
 
   while (true) {
     Watchdog_Feed();
+    s_dbgLoops = s_dbgLoops + 1;
+    s_dbgStage = "loop";
+
+    // Core 0 monitor: Check if Core 1 (loopTask) is stuck in any stage for > 2000 ms
+    {
+      static unsigned long s_lastStuckAlert = 0;
+      if (g_mainStageMs > 0 && (millis() - g_mainStageMs >= 4000)) {
+        if (millis() - s_lastStuckAlert >= 1000) {
+          s_lastStuckAlert = millis();
+          Serial.printf("[STUCK] loopTask (Core 1) stuck in stage '%s' for %lu ms!\n",
+                        g_mainStage ? g_mainStage : "null", (unsigned long)(millis() - g_mainStageMs));
+        }
+      }
+    }
+
     if (GithubOTA_IsRequested()) {
       s_core0NetBusy = true;
       GithubOTA_RunUpdate();
@@ -223,7 +252,9 @@ static void asyncWorkerTask(void* param) {
 
     // 1. Serve Web Server only. WiFi reconnect/AP handling runs on Core 1
     //    (main.cpp loop) to avoid concurrent WiFi stack calls from two cores.
+    s_dbgStage = "web";
     WebConfig_Loop();
+    s_dbgStage = "loop";
 
     // While a firmware update is running, suspend all background network/TLS operations
     if (WebConfig_UpdateBusy()) {
@@ -248,10 +279,18 @@ static void asyncWorkerTask(void* param) {
       const bool clockNeedsYouTube  = clockActive && (clkTop == CLOCK_SLOT_YOUTUBE  || clkBot == CLOCK_SLOT_YOUTUBE);
       const bool clockNeedsWeather  = clockActive && (clkTop == CLOCK_SLOT_WEATHER  || clkBot == CLOCK_SLOT_WEATHER ||
                                                       clkTop == CLOCK_SLOT_SPARKLINE|| clkBot == CLOCK_SLOT_SPARKLINE);
+      const bool clockNeedsKlipper  = clockActive && (clkTop == CLOCK_SLOT_KLIPPER  || clkBot == CLOCK_SLOT_KLIPPER);
 
-      // Klipper fetch requests are strictly discarded when not on Klipper screen
-      if (curScr != SCREEN_KLIPPER_I) {
+      // Requests are strictly discarded when not on that screen (prevents rapid swipe stalls)
+      if (curScr != SCREEN_KLIPPER_I && !clockNeedsKlipper) {
         s_reqKlipper = false;
+      }
+      if (curScr != SCREEN_ISS_I) {
+        s_reqIss = false;
+      }
+      if (curScr != SCREEN_YOUTUBE_I && !clockNeedsYouTube) {
+        s_reqYouTube = false;
+        YouTube_Reset();
       }
 
       // Clear background route lookup queue, photo, and map tiles on transition away from aircraft screens
@@ -268,6 +307,7 @@ static void asyncWorkerTask(void* param) {
       if (!s_firstTimeReseed && !Outside_TimeValid() && !rvBusy) {
         s_firstTimeReseed = true;
         s_core0NetBusy = true;
+        s_dbgStage = "firstclock";
         Outside_Tick();
         s_core0NetBusy = false;
         lastTlsTime = millis();
@@ -283,6 +323,7 @@ static void asyncWorkerTask(void* param) {
         if (Net_HeapOk("GH_OTA")) {
           s_lastOtaAutoCheck = now;
           s_core0NetBusy = true;
+          s_dbgStage = "ghota";
           GithubOTA_CheckSync();
           s_core0NetBusy = false;
           lastTlsTime = millis();
@@ -293,6 +334,7 @@ static void asyncWorkerTask(void* param) {
       if (mtBusy && (now - lastTlsTime >= 350)) {
         Watchdog_Feed();
         s_core0NetBusy = true;
+        s_dbgStage = "maptiles";
         if (MapTiles_Step()) {
           s_adsbUpdated = true;
         }
@@ -305,6 +347,7 @@ static void asyncWorkerTask(void* param) {
       else if (rvBusy) {
         Watchdog_Feed();
         s_core0NetBusy = true;
+        s_dbgStage = "rainviewer";
         if (RainViewer_Step()) {
           s_radarUpdated = true;
         }
@@ -314,6 +357,20 @@ static void asyncWorkerTask(void* param) {
         vTaskDelay(pdMS_TO_TICKS(15));
       }
       else if (now - lastTlsTime >= 1000) {
+        // Guard against internal SRAM starvation: lwIP and WebServer need internal RAM.
+        // A TLS handshake requires ~45 KB. If internal RAM is below NET_MIN_HEAP, defer.
+        size_t freeInt = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+        if (freeInt < NET_MIN_HEAP) {
+          static unsigned long s_lastLowMemAlert = 0;
+          if (now - s_lastLowMemAlert >= 5000) {
+            s_lastLowMemAlert = now;
+            Serial.printf("AsyncCore: low internal heap (%u B < %u B), background fetches deferred\n",
+                          (unsigned)freeInt, (unsigned)NET_MIN_HEAP);
+          }
+          vTaskDelay(pdMS_TO_TICKS(50));
+          continue;
+        }
+
         s_core0NetBusy = true;
         // RAII guard: ensures s_core0NetBusy is always cleared even if a called
         // function returns early or the WiFi condition changes mid-chain.
@@ -343,6 +400,7 @@ static void asyncWorkerTask(void* param) {
 
         // 2. Pending Route Lookups (only when active on planes screen, queue not empty, and not right after ADS-B)
         if (planesActive && (now - lastAdsbFetch >= 1000) && Route_HasPending()) {
+          s_dbgStage = "route";
           Route_Tick();
           lastTlsTime = millis();
           if (Route_TakeChanged()) {
@@ -351,6 +409,7 @@ static void asyncWorkerTask(void* param) {
         }
         // 2b. Pending Plane Photo Lookups
         else if (planesActive && (now - lastAdsbFetch >= 1000) && PlanePhoto_HasPending()) {
+          s_dbgStage = "photo";
           PlanePhoto_Tick();
           lastTlsTime = millis();
           if (PlanePhoto_TakeChanged()) {
@@ -362,6 +421,7 @@ static void asyncWorkerTask(void* param) {
           s_reqRadar = false;
           lastRadarFetch = now;
           s_radarBusy = true;
+          s_dbgStage = "radar";
           int wantFrames = (curScr == SCREEN_METEO_I) ? CHMU_ANIM_MAX : 1;
           int n = (Settings_RadarSource() == RADAR_SRC_SHMU) ? SHMU_FetchAnim(wantFrames) : CHMU_FetchAnim(wantFrames);
           s_radarBusy = false;
@@ -383,6 +443,7 @@ static void asyncWorkerTask(void* param) {
           double lat = planesActive ? s_targetLat : Settings_Lat();
           double lon = planesActive ? s_targetLon : Settings_Lon();
           float rng = planesActive ? s_targetRangeKm : (clockNeedsAircraft ? 25.0f : 250.0f);
+          s_dbgStage = "adsb";
           if (ADSB_Fetch(lat, lon, rng)) {
             s_adsbUpdated = true;
             s_adsbFails = 0;
@@ -404,6 +465,7 @@ static void asyncWorkerTask(void* param) {
             s_reqForecast = false;
             s_firstForecastDone = true;
             lastForecastFetch = now;
+            s_dbgStage = "forecast";
             Forecast_Tick();
             s_forecastUpdated = true;
             lastTlsTime = millis();
@@ -411,73 +473,87 @@ static void asyncWorkerTask(void* param) {
           // 5. Outside Temperature & Time Seeding
           else if (now - lastOutsideFetch >= OUTSIDE_TEMP_PERIOD_MS) {
             lastOutsideFetch = now;
+            s_dbgStage = "outside";
             Outside_Tick();
             lastTlsTime = millis();
           }
-          // Priority for active ISS screen
-          else if (curScr == SCREEN_ISS_I && (s_reqIss || (now - lastIssFetch >= ISS_PERIOD_ACTIVE_MS))) {
-            if (Iss_Step()) {
-              s_issUpdated = true;
-              lastTlsTime = millis();
-            }
-            s_reqIss = false;
-            lastIssFetch = now;
-          }
-          // 6. Finance Data (Markets, Crypto, Stocks, Commodities)
-          else if ((Finance_IsBusy() && Finance_ReadyToStep()) || s_reqFinance ||
-                   (Finance_LastUpdated() == 0 && (now - lastFinanceFetch >= 15000UL)) ||
-                   (curScr == SCREEN_FINANCE_I && (now - lastFinanceFetch >= 30000UL)) ||
-                   (clockNeedsFinance && (now - lastFinanceFetch >= 60000UL)) ||
-                   (now - lastFinanceFetch >= FINANCE_PERIOD_MS)) {
-            if (Finance_Step()) {
-              s_financeUpdated = true;
-              lastTlsTime = millis();
-            }
-            if (!Finance_IsBusy()) {
-              s_reqFinance = false;
-              lastFinanceFetch = now;
-            }
-          }
-          // 7. ISS Orbit Tracker (background)
-          else if (s_reqIss ||
-                   (now - lastIssFetch >= (Settings_ScreenEnabled(SCREEN_ISS_I) ? ((curScr == SCREEN_ISS_I) ? ISS_PERIOD_ACTIVE_MS : ISS_PERIOD_BG_MS) : 60000UL))) {
-            if (Iss_Step()) {
-              s_issUpdated = true;
-              lastTlsTime = millis();
-            }
-            s_reqIss = false;
-            lastIssFetch = now;
-          }
-          // 8. YouTube Analytics
-          else if (s_reqYouTube ||
-                   (clockNeedsYouTube && (now - lastYouTubeFetch >= YOUTUBE_PERIOD_ACTIVE_MS)) ||
-                   (now - lastYouTubeFetch >= (Settings_ScreenEnabled(SCREEN_YOUTUBE_I) ? ((curScr == SCREEN_YOUTUBE_I) ? YOUTUBE_PERIOD_ACTIVE_MS : YOUTUBE_PERIOD_BG_MS) : 3600000UL))) {
-            if (YouTube_Step()) {
-              s_youtubeUpdated = true;
-              lastTlsTime = millis();
-            }
-            s_reqYouTube = false;
-            lastYouTubeFetch = now;
-          }
-          // 9. Klipper / Moonraker 3D Printer (strictly ONLY when displayed on device screen)
-          else if (curScr == SCREEN_KLIPPER_I &&
+          // 5. Klipper / Moonraker 3D Printer (active screen or Clock complication)
+          else if ((curScr == SCREEN_KLIPPER_I || clockNeedsKlipper) &&
                    (s_reqKlipper ||
-                    (now - lastKlipperFetch >= (Klipper_IsConnected() ? KLIPPER_PERIOD_ACTIVE_MS : KLIPPER_PERIOD_OFFLINE_MS)))) {
+                    (now - lastKlipperFetch >= (Klipper_IsConnected() ? KLIPPER_PERIOD_ACTIVE_MS :
+                                                (clockNeedsKlipper ? 10000UL : KLIPPER_PERIOD_OFFLINE_MS))))) {
+            s_dbgStage = "klipper";
             if (Klipper_Step()) {
               s_klipperUpdated = true;
             }
             s_reqKlipper = false;
             lastKlipperFetch = now;
+            lastTlsTime = millis();
+          }
+          // 6. Active ISS Orbit Tracker
+          else if (curScr == SCREEN_ISS_I && (s_reqIss || (now - lastIssFetch >= ISS_PERIOD_ACTIVE_MS))) {
+            s_dbgStage = "iss";
+            if (Iss_Step()) {
+              s_issUpdated = true;
+            }
+            s_reqIss = false;
+            lastIssFetch = now;
+            lastTlsTime = millis();
+          }
+          // 7. Finance Data (Active screen or Clock complication or stepping)
+          else if ((Finance_IsBusy() && Finance_ReadyToStep()) || s_reqFinance ||
+                   (curScr == SCREEN_FINANCE_I && (now - lastFinanceFetch >= 30000UL)) ||
+                   (clockNeedsFinance && (now - lastFinanceFetch >= 60000UL)) ||
+                   (Finance_LastUpdated() == 0 && (now - lastFinanceFetch >= 15000UL)) ||
+                   (now - lastFinanceFetch >= FINANCE_PERIOD_MS)) {
+            s_dbgStage = "finance";
+            if (Finance_Step()) {
+              s_financeUpdated = true;
+            }
+            if (!Finance_IsBusy()) {
+              s_reqFinance = false;
+              lastFinanceFetch = now;
+            }
+            lastTlsTime = millis();
+          }
+          // 8. YouTube Analytics (Active screen or Clock complication or stepping)
+          else if ((YouTube_IsBusy() && YouTube_ReadyToStep()) || s_reqYouTube ||
+                   (clockNeedsYouTube && (now - lastYouTubeFetch >= YOUTUBE_PERIOD_ACTIVE_MS)) ||
+                   (curScr == SCREEN_YOUTUBE_I && (now - lastYouTubeFetch >= YOUTUBE_PERIOD_ACTIVE_MS)) ||
+                   (YouTube_LastUpdated() == 0 && (now - lastYouTubeFetch >= 15000UL)) ||
+                   (Settings_ScreenEnabled(SCREEN_YOUTUBE_I) && (now - lastYouTubeFetch >= YOUTUBE_PERIOD_BG_MS))) {
+            s_dbgStage = "youtube";
+            if (YouTube_Step()) {
+              s_youtubeUpdated = true;
+            }
+            if (!YouTube_IsBusy()) {
+              s_reqYouTube = false;
+              lastYouTubeFetch = now;
+            }
+            lastTlsTime = millis();
+          }
+          // 9. ISS Orbit Tracker (Background - alert or screen enabled)
+          else if ((Settings_ScreenEnabled(SCREEN_ISS_I) || Settings_IssAlert()) &&
+                   (s_reqIss ||
+                    (now - lastIssFetch >= (Settings_IssAlert() ? ISS_PERIOD_BG_MS : 300000UL)))) {
+            s_dbgStage = "iss-bg";
+            if (Iss_Step()) {
+              s_issUpdated = true;
+            }
+            s_reqIss = false;
+            lastIssFetch = now;
+            lastTlsTime = millis();
           }
           // 9. AI Pet Companion (Gemini LLM thoughts)
           else if (s_reqPetThought) {
             s_reqPetThought = false;
+            s_dbgStage = "pet";
             if (PetBrain_Step()) {
               lastTlsTime = millis();
             }
           }
           // 10. Global Disaster Warning System (USGS Real-Time Earthquake & Tsunami Feeds)
-          else if (DisasterAlert_Step()) {
+          else if ((s_dbgStage = "disaster", DisasterAlert_Step())) {
             lastTlsTime = millis();
           }
         }
@@ -499,6 +575,7 @@ void Async_Begin() {
   if (!s_mtxIss)      s_mtxIss      = xSemaphoreCreateRecursiveMutex();
   if (!s_mtxKlipper)  s_mtxKlipper  = xSemaphoreCreateRecursiveMutex();
   if (!s_mtxRoute)    s_mtxRoute    = xSemaphoreCreateRecursiveMutex();
+  if (!s_mtxYouTube)  s_mtxYouTube  = xSemaphoreCreateRecursiveMutex();
   if (!s_mtxI2c)      s_mtxI2c      = xSemaphoreCreateRecursiveMutex();
 
   MapTiles_Init();

@@ -30,5 +30,7 @@ void YouTube_Init();
 bool YouTube_Step();
 void YouTube_RequestFetch();
 bool YouTube_IsBusy();
+bool YouTube_ReadyToStep();
+void YouTube_Reset();
 unsigned long YouTube_LastUpdated();
 bool YouTube_GetData(YouTubeStats* out);

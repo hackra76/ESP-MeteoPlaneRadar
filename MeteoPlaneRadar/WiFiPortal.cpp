@@ -65,6 +65,7 @@ static bool tryConnect(const char* ssid, const char* pass, uint32_t timeoutMs) {
 
   WiFi.softAPdisconnect(true);
   WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false);
   WiFi.setAutoReconnect(true);
   WiFi.setHostname(Settings_Hostname());
   WiFi.begin(ssid, pass);
@@ -73,6 +74,7 @@ static bool tryConnect(const char* ssid, const char* pass, uint32_t timeoutMs) {
   while (millis() - start < timeoutMs) {
     if (WiFi.status() == WL_CONNECTED) {
       s_ap = false;
+      WiFi.setSleep(false);
       Serial.printf("WiFi: Connected, SSID %s, IP %s\n", ssid, WiFi.localIP().toString().c_str());
       WebConfig_Begin(false);
       s_needsRedraw = true;
@@ -105,6 +107,7 @@ void WiFi_Begin() {
   // Multiple networks saved: scan and find which saved networks are present, sorted by RSSI
   drawConnecting("Scanning WiFi...");
   WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false);
   WiFi.disconnect();
   delay(100);
   Watchdog_Feed();
@@ -206,6 +209,7 @@ void WiFi_Loop() {
   if (now - s_lastReconnect < 15000) return;
   s_lastReconnect = now;
   Serial.println("WiFi: Connection lost, reconnecting...");
+  WiFi.setSleep(false);
   WiFi.reconnect();
 
   // If disconnected for more than 45s and multiple networks are saved, re-scan to switch

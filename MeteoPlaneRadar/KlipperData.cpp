@@ -208,13 +208,30 @@ bool Klipper_Step() {
     return false;
   }
 
-  // Resolve .local hostnames via mDNS if not directly an IP address
+  // Resolve .local hostnames via mDNS if not directly an IP address (cached to avoid 1.5s multicast flooding)
+  static char s_cachedHost[64] = "";
+  static IPAddress s_cachedIp = INADDR_NONE;
+  static unsigned long s_lastMdnsLookup = 0;
+
   IPAddress ip;
   if (!ip.fromString(hostStr) && hostStr.endsWith(".local")) {
-    String mdnsName = hostStr.substring(0, hostStr.length() - 6);
-    IPAddress qip = MDNS.queryHost(mdnsName.c_str(), 1000);
-    if (qip != INADDR_NONE && qip != IPAddress(0, 0, 0, 0)) {
-      hostStr = qip.toString();
+    unsigned long nowMs = millis();
+    if (strcmp(s_cachedHost, hostStr.c_str()) == 0 && s_cachedIp != INADDR_NONE && (nowMs - s_lastMdnsLookup < 60000UL)) {
+      hostStr = s_cachedIp.toString();
+    } else {
+      String mdnsName = hostStr.substring(0, hostStr.length() - 6);
+      IPAddress qip = MDNS.queryHost(mdnsName.c_str(), 1000);
+      s_lastMdnsLookup = nowMs;
+      if (qip != INADDR_NONE && qip != IPAddress(0, 0, 0, 0)) {
+        strncpy(s_cachedHost, hostStr.c_str(), sizeof(s_cachedHost) - 1);
+        s_cachedHost[sizeof(s_cachedHost) - 1] = '\0';
+        s_cachedIp = qip;
+        hostStr = qip.toString();
+        Serial.printf("KLIPPER: mDNS %s.local -> %s\n", mdnsName.c_str(), hostStr.c_str());
+      } else {
+        s_cachedIp = INADDR_NONE;
+        Serial.printf("KLIPPER: mDNS query for '%s' failed\n", mdnsName.c_str());
+      }
     }
   }
 
@@ -233,10 +250,13 @@ bool Klipper_Step() {
     hdrVal = apiKey;
   }
 
-  String body;
-  if (!Net_GetString(url.c_str(), body, "KLIPPER", hdrName, hdrVal, 1500, 2500)) {
+  const char* body = nullptr;
+  size_t bodyLen = 0;
+  if (!Net_GetCString(url.c_str(), &body, "KLIPPER", hdrName, hdrVal, 1500, 2500, &bodyLen) || !body) {
+    Serial.printf("KLIPPER: Request failed (%s)\n", url.c_str());
     s_klipperBusy = false;
     s_klipperData.fetching = false;
+    s_cachedIp = INADDR_NONE; // Invalidate cached mDNS IP so next retry can re-resolve
     Async_LockKlipper();
     s_klipperData.connected = false;
     s_klipperData.detailedState = KLIPPER_STATE_OFFLINE;
@@ -271,7 +291,7 @@ bool Klipper_Step() {
   resStatus["webhooks"]["state_message"] = true;
 
   JsonDocument doc(SpiRamAllocator::instance());
-  DeserializationError err = deserializeJson(doc, body, DeserializationOption::Filter(filter));
+  DeserializationError err = deserializeJson(doc, body, bodyLen, DeserializationOption::Filter(filter));
   if (err) {
     s_klipperBusy = false;
     s_klipperData.fetching = false;
@@ -453,6 +473,10 @@ bool Klipper_Step() {
 
   // Dynamic state evaluation
   s_klipperData.detailedState = Klipper_EvaluateDetailedState(s_klipperData);
+
+  Serial.printf("KLIPPER: OK - %s, Tool: %.1fC, Bed: %.1fC, Prog: %.1f%%\n",
+                s_klipperData.state, s_klipperData.extruderTemp, s_klipperData.bedTemp,
+                s_klipperData.progress * 100.0f);
 
   Async_UnlockKlipper();
 

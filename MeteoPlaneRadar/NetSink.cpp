@@ -2,239 +2,301 @@
 //  MeteoPlaneRadar
 //  See NetSink.h.
 //
+//  Direct, zero-allocation stream reader for HTTP/HTTPS responses.
+//  Bypasses HTTPClient::writeToStreamDataBlock() to avoid intermediate 4KB
+//  internal SRAM allocations and prevent unbudgeted delay(1) spins on Core 0.
 // =============================================================================
 #include "NetSink.h"
-#include "Config.h"      // NET_BODY_BUDGET_MS
+#include "Config.h"      // NET_BODY_BUDGET_MS, NET_MIN_HEAP, etc.
 #include "Watchdog.h"
 #include <HTTPClient.h>
 #include <string.h>      // memcpy / memmove
 #include <esp_heap_caps.h>
-#include <Stream.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
-class NetBufSink : public Stream {
+class AccessibleHTTPClient : public HTTPClient {
 public:
-  // buf/cap: caller-owned destination. poll: yield + feed the watchdog, called
-  // on every block that arrives. budgetMs: 0 disables the time limit.
-  NetBufSink(uint8_t* buf, size_t cap, void (*poll)() = nullptr,
-             uint32_t budgetMs = 0);
-
-  // --- Print ---
-  size_t write(uint8_t b) override;
-  size_t write(const uint8_t* data, size_t len) override;
-
-  // --- Stream: this sink is write-only, these are never used. ---
-  int  available() override { return 0; }
-  int  read() override { return -1; }
-  int  peek() override { return -1; }
-  void flush() override {}
-
-  size_t length()     const { return _len; }
-  bool   overflowed() const { return _over; }
-  bool   timedOut()   const { return _timeout; }
-
-  // NUL-terminates the buffer so the result can be treated as a C string.
-  // Returns false when there is no room left for the terminator.
-  bool   terminate();
-
-private:
-  uint8_t*  _buf;
-  size_t    _cap;
-  size_t    _len     = 0;
-  void    (*_poll)();
-  uint32_t  _budget;
-  uint32_t  _start;
-  bool      _over    = false;
-  bool      _timeout = false;
+  bool isChunked() const { return _transferEncoding == HTTPC_TE_CHUNKED; }
+  int getRawSize() const { return _size; }
 };
 
-class NetScanSink : public Stream {
-public:
-  NetScanSink(NetScanFn cb, void* user, void (*poll)() = nullptr,
-              uint32_t budgetMs = 0);
+// Helper: read a single line terminated by LF (stripping CR) with strict timeout
+static bool readChunkLine(NetworkClient* stream, HTTPClient& http, char* line, size_t maxLen,
+                          uint32_t lineTimeoutMs, uint32_t budgetStartMs, uint32_t budgetMs,
+                          void (*poll)()) {
+  size_t idx = 0;
+  uint32_t start = millis();
+  while (millis() - start < lineTimeoutMs) {
+    Watchdog_Feed();
+    if (poll) poll();
+    if (budgetMs && (millis() - budgetStartMs > budgetMs)) return false;
 
-  // --- Print ---
-  size_t write(uint8_t b) override;
-  size_t write(const uint8_t* data, size_t len) override;
-
-  // --- Stream: write-only sink, never read from. ---
-  int  available() override { return 0; }
-  int  read() override { return -1; }
-  int  peek() override { return -1; }
-  void flush() override {}
-
-  // Scan whatever is left in the window. Call once the transfer is over.
-  void finish();
-
-  size_t length()       const { return _total; }
-  bool   timedOut()     const { return _timeout; }
-  bool   stoppedEarly() const { return _stopped; }
-
-private:
-  void scanWindow();
-  static const size_t WIN     = 512;
-  static const size_t OVERLAP = NET_SCAN_MAX_TOKEN;
-
-  NetScanFn _cb;
-  void*     _user;
-  void    (*_poll)();
-  uint32_t  _budget;
-  uint32_t  _start;
-  char      _win[WIN + 1];
-  size_t    _fill    = 0;
-  size_t    _total   = 0;
-  bool      _timeout = false;
-  bool      _stopped = false;
-};
-
-NetBufSink::NetBufSink(uint8_t* buf, size_t cap, void (*poll)(), uint32_t budgetMs)
-  : _buf(buf), _cap(buf ? cap : 0), _poll(poll), _budget(budgetMs),
-    _start(millis()) {}
-
-size_t NetBufSink::write(uint8_t b) {
-  return write(&b, 1);
-}
-
-size_t NetBufSink::write(const uint8_t* data, size_t len) {
-  Watchdog_Feed();
-  if (_poll) _poll();          // yield + feed the watchdog on every block
-
-  // A short write is how a Stream tells writeToStreamDataBlock() to stop: it
-  // retries once, then bails out with HTTPC_ERROR_STREAM_WRITE. That is the
-  // only lever we have, since the block loop never asks us anything else.
-  if (_budget && (millis() - _start) > _budget) {
-    _timeout = true;
-    return 0;
+    if (stream->available() > 0) {
+      char c = (char)stream->read();
+      if (c == '\n') {
+        line[idx] = '\0';
+        return true;
+      }
+      if (c != '\r' && idx + 1 < maxLen) {
+        line[idx++] = c;
+      }
+    } else {
+      if (!http.connected() && stream->available() == 0) return false;
+      vTaskDelay(pdMS_TO_TICKS(2));
+    }
   }
-  if (!data || len == 0) return 0;
-  if (!_buf) { _over = true; return 0; }
-
-  // Reserve the last byte for the NUL terminator.
-  size_t room = (_cap > _len + 1) ? (_cap - 1 - _len) : 0;
-  size_t take = (len < room) ? len : room;
-  if (take > 0) {
-    memcpy(_buf + _len, data, take);
-    _len += take;
-  }
-  if (take < len) {
-    _over = true;
-    return 0;                  // short write aborts the download
-  }
-  return len;
-}
-
-bool NetBufSink::terminate() {
-  if (!_buf || _len >= _cap) return false;
-  _buf[_len] = '\0';
-  return true;
+  return false;
 }
 
 long Net_ReadBody(HTTPClient& http, uint8_t* buf, size_t cap, const char* tag,
                   void (*poll)()) {
   if (!buf || cap == 0) return -1;
 
-  // NetBufSink handles capacity and reserves one byte for NUL termination.
-  NetBufSink sink(buf, cap, poll, NET_BODY_BUDGET_MS);
-  int ret = http.writeToStream(&sink);
-
-  if (sink.timedOut()) {
-    Serial.printf("%s: transfer exceeded %lu ms, aborted\n",
-                  tag, (unsigned long)NET_BODY_BUDGET_MS);
+  NetworkClient* stream = http.getStreamPtr();
+  if (!stream) {
+    Serial.printf("%s: null stream\n", tag);
     return -1;
   }
-  if (sink.overflowed()) {
-    // Deliberately fatal. A body that outgrew the buffer is a truncated body,
-    // and half a JSON document or half a PNG is worse than no update at all.
-    Serial.printf("%s: response exceeded %u B, discarded\n", tag, (unsigned)cap);
-    return -1;
-  }
-  if (ret < 0) {
-    Serial.printf("%s: writeToStream error %d (%s)\n", tag, ret,
-                  HTTPClient::errorToString(ret).c_str());
-    return -1;
-  }
-  if (!sink.terminate()) {
-    Serial.printf("%s: no room for string termination\n", tag);
-    return -1;
-  }
-  return (long)sink.length();
-}
 
-NetScanSink::NetScanSink(NetScanFn cb, void* user, void (*poll)(),
-                         uint32_t budgetMs)
-  : _cb(cb), _user(user), _poll(poll), _budget(budgetMs), _start(millis()) {}
+  const bool chunked = ((AccessibleHTTPClient&)http).isChunked();
+  const int declared = http.getSize();
+  const uint32_t budgetMs = NET_BODY_BUDGET_MS;
+  const uint32_t startMs = millis();
+  uint32_t lastDataMs = millis();
+  size_t totalRead = 0;
 
-size_t NetScanSink::write(uint8_t b) {
-  return write(&b, 1);
-}
+  if (chunked) {
+    // -------------------------------------------------------------------------
+    // Chunked Transfer Encoding Stream Decoder
+    // -------------------------------------------------------------------------
+    while (true) {
+      Watchdog_Feed();
+      if (poll) poll();
 
-size_t NetScanSink::write(const uint8_t* data, size_t len) {
-  Watchdog_Feed();
-  if (_poll) _poll();          // yield + feed the watchdog on every block
+      if (budgetMs && (millis() - startMs > budgetMs)) {
+        Serial.printf("%s: transfer exceeded %lu ms, aborted\n", tag, (unsigned long)budgetMs);
+        return -1;
+      }
 
-  if (_stopped) return 0;
-  if (_budget && (millis() - _start) > _budget) {
-    _timeout = true;
-    return 0;                  // short write - the only way to stop the loop
+      char lineBuf[32];
+      if (!readChunkLine(stream, http, lineBuf, sizeof(lineBuf), 5000, startMs, budgetMs, poll)) {
+        Serial.printf("%s: chunk header read timeout\n", tag);
+        return -1;
+      }
+
+      char* p = lineBuf;
+      while (*p == ' ' || *p == '\t') p++;
+      if (*p == '\0') {
+        // Empty CRLF line between chunks, continue to next chunk header
+        continue;
+      }
+
+      // Strip optional chunk extensions (e.g. "1a4;ext=val")
+      char* semi = strchr(p, ';');
+      if (semi) *semi = '\0';
+
+      long chunkSize = strtol(p, nullptr, 16);
+      if (chunkSize <= 0) {
+        // Terminal chunk (0): drain trailing CRLF if data is already available
+        if (http.connected()) {
+          uint32_t trailStart = millis();
+          while (http.connected() && (millis() - trailStart < 50)) {
+            if (stream->available() > 0) stream->read();
+            else break;
+          }
+        }
+        break; // Finished chunked transfer successfully
+      }
+
+      // Read chunk payload
+      size_t chunkRead = 0;
+      uint32_t chunkStartMs = millis();
+      while (chunkRead < (size_t)chunkSize) {
+        Watchdog_Feed();
+        if (poll) poll();
+
+        if (budgetMs && (millis() - startMs > budgetMs)) {
+          Serial.printf("%s: transfer exceeded %lu ms, aborted\n", tag, (unsigned long)budgetMs);
+          return -1;
+        }
+
+        int avail = stream->available();
+        if (avail > 0) {
+          size_t room = (cap > totalRead + 1) ? (cap - 1 - totalRead) : 0;
+          if (room == 0) {
+            Serial.printf("%s: response exceeded %u B, discarded\n", tag, (unsigned)cap);
+            return -1;
+          }
+          size_t need = (size_t)chunkSize - chunkRead;
+          size_t take = (need < (size_t)avail) ? need : (size_t)avail;
+          if (take > room) take = room;
+          int got = stream->read(buf + totalRead, take);
+          if (got > 0) {
+            totalRead += got;
+            chunkRead += got;
+            chunkStartMs = millis();
+          }
+        } else {
+          if (!http.connected()) {
+            Serial.printf("%s: connection lost mid-chunk\n", tag);
+            return -1;
+          }
+          if (millis() - chunkStartMs > 5000) {
+            Serial.printf("%s: chunk data stalled\n", tag);
+            return -1;
+          }
+          vTaskDelay(pdMS_TO_TICKS(2));
+        }
+      }
+    }
+  } else {
+    // -------------------------------------------------------------------------
+    // Identity / Content-Length / Connection-Close Stream
+    // -------------------------------------------------------------------------
+    while (true) {
+      Watchdog_Feed();
+      if (poll) poll();
+
+      if (budgetMs && (millis() - startMs > budgetMs)) {
+        Serial.printf("%s: transfer exceeded %lu ms, aborted\n", tag, (unsigned long)budgetMs);
+        return -1;
+      }
+
+      if (declared >= 0 && (int)totalRead >= declared) {
+        break; // Complete Content-Length body received
+      }
+
+      int avail = stream->available();
+      if (avail > 0) {
+        lastDataMs = millis();
+        size_t room = (cap > totalRead + 1) ? (cap - 1 - totalRead) : 0;
+        if (room == 0) {
+          Serial.printf("%s: response exceeded %u B, discarded\n", tag, (unsigned)cap);
+          return -1;
+        }
+        size_t toRead = (size_t)avail;
+        if (toRead > room) toRead = room;
+        if (declared >= 0 && toRead > (size_t)(declared - totalRead)) {
+          toRead = (size_t)(declared - totalRead);
+        }
+        int got = stream->read(buf + totalRead, toRead);
+        if (got > 0) {
+          totalRead += got;
+        }
+      } else {
+        if (!http.connected()) {
+          break; // Socket closed and buffer empty -> EOF reached cleanly
+        }
+        if (millis() - lastDataMs > 4000) {
+          if (declared < 0 && totalRead > 0) {
+            break; // No content-length, data received, 4s silence -> treat as complete
+          }
+          Serial.printf("%s: transfer stalled (4s silence), aborted\n", tag);
+          return -1;
+        }
+        vTaskDelay(pdMS_TO_TICKS(5));
+      }
+    }
   }
-  if (!data || len == 0) return 0;
 
-  // Accepts everything - the window is drained as it fills, so the body can be
-  // any size.
-  size_t done = 0;
-  while (done < len) {
-    size_t room = WIN - _fill;
-    size_t take = (len - done < room) ? (len - done) : room;
-    memcpy(_win + _fill, data + done, take);
-    _fill += take;
-    done  += take;
-    if (_fill == WIN) scanWindow();
-    if (_stopped) break;
-  }
-  _total += done;
-  return _stopped ? 0 : len;
-}
-
-void NetScanSink::scanWindow() {
-  _win[_fill] = '\0';
-  if (_cb && !_cb(_win, _user)) {
-    _stopped = true;
-  }
-  // Carry the tail so a token split across two windows is still seen whole.
-  if (_fill > OVERLAP) {
-    memmove(_win, _win + _fill - OVERLAP, OVERLAP);
-    _fill = OVERLAP;
-  }
-}
-
-void NetScanSink::finish() {
-  if (!_fill || _stopped) return;
-  _win[_fill] = '\0';
-  if (_cb) _cb(_win, _user);
-  _fill = 0;
+  // Guarantee NUL termination for text consumers
+  buf[totalRead] = '\0';
+  return (long)totalRead;
 }
 
 long Net_ScanBody(HTTPClient& http, NetScanFn cb, void* user, const char* tag,
                   void (*poll)()) {
   if (!cb) return -1;
 
-  NetScanSink sink(cb, user, poll, NET_BODY_BUDGET_MS);
-  int ret = http.writeToStream(&sink);
-  sink.finish();               // the last, partial window
+  NetworkClient* stream = http.getStreamPtr();
+  if (!stream) {
+    Serial.printf("%s: null stream\n", tag);
+    return -1;
+  }
 
-  if (sink.stoppedEarly()) {
-    return (long)sink.length();
+  const int declared = http.getSize();
+  const uint32_t budgetMs = NET_BODY_BUDGET_MS;
+  const uint32_t startMs = millis();
+  uint32_t lastDataMs = millis();
+
+  const size_t WIN = 512;
+  const size_t OVERLAP = NET_SCAN_MAX_TOKEN;
+  char win[WIN + 1];
+  size_t fill = 0;
+  size_t total = 0;
+  bool stopped = false;
+
+  auto feedWindow = [&](const uint8_t* data, size_t len) {
+    size_t done = 0;
+    while (done < len && !stopped) {
+      size_t room = WIN - fill;
+      size_t take = (len - done < room) ? (len - done) : room;
+      memcpy(win + fill, data + done, take);
+      fill += take;
+      done += take;
+      if (fill == WIN) {
+        win[fill] = '\0';
+        if (cb && !cb(win, user)) {
+          stopped = true;
+          break;
+        }
+        if (fill > OVERLAP) {
+          memmove(win, win + fill - OVERLAP, OVERLAP);
+          fill = OVERLAP;
+        }
+      }
+    }
+    total += done;
+  };
+
+  uint8_t readBlock[256];
+
+  while (!stopped) {
+    Watchdog_Feed();
+    if (poll) poll();
+
+    if (budgetMs && (millis() - startMs > budgetMs)) {
+      Serial.printf("%s: transfer exceeded %lu ms, aborted\n", tag, (unsigned long)budgetMs);
+      return -1;
+    }
+
+    if (declared >= 0 && (int)total >= declared) {
+      break;
+    }
+
+    int avail = stream->available();
+    if (avail > 0) {
+      lastDataMs = millis();
+      size_t take = (size_t)avail;
+      if (take > sizeof(readBlock)) take = sizeof(readBlock);
+      if (declared >= 0 && take > (size_t)(declared - total)) {
+        take = (size_t)(declared - total);
+      }
+      int got = stream->read(readBlock, take);
+      if (got > 0) {
+        feedWindow(readBlock, got);
+      }
+    } else {
+      if (!http.connected()) {
+        break;
+      }
+      if (millis() - lastDataMs > 4000) {
+        if (declared < 0 && total > 0) break;
+        Serial.printf("%s: transfer stalled (4s silence), aborted\n", tag);
+        return -1;
+      }
+      vTaskDelay(pdMS_TO_TICKS(5));
+    }
   }
-  if (sink.timedOut()) {
-    Serial.printf("%s: transfer exceeded %lu ms, aborted\n",
-                  tag, (unsigned long)NET_BODY_BUDGET_MS);
-    return -1;
+
+  // Scan whatever is left in the window
+  if (fill > 0 && !stopped && cb) {
+    win[fill] = '\0';
+    cb(win, user);
   }
-  if (ret < 0) {
-    Serial.printf("%s: writeToStream error %d (%s)\n", tag, ret,
-                  HTTPClient::errorToString(ret).c_str());
-    return -1;
-  }
-  return (long)sink.length();
+
+  return (long)total;
 }
 
 bool Net_HeapOk(const char* tag) {

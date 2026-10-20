@@ -20,6 +20,7 @@ static lv_timer_t* s_timer = nullptr;
 #include "NightMode.h"
 #include "AsyncCore.h"
 #include "Settings.h"
+#include "Watchdog.h"
 #include <WiFi.h>
 #include <math.h>
 
@@ -249,6 +250,7 @@ static void draw3DGlobe(const IssData& iss, bool centerHome) {
                      fabsf(iss.solarLon - s_cacheSolLon) < 0.1f);
     if (!cacheHit) {
       for (int dy = -R; dy <= R; dy++) {
+        if ((dy & 31) == 0) Watchdog_Feed();
         uint16_t* rowBuf = s_issMapBuf + (size_t)(dy + R) * GLOBE_DIAM;
         float ny = -(float)dy * invR; // +ny = North
         float r2_max = 1.0f - ny * ny;

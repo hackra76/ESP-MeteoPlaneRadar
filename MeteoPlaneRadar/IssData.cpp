@@ -163,8 +163,9 @@ bool Iss_Step() {
   if (WiFi.status() != WL_CONNECTED) return false;
 
   s_busy = true;
-  String body;
-  if (!Net_GetString("https://api.wheretheiss.at/v1/satellites/25544", body, "ISS")) {
+  const char* body = nullptr;
+  size_t bodyLen = 0;
+  if (!Net_GetCString("https://api.wheretheiss.at/v1/satellites/25544", &body, "ISS", nullptr, nullptr, 8000, 10000, &bodyLen) || !body) {
     s_busy = false;
     return false;
   }
@@ -181,7 +182,7 @@ bool Iss_Step() {
   filter["timestamp"] = true;
 
   JsonDocument doc(SpiRamAllocator::instance());
-  DeserializationError err = deserializeJson(doc, body, DeserializationOption::Filter(filter));
+  DeserializationError err = deserializeJson(doc, body, bodyLen, DeserializationOption::Filter(filter));
   if (err) {
     Serial.printf("ISS: JSON parse error: %s\n", err.c_str());
     s_busy = false;

@@ -102,14 +102,19 @@ static void drawWrappedTitle(const char* title, int x, int w, int y) {
     strncpy(line2, rest, sizeof(line2) - 1);
     line2[sizeof(line2) - 1] = '\0';
   } else {
-    strncpy(line1, title, 18);
-    line1[18] = '\0';
-    strncpy(line2, title + 18, sizeof(line2) - 1);
+    int cut = 18;
+    while (cut > 0 && ((unsigned char)title[cut] & 0xC0) == 0x80) cut--;
+    strncpy(line1, title, cut);
+    line1[cut] = '\0';
+    const char* rest = title + cut;
+    strncpy(line2, rest, sizeof(line2) - 1);
     line2[sizeof(line2) - 1] = '\0';
   }
 
   if (strlen(line2) > 20) {
-    line2[17] = '.'; line2[18] = '.'; line2[19] = '.'; line2[20] = '\0';
+    int cut2 = 17;
+    while (cut2 > 0 && ((unsigned char)line2[cut2] & 0xC0) == 0x80) cut2--;
+    line2[cut2] = '.'; line2[cut2 + 1] = '.'; line2[cut2 + 2] = '.'; line2[cut2 + 3] = '\0';
   }
 
   UI_TextCenteredIn(line1, x, w, y, C_WHITE, FONT_TINY);

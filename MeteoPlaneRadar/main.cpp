@@ -33,6 +33,10 @@
 #include "PetDrawer.h"
 #include "QuickControl.h"
 #include "QMI8658.h"
+#include <WiFi.h>
+#include <esp_heap_caps.h>
+#include <lwip/sockets.h>
+
 
 // LVGL Display flushing callback
 static void my_disp_flush(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map) {
@@ -160,9 +164,14 @@ void setup() {
   Serial.println("LVGL Setup Complete");
 }
 
+volatile const char* g_mainStage = "boot";
+volatile uint32_t g_mainStageMs = 0;
+
 void loop() {
+  g_mainStage = "qmi"; g_mainStageMs = millis();
   QMI8658_Tick();
 
+  g_mainStage = "wifi"; g_mainStageMs = millis();
   bool wasAP = WiFi_IsAP();
   WiFi_Loop();
   
@@ -170,6 +179,7 @@ void loop() {
     UI_SwitchScreen(SCREEN_CLOCK_I);
   }
 
+  g_mainStage = "webconfig_take"; g_mainStageMs = millis();
   int reqScreen = WebConfig_TakeScreen();
   if (reqScreen >= 0) {
       UI_SwitchScreen(reqScreen);
@@ -216,13 +226,19 @@ void loop() {
       Safe_Restart();
   }
 
+  g_mainStage = "buzzer"; g_mainStageMs = millis();
   Buzzer_Tick();
+  g_mainStage = "autorot"; g_mainStageMs = millis();
   UI_AutoRotate_Tick();
+  g_mainStage = "night"; g_mainStageMs = millis();
   NightMode_Tick();
+  g_mainStage = "settings"; g_mainStageMs = millis();
   Settings_Tick();
+  g_mainStage = "disaster"; g_mainStageMs = millis();
   DisasterAlert_Tick();
   
   // Smart auto-dimming check (30 minutes of inactivity)
+  g_mainStage = "dimming"; g_mainStageMs = millis();
   uint32_t inactive_ms = lv_display_get_inactive_time(lv_display_get_default());
   bool is_idle = (inactive_ms > 30 * 60 * 1000UL) && 
                  (ADSB_Count() == 0) && 
@@ -231,6 +247,7 @@ void loop() {
   NightMode_SetIdle(is_idle);
 
   // PSRAM Defragmentation Watch (runs around 3:00 AM)
+  g_mainStage = "maint"; g_mainStageMs = millis();
   static unsigned long last_maint = 0;
   if (millis() - last_maint > 300000UL) { // Check every 5 minutes
       last_maint = millis();
@@ -247,7 +264,32 @@ void loop() {
       }
   }
 
+  // Diagnostic heartbeat (every 2 s): Core 1 liveness, heap, sockets, WiFi, Core 0 worker stage.
+  g_mainStage = "hb"; g_mainStageMs = millis();
+  {
+    static unsigned long s_lastHb = 0;
+    if (millis() - s_lastHb >= 15000) {
+      s_lastHb = millis();
+      int socks = 0;
+      for (int fd = LWIP_SOCKET_OFFSET; fd < LWIP_SOCKET_OFFSET + MEMP_NUM_NETCONN; fd++) {
+        if (lwip_fcntl(fd, F_GETFL, 0) >= 0) socks++;
+      }
+      char dbg[64];
+      Async_DebugInfo(dbg, sizeof(dbg));
+      Serial.printf("[HB] t=%lus wifi=%d rssi=%d int=%u blk=%u min=%u psram=%u sock=%d %s\n",
+                    millis() / 1000UL, (int)WiFi.status(), (int)WiFi.RSSI(),
+                    (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+                    (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+                    (unsigned)heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+                    (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM), socks, dbg);
+    }
+  }
+
+  g_mainStage = "lvgl"; g_mainStageMs = millis();
   lv_timer_handler();
+  g_mainStage = "wdt"; g_mainStageMs = millis();
   Watchdog_Feed();
+  g_mainStage = "delay"; g_mainStageMs = millis();
   delay(5);
+  g_mainStage = "idle"; g_mainStageMs = millis();
 }

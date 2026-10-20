@@ -28,6 +28,7 @@
 #include "MoonTexture.h"
 #include "SIMD_Blend.h"
 #include "YouTubeData.h"
+#include "Watchdog.h"
 #include "FinanceData.h"
 #include "KlipperData.h"
 #include "AsyncCore.h"
@@ -936,6 +937,7 @@ static void renderLuxuryDialBackground(uint16_t* buf, float moonPhase, time_t no
     return false;
   };
   for (int y = 0; y < LCD_HEIGHT; y++) {
+    if ((y & 31) == 0) Watchdog_Feed();
     for (int x = 0; x < LCD_WIDTH; x++) {
       const float fx = (float)x, fy = (float)y;
       const float d0 = sqrtf((fx - CX) * (fx - CX) + (fy - CY) * (fy - CY));
@@ -1592,6 +1594,7 @@ static void ScreenClock_RequestComplications() {
       case CLOCK_SLOT_AIRCRAFT: Async_RequestAdsb();     break;
       case CLOCK_SLOT_YOUTUBE:  Async_RequestYouTube();  break;
       case CLOCK_SLOT_MARKET:   Async_RequestFinance();  break;
+      case CLOCK_SLOT_KLIPPER:  Async_RequestKlipper();  break;
       default: break;
     }
   };
@@ -1622,6 +1625,7 @@ static void ScreenClock_TimerCb(lv_timer_t* t) {
       bool needYouTube  = (topS == CLOCK_SLOT_YOUTUBE  || botS == CLOCK_SLOT_YOUTUBE);
       bool needWeather  = (topS == CLOCK_SLOT_WEATHER  || botS == CLOCK_SLOT_WEATHER ||
                            topS == CLOCK_SLOT_SPARKLINE|| botS == CLOCK_SLOT_SPARKLINE);
+      bool needKlipper  = (topS == CLOCK_SLOT_KLIPPER  || botS == CLOCK_SLOT_KLIPPER);
 
       static unsigned long s_lastAdsbPoll = 0;
       if (needAircraft && (ms - s_lastAdsbPoll >= 8000)) {
@@ -1650,6 +1654,14 @@ static void ScreenClock_TimerCb(lv_timer_t* t) {
       if (needWeather && (wxMissing || (ms - s_lastWxPoll >= 300000))) {
         s_lastWxPoll = ms;
         Async_RequestForecast();
+      }
+
+      static unsigned long s_lastKlipperPoll = 0;
+      KlipperStatus klipperStatus;
+      bool klipperMissing = (!Klipper_GetData(&klipperStatus) || !klipperStatus.valid);
+      if (needKlipper && (klipperMissing || (ms - s_lastKlipperPoll >= (Klipper_IsConnected() ? 3000UL : 15000UL)))) {
+        s_lastKlipperPoll = ms;
+        Async_RequestKlipper();
       }
     }
   }
