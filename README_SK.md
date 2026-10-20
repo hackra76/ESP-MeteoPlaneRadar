@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-SK%20%7C%20CZ%20%7C%20EN-green.svg)
-![Release](https://img.shields.io/badge/Release-v3.7.0-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v3.8.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunkčná meteorologická stanica, živý ADS-B letecký radar, animovaný radar zrážok (SHMÚ, ČHMÚ, RainViewer), kombinovaný taktický radar, sledovanie dráhy ISS, analytika YouTube, finančné trhy, telemetrický HUD pre Klipper 3D tlačiarne, systém varovania pred katastrofami s hardvérovým seizmometrom a animovaný virtuálny spoločník na okrúhlom 2.1" IPS dotykovom displeji.**  
@@ -50,9 +50,10 @@ Vyvinuté pre **Waveshare ESP32-S3-Touch-LCD-2.1** s dotykovými gestami v štý
   - **3D fotorealistický Mesiac**: Fotografická NASA LROC albedo textúra (92×92 px) s 3D Lambertovým difúznym osvetlením (presné osvetlenie pravej/ľavej pologule pre severnú pologuľu) a percentom osvetlenia.
   - **Trend teploty so Sparkline (24h)**: Vonkajšia teplota s 24-hodinovou krivkou vývoja.
   - **Aktuálne počasie a vietor**: Ikona počasia, teplota a rýchlosť vetra.
-  - **Živé telemetrické moduly**: Počet lietadiel v okruhu 10 km, počet odberateľov YouTube, primárny trhový ticker alebo priebeh tlače 3D tlačiarne Klipper.
+  - **Živé telemetrické moduly**: Počet lietadiel v okruhu 10 km, počet odberateľov YouTube, primárny trhový ticker alebo priebeh tlače 3D tlačiarne Klipper (živá aktualizácia priamo na ciferníku hodín na pozadí).
 - **Interaktívna navigácia**: Ťuknutie na ľubovoľný subciferník alebo výstražný štítok (prelet lietadla / blížiaci sa dážď) okamžite prepne na príslušnú obrazovku.
 - **Dynamická sekundová dráha**: Plynulá obiehajúca svetelná perla (~30 FPS) s Gaussian bloom stopou a vyhladzovanou 76 px švajčiarskou typografiou.
+- **DigiCat Cameo**: Nenápadné zobrazenie oddychujúcej mačky na spodnom okraji ciferníka so synchronizovaným dýchaním.
 
 ### 🛩️ ADS-B letecký radar a Aero Glass HUD
 - **360° letecký radar (14–200 km)**: Živé sledovanie lietadiel cez `adsb.fi` / `adsb.lol` s kružnicami dosahu, letiskami, online mapovými podkladmi a 360° kompasovou ružicou.
@@ -75,16 +76,21 @@ Vyvinuté pre **Waveshare ESP32-S3-Touch-LCD-2.1** s dotykovými gestami v štý
 ### 🛰️ 3D dráha ISS, Finančné trhy a YouTube analytika
 - **3D sledovanie ISS**: Ortografická 3D guľa Zeme s atmosférickým Rayleighovým halom, slnečným terminátorom deň/noc, predikciou dráhy a 3 režimami pohľadu (`3D ISS`, `3D Domov`, `2D mapa`).
 - **Finančné trhy a krypto**: Až 8 vlastných tickerov z Yahoo Finance (akcie, ETF, kryptomeny, komodity, forex) s čiarovým a sviečkovým grafom.
-- **YouTube analytika**: Živý počet odberateľov, celkové zhliadnutia a štatistiky najnovšieho/najsledovanejšieho videa cez YouTube Data API v3.
+- **YouTube analytika**: Živý počet odberateľov, celkové zhliadnutia a štatistiky najnovšieho/najsledovanejšieho videa cez neblokujúce streamovanie.
 
 ### 🖨️ Telemetrický HUD pre 3D tlačiarne Klipper / Moonraker
 - **Kruhový HUD pre 3D tlačiareň**: Živá LAN telemetria z rozhrania Moonraker s hardvérovo vykresľovanými vektorovými ikonami (izometrická 3D kocka, tryska, vyhrievaná podložka, zameriavací kríž homingu, bed mesh).
 - **16 prevádzkových stavov**: Farebne podsvietená stavová LED (`STANDBY`, `HOMING`, `PROBING / MESH`, `HEATING`, `PRINTING`, `PAUSED`, `FILAMENT RUNOUT`, `COMPLETED`, `ERROR` atď.) s inteligentným filtrovaním prechodných makier.
 - **Teploty, vrstvy a ETA**: Karty teplôt trysky a podložky s cieľovými hodnotami, stav homingu X/Y/Z, výška Z, počítadlo vrstiev (`L X/Y`) a presný výpočet zostávajúceho času tlače.
-- **Striktná sieťová izolácia**: Dotazovanie Moonraker API prebieha výhradne vtedy, keď je obrazovka 3D tlačiarne aktívne zobrazená na displeji, s rýchlym LAN timeoutom (1,5 s).
+- **Striktná sieťová izolácia**: Rýchle LAN timeouty (1,5 s connect) a podpora mDNS `.local` prekladu s neblokujúcim plánovaním.
 
 ### 🐾 DigiCat — Interaktívny virtuálny spoločník
 - **Hi-Res Sprite engine**: 247 snímok v 38 animačných sekvenciách vykresľovaných v mierke 3× (`192×192 px`) vo výsuvnej zásuvke.
+- **Laserové ukazovadlo**: Interaktívne navádzanie laserovej bodky dotykom po obrazovke s realistickou mačacou inverznou kinematikou plazenia a skokov.
+- **Hádzanie rybičiek**: Hra s realistickou balistickou parabolickou fyzikou odrazov pochúťok a sekvenciami maškrtenia.
+- **Viaczónové hladkanie**: Kontextové zóny dotyku (škrabkanie pod bradou, ušká, bruško, chvostík) s dynamickými náladami a zvukovým pradením.
+- **Živý okolitý svet**: Procedurálne prvky prostredia v pozadí vrátane motýľov, vtákov, padajúceho lístia a prachových zrniek.
+- **Typografický písací stroj**: Dialógové bubliny v retro štýle písacieho stroja s animovaným písaním a AI myšlienkami cez Gemini.
 - **Režim Aero-Cat kopilota**: Ťuknutie na čelo prepne do režimu Top Gun so zlatými okuliarmi, mini radarom a živou telemetriou 6-osého IMU senzora (`PITCH`, `ROLL`, `KURZ`).
 - **Reakcie na počasie a lietadlá**: Dáždnik v daždi, šál v mraze, letecké okuliare za jasného počasia; naháňanie a chňapanie po skutočných lietadlách prelietajúcich nad hlavou.
 - **Autonómny AI mozog a Gemini komentáre**: Bohaté pokojové animácie, spánkový režim, štatistiky Hladu/Šťastia, letecké XP hodnosti a voliteľné živé komentovanie premávky cez Google Gemini Flash (so 100 % offline zálohou v SK/CZ/EN).

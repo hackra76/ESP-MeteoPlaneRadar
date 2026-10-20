@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20SK%20%7C%20CZ-green.svg)
-![Release](https://img.shields.io/badge/Release-v3.7.0-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v3.8.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, ISS orbit tracking, YouTube channel analytics, financial market tickers, Klipper 3D printer telemetry HUD, disaster warning system with hardware seismometer, and an animated virtual pet companion on a round 2.1" IPS touchscreen.**  
@@ -50,9 +50,10 @@ Designed for the **Waveshare ESP32-S3-Touch-LCD-2.1** with smartphone-like touch
   - **3D Photorealistic Moon Phase**: Embedded 92×92 NASA LROC lunar texture with analytical 3D Lambertian lighting, accurate northern-hemisphere waxing/waning illumination, and illumination percentage.
   - **Temperature Trend & Sparkline (24h)**: Outdoor temperature with a 24-hour area sparkline curve.
   - **Current Weather & Condition Icon**: Real-time condition glyph, temperature, and wind speed.
-  - **Live Telemetry Counters**: ADS-B aircraft within 10 km, YouTube subscriber count, Primary Market ticker, or Klipper 3D printer progress.
+  - **Live Telemetry Counters**: ADS-B aircraft within 10 km, YouTube subscriber count, Primary Market ticker, or Klipper 3D printer progress (real-time live polling without leaving the Clock screen).
 - **Interactive Navigation**: Tapping either subdial aperture or floating alert banner (overhead flight / approaching rain) jumps directly to its dedicated screen.
 - **Dynamic Seconds Orbit**: Smooth ~30 FPS orbiting luminous bead with a trailing Gaussian bloom arc and anti-aliased 76 px Swiss digital typography.
+- **DigiCat Cameo**: Ambient peek-in cameo resting on the lower bezel with synchronized breathing.
 
 ### 🛩️ ADS-B Flight Radar & Aero Glass HUD
 - **360° Airspace Radar (14–200 km)**: Live aircraft tracking via `adsb.fi` / `adsb.lol` with range rings, airport beacons, online map tile underlays, and a 360° aviation compass rose bezel.
@@ -75,16 +76,21 @@ Designed for the **Waveshare ESP32-S3-Touch-LCD-2.1** with smartphone-like touch
 ### 🛰️ 3D ISS Tracker, Financial Markets & YouTube Analytics
 - **3D ISS Orbit Tracker**: Orthographic 3D Earth globe with atmospheric Rayleigh limb glow, real-time solar terminator Day/Night shading, ground track prediction, and 3 view modes (`3D ISS`, `3D Home`, `2D Map`).
 - **Financial Markets & Crypto**: Up to 8 configurable Yahoo Finance tickers (stocks, ETFs, crypto, commodities, forex) with sparkline and candlestick charts.
-- **YouTube Channel Analytics**: Live subscriber count, total views, and latest/top video performance via YouTube Data API v3.
+- **YouTube Channel Analytics**: Live subscriber count, total views, and latest/top video performance via non-blocking background streaming.
 
 ### 🖨️ Klipper / Moonraker 3D Printer HUD
 - **Dedicated Circular Printer HUD**: Real-time LAN telemetry from Moonraker with hardware-rendered vector micro-icons (isometric 3D cube, nozzle, heated bed, homing crosshairs, bed mesh).
 - **16 Operational States**: Color-coded LED state detection (`STANDBY`, `HOMING`, `PROBING / MESH`, `HEATING`, `PRINTING`, `PAUSED`, `FILAMENT RUNOUT`, `COMPLETED`, `ERROR`, etc.) with macro lifecycle gating.
 - **Thermal & Layer Telemetry**: Dual hotend/heatbed temperature cards with target badges, X/Y/Z homing status, Z-elevation, current/total layer counter (`L X/Y`), and smart print ETA calculation.
-- **Strict Network Isolation**: Queries Moonraker exclusively when the 3D Printer screen is active on the display, with fast LAN timeouts (1.5 s connect) to prevent background socket stalls when the printer is powered off.
+- **Strict Network Isolation**: Fast LAN timeouts (1.5 s connect) and mDNS `.local` resolution with non-blocking priority scheduling.
 
 ### 🐾 DigiCat — Interactive Virtual Pet Companion
 - **Hi-Res Sprite Engine**: 247 frames across 38 animation sequences rendered at 3× scale (`192×192 px`) in a pull-up drawer.
+- **Laser Pointer Chase Mode**: Interactive laser dot targeting via touchscreen with realistic feline pouncing, stalking physics, and real-time inverse kinematics tracking.
+- **Fish Treat Toss Mini-Game**: Realistic parabolic ballistic trajectory physics, floor bouncing, and eating animation sequences with happiness rewards.
+- **Multi-Zone Tactile Petting**: Context-sensitive touch zones (chin scratching, ear rubs, belly tickling, tail swish) triggering dynamic mood shifts, purring audio chimes, and playful sprite reactions.
+- **Living Ambient Ecosystem**: Procedural environmental background life including fluttering butterflies, gliding birds, swirling autumn leaves, and floating atmospheric dust motes.
+- **Typewriter Dialogue Engine**: Retro word-wrapped animated character-by-character dialogue rendering with conversational AI thoughts from Gemini.
 - **Aero-Cat Co-Pilot Mode**: Tap forehead to toggle Top Gun intercept mode with gold aviator sunglasses, mini radar scope, and live 6-axis IMU attitude telemetry (`PITCH`, `ROLL`, `HEADING`).
 - **Weather & Airspace Reactivity**: Equips umbrella in rain, scarf in snow/cold, or goggles in clear skies; sprints and swats at live jets passing overhead.
 - **Autonomous AI & Gemini Commentary**: Rich idle behaviors, sleep cycles, Hunger/Happiness stats, aviation XP ranks, and optional Google Gemini Flash live air traffic commentary (with 100% offline fallback in EN/SK/CZ).

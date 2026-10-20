@@ -9,6 +9,26 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [3.8.0] - 2026-10-20
+
+### Added
+- **DigiCat Interactive Companion Upgrades:**
+  - **Laser Pointer Chase Mode**: Interactive laser dot targeting via touchscreen with realistic feline pouncing, stalking physics, and real-time inverse kinematics tracking.
+  - **Fish Treat Toss Mini-Game**: Realistic parabolic ballistic trajectory physics, floor bouncing, and eating animation sequences with happiness rewards.
+  - **Multi-Zone Tactile Petting**: Context-sensitive touch zones (chin scratching, ear rubs, belly tickling, tail swish) triggering dynamic mood shifts, purring audio chimes, and playful sprite reactions.
+  - **Living Ambient Ecosystem**: Procedural environmental background life including fluttering butterflies, gliding birds, swirling autumn leaves, and floating atmospheric dust motes.
+  - **Typewriter Dialogue Engine**: Retro word-wrapped animated character-by-character dialogue rendering with conversational AI thoughts from Gemini.
+  - **Clock Screen Peek Cameo**: Subtle ambient DigiCat presence resting on the bottom bezel of the Astronomical Clock dial with synchronized breathing and reactive eye tracking.
+
+### Fixed & Improved
+- **Network Stack Hardening & TLS Concurrency Architecture:**
+  - **Non-Blocking Multi-Step YouTube Client**: Restructured YouTube Channel Analytics into a 3-stage non-blocking state machine with PSRAM JSON document allocation, eliminating Core 0 TLS lockups and watchdog timeouts.
+  - **Cross-Core Mutex Synchronization**: Added dedicated recursive mutexes (`s_mtxYouTube`, `s_txtMtx`) and RAII text buffer locks protecting shared network scratch buffers between Core 0 async workers and Core 1 UI tasks.
+  - **Clock Complication Live Telemetry**: Resolved frozen complications by routing Klipper 3D printer, YouTube, Market, Aircraft, and Weather background updates directly on Core 0 while sitting on the Clock screen without requiring screen switches.
+  - **Dispatch Ladder Prioritization**: Elevated active screen complications ahead of idle background screen cycles, guaranteeing immediate telemetry polling for displayed subdial apertures.
+  - **MbedTLS Socket Teardown Cleanliness**: Eliminated persistent `MBEDTLS_ERR_NET_CONN_RESET (-76)` console error spam by ensuring sockets are not probed via `available()` once remote HTTP disconnection is established.
+  - **Serial Heartbeat Throttling**: Extended heartbeat interval to 15 s and raised watchdog stall thresholds to eliminate false alarms during heavy graphical pre-rendering.
+
 ## [3.7.0] - 2026-10-19
 
 ### Added & Improved
