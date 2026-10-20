@@ -190,6 +190,12 @@ void MapTiles_Init() {
   }
 }
 
+void MapTiles_Cancel() {
+  s_busy = false;
+  s_jobId++;
+  Net_SessionEnd();
+}
+
 void MapTiles_FreeBuffers() {
   s_busy = false;
   s_ready = false;
@@ -223,9 +229,6 @@ void MapTiles_Begin(uint8_t provider, double lat, double lon, float rangeKm) {
   MapTiles_Init();
 
   if (provider == MAP_PROV_VECTOR) {
-    if (s_provider != MAP_PROV_VECTOR) {
-      Net_SessionEnd();
-    }
     s_provider = MAP_PROV_VECTOR;
     s_busy = false;
     s_ready = true;
@@ -241,11 +244,6 @@ void MapTiles_Begin(uint8_t provider, double lat, double lon, float rangeKm) {
   if (sameView && (s_ready || s_busy)) {
     return;
   }
-
-  if (s_provider != provider) {
-    Net_SessionEnd();
-  }
-  Net_SessionBegin();
 
   s_provider = provider;
   s_centerLat = lat;
@@ -291,6 +289,7 @@ void MapTiles_Begin(uint8_t provider, double lat, double lon, float rangeKm) {
 
 bool MapTiles_Step() {
   if (!s_busy || s_provider == MAP_PROV_VECTOR) return false;
+  Net_SessionBegin();
   if (s_currentTileIdx >= s_totalTiles) {
     s_busy = false;
     s_ready = true;

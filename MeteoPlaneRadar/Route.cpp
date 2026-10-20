@@ -4,6 +4,7 @@
 // =============================================================================
 #include "Route.h"
 #include "AsyncCore.h"
+#include "Net.h"
 #include "Config.h"
 #include "NetSink.h"
 #include <WiFi.h>
@@ -285,6 +286,7 @@ void Route_Tick() {
   if (!s_pending) return;
   if (WiFi.status() != WL_CONNECTED) return;
 
+  Net_SessionEnd();
   if (!Net_HeapOk("ROUTE")) return;
 
   s_pending = false;

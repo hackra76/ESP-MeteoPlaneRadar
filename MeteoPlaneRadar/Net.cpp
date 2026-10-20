@@ -92,6 +92,9 @@ bool Net_GetCString(const char* url, const char** outPtr, const char* tag,
 
   TxtLockGuard _lk;
 
+  // Clean up any lingering keep-alive tile session before standalone HTTPS fetch
+  Net_SessionEnd();
+
   // Plain http:// endpoints exist too - ip-api.com serves TLS to paying users
   // only - and they belong on the same path as everything else instead of
   // growing a second copy of this function elsewhere. The heap guard is about
@@ -185,6 +188,9 @@ bool Net_PostJson(const char* url, const char* jsonPayload, String& out, const c
   if (!jsonPayload) return false;
 
   TxtLockGuard _lk;
+
+  // Clean up any lingering keep-alive tile session before standalone HTTPS fetch
+  Net_SessionEnd();
 
   const bool tls = (strncmp(url, "http://", 7) != 0);
   if (tls && !Net_HeapOk(tag)) return false;
@@ -329,6 +335,7 @@ bool Net_GetBinary(const char* url, uint8_t* buf, size_t cap, size_t* outLen,
 
 bool Net_TouchDate(const char* url) {
   if (WiFi.status() != WL_CONNECTED) return false;
+  Net_SessionEnd();
   if (!Net_HeapOk("CLOCK")) return false;
 
   WiFiClientSecure client;

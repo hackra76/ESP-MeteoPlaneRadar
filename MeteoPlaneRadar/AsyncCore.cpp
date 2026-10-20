@@ -254,11 +254,15 @@ static void asyncWorkerTask(void* param) {
         s_reqKlipper = false;
       }
 
-      // Clear background route lookup queue and photo when leaving aircraft screens
-      if (!planesActive) {
+      // Clear background route lookup queue, photo, and map tiles on transition away from aircraft screens
+      static bool s_lastPlanesActive = false;
+      if (!planesActive && s_lastPlanesActive) {
         Route_ClearQueue();
         PlanePhoto_Clear();
+        MapTiles_Cancel();
+        s_reqAdsb = false;
       }
+      s_lastPlanesActive = planesActive;
 
       // Fast clock sync on first WiFi connect if time is not yet valid from RTC
       if (!s_firstTimeReseed && !Outside_TimeValid() && !rvBusy) {
@@ -410,8 +414,17 @@ static void asyncWorkerTask(void* param) {
             Outside_Tick();
             lastTlsTime = millis();
           }
+          // Priority for active ISS screen
+          else if (curScr == SCREEN_ISS_I && (s_reqIss || (now - lastIssFetch >= ISS_PERIOD_ACTIVE_MS))) {
+            if (Iss_Step()) {
+              s_issUpdated = true;
+              lastTlsTime = millis();
+            }
+            s_reqIss = false;
+            lastIssFetch = now;
+          }
           // 6. Finance Data (Markets, Crypto, Stocks, Commodities)
-          else if (Finance_IsBusy() || s_reqFinance ||
+          else if ((Finance_IsBusy() && Finance_ReadyToStep()) || s_reqFinance ||
                    (Finance_LastUpdated() == 0 && (now - lastFinanceFetch >= 15000UL)) ||
                    (curScr == SCREEN_FINANCE_I && (now - lastFinanceFetch >= 30000UL)) ||
                    (clockNeedsFinance && (now - lastFinanceFetch >= 60000UL)) ||
@@ -425,7 +438,7 @@ static void asyncWorkerTask(void* param) {
               lastFinanceFetch = now;
             }
           }
-          // 7. ISS Orbit Tracker
+          // 7. ISS Orbit Tracker (background)
           else if (s_reqIss ||
                    (now - lastIssFetch >= (Settings_ScreenEnabled(SCREEN_ISS_I) ? ((curScr == SCREEN_ISS_I) ? ISS_PERIOD_ACTIVE_MS : ISS_PERIOD_BG_MS) : 60000UL))) {
             if (Iss_Step()) {

@@ -190,7 +190,7 @@ static bool ensureBuffers(int frames) {
 // (RV_SMOOTH), and interpolating radar reflectivity would invent intensities
 // that the data does not contain.
 static int rvPngDraw(PNGDRAW* d) {
-  if (!s_dstFrame || !s_lineBuf) return 0;
+  if (!s_dstFrame || !s_lineBuf || !s_decoder) return 0;
   // The line buffer is sized for the tile size we asked for. If the server ever
   // answered with something wider, decoding into it would run off the end of
   // the allocation - refuse instead of corrupting memory.
@@ -342,8 +342,9 @@ static bool fetchOneTile(int frameIdx, int tileIdx) {
   s_dstX = (int)lround((tx * (double)RV_TILE_SIZE - s_originX) * s_scale);
   s_dstY = (int)lround((ty * (double)RV_TILE_SIZE - s_originY) * s_scale);
   s_dstFrame = s_fr[frameIdx].px;
+  if (!s_decoder || !s_png || !s_lineBuf || !s_dstFrame) return false;
 
-  if (!s_decoder || s_decoder->openRAM(s_png, s_pngLen, rvPngDraw) != PNG_SUCCESS) {
+  if (s_decoder->openRAM(s_png, s_pngLen, rvPngDraw) != PNG_SUCCESS) {
     Serial.println("RAINVIEWER: failed to decode tile");
     return false;
   }
@@ -417,7 +418,52 @@ void RainViewer_Refresh() {
   Async_UnlockRadar();
 }
 
+static volatile bool s_stepActive = false;
+static volatile bool s_freeRequested = false;
+
+static void freeBuffersInternal() {
+  for (int i = 0; i < RV_ANIM_MAX; i++) {
+    if (s_fr[i].px) {
+      heap_caps_free(s_fr[i].px);
+      s_fr[i].px = nullptr;
+    }
+    s_fr[i].t = 0;
+    s_fr[i].path[0] = '\0';
+    s_fr[i].ready = false;
+  }
+  if (s_png) {
+    heap_caps_free(s_png);
+    s_png = nullptr;
+  }
+  if (s_decoder) {
+    heap_caps_free(s_decoder);
+    s_decoder = nullptr;
+  }
+  if (s_lineBuf) {
+    free(s_lineBuf);
+    s_lineBuf = nullptr;
+  }
+  s_frameN = 0;
+  s_readyN = 0;
+  s_dstFrame = nullptr;
+  Net_SessionEnd();
+}
+
 bool RainViewer_Step() {
+  struct StepActiveGuard {
+    StepActiveGuard()  { s_stepActive = true; }
+    ~StepActiveGuard() {
+      if (s_freeRequested) {
+        Async_LockRadar();
+        freeBuffersInternal();
+        s_freeRequested = false;
+        Async_UnlockRadar();
+      }
+      s_stepActive = false;
+    }
+  } _stepGuard;
+  (void)_stepGuard;
+
   Async_LockRadar();
   switch (s_state) {
     case RV_IDLE:
@@ -588,28 +634,11 @@ int RainViewer_WallMinutesAgo(int i) {
 void RainViewer_FreeBuffers() {
   s_jobId = s_jobId + 1;
   s_state = RV_IDLE;
-  for (int i = 0; i < RV_ANIM_MAX; i++) {
-    if (s_fr[i].px) {
-      heap_caps_free(s_fr[i].px);
-      s_fr[i].px = nullptr;
-    }
-    s_fr[i].t = 0;
-    s_fr[i].path[0] = '\0';
-    s_fr[i].ready = false;
+  if (s_stepActive) {
+    s_freeRequested = true;
+    return;
   }
-  if (s_png) {
-    heap_caps_free(s_png);
-    s_png = nullptr;
-  }
-  if (s_decoder) {
-    heap_caps_free(s_decoder);
-    s_decoder = nullptr;
-  }
-  if (s_lineBuf) {
-    free(s_lineBuf);
-    s_lineBuf = nullptr;
-  }
-  s_frameN = 0;
-  s_readyN = 0;
-  s_dstFrame = nullptr;
+  Async_LockRadar();
+  freeBuffersInternal();
+  Async_UnlockRadar();
 }

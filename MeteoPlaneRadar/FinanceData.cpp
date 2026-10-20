@@ -127,6 +127,11 @@ bool Finance_IsBusy() {
   return s_isStepping;
 }
 
+bool Finance_ReadyToStep() {
+  if (!s_isStepping) return s_forceFetch || (millis() - s_lastCycleTime >= FINANCE_PERIOD_MS);
+  return (millis() - s_lastStepTime >= FINANCE_STEP_GAP_MS);
+}
+
 unsigned long Finance_LastUpdated() {
   return s_lastUpdated;
 }

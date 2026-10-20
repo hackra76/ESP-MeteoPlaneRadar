@@ -26,6 +26,9 @@ void MapTiles_FreeBuffers();
 // Configure the view target. Non-blocking.
 void MapTiles_Begin(uint8_t provider, double lat, double lon, float rangeKm);
 
+// Cancel any active in-flight tile downloads and release session
+void MapTiles_Cancel();
+
 // Single incremental network / decode step executed on Core 0.
 // Returns true when a tile was completed and screen should be refreshed.
 bool MapTiles_Step();

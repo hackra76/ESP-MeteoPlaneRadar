@@ -163,6 +163,7 @@ int SHMU_FetchAnim(int wantN) {
   if (wantN < 1) wantN = 1;
 
   // 1) Scan JSON API and find N newest filenames
+  Net_SessionEnd();
   if (!Net_HeapOk("SHMU")) return s_animCount;
   s_topCount = 0;
   s_scanDone = false;

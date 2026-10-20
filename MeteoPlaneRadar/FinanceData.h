@@ -49,4 +49,5 @@ void Finance_NextActive();
 bool Finance_Step();
 void Finance_RequestFetch();
 bool Finance_IsBusy();
+bool Finance_ReadyToStep();
 unsigned long Finance_LastUpdated();

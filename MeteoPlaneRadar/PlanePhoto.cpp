@@ -71,6 +71,7 @@ static int  s_activeSlot = -1;
 static bool s_pending = false;
 static bool s_changed = false;
 static uint8_t* s_tempJpeg = nullptr;
+static volatile bool s_photoDownloading = false;
 
 static void lock() {
   if (!s_mtx) s_mtx = xSemaphoreCreateMutex();
@@ -170,7 +171,7 @@ void PlanePhoto_Clear() {
     s_cache[i].state = PHOTO_IDLE;
     s_cache[i].stamp = 0;
   }
-  if (s_tempJpeg) {
+  if (!s_photoDownloading && s_tempJpeg) {
     heap_caps_free(s_tempJpeg);
     s_tempJpeg = nullptr;
   }
@@ -236,6 +237,7 @@ const uint16_t* PlanePhoto_GetRgb565(int* outW, int* outH) {
 // Perform query to Planespotters.net API
 static bool queryPlanespotters(const char* kind, const char* value, char* thumbUrl, size_t thumbUrlCap, char* photographer, size_t photogCap) {
   if (!value || !*value) return false;
+  Net_SessionEnd();
   if (!Net_HeapOk("PHOTO_META")) return false;
 
   char url[128];
@@ -315,6 +317,7 @@ static bool downloadJpeg(const char* url, uint8_t* dstBuf, size_t* dstLen) {
   http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
 
   bool isHttps = (strncmp(url, "https://", 8) == 0);
+  if (isHttps) Net_SessionEnd();
   if (isHttps && !Net_HeapOk("PHOTO_IMG")) return false;
   WiFiClientSecure clientSecure;
   WiFiClient clientPlain;
@@ -427,7 +430,10 @@ void PlanePhoto_Tick() {
       }
 
       size_t jpegLen = 0;
-      if (downloadJpeg(fetchUrl, s_tempJpeg, &jpegLen) || downloadJpeg(thumbUrl, s_tempJpeg, &jpegLen)) {
+      s_photoDownloading = true;
+      bool dlOk = downloadJpeg(fetchUrl, s_tempJpeg, &jpegLen) || downloadJpeg(thumbUrl, s_tempJpeg, &jpegLen);
+      s_photoDownloading = false;
+      if (dlOk) {
         Watchdog_Feed();
 
         lock();

@@ -152,6 +152,7 @@ int CHMU_FetchAnim(int wantN) {
   if (wantN < 1) wantN = 1;
 
   // 1) Scan index to find N newest filenames
+  Net_SessionEnd();
   if (!Net_HeapOk("CHMU")) return s_animCount;
   s_topCount = 0;
   {
