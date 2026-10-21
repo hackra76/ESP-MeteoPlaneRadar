@@ -378,16 +378,16 @@ bool ADSB_Fetch(double lat, double lon, float radiusKm) {
       Serial.printf("ADSB: HTTP %d (attempt %d, %lu ms, heap %u B, block %u B)\n", code, attempt, fetchMs,
                     (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
                     (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
-      http.end();
       client.stop();
+      http.end();
       if (attempt < MAX_ATTEMPTS) { delay(150); continue; }
       return false;   // keep last good data
     }
 
     // Read the WHOLE body first (into PSRAM), then parse - no live-stream parse.
     long len = readBody(http);
-    http.end();
     client.stop();
+    http.end();
 
     if (len < 0) {
       Serial.println("ADSB: body read failed");

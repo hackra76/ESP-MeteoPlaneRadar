@@ -42,7 +42,7 @@ static bool readChunkLine(NetworkClient* stream, HTTPClient& http, char* line, s
         line[idx++] = c;
       }
     } else {
-      if (!http.connected() && stream->available() == 0) return false;
+      if (!http.connected()) return false;
       vTaskDelay(pdMS_TO_TICKS(2));
     }
   }
@@ -98,15 +98,7 @@ long Net_ReadBody(HTTPClient& http, uint8_t* buf, size_t cap, const char* tag,
 
       long chunkSize = strtol(p, nullptr, 16);
       if (chunkSize <= 0) {
-        // Terminal chunk (0): drain trailing CRLF if data is already available
-        if (http.connected()) {
-          uint32_t trailStart = millis();
-          while (http.connected() && (millis() - trailStart < 50)) {
-            if (stream->available() > 0) stream->read();
-            else break;
-          }
-        }
-        break; // Finished chunked transfer successfully
+        break; // Finished chunked transfer successfully; do not poll stream after EOF
       }
 
       // Read chunk payload

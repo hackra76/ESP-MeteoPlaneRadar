@@ -224,9 +224,8 @@ static int getJson(const char* url, JsonDocument& filter, JsonDocument& doc) {
   http.addHeader("Accept", "application/json");
   int code = http.GET();
   if (code != HTTP_CODE_OK) {
-    while (client.available()) client.read();
-    http.end();
     client.stop();
+    http.end();
     delay(50);
     return code;
   }
@@ -237,16 +236,14 @@ static int getJson(const char* url, JsonDocument& filter, JsonDocument& doc) {
     s_buf = (uint8_t*)heap_caps_malloc(ROUTE_MAX, MALLOC_CAP_SPIRAM);
     if (!s_buf) s_buf = (uint8_t*)malloc(ROUTE_MAX);
     if (!s_buf) {
-      while (client.available()) client.read();
-      http.end();
       client.stop();
+      http.end();
       return -1002;
     }
   }
   long len = Net_ReadBody(http, s_buf, ROUTE_MAX, "ROUTE", s_poll);
-  while (client.available()) client.read();
-  http.end();
   client.stop();
+  http.end();
   delay(100);    // Give LwIP TCP stack time to settle the FIN/ACK handshake
   if (len <= 0) return -1001;
 

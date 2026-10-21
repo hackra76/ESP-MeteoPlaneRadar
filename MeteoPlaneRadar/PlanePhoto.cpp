@@ -261,18 +261,16 @@ static bool queryPlanespotters(const char* kind, const char* value, char* thumbU
   int code = http.GET();
   if (code != 200) {
     Serial.printf("PlanePhoto: Planespotters API HTTP %d for %s\n", code, url);
-    while (client.available()) client.read();
-    http.end();
     client.stop();
+    http.end();
     delay(50);
     return false;
   }
 
   char jsonBuf[2048];
   long got = Net_ReadBody(http, (uint8_t*)jsonBuf, sizeof(jsonBuf), "PHOTO_API");
-  while (client.available()) client.read();
-  http.end();
   client.stop();
+  http.end();
   delay(50);
   if (got <= 0) return false;
 
@@ -336,13 +334,11 @@ static bool downloadJpeg(const char* url, uint8_t* dstBuf, size_t* dstLen) {
   int code = http.GET();
   if (code != 200) {
     if (isHttps) {
-      while (clientSecure.available()) clientSecure.read();
-      http.end();
       clientSecure.stop();
-    } else {
-      while (clientPlain.available()) clientPlain.read();
       http.end();
+    } else {
       clientPlain.stop();
+      http.end();
     }
     delay(50);
     return false;
@@ -350,13 +346,11 @@ static bool downloadJpeg(const char* url, uint8_t* dstBuf, size_t* dstLen) {
 
   long got = Net_ReadBody(http, dstBuf, PHOTO_BUF_MAX, "PHOTO");
   if (isHttps) {
-    while (clientSecure.available()) clientSecure.read();
-    http.end();
     clientSecure.stop();
-  } else {
-    while (clientPlain.available()) clientPlain.read();
     http.end();
+  } else {
     clientPlain.stop();
+    http.end();
   }
   delay(50);
 

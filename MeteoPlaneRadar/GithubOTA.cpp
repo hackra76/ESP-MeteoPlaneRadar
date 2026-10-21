@@ -164,9 +164,8 @@ static bool doCheckGitHubReleases() {
   http.addHeader("Accept", "application/vnd.github.v3+json");
   int code = http.GET();
   if (code != HTTP_CODE_OK) {
-    while (client.available()) client.read();
-    http.end();
     client.stop();
+    http.end();
     s_otaError = "HTTP " + String(code);
     s_otaState = GH_OTA_ERROR;
     return false;
@@ -176,18 +175,16 @@ static bool doCheckGitHubReleases() {
   uint8_t* jsonBuf = (uint8_t*)heap_caps_malloc(OTA_JSON_MAX, MALLOC_CAP_SPIRAM);
   if (!jsonBuf) jsonBuf = (uint8_t*)malloc(OTA_JSON_MAX);
   if (!jsonBuf) {
-    while (client.available()) client.read();
-    http.end();
     client.stop();
+    http.end();
     s_otaError = "No RAM for JSON";
     s_otaState = GH_OTA_ERROR;
     return false;
   }
 
   long len = Net_ReadBody(http, jsonBuf, OTA_JSON_MAX, "OTA");
-  while (client.available()) client.read();
-  http.end();
   client.stop();
+  http.end();
 
   if (len <= 0) {
     if (esp_ptr_external_ram(jsonBuf)) heap_caps_free(jsonBuf); else free(jsonBuf);

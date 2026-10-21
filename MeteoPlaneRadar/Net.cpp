@@ -150,11 +150,11 @@ bool Net_GetCString(const char* url, const char** outPtr, const char* tag,
                                 (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
                                 (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
     else        Serial.printf("%s: HTTP %d\n", tag, code);
-    cleanupSocket(client);
-    http.end();
+    if (tls) secure.stop();
     client.stop();
     plain.stop();
-    if (tls) secure.stop();
+    cleanupSocket(client);
+    http.end();
     return false;
   }
   if (http.hasHeader("Date")) Outside_NoteHttpDate(http.header("Date").c_str());
@@ -163,28 +163,28 @@ bool Net_GetCString(const char* url, const char** outPtr, const char* tag,
   if (declared > (int)NET_MAX_TEXT) {
     Serial.printf("%s: response %d B, limit is %u B\n",
                   tag, declared, (unsigned)NET_MAX_TEXT);
-    cleanupSocket(client);
-    http.end();
+    if (tls) secure.stop();
     client.stop();
     plain.stop();
-    if (tls) secure.stop();
+    cleanupSocket(client);
+    http.end();
     return false;
   }
   if (!txtReserve((declared > 0) ? (size_t)declared + 1 : NET_MAX_TEXT)) {
-    cleanupSocket(client);
-    http.end();
+    if (tls) secure.stop();
     client.stop();
     plain.stop();
-    if (tls) secure.stop();
+    cleanupSocket(client);
+    http.end();
     return false;
   }
 
   long len = Net_ReadBody(http, (uint8_t*)s_txt, s_txtCap, tag, s_poll);
-  cleanupSocket(client);
-  http.end();
+  if (tls) secure.stop();
   client.stop();
   plain.stop();
-  if (tls) secure.stop();
+  cleanupSocket(client);
+  http.end();
   poll();
 
   if (len <= 0) {
@@ -279,20 +279,20 @@ bool Net_PostJson(const char* url, const char* jsonPayload, String& out, const c
     return false;
   }
   if (!txtReserve((declared > 0) ? (size_t)declared + 1 : NET_MAX_TEXT)) {
-    cleanupSocket(client);
-    http.end();
+    if (tls) secure.stop();
     client.stop();
     plain.stop();
-    if (tls) secure.stop();
+    cleanupSocket(client);
+    http.end();
     return false;
   }
 
   long len = Net_ReadBody(http, (uint8_t*)s_txt, s_txtCap, tag, s_poll);
-  cleanupSocket(client);
-  http.end();
+  if (tls) secure.stop();
   client.stop();
   plain.stop();
-  if (tls) secure.stop();
+  cleanupSocket(client);
+  http.end();
   poll();
 
   if (len <= 0) { Serial.printf("%s: empty response\n", tag); return false; }
@@ -376,11 +376,11 @@ bool Net_GetBinary(const char* url, uint8_t* buf, size_t cap, size_t* outLen,
 
   long got = Net_ReadBody(http, buf, cap, tag, s_poll);
   if (!sess) {
-    cleanupSocket(client);
-    http.end();
+    if (tls) ownSecure.stop();
     client.stop();
     plain.stop();
-    if (tls) ownSecure.stop();
+    cleanupSocket(client);
+    http.end();
   } else {
     http.end();
   }

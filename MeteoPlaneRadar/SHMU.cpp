@@ -184,14 +184,13 @@ int SHMU_FetchAnim(int wantN) {
     int code = http.GET();
     if (http.hasHeader("Date")) Outside_NoteHttpDate(http.header("Date").c_str());
     if (code != HTTP_CODE_OK) {
-      while (client.available()) client.read();
-      http.end();
       client.stop();
+      http.end();
       return s_animCount;
     }
     long ilen = Net_ScanBody(http, scanTop, nullptr, "SHMU", s_poll);
-    http.end();
     client.stop();
+    http.end();
     if (s_topCount == 0) {
       Serial.printf("SHMU: API body %ld B, no filename found\n", ilen);
       return s_animCount;

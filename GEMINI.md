@@ -9,7 +9,8 @@
 - **Local Memory Persistence**: Mandatory protocol: after every change, fix, or implementation, immediately store the exact architectural and behavioral changes in local memory (local-memory MCP), and continuously consult the knowledge graph as the foundation for all future activities.
 
 ## 2. Token Efficiency & Reasoning
-- **Extreme Conciseness**: Skip polite greetings, conversational transitions, summaries, and restatements of the prompt.
+- **Prompt Comprehension Acknowledgment**: Whenever the user gives a command or asks a question, always begin the response by stating concisely in 1–2 sentences what is understood from their request before proceeding with execution or explanation.
+- **Extreme Conciseness**: Skip polite greetings, conversational filler, and unnecessary commentary. Output actions and conclusions directly.
 - **No Self-Evident Commentary**: Do not explain code that speaks for itself. Only provide commentary if a non-obvious design trade-off, edge case, or bug workaround is involved.
 - **Internal Analysis**: Prioritize deep internal chain-of-thought, static analysis, and edge-case verification before executing changes. Output conclusions and action plans directly without narrating step-by-step thinking.
 - **Native Inspection**: Rely on native LSP/workspace tools to inspect definitions, signatures, and types rather than asking the user to paste context.

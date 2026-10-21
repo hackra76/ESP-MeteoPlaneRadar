@@ -170,14 +170,13 @@ int CHMU_FetchAnim(int wantN) {
     int code = http.GET();
     if (http.hasHeader("Date")) Outside_NoteHttpDate(http.header("Date").c_str());
     if (code != HTTP_CODE_OK) {
-      while (client.available()) client.read();
-      http.end();
       client.stop();
+      http.end();
       return s_animCount;
     }
     long ilen = Net_ScanBody(http, scanTop, nullptr, "CHMU", s_poll);
-    http.end();
     client.stop();
+    http.end();
     if (ilen <= 0) return s_animCount;
     Serial.printf("CHMU: index %ld B, found %d filenames\n", ilen, s_topCount);
   }
