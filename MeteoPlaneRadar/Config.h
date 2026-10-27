@@ -290,8 +290,8 @@
 // ---------------------------------------------------------------------------
 //  YouTube Channel Analytics
 // ---------------------------------------------------------------------------
-#define YOUTUBE_PERIOD_ACTIVE_MS  (3UL * 60UL * 1000UL)   // 3 min when on YouTube screen
-#define YOUTUBE_PERIOD_BG_MS      (15UL * 60UL * 1000UL)  // 15 min in background
+#define YOUTUBE_PERIOD_ACTIVE_MS  (30UL * 60UL * 1000UL)  // 30 min when on YouTube screen or complication
+#define YOUTUBE_PERIOD_BG_MS      (30UL * 60UL * 1000UL)  // 30 min in background
 
 
 // ---------------------------------------------------------------------------

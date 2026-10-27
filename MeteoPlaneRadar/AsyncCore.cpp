@@ -520,7 +520,7 @@ extern volatile uint32_t g_mainStageMs;
           else if ((YouTube_IsBusy() && YouTube_ReadyToStep()) || s_reqYouTube ||
                    (clockNeedsYouTube && (now - lastYouTubeFetch >= YOUTUBE_PERIOD_ACTIVE_MS)) ||
                    (curScr == SCREEN_YOUTUBE_I && (now - lastYouTubeFetch >= YOUTUBE_PERIOD_ACTIVE_MS)) ||
-                   (YouTube_LastUpdated() == 0 && (now - lastYouTubeFetch >= 15000UL)) ||
+                   (YouTube_LastUpdated() == 0 && (lastYouTubeFetch == 0 || (now - lastYouTubeFetch >= YOUTUBE_PERIOD_BG_MS))) ||
                    (Settings_ScreenEnabled(SCREEN_YOUTUBE_I) && (now - lastYouTubeFetch >= YOUTUBE_PERIOD_BG_MS))) {
             s_dbgStage = "youtube";
             if (YouTube_Step()) {

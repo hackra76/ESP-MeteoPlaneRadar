@@ -321,7 +321,10 @@ static void ScreenYouTube_EventCb(lv_event_t* e) {
       ScreenYouTube_HandleTap(pt.x, pt.y);
     }
   } else if (code == LV_EVENT_SCREEN_LOAD_START) {
-    Async_RequestYouTube();
+    YouTubeStats yt;
+    if (!YouTube_GetData(&yt) || !yt.valid || (millis() - yt.lastUpdatedMs >= YOUTUBE_PERIOD_ACTIVE_MS)) {
+      Async_RequestYouTube();
+    }
   }
 }
 

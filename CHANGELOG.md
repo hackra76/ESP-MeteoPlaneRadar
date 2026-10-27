@@ -9,6 +9,15 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [3.8.1] - 2026-10-27
+
+### Fixed & Improved
+- **YouTube API Polling Throttle & Quota Exhaustion Protection:**
+  - **30-Minute Universal Polling Intervals**: Extended `YOUTUBE_PERIOD_ACTIVE_MS` and `YOUTUBE_PERIOD_BG_MS` from 3 min / 15 min to 30 minutes, preventing daily YouTube Data API v3 quota exhaustion (10,000 units/day limit).
+  - **Eliminated 15-Second Retry Storm**: Fixed `AsyncCore.cpp` retry logic where uninitialized or failed YouTube fetches (`YouTube_LastUpdated() == 0`) spammed API endpoints every 15 seconds. Now enforces full 30-minute background cooldown (`YOUTUBE_PERIOD_BG_MS`) upon failure.
+  - **Fixed 4-Second Complication Poll Loop**: Fixed `ScreenClock.cpp` complication handler where missing or failed YouTube data (`ytMissing`) continuously triggered fetch requests every 4 seconds. Complications now strictly respect the 30-minute `YOUTUBE_PERIOD_ACTIVE_MS` cadence.
+  - **Carousel Swipe Navigation Guard**: Guarded `LV_EVENT_SCREEN_LOAD_START` in `ScreenYouTube.cpp` and `ScreenClock_RequestComplications` in `ScreenClock.cpp` so rotating through screens only requests YouTube updates if cached data is older than 30 minutes. Manual screen tap continues to support on-demand immediate refresh.
+
 ## [3.8.0] - 2026-10-20
 
 ### Added

@@ -1592,7 +1592,13 @@ static void ScreenClock_RequestComplications() {
       case CLOCK_SLOT_SPARKLINE:
       case CLOCK_SLOT_WEATHER:  Async_RequestForecast(); break;
       case CLOCK_SLOT_AIRCRAFT: Async_RequestAdsb();     break;
-      case CLOCK_SLOT_YOUTUBE:  Async_RequestYouTube();  break;
+      case CLOCK_SLOT_YOUTUBE: {
+        YouTubeStats yt;
+        if (!YouTube_GetData(&yt) || !yt.valid || (millis() - yt.lastUpdatedMs >= YOUTUBE_PERIOD_ACTIVE_MS)) {
+          Async_RequestYouTube();
+        }
+        break;
+      }
       case CLOCK_SLOT_MARKET:   Async_RequestFinance();  break;
       case CLOCK_SLOT_KLIPPER:  Async_RequestKlipper();  break;
       default: break;
@@ -1644,7 +1650,7 @@ static void ScreenClock_TimerCb(lv_timer_t* t) {
       static unsigned long s_lastYtPoll = 0;
       YouTubeStats ytStats;
       bool ytMissing = (!YouTube_GetData(&ytStats) || !ytStats.valid);
-      if (needYouTube && (ytMissing || (ms - s_lastYtPoll >= 180000))) {
+      if (needYouTube && ((s_lastYtPoll == 0 && ytMissing) || (ms - s_lastYtPoll >= YOUTUBE_PERIOD_ACTIVE_MS))) {
         s_lastYtPoll = ms;
         Async_RequestYouTube();
       }
