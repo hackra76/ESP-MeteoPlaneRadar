@@ -5,6 +5,7 @@
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20SK%20%7C%20CZ-green.svg)
 ![Release](https://img.shields.io/badge/Release-v3.8.1-brightgreen.svg)
+[![Android App](https://img.shields.io/badge/Android%20App-Ulanzi%20TC001%20Companion-3DDC84.svg?logo=android&logoColor=white)](https://github.com/hackra76/Ulanzi-TC001-Companion)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, ISS orbit tracking, YouTube channel analytics, financial market tickers, Klipper 3D printer telemetry HUD, disaster warning system with hardware seismometer, and an animated virtual pet companion on a round 2.1" IPS touchscreen.**  
@@ -203,6 +204,20 @@ pio run -t upload  # flash
 | `/api/display/resync` | `POST` | Force ST7701 RGB panel hardware resync |
 | `/api/toggle-legends` | `POST` | Toggle clean map mode on radar screens |
 | `/api/rtc/sync_ntp` | `POST` | Force NTP → hardware RTC synchronization |
+
+---
+
+## 📱 Ecosystem Companion: Ulanzi TC001 Companion (Android)
+
+For users who pair this station with a desktop **Ulanzi TC001 Smart Pixel Clock** (running [Ulanzi-TC001-Evolved](https://github.com/hackra76/Ulanzi-TC001-Evolved) firmware), an official companion Android app is available:
+
+👉 **[hackra76/Ulanzi-TC001-Companion](https://github.com/hackra76/Ulanzi-TC001-Companion)**
+
+Built with modern Android standards (**Jetpack Compose**, **Material 3**, **Kotlin 2.3.20**, targeting **Android 16 / API 36**):
+- **Live 32×8 LED Matrix Mirror & Pixel Studio**: Real-time canvas rendering, finger touch drawing tools (Pen, Eraser, Flood-Fill), 7 retro presets (Pac-Man, Space Invaders, VU Equalizer, Rainbow), and instant 1-tap display push.
+- **Spotify & Now Playing Live Broadcaster**: Broadcasts live track metadata, playback progress bar, and adaptive branding directly to desktop hardware.
+- **Intelligent Android Notification Relay**: Background service capturing phone calls, messaging apps, and calendar reminders with contextual 8×8 icons, deduplication, and acoustic chimes.
+- **Complete Remote Dashboard**: Hardware countdown timer & Pomodoro presets, ambient screensavers (Matrix Rain, Starfield, Fire Flames), LDR auto-brightness curves, and multi-profile Wi-Fi management.
 
 ---
 

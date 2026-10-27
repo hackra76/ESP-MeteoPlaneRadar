@@ -5,6 +5,7 @@
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-SK%20%7C%20CZ%20%7C%20EN-green.svg)
 ![Release](https://img.shields.io/badge/Release-v3.8.1-brightgreen.svg)
+[![Android App](https://img.shields.io/badge/Android%20App-Ulanzi%20TC001%20Companion-3DDC84.svg?logo=android&logoColor=white)](https://github.com/hackra76/Ulanzi-TC001-Companion)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunkčná meteorologická stanica, živý ADS-B letecký radar, animovaný radar zrážok (SHMÚ, ČHMÚ, RainViewer), kombinovaný taktický radar, sledovanie dráhy ISS, analytika YouTube, finančné trhy, telemetrický HUD pre Klipper 3D tlačiarne, systém varovania pred katastrofami s hardvérovým seizmometrom a animovaný virtuálny spoločník na okrúhlom 2.1" IPS dotykovom displeji.**  
@@ -203,6 +204,20 @@ pio run -t upload  # nahratie
 | `/api/display/resync` | `POST` | Hardvérová resynchronizácia ST7701 RGB displeja |
 | `/api/toggle-legends` | `POST` | Prepnutie čistého režimu mapy na radaroch |
 | `/api/rtc/sync_ntp` | `POST` | Vynútenie NTP → RTC synchronizácie |
+
+---
+
+## 📱 Ekosystém a mobilná aplikácia: Ulanzi TC001 Companion (Android)
+
+Pre používateľov, ktorí popri stanici **ESP-MeteoPlaneRadar** používajú na pracovnom stole aj inteligentné pixelové hodiny **Ulanzi TC001** (s firmvérom [Ulanzi-TC001-Evolved](https://github.com/hackra76/Ulanzi-TC001-Evolved)), je k dispozícii oficiálna Android sprievodná aplikácia:
+
+👉 **[hackra76/Ulanzi-TC001-Companion](https://github.com/hackra76/Ulanzi-TC001-Companion)**
+
+Postavená na moderných Android štandardoch (**Jetpack Compose**, **Material 3**, **Kotlin 2.3.20**, pre **Android 16 / API 36**):
+- **Živé zrkadlenie 32×8 LED matrice a Pixel Studio**: Real-time náhľad obrazovky, kresliace plátno s dotykovým perom, gumou, výplňou, 7 retro motívmi (Pac-Man, Space Invaders, VU Equalizer, Rainbow) a odoslaním na displej jedným ťuknutím.
+- **Spotify & Prehrávač médií**: Živé vysielanie názvu skladby, interpreta, časovej osi a stavu prehrávania priamo na displej hardvéru.
+- **Inteligentné preposielanie notifikácií z telefónu**: Služba na pozadí zachytáva hovory, správy a kalendár s kontextovými 8×8 ikonami, potlačením duplikátov a zvukovým tónom.
+- **Kompletná vzdialená správa**: Odpočítavacie stopky a Pomodoro časovač, šetriče obrazovky (Matrix dážď, hviezdne pole, oheň), regulácia jasu cez LDR a správa Wi-Fi sietí.
 
 ---
 
