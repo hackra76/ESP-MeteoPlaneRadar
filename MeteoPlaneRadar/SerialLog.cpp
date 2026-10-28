@@ -14,6 +14,7 @@
 WebSerialProxy WebSerial;
 
 static char* s_buffer = nullptr;
+static size_t s_bufCap = 0;
 static uint32_t s_totalWritten = 0;
 static SemaphoreHandle_t s_mutex = nullptr;
 static vprintf_like_t s_origVprintf = nullptr;
@@ -42,8 +43,11 @@ void SerialLog_Init() {
   }
   if (!s_buffer) {
     s_buffer = (char*)heap_caps_malloc(SERIAL_LOG_CAPACITY, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (!s_buffer) {
+    if (s_buffer) {
+      s_bufCap = SERIAL_LOG_CAPACITY;
+    } else {
       s_buffer = (char*)malloc(16384);
+      if (s_buffer) s_bufCap = 16384;
     }
   }
   if (!s_origVprintf) {
@@ -54,10 +58,10 @@ void SerialLog_Init() {
 void SerialLog_Write(const uint8_t* data, size_t len) {
   if (!data || len == 0) return;
   if (!s_buffer) SerialLog_Init();
-  if (!s_buffer) return;
+  if (!s_buffer || s_bufCap == 0) return;
 
   if (s_mutex && xSemaphoreTake(s_mutex, pdMS_TO_TICKS(10)) == pdTRUE) {
-    const size_t cap = SERIAL_LOG_CAPACITY;
+    const size_t cap = s_bufCap;
     for (size_t i = 0; i < len; i++) {
       s_buffer[s_totalWritten % cap] = (char)data[i];
       s_totalWritten++;
@@ -73,7 +77,7 @@ uint32_t SerialLog_GetHead() {
 void SerialLog_Clear() {
   if (s_mutex && xSemaphoreTake(s_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
     s_totalWritten = 0;
-    if (s_buffer) memset(s_buffer, 0, SERIAL_LOG_CAPACITY);
+    if (s_buffer && s_bufCap > 0) memset(s_buffer, 0, s_bufCap);
     xSemaphoreGive(s_mutex);
   }
 }
@@ -84,7 +88,7 @@ size_t SerialLog_Read(uint32_t sinceOffset, char* dest, size_t destCap, uint32_t
     if (overflow) *overflow = false;
     return 0;
   }
-  if (!s_buffer) {
+  if (!s_buffer || s_bufCap == 0) {
     dest[0] = '\0';
     if (nextOffset) *nextOffset = 0;
     if (overflow) *overflow = false;
@@ -94,7 +98,7 @@ size_t SerialLog_Read(uint32_t sinceOffset, char* dest, size_t destCap, uint32_t
   size_t bytesRead = 0;
   if (s_mutex && xSemaphoreTake(s_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
     const uint32_t curTotal = s_totalWritten;
-    const uint32_t cap = SERIAL_LOG_CAPACITY;
+    const uint32_t cap = (uint32_t)s_bufCap;
     bool hasOverflow = false;
 
     uint32_t start = sinceOffset;

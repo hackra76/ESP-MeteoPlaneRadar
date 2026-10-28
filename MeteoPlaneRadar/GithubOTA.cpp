@@ -321,6 +321,7 @@ void GithubOTA_RunUpdate() {
   s_totalBytes = 0;
   s_otaError = "";
 
+  vTaskDelay(pdMS_TO_TICKS(60));
   GithubOTA_FreeAllBuffers();
 
   UI_DrawOtaProgress("GitHub OTA", 0, 0, 0,

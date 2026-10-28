@@ -58,3 +58,4 @@ bool WebConfig_TakePetToggle();
 void WebConfig_RequestPetToggle();
 bool WebConfig_TakeQuickControlToggle();
 void WebConfig_RequestQuickControlToggle();
+bool WebConfig_TakeDisplayResync();

@@ -1076,13 +1076,16 @@ static void drawComplicationSparkline(int cx, int cy, int r, bool isTop) {
         int curX = (int)roundf(cx_pt);
         int curY = (int)roundf(cy_pt);
 
-        // Vertical gradient fill under curve (only once per column X)
+        // Fast 2-band vertical fill under curve (avoids ~1,000 individual LVGL draw tasks per frame)
         if (curX != prevX) {
-          for (int fy = curY + 1; fy <= spY + spH + 2; fy++) {
-            float frac = (float)(fy - curY) / (float)(spH + 4);
-            if (frac > 1.0f) frac = 1.0f;
-            uint16_t c = blendColor(pack565(20, 65, 110), pack565(10, 12, 16), frac);
-            gfx->drawPixel(curX, fy, c);
+          int fillTop = curY + 1;
+          int fillBot = spY + spH + 2;
+          if (fillBot >= fillTop) {
+            int midY = (fillTop + fillBot) / 2;
+            gfx->drawFastVLine(curX, fillTop, midY - fillTop + 1, pack565(18, 52, 88));
+            if (fillBot > midY) {
+              gfx->drawFastVLine(curX, midY + 1, fillBot - midY, pack565(12, 26, 44));
+            }
           }
         }
 

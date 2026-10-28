@@ -85,35 +85,35 @@ static volatile bool s_reqKlipper = false;
 static volatile bool s_reqPetThought = false;
 
 // Mutex Helpers (Recursive mutexes prevent same-core self-deadlock)
-void Async_LockSettings()  { if (s_mtxSettings) xSemaphoreTakeRecursive(s_mtxSettings, pdMS_TO_TICKS(1000)); }
+void Async_LockSettings()  { if (s_mtxSettings) xSemaphoreTakeRecursive(s_mtxSettings, portMAX_DELAY); }
 void Async_UnlockSettings(){ if (s_mtxSettings) xSemaphoreGiveRecursive(s_mtxSettings); }
 
-void Async_LockAdsb()      { if (s_mtxAdsb)     xSemaphoreTakeRecursive(s_mtxAdsb,     pdMS_TO_TICKS(1000)); }
+void Async_LockAdsb()      { if (s_mtxAdsb)     xSemaphoreTakeRecursive(s_mtxAdsb,     portMAX_DELAY); }
 void Async_UnlockAdsb()    { if (s_mtxAdsb)     xSemaphoreGiveRecursive(s_mtxAdsb); }
 
-void Async_LockRadar()     { if (s_mtxRadar)    xSemaphoreTakeRecursive(s_mtxRadar,    pdMS_TO_TICKS(1000)); }
+void Async_LockRadar()     { if (s_mtxRadar)    xSemaphoreTakeRecursive(s_mtxRadar,    portMAX_DELAY); }
 void Async_UnlockRadar()   { if (s_mtxRadar)    xSemaphoreGiveRecursive(s_mtxRadar); }
 
-void Async_LockForecast()  { if (s_mtxForecast) xSemaphoreTakeRecursive(s_mtxForecast, pdMS_TO_TICKS(1000)); }
+void Async_LockForecast()  { if (s_mtxForecast) xSemaphoreTakeRecursive(s_mtxForecast, portMAX_DELAY); }
 void Async_UnlockForecast(){ if (s_mtxForecast) xSemaphoreGiveRecursive(s_mtxForecast); }
 
-void Async_LockFinance()   { if (s_mtxFinance)  xSemaphoreTakeRecursive(s_mtxFinance,  pdMS_TO_TICKS(1000)); }
+void Async_LockFinance()   { if (s_mtxFinance)  xSemaphoreTakeRecursive(s_mtxFinance,  portMAX_DELAY); }
 void Async_UnlockFinance() { if (s_mtxFinance)  xSemaphoreGiveRecursive(s_mtxFinance); }
 
-void Async_LockIss()       { if (s_mtxIss)      xSemaphoreTakeRecursive(s_mtxIss,      pdMS_TO_TICKS(1000)); }
+void Async_LockIss()       { if (s_mtxIss)      xSemaphoreTakeRecursive(s_mtxIss,      portMAX_DELAY); }
 void Async_UnlockIss()     { if (s_mtxIss)      xSemaphoreGiveRecursive(s_mtxIss); }
 
-void Async_LockKlipper()   { if (s_mtxKlipper)  xSemaphoreTakeRecursive(s_mtxKlipper,  pdMS_TO_TICKS(1000)); }
+void Async_LockKlipper()   { if (s_mtxKlipper)  xSemaphoreTakeRecursive(s_mtxKlipper,  portMAX_DELAY); }
 void Async_UnlockKlipper() { if (s_mtxKlipper)  xSemaphoreGiveRecursive(s_mtxKlipper); }
 
-void Async_LockRoute()     { if (s_mtxRoute)    xSemaphoreTakeRecursive(s_mtxRoute,    pdMS_TO_TICKS(1000)); }
+void Async_LockRoute()     { if (s_mtxRoute)    xSemaphoreTakeRecursive(s_mtxRoute,    portMAX_DELAY); }
 void Async_UnlockRoute()   { if (s_mtxRoute)    xSemaphoreGiveRecursive(s_mtxRoute); }
 
-void Async_LockYouTube()   { if (s_mtxYouTube)  xSemaphoreTakeRecursive(s_mtxYouTube,  pdMS_TO_TICKS(1000)); }
+void Async_LockYouTube()   { if (s_mtxYouTube)  xSemaphoreTakeRecursive(s_mtxYouTube,  portMAX_DELAY); }
 void Async_UnlockYouTube() { if (s_mtxYouTube)  xSemaphoreGiveRecursive(s_mtxYouTube); }
 
 static SemaphoreHandle_t s_mtxI2c = NULL;
-void Async_LockI2C()       { if (s_mtxI2c) xSemaphoreTakeRecursive(s_mtxI2c, pdMS_TO_TICKS(150)); }
+void Async_LockI2C()       { if (s_mtxI2c) xSemaphoreTakeRecursive(s_mtxI2c, portMAX_DELAY); }
 void Async_UnlockI2C()     { if (s_mtxI2c) xSemaphoreGiveRecursive(s_mtxI2c); }
 
 void Async_Pause()         { s_paused = true; }
@@ -290,7 +290,6 @@ extern volatile uint32_t g_mainStageMs;
       }
       if (curScr != SCREEN_YOUTUBE_I && !clockNeedsYouTube) {
         s_reqYouTube = false;
-        YouTube_Reset();
       }
 
       // Clear background route lookup queue, photo, and map tiles on transition away from aircraft screens
@@ -330,8 +329,12 @@ extern volatile uint32_t g_mainStageMs;
         }
       }
 
+      static unsigned long lastMtStep = 0;
+      static uint8_t s_tileBurstCount = 0;
+      const bool yieldTileBurst = (s_tileBurstCount >= 3 && (now - lastTlsTime >= 1500));
+
       // 1. Online Map Tiles (background stepping for aircraft radar underlay)
-      if (mtBusy && (now - lastTlsTime >= 350)) {
+      if (mtBusy && !yieldTileBurst && (now - lastMtStep >= 350)) {
         Watchdog_Feed();
         s_core0NetBusy = true;
         s_dbgStage = "maptiles";
@@ -340,11 +343,12 @@ extern volatile uint32_t g_mainStageMs;
         }
         s_core0NetBusy = false;
         Watchdog_Feed();
-        lastTlsTime = millis();
+        lastMtStep = millis();
+        s_tileBurstCount++;
         vTaskDelay(pdMS_TO_TICKS(30));
       }
       // 2. Radar Tile Download (RainViewer background stepping - highest priority when on radar)
-      else if (rvBusy) {
+      else if (rvBusy && !yieldTileBurst) {
         Watchdog_Feed();
         s_core0NetBusy = true;
         s_dbgStage = "rainviewer";
@@ -353,10 +357,11 @@ extern volatile uint32_t g_mainStageMs;
         }
         s_core0NetBusy = false;
         Watchdog_Feed();
-        lastTlsTime = millis();
+        s_tileBurstCount++;
         vTaskDelay(pdMS_TO_TICKS(15));
       }
       else if (now - lastTlsTime >= 1000) {
+        s_tileBurstCount = 0;
         // Guard against internal SRAM starvation: lwIP and WebServer need internal RAM.
         // A TLS handshake requires ~45 KB. If internal RAM is below NET_MIN_HEAP, defer.
         size_t freeInt = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
@@ -458,17 +463,17 @@ extern volatile uint32_t g_mainStageMs;
           const bool needAqNow = Settings_ScreenEnabled(SCREEN_FORECAST_I) && !AirQuality_Valid();
           if (!s_firstForecastDone ||
               (clockNeedsWeather && !Forecast_CurrentValid() && (now - lastForecastFetch >= 15000UL)) ||
-              (curScr == SCREEN_FORECAST_I && (!Forecast_Valid() || !AirQuality_Valid()) && (now - lastForecastFetch >= 5000UL)) ||
+              (curScr == SCREEN_FORECAST_I && (!Forecast_Valid() || !AirQuality_Valid()) && (now - lastForecastFetch >= 15000UL)) ||
               (needAqNow && (now - lastForecastFetch >= 15000UL)) ||
               (now - lastForecastFetch >= FORECAST_PERIOD_MS) || s_reqForecast) {
-            if (!Forecast_Valid()) Forecast_Invalidate();
             s_reqForecast = false;
             s_firstForecastDone = true;
             lastForecastFetch = now;
             s_dbgStage = "forecast";
-            Forecast_Tick();
-            s_forecastUpdated = true;
-            lastTlsTime = millis();
+            if (Forecast_Tick()) {
+              s_forecastUpdated = true;
+              lastTlsTime = millis();
+            }
           }
           // 5. Outside Temperature & Time Seeding
           else if (now - lastOutsideFetch >= OUTSIDE_TEMP_PERIOD_MS) {

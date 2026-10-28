@@ -65,8 +65,9 @@ def test_all_screens():
         (6, "Finance", "audit_scr6_finance_v2.png"),
         (7, "ISS Tracker", "audit_scr7_iss_v2.png"),
         (8, "YouTube", "audit_scr8_youtube_v2.png"),
-        (9, "System Info", "audit_scr9_info_v2.png"),
-        (10, "Settings", "audit_scr10_settings_v2.png"),
+        (9, "Klipper 3D", "audit_scr9_klipper_v2.png"),
+        (10, "System Info", "audit_scr10_info_v2.png"),
+        (11, "Settings", "audit_scr11_settings_v2.png"),
     ]
     print("\n--- PHASE 1: SCREEN-BY-SCREEN AUDIT ---")
     for idx, name, filename in screens:
@@ -147,7 +148,7 @@ def test_high_load():
     # 2. Screen switching stress test (rapidly switch 20 times)
     print("Rapid Screen Switching Stress (20 iterations)...")
     for i in range(20):
-        target = i % 10
+        target = i % 12
         try:
             http_post("/api/screen", {"index": target}, timeout=5)
             time.sleep(0.3)

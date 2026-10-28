@@ -196,7 +196,19 @@ void WiFi_Loop() {
     return;
   }
 
-  if (s_ap) return;                       // nothing to keep alive in AP mode
+  if (s_ap) {
+    // Periodically retry saved STA credentials every 3 minutes when idle in fallback AP mode
+    if (Settings_WifiNetworkCount() > 0 && WiFi.softAPgetStationNum() == 0) {
+      unsigned long nowAp = millis();
+      if (s_lastReconnect == 0) s_lastReconnect = nowAp;
+      if (nowAp - s_lastReconnect >= 180000UL) {
+        s_lastReconnect = nowAp;
+        Serial.println("WiFi: Fallback AP periodic check for saved STA networks...");
+        WiFi_Begin();
+      }
+    }
+    return;
+  }
 
   if (WiFi.status() == WL_CONNECTED) {
     s_lastDisconnect = 0;

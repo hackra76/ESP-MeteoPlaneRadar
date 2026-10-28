@@ -196,11 +196,15 @@ bool YouTube_Step() {
       strncpy(s_ytData.uploadsPlaylistId, uploadsId, sizeof(s_ytData.uploadsPlaylistId) - 1);
       s_ytData.uploadsPlaylistId[sizeof(s_ytData.uploadsPlaylistId) - 1] = '\0';
       s_ytData.videoMode = vMode;
+      s_ytData.lastUpdatedMs = millis();
+      s_ytData.valid = true;
+      strncpy(s_ytData.statusMsg, "OK", sizeof(s_ytData.statusMsg) - 1);
+      s_ytData.statusMsg[sizeof(s_ytData.statusMsg) - 1] = '\0';
       Async_UnlockYouTube();
 
       // Channel data acquired. Advance to video step.
       s_stepState = YT_STATE_VIDEO;
-      return false; // Intermediate step completed
+      return true; // Channel stats ready for UI display
     }
 
     // -------------------------------------------------------------------------

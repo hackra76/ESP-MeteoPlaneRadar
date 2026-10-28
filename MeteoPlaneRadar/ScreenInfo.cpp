@@ -201,10 +201,10 @@ static void ScreenInfo_Draw() {
   const int r5Y = c1Y + 134;
   uint32_t totalSightings = FlightStats_TotalSightings(scope);
   const char* repLbl = isEn ? "ADS-B reports:" : (isSk ? "Celkovo sprav:" : "Celkem zprav:");
-  UI_Text(repLbl, cardX + padX, r5Y + 4, C_DKGRAY, 1);
+  UI_Text(repLbl, cardX + padX, r5Y + 4, C_GRAY, 1);
   char repBuf[16];
   snprintf(repBuf, sizeof(repBuf), "%u", totalSightings);
-  UI_Text(repBuf, cardX + cardW - Layout_TextW(repBuf, 1) - padX, r5Y + 4, C_GRAY, 1);
+  UI_Text(repBuf, cardX + cardW - Layout_TextW(repBuf, 1) - padX, r5Y + 4, C_LTGRAY, 1);
 
 
   // -------------------------------------------------------------------------
@@ -234,7 +234,7 @@ static void ScreenInfo_Draw() {
     }
     strncpy(ssidBuf, rawSsid.c_str(), sizeof(ssidBuf) - 1);
     ssidBuf[sizeof(ssidBuf) - 1] = '\0';
-    UI_Text(ssidBuf, cardX + 50, cr1Y, C_WHITE, 2);
+    UI_Text(ssidBuf, cardX + 56, cr1Y, C_WHITE, 2);
 
     int rssi = WiFi.RSSI();
     char rssiBuf[16];
@@ -285,10 +285,10 @@ static void ScreenInfo_Draw() {
   // Row 5: Firmware version
   const int cr5Y = c2Y + 134;
   const char* fwLbl = isEn ? "Firmware:" : (isSk ? "Firmver:" : "Firmware:");
-  UI_Text(fwLbl, cardX + padX, cr5Y + 4, C_DKGRAY, 1);
+  UI_Text(fwLbl, cardX + padX, cr5Y + 4, C_GRAY, 1);
   char fwBuf[32];
   snprintf(fwBuf, sizeof(fwBuf), "v%s", FW_VERSION);
-  UI_Text(fwBuf, cardX + cardW - Layout_TextW(fwBuf, 1) - padX, cr5Y + 4, C_GRAY, 1);
+  UI_Text(fwBuf, cardX + cardW - Layout_TextW(fwBuf, 1) - padX, cr5Y + 4, C_LTGRAY, 1);
 
   // -------------------------------------------------------------------------
   // Footer: Reset Statistics button / hint (Y: 402..430, H: 28, W: 180)

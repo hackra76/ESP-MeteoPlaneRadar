@@ -236,10 +236,12 @@ static void handleRelease(int startX, int startY, int endX, int endY) {
     // --- Tap (no significant movement) --------------------------------------
     if (absDx < SWIPE_MIN_PX && absDy < SWIPE_MIN_PX) {
         if (DisasterAlert_HandleTap(endX, endY)) {
+            s_lastGestureMs = millis();
             UI_InvalidateActiveScreen();
             return;
         }
         if (Settings_PetEnabled() && PetDrawer_HandlePeekTap(endX, endY)) {
+            s_lastGestureMs = millis();
             return;
         }
 
@@ -295,13 +297,15 @@ static void handleRelease(int startX, int startY, int endX, int endY) {
         if ((now - s_lastTapMs >= 50) && (now - s_lastTapMs <= 400)
                 && dtx <= 45 && dty <= 45) {
             s_lastTapMs = 0;
+            s_lastGestureMs = now;
             if (PetDrawer_IsOpen()) {
                 if (Settings_BuzzerTouch()) Buzzer_Play(BEEP_OVERHEAD);
                 PetBrain_Feed();
                 UI_InvalidateActiveScreen();
                 return;
             }
-            if (s_activeScreen != SCREEN_CLOCK_I) {
+            if (s_activeScreen == SCREEN_PLANES_I || s_activeScreen == SCREEN_METEO_I ||
+                s_activeScreen == SCREEN_TACTICAL_I || s_activeScreen == SCREEN_SONAR_I) {
                 Settings_ToggleLegends();
                 UI_InvalidateActiveScreen();
             }
@@ -566,14 +570,16 @@ void UI_SwitchScreen(int screenIdx) {
             ScreenTactical_FreeBuffers();
         }
         if (screenIdx != SCREEN_METEO_I && screenIdx != SCREEN_TACTICAL_I) {
-            // Neither screen is a radar screen -> free all radar buffers immediately
+            // Free large composite buffers; keep CHMU/SHMU frames cached in PSRAM unless PSRAM < 1 MB
+            Async_LockRadar();
             RainViewer_FreeBuffers();
-            if (!Async_IsRadarBusy()) {
+            if (!Async_IsRadarBusy() && heap_caps_get_free_size(MALLOC_CAP_SPIRAM) < 1048576) {
                 CHMU_FreeBuffers();
                 SHMU_FreeBuffers();
             }
             ScreenWeather_FreeBuffers();
             ScreenTactical_FreeBuffers();
+            Async_UnlockRadar();
         }
         if ((prevScreen == SCREEN_PLANES_I || prevScreen == SCREEN_TACTICAL_I) &&
             screenIdx != SCREEN_PLANES_I && screenIdx != SCREEN_TACTICAL_I) {

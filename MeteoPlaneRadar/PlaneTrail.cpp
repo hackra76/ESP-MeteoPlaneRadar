@@ -5,6 +5,7 @@
 //  Board:   Waveshare ESP32-S3-Touch-LCD-2.1 (round 480x480 display, ST7701)
 // =============================================================================
 #include "PlaneTrail.h"
+#include "AsyncCore.h"
 #include "Display_ST7701.h"
 #include "UI.h"
 #include <Arduino_GFX_Library.h>
@@ -91,21 +92,30 @@ static TrailEntry* allocTrail(const char* hex) {
 }
 
 void PlaneTrail_Clear() {
-  if (!s_trails) return;
-  for (int i = 0; i < TRAIL_MAX_PLANES; i++) {
-    s_trails[i] = TrailEntry();
+  Async_LockAdsb();
+  if (s_trails) {
+    for (int i = 0; i < TRAIL_MAX_PLANES; i++) {
+      s_trails[i] = TrailEntry();
+    }
   }
+  Async_UnlockAdsb();
 }
 
 void PlaneTrail_FreeBuffers() {
+  Async_LockAdsb();
   if (s_trails) {
     if (esp_ptr_external_ram(s_trails)) heap_caps_free(s_trails); else free(s_trails);
     s_trails = nullptr;
   }
+  Async_UnlockAdsb();
 }
 
 void PlaneTrail_Update(const Aircraft* list, int count) {
-  if (!list || count <= 0 || !ensureTrails()) return;
+  Async_LockAdsb();
+  if (!list || count <= 0 || !ensureTrails()) {
+    Async_UnlockAdsb();
+    return;
+  }
   unsigned long now = millis();
 
   for (int i = 0; i < count; i++) {
@@ -138,12 +148,17 @@ void PlaneTrail_Update(const Aircraft* list, int count) {
       if (t->count < TRAIL_MAX_POINTS) t->count++;
     }
   }
+  Async_UnlockAdsb();
 }
 
 void PlaneTrail_Draw(const char* hex, TrailProjectFn projectFn, uint16_t baseCol, int currentSx, int currentSy) {
   if (!hex || !hex[0] || !projectFn || !gfx) return;
+  Async_LockAdsb();
   TrailEntry* t = findTrail(hex);
-  if (!t || t->count < 2) return;
+  if (!t || t->count < 2) {
+    Async_UnlockAdsb();
+    return;
+  }
 
   const int R_CX = LCD_WIDTH / 2;
   const int R_CY = LCD_HEIGHT / 2;
@@ -189,6 +204,7 @@ void PlaneTrail_Draw(const char* hex, TrailProjectFn projectFn, uint16_t baseCol
       gfx->drawLine(prevX, prevY, currentSx, currentSy, headCol);
     }
   }
+  Async_UnlockAdsb();
 }
 
 // -----------------------------------------------------------------------------

@@ -9,6 +9,27 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [3.9.0] - 2026-10-28
+
+### Fixed & Improved
+- **Full-System Audit Remediation, Concurrency & Memory Safety:**
+  - **Eliminated `SerialLog` Heap Buffer Overflow**: Tracked actual allocated ring buffer capacity (`s_bufCap`) when falling back from 64 KB PSRAM to 16 KB internal heap allocation.
+  - **Resolved Cross-Core Data Races**: Enforced `portMAX_DELAY` on all `Async_Lock*()` mutexes and protected shared `Forecast`, `AirQuality`, `Route`, `PlaneTrail`, `PlanePhoto`, `MapTiles`, `CHMU`, `SHMU`, `PetBrain`, and `DisasterAlert` state across Core 0 and Core 1.
+  - **Fixed `AsyncCore` Background Scheduler Starvation**: Removed `YouTube_Reset()` from the 10 ms idle loop on non-YouTube screens (fixing an infinite Step 1 loop that starved `iss-bg` and `disaster`), marked `s_ytData.valid = true` on Step 1 completion, interleaved `MapTiles` bursts (max 3 tiles before yielding), and fixed `Forecast_Tick()` cooldown tracking.
+  - **Fixed lwIP Socket Exhaustion (`SO_LINGER`)**: Applied `setsockopt(fd, SOL_SOCKET, SO_LINGER, ...)` before `http.end()` / `client.stop()` in `Net.cpp` so TCP `TIME_WAIT` sockets are immediately reclaimed, and guarded `s_txtBuf` across all session helpers.
+  - **Eliminated Cross-Core LVGL Invalidations**: Removed direct `lv_obj_invalidate()` and buffer free calls from Core 0 async tasks (`PlanePhoto`, `MapTiles`, `CHMU`, `SHMU`), delegating redraws safely to Core 1 ticks.
+- **Peripherals, Watchdogs & Bus Hardening:**
+  - **I2C & Expander Thread Safety**: Added `Wire.setTimeOut(50)`, protected `TCA9554` shadow register and I2C writes with `Async_LockI2C()`, and added `portMUX_TYPE` spinlocks in `Buzzer` and `QMI8658`.
+  - **Active Hardware Watchdogs & Scheduled Maintenance**: Wired `FlightStats_Tick()`, `ScreenSettings_WantsWifiReset()`, `TCA9554_Verify()`, and `DISPLAY_WD` (`LCD_VsyncCount()`) recovery into the main loop; added 3-minute periodic STA reconnect checks in fallback AP mode; rate-limited HTTP `Date:` RTC writes to 30 minutes; persisted active screen `"scr"` in NVS.
+- **UI Typography, Touch Debounce & Circular Bezel Geometry ($R=240\text{ px}$):**
+  - **Restored Font Hierarchy**: Mapped `FONT_SMALL` (10pt), `FONT_MEDIUM` (14pt), and `FONT_LARGE` (20pt) to distinct LVGL glyphs in `FontEngine.cpp`.
+  - **Touch Responsiveness & Click Suppression**: Lowered `TOUCH_IDLE_POLL_MS` to 200 ms, implemented 60 ms release debounce (`TOUCH_RELEASE_MS`), and suppressed underlying LVGL `CLICKED` events when overlay/double-tap handlers consume a gesture.
+  - **Round Bezel Safe-Zone Fixes**: Repositioned `QuickControl` drawer (`CW_Y=76, CW_H=264`) and Asset Picker (`PK_Y=70, PK_H=324`) inside the circular display, wired Row 4 (`Update Forecast`), moved the Emergency Telemetry HUD card (`boxY=330, boxW=290, boxH=62`) inside the bezel, clipped `ScreenSonar` split-view upper rings, fixed `ScreenWeather` loading modal draw order, and refined `PetDrawer` entrance bounds (`95..385`), `VOL`/`MUTE` alignment, and downward laser drag detection.
+- **Web Portal Security, OTA Stability & Anti-Slop UI Compliance:**
+  - **Authentication & API Hardening**: Enforced `authed()` on mutating POST endpoints (`/api/screen`, `/api/range`, `/api/toggle-legends`, `/api/pet/toggle`, `/api/display/resync`), accepted both `pass`/`password` and `newPass`/`newPassword` JSON keys, and added HTTP `401`/`403`/`429` error handling in `WebPage.html`.
+  - **Safe OTA Memory Management**: Removed destructive PSRAM cache clearing from `GET /update` and added a 60 ms Core 1 park barrier before freeing OTA buffers.
+  - **Web UI Fixes**: Fixed `--acc` CSS variable, Info screen button index (`goScreen(10)`), `klipperPort` auto-save and `body()` serialization, semver patch comparison (`l3 > c3`), and regenerated `WebPageGz.h`.
+
 ## [3.8.1] - 2026-10-27
 
 ### Fixed & Improved

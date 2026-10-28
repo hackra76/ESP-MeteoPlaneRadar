@@ -48,6 +48,7 @@ static uint8_t readReg(uint8_t reg, bool* ok = nullptr) {
 }
 
 void TCA9554_Init() {
+  Async_LockI2C();
   // 0 = output for every pin
   writeReg(TCA9554_CONFIG_REG, 0x00);
   // Keep EXIO_LCD_RST (pin 1, bit 0) held LOW initially so display stays in
@@ -55,36 +56,52 @@ void TCA9554_Init() {
   // Set EXIO_BUZZER (pin 8, bit 7) LOW to prevent constant tone on boot.
   s_output = 0x7E;
   writeReg(TCA9554_OUTPUT_REG, s_output);
+  Async_UnlockI2C();
 }
 
 bool TCA9554_SetPin(uint8_t pin, bool high) {
   // pin 1-8 -> bit 0-7
   uint8_t bit = pin - 1;
+  Async_LockI2C();
   if (high) s_output |= (1 << bit);
   else      s_output &= ~(1 << bit);
   // Two tries: this register carries the display's reset and power lines, so a
   // dropped write is not something to shrug off.
-  if (writeReg(TCA9554_OUTPUT_REG, s_output)) return true;
+  if (writeReg(TCA9554_OUTPUT_REG, s_output)) {
+    Async_UnlockI2C();
+    return true;
+  }
   delay(2);
-  if (writeReg(TCA9554_OUTPUT_REG, s_output)) return true;
+  if (writeReg(TCA9554_OUTPUT_REG, s_output)) {
+    Async_UnlockI2C();
+    return true;
+  }
+  Async_UnlockI2C();
   Serial.println("TCA9554: write failed");
   return false;
 }
 
 bool TCA9554_Verify() {
+  Async_LockI2C();
   bool ok = false;
   uint8_t now = readReg(TCA9554_OUTPUT_REG, &ok);
   if (!ok) {
+    Async_UnlockI2C();
     Serial.println("TCA9554: expander not responding");
     return false;
   }
-  if (now == s_output) return true;
+  if (now == s_output) {
+    Async_UnlockI2C();
+    return true;
+  }
   // The register drifted from what we last wrote. Either a write got corrupted
   // or the chip reset itself. Whatever the cause, some of those bits are the
   // display's power and reset - put them back.
-  Serial.printf("TCA9554: register mismatch (read 0x%02X, expected 0x%02X), fixing\n",
-                now, s_output);
+  uint8_t expected = s_output;
   writeReg(TCA9554_CONFIG_REG, 0x00);      // all pins outputs again
   writeReg(TCA9554_OUTPUT_REG, s_output);
+  Async_UnlockI2C();
+  Serial.printf("TCA9554: register mismatch (read 0x%02X, expected 0x%02X), fixing\n",
+                now, expected);
   return false;
 }

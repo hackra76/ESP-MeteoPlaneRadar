@@ -1160,7 +1160,7 @@ void     Settings_SetTopBearing(uint16_t deg) {
   if (deg != s_top) { s_top = deg; markDirty(); }
 }
 uint8_t Settings_Screen() { return s_scr; }
-void    Settings_SetScreen(uint8_t idx) { s_scr = idx; }
+void    Settings_SetScreen(uint8_t idx) { if (s_scr != idx) { s_scr = idx; markDirty(); } }
 bool    Settings_ShowLegends() { return s_showLegends; }
 void    Settings_SetShowLegends(bool show) {
   if (show != s_showLegends) {
@@ -1482,6 +1482,7 @@ void Settings_Commit() {
     prefs.putUShort("topb", s_top);
     prefs.putUChar("bl",   s_briDay);
     prefs.putUChar("blN",  s_briNight);
+    prefs.putUChar("scr",  s_scr);
     prefs.end();
   }
   s_uiDirty = false;

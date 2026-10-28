@@ -40,8 +40,8 @@ struct FcDay {
   time_t sunset  = 0;
 };
 
-// Call from loop(). Fetches when due, cheap no-op otherwise.
-void Forecast_Tick();
+// Call from loop(). Fetches when due, cheap no-op otherwise. Returns true if a request ran.
+bool Forecast_Tick();
 
 // Ask for a refresh on the next tick (after the location changed).
 void Forecast_Invalidate();
