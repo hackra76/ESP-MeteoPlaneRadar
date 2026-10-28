@@ -197,6 +197,7 @@ void MapTiles_Cancel() {
 }
 
 void MapTiles_FreeBuffers() {
+  Async_LockRadar();
   s_busy = false;
   s_ready = false;
   s_failed = false;
@@ -222,6 +223,7 @@ void MapTiles_FreeBuffers() {
     heap_caps_free(s_jpeg);
     s_jpeg = nullptr;
   }
+  Async_UnlockRadar();
 }
 
 void MapTiles_Begin(uint8_t provider, double lat, double lon, float rangeKm) {
@@ -363,7 +365,9 @@ bool MapTiles_Step() {
   }
 
   s_retryAt = 0;
+  Async_LockRadar();
   bool decoded = decodeTilePayload(s_tilePayload, s_tilePayloadLen);
+  Async_UnlockRadar();
 
   if (myJob != s_jobId) {
     return false;
@@ -407,8 +411,11 @@ void MapTiles_Window(float* lat0, float* lat1, float* lon0, float* lon1) {
 }
 
 void MapTiles_Draw(Arduino_GFX* g) {
-  if (!g || !s_mapBuf) return;
-  g->draw16bitRGBBitmap(0, 0, s_mapBuf, LCD_WIDTH, LCD_HEIGHT);
+  Async_LockRadar();
+  if (g && s_mapBuf) {
+    g->draw16bitRGBBitmap(0, 0, s_mapBuf, LCD_WIDTH, LCD_HEIGHT);
+  }
+  Async_UnlockRadar();
 }
 
 const uint16_t* MapTiles_GetBuffer() {

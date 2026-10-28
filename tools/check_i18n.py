@@ -1,6 +1,6 @@
 import re
 
-with open('MeteoPlaneRadar/WebPage.h', 'r', encoding='utf-8') as f:
+with open('MeteoPlaneRadar/WebPage.html', 'r', encoding='utf-8') as f:
     content = f.read()
 
 html_keys = set(re.findall(r'data-i18n=["\']([^"\']+)["\']', content))

@@ -3,6 +3,7 @@
 //  DisasterAlert.cpp - Global Real-Time Disaster Warning System
 // =============================================================================
 #include "DisasterAlert.h"
+#include "AsyncCore.h"
 #include "Config.h"
 #include "Settings.h"
 #include "Net.h"
@@ -27,7 +28,8 @@ static DisasterEvent s_activeAlert;
 static bool          s_hasActiveAlert = false;
 static bool          s_alertDismissed = false;
 static char          s_lastAlertId[24] = "";
-static bool          s_needAlarm = false;
+static volatile bool s_needAlarm = false;
+static volatile bool s_needRedraw = false;
 
 static unsigned long s_lastPollMs = 0;
 static unsigned long s_lastSigPollMs = 0;
@@ -292,6 +294,10 @@ void DisasterAlert_Tick() {
     }
     UI_InvalidateActiveScreen();
   }
+  if (s_needRedraw) {
+    s_needRedraw = false;
+    UI_InvalidateActiveScreen();
+  }
 }
 
 bool DisasterAlert_HasActiveAlert() {
@@ -311,7 +317,7 @@ void DisasterAlert_Dismiss() {
   s_alertDismissed = true;
   s_hasActiveAlert = false;
   Buzzer_Stop();
-  UI_InvalidateActiveScreen();
+  s_needRedraw = true;
 }
 
 void DisasterAlert_CheckRange(uint16_t maxRngKm) {
@@ -319,7 +325,7 @@ void DisasterAlert_CheckRange(uint16_t maxRngKm) {
     if (s_activeAlert.distKm > (float)maxRngKm) {
       s_hasActiveAlert = false;
       Buzzer_Stop();
-      UI_InvalidateActiveScreen();
+      s_needRedraw = true;
     }
   }
 }
@@ -364,7 +370,7 @@ void DisasterAlert_TriggerTest() {
     }
   }
 
-  UI_InvalidateActiveScreen();
+  s_needRedraw = true;
 }
 
 int DisasterAlert_GetRecentCount() {

@@ -30,6 +30,7 @@
 #include "ScreenWeather.h"
 #include "ScreenTactical.h"
 #include "ScreenSonar.h"
+#include "ScreenSettings.h"
 #include "PetDrawer.h"
 #include "QuickControl.h"
 #include "QMI8658.h"
@@ -73,6 +74,7 @@ void setup() {
   Serial.println("LVGL V9 Migration Phase 2 Started");
 
   Wire.begin(I2C_SDA, I2C_SCL, 400000);
+  Wire.setTimeOut(50);
   delay(50);
   TCA9554_Init();
 
@@ -138,7 +140,9 @@ void setup() {
         UI_InvalidateActiveScreen();
         return;
       }
-      if (UI_GetActiveScreen() == SCREEN_CLOCK_I) {
+      const int activeScr = UI_GetActiveScreen();
+      if (activeScr != SCREEN_PLANES_I && activeScr != SCREEN_METEO_I &&
+          activeScr != SCREEN_TACTICAL_I && activeScr != SCREEN_SONAR_I) {
         return;
       }
       if (Settings_BuzzerTouch()) Buzzer_Play(BEEP_CLICK);
@@ -168,6 +172,11 @@ volatile const char* g_mainStage = "boot";
 volatile uint32_t g_mainStageMs = 0;
 
 void loop() {
+  if (WebConfig_UpdateBusy()) {
+    Watchdog_Feed();
+    delay(20);
+    return;
+  }
   g_mainStage = "qmi"; g_mainStageMs = millis();
   QMI8658_Tick();
 
@@ -220,6 +229,10 @@ void loop() {
       UI_InvalidateActiveScreen();
   }
 
+  if (WebConfig_TakeDisplayResync()) {
+      LCD_Restart();
+  }
+
   if (WebConfig_WantsRestart()) {
       Serial.println("Settings changed, restarting...");
       delay(200);
@@ -236,6 +249,35 @@ void loop() {
   Settings_Tick();
   g_mainStage = "disaster"; g_mainStageMs = millis();
   DisasterAlert_Tick();
+  g_mainStage = "flightstats"; g_mainStageMs = millis();
+  FlightStats_Tick();
+
+  if (ScreenSettings_WantsWifiReset()) {
+    ScreenSettings_ClearWifiReset();
+    WiFi_Reset();
+  }
+
+  // Periodic I2C expander register verification & display VSYNC watchdog
+  {
+    static unsigned long s_lastExpCheck = 0;
+    if (millis() - s_lastExpCheck >= EXPANDER_CHECK_MS) {
+      s_lastExpCheck = millis();
+      TCA9554_Verify();
+    }
+#if DISPLAY_WD
+    static unsigned long s_lastVsyncCheck = 0;
+    static uint32_t s_prevVsync = 0;
+    if (millis() - s_lastVsyncCheck >= DISPLAY_WD_DEAD_MS) {
+      s_lastVsyncCheck = millis();
+      uint32_t curVsync = LCD_VsyncCount();
+      if (s_prevVsync != 0 && curVsync == s_prevVsync) {
+        Serial.println("Display WD: VSYNC stalled, resyncing RGB panel...");
+        LCD_Restart();
+      }
+      s_prevVsync = LCD_VsyncCount();
+    }
+#endif
+  }
   
   // Smart auto-dimming check (30 minutes of inactivity)
   g_mainStage = "dimming"; g_mainStageMs = millis();

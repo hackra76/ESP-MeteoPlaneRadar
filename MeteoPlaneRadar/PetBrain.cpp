@@ -327,7 +327,10 @@ static void generatePettingThought(char* buf, size_t cap) {
 }
 
 PetStats PetBrain_GetStats() {
-  return s_stats;
+  Async_LockSettings();
+  PetStats st = s_stats;
+  Async_UnlockSettings();
+  return st;
 }
 
 const char* PetBrain_GetStageTitle() {
@@ -477,7 +480,12 @@ void PetBrain_SetMood(PetMood mood) {
 }
 
 const char* PetBrain_GetThought() {
-  return s_thought;
+  static char s_safeThought[192];
+  Async_LockSettings();
+  memcpy(s_safeThought, s_thought, sizeof(s_safeThought));
+  s_safeThought[sizeof(s_safeThought) - 1] = '\0';
+  Async_UnlockSettings();
+  return s_safeThought;
 }
 
 bool PetBrain_IsBusy() {
@@ -803,8 +811,10 @@ bool PetBrain_Step() {
     }
 
     if (len > sizeof(s_thought) - 1) len = sizeof(s_thought) - 1;
+    Async_LockSettings();
     strncpy(s_thought, src, len);
     s_thought[len] = '\0';
+    Async_UnlockSettings();
     Serial.printf("PetBrain: AI thought updated: \"%s\"\n", s_thought);
     s_isBusy = false;
     return true;

@@ -40,6 +40,7 @@ static bool readRegs(uint8_t reg, uint8_t* buf, size_t len) {
 static volatile bool s_intFlag = false;
 static bool          s_fingerDown = false;
 static unsigned long s_lastPoll = 0;
+static unsigned long s_releaseStartMs = 0;
 static uint16_t      s_lastX = 0;
 static uint16_t      s_lastY = 0;
 
@@ -115,7 +116,15 @@ void Touch_Read(TouchData* out) {
 
   uint8_t points = buf[0] & 0x0F;
   if (points == 0) { 
+    if (s_fingerDown) {
+      unsigned long curMs = millis();
+      if (s_releaseStartMs == 0) s_releaseStartMs = curMs;
+      if (curMs - s_releaseStartMs < TOUCH_RELEASE_MS) {
+        return; // hold previous coordinates during 60ms release debounce
+      }
+    }
     s_fingerDown = false; 
+    s_releaseStartMs = 0;
     out->points = 0;
     return; 
   }   // finger lifted
@@ -126,6 +135,7 @@ void Touch_Read(TouchData* out) {
   if (x >= LCD_WIDTH || y >= LCD_HEIGHT) return;   // outside the panel
 
   s_fingerDown = true;   // keep reading every pass until the finger lifts
+  s_releaseStartMs = 0;
   s_lastX = x;
   s_lastY = y;
   

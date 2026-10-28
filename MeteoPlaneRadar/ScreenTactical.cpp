@@ -569,10 +569,11 @@ void ScreenTactical_Draw() {
       closestIdx = i;
     }
 
-    // Classify special interest flights
+    // Classify special interest flights within scope
     char sLbl[32]; uint16_t sCol = C_WHITE;
     SpecialCategory scat = Aircraft_Classify(list[i], sLbl, sizeof(sLbl), &sCol);
-    if (scat != SPEC_NONE && scat >= bestSpecialCat) {
+    if (scat != SPEC_NONE && dGnd <= fmaxf(crng * 1.5f, 150.0f) &&
+        (scat > bestSpecialCat || (scat == bestSpecialCat && dGnd < specialDistKm))) {
       bestSpecialCat = scat;
       specialIdx = i;
       specialDistKm = dGnd;
@@ -813,11 +814,11 @@ void ScreenTactical_Draw() {
     gfx->fillRoundRect(pillX, 48, pillW, 20, 5, C_RED);
     UI_TextCenteredBox(sub, pillX, 48, pillW, 20, C_WHITE, 2);
 
-    // Emergency Telemetry HUD Card
-    const int boxW = 320;
-    const int boxH = 68;
+    // Emergency Telemetry HUD Card (inset within R=240 above Range Indicator)
+    const int boxW = 290;
+    const int boxH = 62;
     const int boxX = R_CX - boxW / 2;
-    const int boxY = LCD_HEIGHT - boxH - 26;
+    const int boxY = 330;
 
     gfx->fillRoundRect(boxX, boxY, boxW, boxH, 8, 0x1800);
     gfx->drawRoundRect(boxX, boxY, boxW, boxH, 8, C_RED);
@@ -829,25 +830,29 @@ void ScreenTactical_Draw() {
     } else {
       snprintf(l1, sizeof(l1), "%s", cname);
     }
-    UI_Text(l1, boxX + 12, boxY + 6, C_YELLOW, 2);
+    UI_Text(l1, boxX + 12, boxY + 5, C_YELLOW, 2);
 
     char l2[48];
     snprintf(l2, sizeof(l2), "ALT: %.0f ft (%.0f m)   GS: %.0f km/h",
              emAc.altFt, emAc.altFt * 0.3048f, emAc.gsKt * 1.852f);
-    UI_Text(l2, boxX + 12, boxY + 30, C_WHITE, 1);
+    UI_Text(l2, boxX + 12, boxY + 26, C_WHITE, 1);
 
     char l3[48];
     uint16_t l3Col = C_CYAN;
+    const uint8_t curLang = Lang_Get();
+    const char* descLbl = (curLang == LANG_EN) ? "DESCENDING:" : ((curLang == LANG_CZ) ? "KLESANI:" : "KLESANIE:");
+    const char* clmbLbl = (curLang == LANG_EN) ? "CLIMBING:"   : ((curLang == LANG_CZ) ? "STOUPANI:" : "STUPANIE:");
+    const char* lvlLbl  = (curLang == LANG_EN) ? "LEVEL:"      : "ROVNY LET:";
     if (emAc.baroRate < -300.0f) {
-      snprintf(l3, sizeof(l3), "KLESANIE:  v %.0f ft/min (%.1f m/s)", emAc.baroRate, emAc.baroRate * 0.00508f);
+      snprintf(l3, sizeof(l3), "%s v %.0f ft/min (%.1f m/s)", descLbl, emAc.baroRate, emAc.baroRate * 0.00508f);
       l3Col = C_RED;
     } else if (emAc.baroRate > 300.0f) {
-      snprintf(l3, sizeof(l3), "STUPANIE:  ^ +%.0f ft/min (%.1f m/s)", emAc.baroRate, emAc.baroRate * 0.00508f);
+      snprintf(l3, sizeof(l3), "%s ^ +%.0f ft/min (%.1f m/s)", clmbLbl, emAc.baroRate, emAc.baroRate * 0.00508f);
       l3Col = C_GREEN;
     } else {
-      snprintf(l3, sizeof(l3), "ROVNY LET: 0 ft/min   HDG: %.0f\xC2\xB0", emAc.track);
+      snprintf(l3, sizeof(l3), "%s 0 ft/min   HDG: %.0f\xC2\xB0", lvlLbl, emAc.track);
     }
-    UI_Text(l3, boxX + 12, boxY + 48, l3Col, 1);
+    UI_Text(l3, boxX + 12, boxY + 44, l3Col, 1);
   } else if (alertCode) {
     const char* what = (strcmp(alertCode, SQUAWK_HIJACK) == 0) ? T(S_HIJACK)
                      : (strcmp(alertCode, SQUAWK_RADIO)  == 0) ? T(S_RADIO_FAIL)
@@ -882,7 +887,7 @@ void ScreenTactical_Draw() {
       strncpy(sub, T(S_LOADING), sizeof(sub) - 1);
       sub[sizeof(sub) - 1] = '\0';
       subCol = C_YELLOW;
-    } else if (specialIdx >= 0) {
+    } else if (specialIdx >= 0 && ((millis() / 3500) % 2 == 0 || drawnCount == 0)) {
       const Aircraft& spAc = list[specialIdx];
       const char* cname = spAc.callsign[0] ? spAc.callsign : spAc.hex;
       snprintf(sub, sizeof(sub), "! %s: %s (%.0f km) !", specialLabel, cname, specialDistKm);

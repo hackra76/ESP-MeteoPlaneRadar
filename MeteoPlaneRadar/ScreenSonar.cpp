@@ -196,8 +196,8 @@ static void drawClassicPPI(float currentRangeKm) {
 // -----------------------------------------------------------------------------
 static void drawSplitView(float currentRangeKm) {
   const int S_CX = 240;
-  const int S_CY = 210;
-  const int S_R  = 168;
+  const int S_CY = 204;
+  const int S_R  = 156;
 
   // 1. Semi-circular PPI Sweep (top half)
   const int TRAIL_SLICES = 28;
@@ -235,10 +235,20 @@ static void drawSplitView(float currentRangeKm) {
     gfx->drawLine(S_CX, S_CY, ex, ey, RGB565(140, 255, 140));
   }
 
-  // Semi-circular Rings
+  // Semi-circular Rings (clipped to upper radar deck y <= S_CY + 14)
   for (int i = 1; i <= 3; i++) {
     int r = (S_R * i) / 3;
-    gfx->drawCircle(S_CX, S_CY, r, RGB565(0, 60, 0));
+    for (int deg = -100; deg <= 100; deg += 2) {
+      float rad1 = (deg - 90) * 0.0174532925f;
+      float rad2 = (deg - 88) * 0.0174532925f;
+      int x1 = S_CX + (int)roundf(cosf(rad1) * r);
+      int y1 = S_CY + (int)roundf(sinf(rad1) * r);
+      int x2 = S_CX + (int)roundf(cosf(rad2) * r);
+      int y2 = S_CY + (int)roundf(sinf(rad2) * r);
+      if (y1 <= S_CY + 14 && y2 <= S_CY + 14) {
+        gfx->drawLine(x1, y1, x2, y2, RGB565(0, 60, 0));
+      }
+    }
   }
   gfx->drawFastHLine(S_CX - S_R, S_CY, S_R * 2, RGB565(0, 70, 0));
   gfx->drawFastVLine(S_CX, S_CY - S_R, S_R, RGB565(0, 70, 0));
@@ -300,11 +310,11 @@ static void drawSplitView(float currentRangeKm) {
   gfx->drawRoundRect(WF_X - 3, WF_Y - 3, WF_W + 6, WF_H + 6, 6, RGB565(25, 48, 70));
 
   // Bearing header line
-  UI_Text("000°N", WF_X + 2,   WF_Y - 13, RGB565(0, 180, 100), 1);
-  UI_Text("090°E", WF_X + 80,  WF_Y - 13, RGB565(0, 180, 100), 1);
-  UI_Text("180°S", WF_X + 160, WF_Y - 13, RGB565(0, 180, 100), 1);
-  UI_Text("270°W", WF_X + 240, WF_Y - 13, RGB565(0, 180, 100), 1);
-  UI_Text("360°",  WF_X + 308, WF_Y - 13, RGB565(0, 180, 100), 1);
+  UI_Text("000°N", WF_X + 2,   WF_Y - 17, RGB565(0, 180, 100), 1);
+  UI_Text("090°E", WF_X + 80,  WF_Y - 17, RGB565(0, 180, 100), 1);
+  UI_Text("180°S", WF_X + 160, WF_Y - 17, RGB565(0, 180, 100), 1);
+  UI_Text("270°W", WF_X + 240, WF_Y - 17, RGB565(0, 180, 100), 1);
+  UI_Text("360°",  WF_X + 308, WF_Y - 17, RGB565(0, 180, 100), 1);
 
   // Render waterfall rows (340 columns centered from 360-column buffer)
   if (s_wfBuffer) {
@@ -409,6 +419,15 @@ static void drawFullWaterfall(float currentRangeKm) {
 }
 
 void ScreenSonar_Draw() {
+  if (!s_wfBuffer) {
+    s_wfBuffer = (uint16_t*)heap_caps_malloc(WF_COLS * WF_ROWS * sizeof(uint16_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (s_wfBuffer) {
+      for (int i = 0; i < WF_COLS * WF_ROWS; i++) {
+        uint8_t noise = (uint8_t)(rand() % 16 + 4);
+        s_wfBuffer[i] = RGB565(0, noise, noise + 6);
+      }
+    }
+  }
   // Background is already filled by LVGL (LV_OPA_COVER)
   const float currentRangeKm = SONAR_RANGES[s_rangeIdx];
   const uint8_t viewMode = Settings_SonarView();

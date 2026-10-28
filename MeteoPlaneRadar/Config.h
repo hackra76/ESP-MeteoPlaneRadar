@@ -160,7 +160,7 @@
 #define TOUCH_USE_INT 1
 
 // Fallback poll while idle - only a safety net for a missed interrupt.
-#define TOUCH_IDLE_POLL_MS 20
+#define TOUCH_IDLE_POLL_MS 200
 
 // How often to read the I/O expander back and repair it if it does not match
 // what we wrote (TCA9554_Verify). Cheap - one I2C register read.

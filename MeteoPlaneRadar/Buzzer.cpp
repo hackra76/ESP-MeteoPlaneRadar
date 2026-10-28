@@ -16,7 +16,7 @@ struct ToneStep {
 };
 
 static const ToneStep PATTERN_CLICK[] = {
-  { 10, true },
+  { 18, true },
   { 0,  false }
 };
 
@@ -107,23 +107,33 @@ static const ToneStep PATTERN_TEST[] = {
   { 0,  false }
 };
 
+static portMUX_TYPE             s_buzMux = portMUX_INITIALIZER_UNLOCKED;
 static volatile BuzzerTone      s_activeTone = BEEP_NONE;
 static const ToneStep* volatile s_currPattern = nullptr;
 static volatile uint8_t         s_stepIdx = 0;
 static volatile unsigned long   s_stepStart = 0;
 
 void Buzzer_Init() {
+  portENTER_CRITICAL(&s_buzMux);
   s_activeTone = BEEP_NONE;
   s_currPattern = nullptr;
   s_stepIdx = 0;
+  portEXIT_CRITICAL(&s_buzMux);
   TCA9554_SetPin(EXIO_BUZZER, false);
 }
 
 void Buzzer_Stop() {
+  bool wasPlaying = false;
+  portENTER_CRITICAL(&s_buzMux);
   if (s_activeTone != BEEP_NONE) {
-    TCA9554_SetPin(EXIO_BUZZER, false);
+    wasPlaying = true;
     s_activeTone = BEEP_NONE;
     s_currPattern = nullptr;
+    s_stepIdx = 0;
+  }
+  portEXIT_CRITICAL(&s_buzMux);
+  if (wasPlaying) {
+    TCA9554_SetPin(EXIO_BUZZER, false);
   }
 }
 
@@ -186,17 +196,9 @@ void Buzzer_Play(BuzzerTone tone, bool force) {
     return;
   }
 
-  // BEEP_CLICK is a tactile click (18 ms). Generating it synchronously ensures
-  // it is crisp, clearly audible, and never extended by frame rendering.
-  if (tone == BEEP_CLICK) {
-    TCA9554_SetPin(EXIO_BUZZER, true);
-    delay(18);
-    TCA9554_SetPin(EXIO_BUZZER, false);
-    return;
-  }
-
   const ToneStep* pat = nullptr;
   switch (tone) {
+    case BEEP_CLICK:      pat = PATTERN_CLICK;      break;
     case BEEP_HOURLY:     pat = PATTERN_HOURLY;     break;
     case BEEP_OVERHEAD:   pat = PATTERN_OVERHEAD;   break;
     case BEEP_PRECIP:     pat = PATTERN_PRECIP;     break;
@@ -211,16 +213,19 @@ void Buzzer_Play(BuzzerTone tone, bool force) {
     default: return;
   }
 
-  if (tone != BEEP_SONAR_PING) {
+  if (tone != BEEP_SONAR_PING && tone != BEEP_CLICK) {
     Serial.printf("[Buzzer] Playing tone %u (forced=%d)\n", (unsigned)tone, (int)(force || tone == BEEP_TEST));
   }
 
+  bool firstState = pat[0].state;
+  portENTER_CRITICAL(&s_buzMux);
   s_activeTone = tone;
   s_currPattern = pat;
   s_stepIdx = 0;
   s_stepStart = millis();
+  portEXIT_CRITICAL(&s_buzMux);
 
-  TCA9554_SetPin(EXIO_BUZZER, s_currPattern[0].state);
+  TCA9554_SetPin(EXIO_BUZZER, firstState);
 }
 
 void Buzzer_PlayTest() {
@@ -228,19 +233,32 @@ void Buzzer_PlayTest() {
 }
 
 void Buzzer_Tick() {
-  if (s_activeTone == BEEP_NONE || !s_currPattern) return;
-
+  bool doPin = false;
+  bool pinState = false;
   unsigned long now = millis();
-  if (now - s_stepStart >= s_currPattern[s_stepIdx].ms) {
-    s_stepIdx = s_stepIdx + 1;
-    if (s_currPattern[s_stepIdx].ms == 0) {
-      // Finished
-      TCA9554_SetPin(EXIO_BUZZER, false);
-      s_activeTone = BEEP_NONE;
-      s_currPattern = nullptr;
-    } else {
-      s_stepStart = now;
-      TCA9554_SetPin(EXIO_BUZZER, s_currPattern[s_stepIdx].state);
+
+  portENTER_CRITICAL(&s_buzMux);
+  const ToneStep* pat = s_currPattern;
+  if (s_activeTone != BEEP_NONE && pat != nullptr) {
+    uint8_t idx = s_stepIdx;
+    if (now - s_stepStart >= pat[idx].ms) {
+      idx++;
+      s_stepIdx = idx;
+      if (pat[idx].ms == 0) {
+        s_activeTone = BEEP_NONE;
+        s_currPattern = nullptr;
+        doPin = true;
+        pinState = false;
+      } else {
+        s_stepStart = now;
+        doPin = true;
+        pinState = pat[idx].state;
+      }
     }
+  }
+  portEXIT_CRITICAL(&s_buzMux);
+
+  if (doPin) {
+    TCA9554_SetPin(EXIO_BUZZER, pinState);
   }
 }

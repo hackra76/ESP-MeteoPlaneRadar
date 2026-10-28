@@ -21,6 +21,7 @@
 #include "SHMU.h"
 #include "ScreenWeather.h"
 #include "ScreenTactical.h"
+#include "AsyncCore.h"
 
 #define STB_IMAGE_STATIC
 #define STB_IMAGE_IMPLEMENTATION
@@ -375,13 +376,13 @@ void PlanePhoto_Tick() {
   strncpy(hex, s_cache[slot].hex, sizeof(hex) - 1);
   unlock();
 
-  // Proactively free idle radar buffers if PSRAM is tight (< 1.2 MB free)
-  if (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) < 1200000) {
-    RainViewer_FreeBuffers();
+  // Only free background CHMU/SHMU PNG caches if PSRAM is critically low (< 512 KB),
+  // and never touch active UI screen canvas buffers from Core 0.
+  if (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) < 512000 && !Async_IsRadarBusy()) {
+    Async_LockRadar();
     CHMU_FreeBuffers();
     SHMU_FreeBuffers();
-    ScreenWeather_FreeBuffers();
-    ScreenTactical_FreeBuffers();
+    Async_UnlockRadar();
   }
 
   Serial.printf("PlanePhoto: Fetching for reg='%s' hex='%s' (Free PSRAM: %u B)\n",

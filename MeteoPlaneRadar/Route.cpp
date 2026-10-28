@@ -286,11 +286,22 @@ void Route_Tick() {
   Net_SessionEnd();
   if (!Net_HeapOk("ROUTE")) return;
 
+  char wantKey[12];
+  float wantLat, wantLon;
+  Async_LockRoute();
   s_pending = false;
   s_lastQueryMs = millis();
-  Entry* e = find(s_wantKey);
-  if (!e) return;
+  strncpy(wantKey, s_wantKey, sizeof(wantKey) - 1);
+  wantKey[sizeof(wantKey) - 1] = '\0';
+  wantLat = s_wantLat;
+  wantLon = s_wantLon;
+  Entry* e = find(wantKey);
+  if (!e) {
+    Async_UnlockRoute();
+    return;
+  }
   s_changed = true;
+  Async_UnlockRoute();
 
   // Filter only used fields to minimize JSON parser memory footprint
   JsonDocument filter;
@@ -305,7 +316,7 @@ void Route_Tick() {
   JsonDocument doc(SpiRamAllocator::instance());
   char url[160];
   snprintf(url, sizeof(url), "%s/%s/%.4f/%.4f",
-           ROUTE_API_BASE, s_wantKey, s_wantLat, s_wantLon);
+           ROUTE_API_BASE, wantKey, wantLat, wantLon);
   int code = getJson(url, filter, doc);
   if (code != HTTP_CODE_OK) {
     // Failure (500, timeout, TLS fail): record ROUTE_NONE with 60s cooldown

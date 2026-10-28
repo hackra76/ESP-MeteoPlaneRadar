@@ -87,6 +87,8 @@ void WebConfig_RequestPetToggle() { s_reqPetToggle = true; }
 static bool s_reqQuickControlToggle = false;
 bool WebConfig_TakeQuickControlToggle()   { bool r = s_reqQuickControlToggle;   s_reqQuickControlToggle = false; return r; }
 void WebConfig_RequestQuickControlToggle() { s_reqQuickControlToggle = true; }
+static bool s_reqDisplayResync = false;
+bool WebConfig_TakeDisplayResync()        { bool r = s_reqDisplayResync;        s_reqDisplayResync = false;      return r; }
 
 // --- Helpers ----------------------------------------------------------------
 static void sendJson(int code, JsonDocument& doc) {
@@ -117,7 +119,7 @@ static bool authed(JsonDocument& body) {
     return false;
   }
 
-  const char* pw = body["password"] | "";
+  const char* pw = body["password"] | (body["pass"] | (body["oldPass"] | ""));
   if (Settings_CheckAdminPassword(pw)) {
     s_failedLogins = 0;
     return true;
@@ -166,14 +168,13 @@ static void handlePostConfig() {
   // reach the page could set a password and lock the owner out of the update
   // and reset endpoints - the settings themselves are deliberately open, but
   // that must not be a way to take the device over.
-  JsonVariantConst np = doc["newPassword"];
+  if (!authed(doc)) return;
+
+  JsonVariantConst np = !doc["newPassword"].isNull() ? doc["newPassword"] : doc["newPass"];
   if (!np.isNull()) {
     const char* p = np.as<const char*>();
     if (p && *p) {
-      if (!authed(doc)) return;                 // sends 403 and explains itself
       Settings_SetAdminPassword(p);
-      // The update page checks the password on every request, so a new one is
-      // live immediately - no restart needed.
     }
   }
 
@@ -509,6 +510,7 @@ static void handleScan() {
 static void handleWifi() {
   JsonDocument doc;
   if (!readBody(doc)) { s_srv.send(400, "application/json", "{\"error\":\"json\"}"); return; }
+  if (!authed(doc)) return;
   const char* ssid = doc["ssid"] | "";
   const char* pass = doc["pass"] | "";
   if (!*ssid) { s_srv.send(400, "application/json", "{\"error\":\"ssid\"}"); return; }
@@ -621,10 +623,10 @@ static void handleInput() {
     } else if (UI_GetActiveScreen() == SCREEN_TACTICAL_I) {
       ScreenTactical_HandleTap(tx, ty);
     }
-    UI_InvalidateActiveScreen();
+    s_reqRedraw = true;
   } else if (strcmp(cmd, "fullscreen_photo") == 0) {
     UI_SetPhotoFullscreen(doc["enable"] | true);
-    UI_InvalidateActiveScreen();
+    s_reqRedraw = true;
   }
   JsonDocument res; res["ok"] = true;
   res["legends"] = Settings_ShowLegends();
@@ -678,6 +680,7 @@ static void handleSerialClear() {
 static void handleSerialSend() {
   JsonDocument doc;
   if (!readBody(doc)) { s_srv.send(400, "application/json", "{\"error\":\"json\"}"); return; }
+  if (!authed(doc)) return;
   const char* text = doc["text"] | "";
   if (text && strlen(text) > 0) {
     if (strcmp(text, "ping") == 0) {
@@ -836,6 +839,9 @@ static void handleImport() {
 }
 
 static void handleReboot() {
+  JsonDocument doc;
+  readBody(doc);
+  if (!authed(doc)) return;
   s_srv.send(200, "application/json", "{\"ok\":true}");
   delay(200);
   Safe_Restart();
@@ -888,6 +894,7 @@ static void otaClearPsramCaches() {
 static void otaStart() {
   Async_Pause();
   s_updating = true;
+  vTaskDelay(pdMS_TO_TICKS(60));
   otaFreeRam();
   otaClearPsramCaches();
   UI_DrawOtaProgress("Web OTA", 0, 0, 0, (Lang_Get() == LANG_EN) ? "Preparing upload..." : "Pripravujem nahrávanie...");
@@ -973,18 +980,18 @@ static const char UPDATE_HTML[] PROGMEM = R"rawliteral(<!DOCTYPE html>
 <html lang="{{LANG}}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{{TITLE}}</title><style>
-body{background:#111;color:#eee;font:16px system-ui,sans-serif;margin:0;padding:24px;
+body{background:#121211;color:#F4F3EF;font:14px 'JetBrains Mono',monospace;margin:0;padding:24px;
  max-width:520px;margin-inline:auto}
-h1{font-size:20px;margin:0 0 4px}
-p{color:#aaa;line-height:1.5}
-input[type=file]{width:100%;padding:12px;background:#1c1c1c;border:1px solid #333;
- border-radius:8px;color:#eee;box-sizing:border-box}
-button{width:100%;padding:14px;margin-top:12px;font-size:16px;border:0;border-radius:8px;
- background:#2d7;color:#000;font-weight:600;cursor:pointer}
-button:disabled{background:#444;color:#888;cursor:default}
+h1{font-size:18px;letter-spacing:0.06em;text-transform:uppercase;margin:0 0 4px}
+p{color:#9E9D99;line-height:1.5}
+input[type=file]{width:100%;padding:12px;background:#171716;border:1px solid #2A2A28;
+ border-radius:2px;color:#F4F3EF;box-sizing:border-box}
+button{width:100%;padding:14px;margin-top:12px;font-size:14px;border:1px solid #FF4F00;border-radius:2px;
+ background:#FF4F00;color:#121211;font-weight:700;text-transform:uppercase;cursor:pointer}
+button:disabled{background:#2A2A28;border-color:#2A2A28;color:#787774;cursor:default}
 progress{width:100%;height:10px;margin-top:16px}
 #s{margin-top:10px;min-height:1.4em;font-weight:600}
-a{color:#5bf}
+a{color:#FF4F00}
 </style></head><body>
 <h1>{{TITLE}}</h1>
 <p>{{HINT}}</p>
@@ -1012,7 +1019,6 @@ b.onclick=function(){
 
 static void handleUpdatePage() {
   if (!updateAuthed()) { s_srv.requestAuthentication(); return; }
-  otaClearPsramCaches();
   const uint8_t lang = Lang_Get();
   String p = FPSTR(UPDATE_HTML);
   p.replace("{{LANG}}",  (lang == LANG_EN) ? "en" : ((lang == LANG_SK) ? "sk" : "cs"));
@@ -1300,7 +1306,7 @@ void WebConfig_Begin(bool apMode) {
   s_srv.on("/api/input", HTTP_POST, handleInput);
   s_srv.on("/api/screen", HTTP_POST, handleScreen);
   s_srv.on("/api/display/resync", HTTP_POST, [](){
-    LCD_Restart();
+    s_reqDisplayResync = true;
     s_srv.send(200, "application/json", "{\"ok\":true}");
   });
   s_srv.on("/api/range", HTTP_POST, handleRange);

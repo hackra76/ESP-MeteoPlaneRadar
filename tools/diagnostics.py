@@ -58,10 +58,10 @@ print(f"Uptime: {status.get('uptime')}")
 print(f"Free Heap: {status.get('heap')} B | Free PSRAM: {status.get('psram')} B")
 print(f"Current Screen: {status.get('screen')}")
 
-# 2. Cycle each screen 0 to 9
+# 2. Cycle each screen 0 to 11
 screen_names = [
-    "Clock", "Planes", "Meteo", "Tactical", "Forecast",
-    "Finance", "ISS", "YouTube", "Info", "Settings"
+    "Clock", "Planes", "Meteo", "Tactical", "Sonar", "Forecast",
+    "Finance", "ISS", "YouTube", "Klipper", "Info", "Settings"
 ]
 
 results = []

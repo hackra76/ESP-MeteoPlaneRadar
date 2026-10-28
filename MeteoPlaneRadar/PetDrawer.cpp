@@ -350,9 +350,9 @@ void PetDrawer_Open() {
     s_sleepVariant     = (uint8_t)(rand() % 5);   // 0 = style 1 … 4 = style 5
     s_sleepFacingRight = (rand() % 2 == 0);        // left or right
   } else {
-    // Coming from the sides animation! Random left or right entrance
+    // Coming from the sides animation! Start at visible runway edge so sprite is never clipped by bezel
     bool enterFromLeft = (rand() % 2 == 0);
-    s_catX = enterFromLeft ? -70.0f : (LCD_WIDTH + 70.0f);
+    s_catX = enterFromLeft ? 95.0f : 385.0f;
     s_catTargetX = 240.0f;
     s_catFlipX = !enterFromLeft; // facing towards center
     s_catState = CAT_STATE_ENTERING;
@@ -417,12 +417,12 @@ static void callCatBack() {
     Buzzer_Play(BEEP_PET_CHIRP);
   }
 
-  // Choose entrance side: nearest edge
+  // Choose entrance side: nearest visible runway edge
   if (s_catX <= 240.0f) {
-    s_catX = -70.0f;
+    s_catX = 95.0f;
     s_catFlipX = false;
   } else {
-    s_catX = LCD_WIDTH + 70.0f;
+    s_catX = 385.0f;
     s_catFlipX = true;
   }
   s_catTargetX = 240.0f;
@@ -2087,22 +2087,22 @@ void PetDrawer_Draw() {
   // 3. Pet Title Pill with Aviation Rank & Mute Toggle
   char titleBuf[64];
   snprintf(titleBuf, sizeof(titleBuf), "DIGICAT [%s]", PetBrain_GetStageTitle());
-  const int titleW = 254;
-  const int titleX = 85;
+  const int titleW = 252;
+  const int titleX = 84;
   const int titleY = 56;
   gfx->fillRoundRect(titleX, titleY, titleW, 22, 11, 0x10A2);
   gfx->drawRoundRect(titleX, titleY, titleW, 22, 11, C_CYAN);
-  UI_TextCenteredIn(titleBuf, titleX, titleW, titleY + 4, C_WHITE, 1);
+  UI_TextCenteredBox(titleBuf, titleX, titleY, titleW, 22, C_WHITE, 1);
 
-  // Mute / Sound Toggle Button
-  const int muteX = 348;
+  // Mute / Sound Toggle Button (inset inside R=240 bezel)
+  const int muteX = 342;
   const int muteY = 56;
-  const int muteW = 50;
+  const int muteW = 48;
   const int muteH = 22;
   bool petSound = Settings_BuzzerPet();
   gfx->fillRoundRect(muteX, muteY, muteW, muteH, 11, petSound ? 0x0821 : 0x4800);
   gfx->drawRoundRect(muteX, muteY, muteW, muteH, 11, petSound ? C_CYAN : C_RED);
-  UI_TextCenteredIn(petSound ? "VOL" : "MUTE", muteX, muteW, muteY + 4, petSound ? C_WHITE : C_YELLOW, 1);
+  UI_TextCenteredBox(petSound ? "VOL" : "MUTE", muteX, muteY, muteW, muteH, petSound ? C_WHITE : C_YELLOW, 1);
 
   // 4. Virtual Pet Stats Badge
   PetStats stats = PetBrain_GetStats();
@@ -2150,10 +2150,10 @@ void PetDrawer_Draw() {
                                                   : "( Tap anywhere to call pet back )");
     UI_TextCentered(awayHint, 330, 0x632C, 1);
   } else {
-    // Screen clamping: slide and tumble can traverse wide deck [70, 410], cling is at rim [52, 428]
+    // Screen clamping: keep 192px sprite within visible runway deck
     if (s_catState != CAT_STATE_ENTERING && s_catState != CAT_STATE_LEAVING && s_catState != CAT_STATE_CLING) {
       if (s_catState == CAT_STATE_SLIDE || s_catState == CAT_STATE_TUMBLE) {
-        s_catX = constrain(s_catX, 70.0f, 410.0f);
+        s_catX = constrain(s_catX, 110.0f, 370.0f);
       } else {
         s_catX = constrain(s_catX, 140.0f, 340.0f);
       }
@@ -2674,7 +2674,7 @@ bool PetDrawer_HandleTap(int x, int y) {
     return true;
   }
 
-  return true;
+  return false;
 }
 
 // -----------------------------------------------------------------------------
@@ -2761,6 +2761,8 @@ static void PetDrawer_TimerCb(lv_timer_t* t) {
   }
 }
 
+static int s_petPressStartY = 0;
+
 static void PetDrawer_EventCb(lv_event_t* e) {
   lv_event_code_t code = lv_event_get_code(e);
   if (code == LV_EVENT_DRAW_MAIN) {
@@ -2773,6 +2775,7 @@ static void PetDrawer_EventCb(lv_event_t* e) {
     if (indev) {
       lv_point_t pt;
       lv_indev_get_point(indev, &pt);
+      s_petPressStartY = pt.y;
       PetDrawer_HandleTouchMove(pt.x, pt.y);
     }
   } else if (code == LV_EVENT_PRESSING) {
@@ -2789,10 +2792,8 @@ static void PetDrawer_EventCb(lv_event_t* e) {
     if (indev) {
       lv_point_t pt;
       lv_indev_get_point(indev, &pt);
-      // Let tap handle specific hits, otherwise maybe close it
       bool handled = PetDrawer_HandleTap(pt.x, pt.y);
-      if (!handled && pt.y < 100) {
-        // Tap outside pet area closes it
+      if (!handled && pt.y < 90) {
         PetDrawer_Close();
       }
     }
@@ -2800,7 +2801,7 @@ static void PetDrawer_EventCb(lv_event_t* e) {
       lv_indev_t* indev = lv_indev_active();
       if (indev) {
           lv_dir_t dir = lv_indev_get_gesture_dir(indev);
-          if (dir == LV_DIR_BOTTOM) {
+          if (dir == LV_DIR_BOTTOM && s_petPressStartY < 165 && !s_laserActive) {
               PetDrawer_Close();
           }
       }

@@ -52,6 +52,7 @@ static inline void poll() { if (s_poll) s_poll(); }
 static const char* DATE_HDR[] = { "Date" };
 
 void Net_SessionBegin() {
+  TxtLockGuard _lk;
   if (s_sess) return;
   s_sess = new WiFiClientSecure();
   if (s_sess) {
@@ -61,6 +62,7 @@ void Net_SessionBegin() {
 }
 
 void Net_SessionEnd() {
+  TxtLockGuard _lk;
   if (!s_sess) return;
   cleanupSocket(*s_sess);
   s_sess->stop();
@@ -150,11 +152,11 @@ bool Net_GetCString(const char* url, const char** outPtr, const char* tag,
                                 (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
                                 (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
     else        Serial.printf("%s: HTTP %d\n", tag, code);
+    cleanupSocket(client);
+    http.end();
     if (tls) secure.stop();
     client.stop();
     plain.stop();
-    cleanupSocket(client);
-    http.end();
     return false;
   }
   if (http.hasHeader("Date")) Outside_NoteHttpDate(http.header("Date").c_str());
@@ -163,28 +165,28 @@ bool Net_GetCString(const char* url, const char** outPtr, const char* tag,
   if (declared > (int)NET_MAX_TEXT) {
     Serial.printf("%s: response %d B, limit is %u B\n",
                   tag, declared, (unsigned)NET_MAX_TEXT);
+    cleanupSocket(client);
+    http.end();
     if (tls) secure.stop();
     client.stop();
     plain.stop();
-    cleanupSocket(client);
-    http.end();
     return false;
   }
   if (!txtReserve((declared > 0) ? (size_t)declared + 1 : NET_MAX_TEXT)) {
+    cleanupSocket(client);
+    http.end();
     if (tls) secure.stop();
     client.stop();
     plain.stop();
-    cleanupSocket(client);
-    http.end();
     return false;
   }
 
   long len = Net_ReadBody(http, (uint8_t*)s_txt, s_txtCap, tag, s_poll);
+  cleanupSocket(client);
+  http.end();
   if (tls) secure.stop();
   client.stop();
   plain.stop();
-  cleanupSocket(client);
-  http.end();
   poll();
 
   if (len <= 0) {
@@ -279,20 +281,20 @@ bool Net_PostJson(const char* url, const char* jsonPayload, String& out, const c
     return false;
   }
   if (!txtReserve((declared > 0) ? (size_t)declared + 1 : NET_MAX_TEXT)) {
+    cleanupSocket(client);
+    http.end();
     if (tls) secure.stop();
     client.stop();
     plain.stop();
-    cleanupSocket(client);
-    http.end();
     return false;
   }
 
   long len = Net_ReadBody(http, (uint8_t*)s_txt, s_txtCap, tag, s_poll);
+  cleanupSocket(client);
+  http.end();
   if (tls) secure.stop();
   client.stop();
   plain.stop();
-  cleanupSocket(client);
-  http.end();
   poll();
 
   if (len <= 0) { Serial.printf("%s: empty response\n", tag); return false; }
@@ -305,6 +307,8 @@ bool Net_GetBinary(const char* url, uint8_t* buf, size_t cap, size_t* outLen,
   if (outLen) *outLen = 0;
   if (!buf || cap == 0) return false;
   if (WiFi.status() != WL_CONNECTED) return false;
+
+  TxtLockGuard _lk;
 
   const bool tls = (strncmp(url, "http://", 7) != 0);
   const bool sess = (s_sess != nullptr && tls);
@@ -376,11 +380,11 @@ bool Net_GetBinary(const char* url, uint8_t* buf, size_t cap, size_t* outLen,
 
   long got = Net_ReadBody(http, buf, cap, tag, s_poll);
   if (!sess) {
+    cleanupSocket(client);
+    http.end();
     if (tls) ownSecure.stop();
     client.stop();
     plain.stop();
-    cleanupSocket(client);
-    http.end();
   } else {
     http.end();
   }
@@ -400,6 +404,7 @@ bool Net_GetBinary(const char* url, uint8_t* buf, size_t cap, size_t* outLen,
 
 bool Net_TouchDate(const char* url) {
   if (WiFi.status() != WL_CONNECTED) return false;
+  TxtLockGuard _lk;
   Net_SessionEnd();
   if (!Net_HeapOk("CLOCK")) return false;
 

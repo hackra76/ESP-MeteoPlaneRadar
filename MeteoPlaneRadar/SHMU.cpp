@@ -3,6 +3,7 @@
 //  SHMU weather radar: downloading into PSRAM (single frame + animation).
 // =============================================================================
 #include "SHMU.h"
+#include "AsyncCore.h"
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
@@ -221,12 +222,15 @@ int SHMU_FetchAnim(int wantN) {
     delay(50);
   }
   Net_SessionEnd();
+  Async_LockRadar();
   s_animCount = got;
+  Async_UnlockRadar();
   Serial.printf("SHMU radar: %d frames\n", got);
   return got;
 }
 
 void SHMU_FreeBuffers() {
+  Async_LockRadar();
   for (int i = 0; i < SHMU_ANIM_MAX; i++) {
     if (s_animBuf[i]) {
       heap_caps_free(s_animBuf[i]);
@@ -237,4 +241,5 @@ void SHMU_FreeBuffers() {
   }
   s_animCount = 0;
   s_topCount = 0;
+  Async_UnlockRadar();
 }

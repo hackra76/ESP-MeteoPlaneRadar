@@ -109,6 +109,7 @@ static bool fetchForecast() {
   if (err) { Serial.printf("FORECAST: JSON %s\n", err.c_str()); return false; }
 
   // --- current ---
+  Async_LockForecast();
   JsonObjectConst cur = doc["current"];
   if (!cur.isNull() && !cur["temperature_2m"].isNull()) {
     s_curTemp   = cur["temperature_2m"].as<float>();
@@ -168,10 +169,15 @@ static bool fetchForecast() {
   }
 
   s_valid = (s_hourN > 0 || s_dayN > 0);
+  int hourN = s_hourN, dayN = s_dayN;
+  bool sunOk = (s_sunrise && s_sunset);
+  bool valid = s_valid;
+  Async_UnlockForecast();
+
   Serial.printf("Forecast: %d hours, %d days, sunrise/sunset %s\n",
-                s_hourN, s_dayN, (s_sunrise && s_sunset) ? "ok" : "missing");
-  Status_Set(ST_FORECAST, "OK, %d h / %d d", s_hourN, s_dayN);
-  return s_valid;
+                hourN, dayN, sunOk ? "ok" : "missing");
+  Status_Set(ST_FORECAST, "OK, %d h / %d d", hourN, dayN);
+  return valid;
 }
 
 // -----------------------------------------------------------------------------
@@ -202,6 +208,7 @@ static bool fetchAirQuality() {
   JsonObjectConst cur = doc["current"];
   if (cur.isNull()) return false;
 
+  Async_LockForecast();
   s_aqi  = cur["european_aqi"].isNull() ? -1 : cur["european_aqi"].as<int>();
   s_pm25 = cur["pm2_5"] | 0.0f;
   s_pm10 = cur["pm10"]  | 0.0f;
@@ -227,26 +234,29 @@ static bool fetchAirQuality() {
   }
 
   s_aqOk = (s_aqi >= 0) || (s_pm25 > 0) || (s_pm10 > 0);
-  Serial.printf("AirQuality: AQI %d, PM2.5 %.1f, pollen %.0f\n", s_aqi, s_pm25, s_pollen);
-  return s_aqOk;
+  int aqi = s_aqi; float pm25 = s_pm25, pollen = s_pollen; bool aqOk = s_aqOk;
+  Async_UnlockForecast();
+
+  Serial.printf("AirQuality: AQI %d, PM2.5 %.1f, pollen %.0f\n", aqi, pm25, pollen);
+  return aqOk;
 }
 
-bool  AirQuality_Valid()  { return s_aqOk; }
-int   AirQuality_Aqi()    { return s_aqi; }
-float AirQuality_Pm25()   { return s_pm25; }
-float AirQuality_PollenMax() { return s_pollen; }
-const char* AirQuality_PollenWorst() { return s_pollenWorst; }
+bool  AirQuality_Valid()  { Async_LockForecast(); bool v = s_aqOk; Async_UnlockForecast(); return v; }
+int   AirQuality_Aqi()    { Async_LockForecast(); int v = s_aqi; Async_UnlockForecast(); return v; }
+float AirQuality_Pm25()   { Async_LockForecast(); float v = s_pm25; Async_UnlockForecast(); return v; }
+float AirQuality_PollenMax() { Async_LockForecast(); float v = s_pollen; Async_UnlockForecast(); return v; }
+const char* AirQuality_PollenWorst() { Async_LockForecast(); const char* v = s_pollenWorst; Async_UnlockForecast(); return v; }
 
-void Forecast_Tick() {
+bool Forecast_Tick() {
   // No link: do not start the timer either.
-  if (WiFi.status() != WL_CONNECTED) return;
+  if (WiFi.status() != WL_CONNECTED) return false;
 
   bool needsForecast = Settings_ScreenEnabled(SCREEN_FORECAST_I) ||
                        Settings_ScreenEnabled(SCREEN_CLOCK_I) ||
                        Settings_NightAuto();
   bool needsAirQuality = Settings_ScreenEnabled(SCREEN_FORECAST_I);
 
-  if (!needsForecast && !needsAirQuality) return;
+  if (!needsForecast && !needsAirQuality) return false;
 
   unsigned long now = millis();
 
@@ -255,13 +265,13 @@ void Forecast_Tick() {
   if (needsForecast && (!s_everTried || now - s_lastTry >= (s_valid ? FORECAST_PERIOD_MS : FORECAST_RETRY_MS))) {
     s_everTried = true;
     s_lastTry = now;
-    fetchForecast();
-    return;                    // one request per tick - never two back to back
+    return fetchForecast();    // one request per tick - never two back to back
   }
 
   if (needsAirQuality && (!s_aqEverTried || now - s_aqLastTry >= (s_aqOk ? AQ_PERIOD_MS : AQ_RETRY_MS))) {
     s_aqEverTried = true;
     s_aqLastTry = now;
-    fetchAirQuality();
+    return fetchAirQuality();
   }
+  return false;
 }

@@ -467,7 +467,9 @@ static void draw3DGlobe(const IssData& iss, bool centerHome) {
   snprintf(cBuf, sizeof(cBuf), "CTR: %.1f°%c %.1f°%c",
            fabsf(cLat), cLat >= 0 ? 'N' : 'S',
            fabsf(cLon), cLon >= 0 ? 'E' : 'W');
-  UI_TextCentered(cBuf, Y0 + R - 16, RGB565(120, 160, 200), 1);
+  int ctrW = Font_TextWidth(cBuf, 1) + 12;
+  gfx->fillRoundRect(X0 - ctrW / 2, Y0 + R - 20, ctrW, 13, 3, 0x0821);
+  UI_TextCentered(cBuf, Y0 + R - 18, RGB565(135, 175, 215), 1);
 }
 
 static void ScreenIss_Draw() {
@@ -671,7 +673,10 @@ static void ScreenIss_EventCb(lv_event_t* e) {
       ScreenIss_HandleTap(pt.x, pt.y);
     }
   } else if (code == LV_EVENT_SCREEN_LOAD_START) {
-    Async_RequestIss();
+    IssData d;
+    if (!Iss_GetData(&d) || (millis() - d.lastUpdatedMs >= 15000UL)) {
+      Async_RequestIss();
+    }
   }
 }
 

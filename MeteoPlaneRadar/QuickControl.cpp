@@ -97,9 +97,9 @@ void QuickControl_Toggle() {
 }
 
 static const int CW_W = 360;
-static const int CW_H = 276;
+static const int CW_H = 264;
 static const int CW_X = (LCD_WIDTH - CW_W) / 2;
-static const int CW_Y = 24;
+static const int CW_Y = 76;
 
 // -----------------------------------------------------------------------------
 //  Finance Presets & Categories (Mirrors Web Dashboard)
@@ -285,7 +285,7 @@ static void drawSelectBox(int x, int y, int w, int h, int slotNum, const char* t
 
 static void drawAssetPickerModal() {
   const uint8_t lang = Lang_Get();
-  const int PK_X = 75, PK_Y = 40, PK_W = 330, PK_H = 340;
+  const int PK_X = 75, PK_Y = 70, PK_W = 330, PK_H = 324;
 
   // Outer card
   gfx->fillRoundRect(PK_X, PK_Y, PK_W, PK_H, 16, 0x0821);
@@ -396,7 +396,7 @@ static void drawAssetPickerModal() {
 }
 
 static bool handleAssetPickerTap(int x, int y) {
-  const int PK_X = 75, PK_Y = 40, PK_W = 330, PK_H = 340;
+  const int PK_X = 75, PK_Y = 70, PK_W = 330, PK_H = 324;
 
   // Tap outside card -> close picker
   if (x < PK_X || x > PK_X + PK_W || y < PK_Y || y > PK_Y + PK_H) {
@@ -675,6 +675,7 @@ static void switchRadarSource() {
   uint8_t nextSrc = (curSrc == RADAR_SRC_CHMU) ? RADAR_SRC_SHMU :
                     (curSrc == RADAR_SRC_SHMU) ? RADAR_SRC_RAINVIEWER : RADAR_SRC_CHMU;
   Settings_SetRadarSource(nextSrc);
+  Async_LockRadar();
   if (nextSrc == RADAR_SRC_RAINVIEWER) {
     CHMU_FreeBuffers();
     SHMU_FreeBuffers();
@@ -686,6 +687,7 @@ static void switchRadarSource() {
     CHMU_FreeBuffers();
   }
   ScreenWeather_FreeBuffers();
+  Async_UnlockRadar();
   Async_RequestRadar();
 }
 
@@ -862,6 +864,11 @@ bool QuickControl_HandleTap(int x, int y, int currentScreen) {
   } else if (currentScreen == SCREEN_FORECAST_I) {
     if (y >= y3 && y <= y3 + 34) {
       Settings_SetMetricUnits(!Settings_MetricUnits());
+      return true;
+    }
+    if (y >= y4 && y <= y4 + 34) {
+      Async_RequestForecast();
+      Buzzer_Play(BEEP_CLICK);
       return true;
     }
   } else if (currentScreen == SCREEN_ISS_I) {

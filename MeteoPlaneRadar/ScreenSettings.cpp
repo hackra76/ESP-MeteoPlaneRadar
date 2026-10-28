@@ -384,7 +384,7 @@ void ScreenSettings_Draw() {
     UI_Text(T(S_WEB_HINT), SL_X, ROW_WEB, C_CYAN, 1);
     char hostLocal[48];
     snprintf(hostLocal, sizeof(hostLocal), "%s.local", Settings_Hostname());
-    UI_Text(hostLocal, SL_X, ROW_WEB + 12, C_CYAN, 1);
+    UI_Text(hostLocal, SL_X, ROW_WEB + 14, C_CYAN, 1);
   } else if (WiFi_IsAP()) {
     UI_Text(AP_SSID, SL_X + wLabel, ROW_WIFI, C_YELLOW, 2);
     UI_Text(PORTAL_IP, SL_X, ROW_WEB, C_CYAN, 1);

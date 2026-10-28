@@ -26,9 +26,9 @@ extern const lv_font_t lv_font_montserrat_custom_28;
 static const lv_font_t* get_lv_font(uint8_t size) {
     switch (size) {
         case FONT_TINY:   return &lv_font_montserrat_custom_10;
-        case FONT_SMALL:  return &lv_font_montserrat_custom_14;
+        case FONT_SMALL:  return &lv_font_montserrat_custom_10;
         case FONT_MEDIUM: return &lv_font_montserrat_custom_14;
-        case FONT_LARGE:  return &lv_font_montserrat_custom_14;
+        case FONT_LARGE:  return &lv_font_montserrat_custom_20;
         case FONT_TITLE:  return &lv_font_montserrat_custom_20;
         case FONT_HUGE:   return &lv_font_montserrat_custom_28;
         case FONT_HERO:   return &lv_font_hero_54;

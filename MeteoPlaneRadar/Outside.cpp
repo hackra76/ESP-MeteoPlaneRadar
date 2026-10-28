@@ -9,6 +9,7 @@
 #include "Net.h"
 #include "Settings.h"
 #include "PCF85063.h"
+#include "SpiRamAllocator.h"
 #include <WiFi.h>
 #include <ArduinoJson.h>
 #include <time.h>
@@ -59,12 +60,17 @@ void Outside_NoteHttpDate(const char* date) {
   struct timeval tv = { .tv_sec = utc, .tv_usec = 0 };
   settimeofday(&tv, nullptr);
 
+  static unsigned long s_lastRtcSyncMs = 0;
+  unsigned long nowMs = millis();
+  if (!s_timeOk || s_lastRtcSyncMs == 0 || (nowMs - s_lastRtcSyncMs >= 1800000UL)) {
+    s_lastRtcSyncMs = nowMs ? nowMs : 1;
+    PCF85063_SetTime(utc);
+  }
   if (!s_timeOk) {
     s_timeOk = true;
     struct tm lt; localtime_r(&utc, &lt);
     Serial.printf("Time set from Date header: %02d:%02d\n", lt.tm_hour, lt.tm_min);
   }
-  PCF85063_SetTime(utc);
 }
 
 // --- Outside temperature ----------------------------------------------------
@@ -96,15 +102,14 @@ static bool fetchTemp() {
            "%s?latitude=%.4f&longitude=%.4f&current=temperature_2m",
            OUTSIDE_TEMP_URL, Settings_Lat(), Settings_Lon());
 
-  // Same path as every other text response: heap guard, handshake timeout,
-  // chunked decoding and the body cap all live in Net_GetString().
-  String body;
-  if (!Net_GetString(url, body, "TEMP")) return false;
+  const char* body = nullptr;
+  size_t bodyLen = 0;
+  if (!Net_GetCString(url, &body, "TEMP", nullptr, nullptr, 8000, 12000, &bodyLen) || !body) return false;
 
   JsonDocument filter;
   filter["current"]["temperature_2m"] = true;
-  JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, body,
+  JsonDocument doc(SpiRamAllocator::instance());
+  DeserializationError err = deserializeJson(doc, body, bodyLen,
                                              DeserializationOption::Filter(filter));
   if (err) { Serial.printf("TEMP: JSON %s\n", err.c_str()); return false; }
 

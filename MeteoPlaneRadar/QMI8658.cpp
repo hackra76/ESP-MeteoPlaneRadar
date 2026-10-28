@@ -24,6 +24,7 @@
 #define REG_STATUS0    0x2E
 #define REG_AX_L       0x35
 
+static portMUX_TYPE s_qmiMux = portMUX_INITIALIZER_UNLOCKED;
 static uint8_t s_i2cAddr = 0;
 static bool    s_available = false;
 static QMI_Data s_data = {0};
@@ -140,7 +141,9 @@ void QMI8658_OnDoubleTap(QMI_DoubleTapCallback cb) {
 
 void QMI8658_GetData(QMI_Data* out) {
   if (!out) return;
+  portENTER_CRITICAL(&s_qmiMux);
   *out = s_data;
+  portEXIT_CRITICAL(&s_qmiMux);
 }
 
 bool QMI8658_Tick() {
@@ -163,22 +166,27 @@ bool QMI8658_Tick() {
   int16_t gz_raw = (int16_t)(raw[10] | (raw[11] << 8));
 
   // Scale factors for +/-4g (8192 LSB/g) and +/-512dps (64 LSB/dps)
-  s_data.ax = (float)ax_raw / 8192.0f;
-  s_data.ay = (float)ay_raw / 8192.0f;
-  s_data.az = (float)az_raw / 8192.0f;
+  QMI_Data local;
+  local.ax = (float)ax_raw / 8192.0f;
+  local.ay = (float)ay_raw / 8192.0f;
+  local.az = (float)az_raw / 8192.0f;
 
-  s_data.gx = (float)gx_raw / 64.0f;
-  s_data.gy = (float)gy_raw / 64.0f;
-  s_data.gz = (float)gz_raw / 64.0f;
+  local.gx = (float)gx_raw / 64.0f;
+  local.gy = (float)gy_raw / 64.0f;
+  local.gz = (float)gz_raw / 64.0f;
 
   // Calculate tilt angles
-  float pitch = atan2f(-s_data.ax, sqrtf(s_data.ay * s_data.ay + s_data.az * s_data.az)) * 57.29578f;
-  float roll  = atan2f(s_data.ay, s_data.az) * 57.29578f;
-  s_data.pitch = pitch;
-  s_data.roll  = roll;
+  float pitch = atan2f(-local.ax, sqrtf(local.ay * local.ay + local.az * local.az)) * 57.29578f;
+  float roll  = atan2f(local.ay, local.az) * 57.29578f;
+  local.pitch = pitch;
+  local.roll  = roll;
+
+  portENTER_CRITICAL(&s_qmiMux);
+  s_data = local;
+  portEXIT_CRITICAL(&s_qmiMux);
 
   // Total acceleration magnitude
-  float mag = sqrtf(s_data.ax * s_data.ax + s_data.ay * s_data.ay + s_data.az * s_data.az);
+  float mag = sqrtf(local.ax * local.ax + local.ay * local.ay + local.az * local.az);
   float diff = fabsf(mag - s_lastMag);
   s_lastMag = mag;
 
@@ -187,33 +195,41 @@ bool QMI8658_Tick() {
   unsigned long dtMs = now - s_lastHeadingTime;
   s_lastHeadingTime = now;
 
+  portENTER_CRITICAL(&s_qmiMux);
+  float heading = s_heading;
+  portEXIT_CRITICAL(&s_qmiMux);
+
   if (dtMs > 0 && dtMs < 500) {
     float dtSec = (float)dtMs / 1000.0f;
-    float gz = s_data.gz;
+    float gz = local.gz;
     // Deadband on gz to eliminate drift when at rest
     if (fabsf(gz) > 0.35f) {
       // Rotating device clockwise (heading increasing) gives negative gz on this sensor orientation
-      s_heading -= gz * dtSec;
-      while (s_heading < 0.0f)   s_heading += 360.0f;
-      while (s_heading >= 360.0f) s_heading -= 360.0f;
+      heading -= gz * dtSec;
+      while (heading < 0.0f)   heading += 360.0f;
+      while (heading >= 360.0f) heading -= 360.0f;
     }
   }
 
   // When held upright, blend towards gravity tilt angle
-  float gPlane = sqrtf(s_data.ax * s_data.ax + s_data.ay * s_data.ay);
+  float gPlane = sqrtf(local.ax * local.ax + local.ay * local.ay);
   if (gPlane >= 0.55f) {
     // In default upright position, ax ≈ +1.0g, ay ≈ 0g -> angle = 0 (North UP)
-    float angleRad = atan2f(s_data.ay, s_data.ax);
+    float angleRad = atan2f(local.ay, local.ax);
     float tiltDeg = angleRad * 57.29578f;
     while (tiltDeg < 0.0f) tiltDeg += 360.0f;
 
-    float dAngle = tiltDeg - s_heading;
+    float dAngle = tiltDeg - heading;
     while (dAngle < -180.0f) dAngle += 360.0f;
     while (dAngle > 180.0f)  dAngle -= 360.0f;
-    s_heading += dAngle * 0.08f;
-    while (s_heading < 0.0f)   s_heading += 360.0f;
-    while (s_heading >= 360.0f) s_heading -= 360.0f;
+    heading += dAngle * 0.08f;
+    while (heading < 0.0f)   heading += 360.0f;
+    while (heading >= 360.0f) heading -= 360.0f;
   }
+
+  portENTER_CRITICAL(&s_qmiMux);
+  s_heading = heading;
+  portEXIT_CRITICAL(&s_qmiMux);
 
   // Double-tap processing
   bool triggered = false;
@@ -251,7 +267,10 @@ bool QMI8658_Tick() {
 }
 
 float QMI8658_GetHeading() {
-  return s_heading;
+  portENTER_CRITICAL(&s_qmiMux);
+  float h = s_heading;
+  portEXIT_CRITICAL(&s_qmiMux);
+  return h;
 }
 
 const char* QMI8658_GetHeadingStr() {
@@ -259,18 +278,23 @@ const char* QMI8658_GetHeadingStr() {
     "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
     "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"
   };
-  int idx = (int)((s_heading + 11.25f) / 22.5f) % 16;
+  float h = QMI8658_GetHeading();
+  int idx = (int)((h + 11.25f) / 22.5f) % 16;
   return DIRS[idx];
 }
 
 void QMI8658_ResetHeading(float deg) {
+  while (deg < 0.0f)   deg += 360.0f;
+  while (deg >= 360.0f) deg -= 360.0f;
+  portENTER_CRITICAL(&s_qmiMux);
   s_heading = deg;
-  while (s_heading < 0.0f)   s_heading += 360.0f;
-  while (s_heading >= 360.0f) s_heading -= 360.0f;
+  portEXIT_CRITICAL(&s_qmiMux);
 }
 
 bool QMI8658_IsFlat() {
-  float gPlane = sqrtf(s_data.ax * s_data.ax + s_data.ay * s_data.ay);
+  QMI_Data d;
+  QMI8658_GetData(&d);
+  float gPlane = sqrtf(d.ax * d.ax + d.ay * d.ay);
   return (gPlane < 0.45f);
 }
 

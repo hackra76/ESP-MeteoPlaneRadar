@@ -858,6 +858,7 @@ void ScreenWeather_Enter() {
     s_status = T(S_LOADING);
 
     // Free buffers of the inactive providers to conserve PSRAM!
+    Async_LockRadar();
     if (curSrc == RADAR_SRC_RAINVIEWER) {
       CHMU_FreeBuffers();
       SHMU_FreeBuffers();
@@ -871,6 +872,7 @@ void ScreenWeather_Enter() {
       CHMU_FreeBuffers();
       ScreenWeather_FreeBuffers();
     }
+    Async_UnlockRadar();
   }
   uint8_t saved = Settings_MeteoRange();
   if (saved >= RANGE_COUNT) saved = 1;             // guard against a stale value
@@ -1199,7 +1201,9 @@ void ScreenWeather_Draw() {
   // Thin ring marking the edge of the round display.
   gfx->drawCircle(CX, CY, DISP_R, C_DKGRAY);
 
-  // If no radar frames are ready yet, show an overlay badge rather than a black screen
+  drawOverlay();
+
+  // If no radar frames are ready yet, show an overlay badge on top of the home marker
   if (have == 0) {
     const int bw = 260, bh = 54;
     gfx->fillRoundRect(CX - bw / 2, CY - bh / 2, bw, bh, 12, C_DKGRAY);
@@ -1211,6 +1215,4 @@ void ScreenWeather_Draw() {
                     : (s_status == T(S_OK) ? T(S_LOADING) : s_status.c_str());
     UI_TextCentered(msg, CY + 2, C_YELLOW, 2);
   }
-
-  drawOverlay();
 }
