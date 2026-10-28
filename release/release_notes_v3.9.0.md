@@ -83,3 +83,4 @@ Navigate to **Settings** (`Screen 11`) on the device or open the **Web Portal** 
 ```bash
 esptool.py --chip esp32s3 -p COMx -b 921600 write_flash 0x0000 MeteoPlaneRadar-v3.9.0-factory.bin
 ```
+
