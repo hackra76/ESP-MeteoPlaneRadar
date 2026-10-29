@@ -11,5 +11,4 @@ __pycache__/
 scratch/
 tools/preview_sprites/
 audit_output/
-
-
+release/
