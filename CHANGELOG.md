@@ -9,6 +9,15 @@ obrazovce Nastavení, na webové stránce a v sériovém výpisu při startu.
 Laditelné konstanty (krok otočení, tolerance výpadků, ladicí výpisy) jsou
 pohromadě v `MeteoPlaneRadar/Config.h`.
 
+## [3.9.1] - 2026-10-29
+
+### Fixed & Improved
+- **ST7701 RGB Display Vertical Shift & Bounce-Buffer Phase Self-Healing:**
+  - **IRAM-Safe VSYNC Bounce-Buffer Phase & Parity Guard (`IDFGH-18263`)**: Fixed permanent vertical screen shifts caused by ESP-IDF's `rgb_lcd_default_isr_handler` (`CONFIG_LCD_RGB_RESTART_IN_VSYNC=1`) failing to reset `panel->bb_eof_count` (`panel + 0x128`) to even parity or `panel->bounce_pos_px` (`panel + 0x124`) when an odd number of GDMA bounce-buffer EOF interrupts are missed during NVS SPI Flash writes/erases. `lcd_on_vsync()` now verifies `bounce_pos_px == bounce_buffer_size_bytes` and `(bb_eof_count & 1) == 0` on every VSYNC edge, immediately zeroing both counters (`dmar` telemetry counter) so the VSYNC ISR cleanly refills `bb0` (lines `0..19`) and `bb1` (lines `20..39`) and restarts GDMA from `bb0` with zero flicker.
+  - **20-Line SRAM Bounce Buffer Cushion**: Doubled `rgb.bounce_buffer_size_px` from `10 * LCD_WIDTH` (`684 µs` deadline) to `20 * LCD_WIDTH` (`1.37 ms` deadline, `480 / (2 * 20) = 12`) while preserving ~118 KB free internal SRAM (~70 KB during active TLS handshakes).
+  - **Eliminated 15-Minute NVS Flash Thrashing in `FlightStats`**: Stopped writing `6 × 1.8 KB = 10.8 KB` `seen_0..seen_5` ICAO blobs to the 20 KB NVS partition every 15 minutes (`FlightStats_Save()`), eliminating multi-sector NVS flash garbage collection stalls (`50+ ms`). Cleaned up legacy `seen_%d` NVS keys while keeping `seenIcao` deduplication arrays in PSRAM.
+  - **Eliminated Screen-Swipe NVS Writes & Added Post-NVS Resync Hooks**: Removed `markDirty()` from `Settings_SetScreen()` so routine screen swiping and auto-rotation never trigger background NVS writes; added automatic `LCD_ResyncDMA()` / `LCD_Restart()` hooks after `Settings`, `FlightStats`, and `PetBrain` NVS commits; moved `Settings_Begin()` before `ST7701_Init()` and added `LCD_Restart()` after `WiFi_Begin()` RF calibration and AP-to-STA transitions.
+
 ## [3.9.0] - 2026-10-28
 
 ### Fixed & Improved

@@ -27,18 +27,45 @@ static SemaphoreHandle_t s_vsyncSem = NULL;
 // moment the RGB peripheral gives up - which is exactly the failure we are
 // after (lit backlight, black picture, sketch running happily).
 static volatile uint32_t s_vsyncCount = 0;
+static volatile uint32_t s_dmaResyncCount = 0;
+static volatile bool     s_forceDmaResync = false;
 
 static bool IRAM_ATTR lcd_on_vsync(esp_lcd_panel_handle_t panel,
                                    const esp_lcd_rgb_panel_event_data_t* edata,
                                    void* user_ctx) {
-  (void)panel; (void)edata; (void)user_ctx;
+  (void)edata; (void)user_ctx;
   s_vsyncCount = s_vsyncCount + 1;
+
+  // Guard against ESP-IDF bounce-buffer phase shift & bb_eof_count parity inversion (IDFGH-18263).
+  // rgb_lcd_default_isr_handler invokes on_vsync immediately before its VSYNC bounce-buffer check.
+  // In a synchronized frame, bounce_pos_px (offset 0x124) equals bounce_buffer_size_bytes (offset 136,
+  // which is 2 * bounce_size_px for 16-bit RGB565), and bb_eof_count (offset 0x128) is even.
+  // If any GDMA EOF interrupt was missed during an NVS/Flash cache stall (or if a resync was requested),
+  // resetting both to 0 here causes rgb_lcd_default_isr_handler to cleanly refill bb0 (lines 0..N-1)
+  // and bb1 (lines N..2N-1) and restart GDMA from bb0 with even parity on this exact VSYNC edge.
+  if (panel) {
+    uint8_t* raw = (uint8_t*)panel;
+    int bb_bytes = *(volatile int*)(raw + 136);
+    if (bb_bytes > 0) {
+      volatile int* p_pos_px  = (volatile int*)(raw + 0x124);
+      volatile int* p_eof_cnt = (volatile int*)(raw + 0x128);
+      if (s_forceDmaResync || *p_pos_px != bb_bytes || (*p_eof_cnt & 1) != 0) {
+        *p_pos_px  = 0;
+        *p_eof_cnt = 0;
+        s_forceDmaResync = false;
+        s_dmaResyncCount = s_dmaResyncCount + 1;
+      }
+    }
+  }
+
   BaseType_t hp = pdFALSE;
   if (s_vsyncSem) xSemaphoreGiveFromISR(s_vsyncSem, &hp);
   return hp == pdTRUE;
 }
 
 uint32_t LCD_VsyncCount() { return s_vsyncCount; }
+uint32_t LCD_DmaResyncCount() { return s_dmaResyncCount; }
+void LCD_ResyncDMA() { s_forceDmaResync = true; }
 
 // --- ST7701 command/data over SPI (command_bits=1, address_bits=8) ---
 static void ST7701_Cmd(uint8_t cmd) {
@@ -209,7 +236,7 @@ bool ST7701_Init() {
   rgb.data_width = 16;
   rgb.bits_per_pixel = 16;
   rgb.num_fbs = 2;                               // double buffering (no tearing)
-  rgb.bounce_buffer_size_px = 10 * LCD_WIDTH;    // 10 lines DMA feed (balances bus cushion with internal SRAM for SSL)
+  rgb.bounce_buffer_size_px = 20 * LCD_WIDTH;    // 20 lines DMA feed (1.37 ms ISR cushion; 480 / (2*20) = 12)
   rgb.psram_trans_align = 64;
   rgb.hsync_gpio_num = RGB_HSYNC;
   rgb.vsync_gpio_num = RGB_VSYNC;
@@ -247,19 +274,25 @@ bool ST7701_Init() {
     if (fb1) memset(fb1, 0, LCD_WIDTH * LCD_HEIGHT * sizeof(uint16_t));
   }
 
-  esp_lcd_panel_reset(panel_handle);
-  esp_lcd_panel_init(panel_handle);
-
-  // Turn on display now that continuous RGB clocks/VSYNC are stably driving the panel
-  vTaskDelay(pdMS_TO_TICKS(50));
-  ST7701_EnableDisplay();
-
-  // Register a VSYNC callback so LCD_Flush can synchronise the frame copy to the
-  // start of a scan-out cycle (removes the mid-screen tearing band).
+  // Register VSYNC callback before starting the RGB peripheral so the very first
+  // VSYNC edges are tracked and bounce-buffer phase is locked from frame 0.
   s_vsyncSem = xSemaphoreCreateBinary();
   esp_lcd_rgb_panel_event_callbacks_t cbs = {};
   cbs.on_vsync = lcd_on_vsync;
   esp_lcd_rgb_panel_register_event_callbacks(panel_handle, &cbs, NULL);
+
+  esp_lcd_panel_reset(panel_handle);
+  esp_lcd_panel_init(panel_handle);
+
+  // Wait for 2 VSYNC edges so RGB clocks/GDMA are stably locked before enabling ST7701 scanout
+  if (s_vsyncSem) {
+    xSemaphoreTake(s_vsyncSem, pdMS_TO_TICKS(50));
+    s_forceDmaResync = true;
+    xSemaphoreTake(s_vsyncSem, pdMS_TO_TICKS(50));
+  } else {
+    vTaskDelay(pdMS_TO_TICKS(50));
+  }
+  ST7701_EnableDisplay();
   return true;
 }
 
@@ -325,13 +358,16 @@ void Set_Backlight(uint8_t light) {
   ledcWrite(LCD_BL_PIN, duty);
 }
 
-// Reset ST7701 internal line/gate state in sync with VSYNC to clear line shift
+// Reset ST7701 internal line/gate state and ESP32 GDMA bounce buffers in sync with VSYNC
 void LCD_Restart() {
   if (!s_spi || !panel_handle) return;
   ST7701_CS_En();
   ST7701_Cmd(0x28); // Display OFF - reset ST7701 line pointer
   vTaskDelay(pdMS_TO_TICKS(20));
   ST7701_CS_Dis();
+
+  s_forceDmaResync = true;
+  esp_lcd_rgb_panel_restart(panel_handle);
 
   if (s_vsyncSem) {
     xSemaphoreTake(s_vsyncSem, 0);

@@ -150,64 +150,85 @@ void Settings_BatchBegin() {
 }
 
 void Settings_BatchEnd() {
+  bool didEnd = false;
   if (s_batchDepth > 0) {
     s_batchDepth--;
     if (s_batchDepth == 0) {
       prefs.end();
+      didEnd = true;
     }
   }
   Async_UnlockSettings();
+  if (didEnd) {
+    LCD_ResyncDMA();
+    LCD_Restart();
+  }
 }
 
 static void putU8(const char* k, uint8_t v) {
+  bool wrote = false;
   Async_LockSettings();
   if (s_batchDepth > 0) {
     prefs.putUChar(k, v);
   } else if (prefs.begin(NS, false)) {
     prefs.putUChar(k, v);
     prefs.end();
+    wrote = true;
   }
   Async_UnlockSettings();
+  if (wrote) LCD_ResyncDMA();
 }
 static void putI8(const char* k, int8_t v) {
+  bool wrote = false;
   Async_LockSettings();
   if (s_batchDepth > 0) {
     prefs.putChar(k, v);
   } else if (prefs.begin(NS, false)) {
     prefs.putChar(k, v);
     prefs.end();
+    wrote = true;
   }
   Async_UnlockSettings();
+  if (wrote) LCD_ResyncDMA();
 }
 static void putU16(const char* k, uint16_t v) {
+  bool wrote = false;
   Async_LockSettings();
   if (s_batchDepth > 0) {
     prefs.putUShort(k, v);
   } else if (prefs.begin(NS, false)) {
     prefs.putUShort(k, v);
     prefs.end();
+    wrote = true;
   }
   Async_UnlockSettings();
+  if (wrote) LCD_ResyncDMA();
 }
 static void putBool(const char* k, bool v) {
+  bool wrote = false;
   Async_LockSettings();
   if (s_batchDepth > 0) {
     prefs.putBool(k, v);
   } else if (prefs.begin(NS, false)) {
     prefs.putBool(k, v);
     prefs.end();
+    wrote = true;
   }
   Async_UnlockSettings();
+  if (wrote) LCD_ResyncDMA();
 }
 static void putStr(const char* k, const char* v) {
+  bool wrote = false;
   Async_LockSettings();
   if (s_batchDepth > 0) {
     prefs.putString(k, v);
   } else if (prefs.begin(NS, false)) {
     prefs.putString(k, v);
     prefs.end();
+    wrote = true;
   }
   Async_UnlockSettings();
+  if (wrote) LCD_ResyncDMA();
 }
 
 void Settings_Begin() {
@@ -541,6 +562,8 @@ static void saveWifiNets() {
     prefs.end();
   }
   Async_UnlockSettings();
+  LCD_ResyncDMA();
+  LCD_Restart();
 }
 
 const char* Settings_WifiSsid() {
@@ -1160,7 +1183,7 @@ void     Settings_SetTopBearing(uint16_t deg) {
   if (deg != s_top) { s_top = deg; markDirty(); }
 }
 uint8_t Settings_Screen() { return s_scr; }
-void    Settings_SetScreen(uint8_t idx) { if (s_scr != idx) { s_scr = idx; markDirty(); } }
+void    Settings_SetScreen(uint8_t idx) { s_scr = idx; }
 bool    Settings_ShowLegends() { return s_showLegends; }
 void    Settings_SetShowLegends(bool show) {
   if (show != s_showLegends) {
@@ -1487,6 +1510,8 @@ void Settings_Commit() {
   }
   s_uiDirty = false;
   Async_UnlockSettings();
+  LCD_ResyncDMA();
+  LCD_Restart();
 }
 
 void Settings_Tick() {

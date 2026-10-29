@@ -103,17 +103,16 @@ static void FlightStats_Save() {
     snprintf(key, sizeof(key), "cs_%d", s);
     prefs.putString(key, s_scopes[s].maxSpeedCallsign);
 
-    // Save up to 450 unique ICAOs per scope in NVS to preserve deduplication
+    // Keep seenIcao arrays in PSRAM only; remove any legacy multi-KB NVS blobs
+    // so the 20 KB NVS partition never thrashes or stalls RGB DMA during saves.
     snprintf(key, sizeof(key), "seen_%d", s);
-    uint32_t count = s_scopes[s].uniqueCount;
-    if (count > 450) count = 450;
-    if (count > 0 && s_scopes[s].seenIcao) {
-      prefs.putBytes(key, s_scopes[s].seenIcao, count * sizeof(uint32_t));
-    } else {
+    if (prefs.isKey(key)) {
       prefs.remove(key);
     }
   }
   prefs.end();
+  LCD_ResyncDMA();
+  LCD_Restart();
 }
 
 static void FlightStats_Load() {

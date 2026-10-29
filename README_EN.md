@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-EN%20%7C%20SK%20%7C%20CZ-green.svg)
-![Release](https://img.shields.io/badge/Release-v3.9.0-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v3.9.1-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunctional weather station, live ADS-B flight radar, animated precipitation radar (SHMÚ, ČHMÚ, RainViewer), combined tactical radar, ISS orbit tracking, YouTube channel analytics, financial market tickers, Klipper 3D printer telemetry HUD, disaster warning system with hardware seismometer, and an animated virtual pet companion on a round 2.1" IPS touchscreen.**  
@@ -98,7 +98,7 @@ Designed for the **Waveshare ESP32-S3-Touch-LCD-2.1** with smartphone-like touch
 ### 🎛️ Web Portal, Custom Screen Sequence & System Architecture
 - **Tactile Field Instrument Web Dashboard**: Responsive Gzip-compressed portal featuring a live 480×480 virtual device mirror with touch simulation, real-time CRT radar simulator, 64 KB PSRAM serial monitor, and OTA firmware updates.
 - **Custom Screen Ordering**: Drag-and-drop and step-button sequence manager persisted in NVS—controls touch swipe order, auto-rotation sequence, and web remote navigation.
-- **Dual-Core FreeRTOS & Anti-Tearing Display**: Core 1 dedicated to 60 FPS LVGL v9 rendering (with ST7701 RGB bounce buffering to eliminate PSRAM bus tearing) and touch gestures; Core 0 dedicated to asynchronous TLS networking and image decoding.
+- **Dual-Core FreeRTOS & Self-Healing Anti-Tearing Display**: Core 1 dedicated to 60 FPS LVGL v9 rendering (with 20-line ST7701 RGB SRAM bounce buffering and an IRAM-safe VSYNC DMA phase/parity self-healing guard to eliminate PSRAM bus tearing and vertical frame shifts) and touch gestures; Core 0 dedicated to asynchronous TLS networking and image decoding.
 - **Hardware Seismometer & Disaster Alerts**: Continuous QMI8658 IMU vibration monitoring paired with USGS real-time earthquake and tsunami feeds.
 
 ---
@@ -164,11 +164,11 @@ Built for the **[Waveshare ESP32-S3-Touch-LCD-2.1](https://www.waveshare.com/esp
 
 ### Method A — Pre-built Binary (Easiest)
 Download from **[Releases](https://github.com/hackra76/ESP-MeteoPlaneRadar/releases)**:
-- `MeteoPlaneRadar-v3.9.0-factory.bin` — full image (bootloader + partitions + firmware).
+- `MeteoPlaneRadar-v3.9.1-factory.bin` — full image (bootloader + partitions + firmware).
 - Flash via [ESP Web Flasher](https://espressif.github.io/esptool-js/) at `921600` baud, address `0x00000000`.
 - Or via CLI:
   ```bash
-  esptool.py -p COM_PORT -b 921600 write_flash 0x0 MeteoPlaneRadar-v3.9.0-factory.bin
+  esptool.py -p COM_PORT -b 921600 write_flash 0x0 MeteoPlaneRadar-v3.9.1-factory.bin
   ```
 
 ### Method B — PlatformIO

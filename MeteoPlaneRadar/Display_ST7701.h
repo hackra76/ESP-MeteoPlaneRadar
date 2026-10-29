@@ -90,6 +90,12 @@ const uint16_t* LCD_GetActiveBuffer();
 // died and the screen is black with the backlight still on.
 uint32_t LCD_VsyncCount();
 
+// Count of automatic VSYNC bounce-buffer DMA phase resynchronisations.
+uint32_t LCD_DmaResyncCount();
+
+// Request a zero-flicker GDMA + bounce-buffer resynchronisation on the next VSYNC edge.
+void LCD_ResyncDMA();
+
 // Backlight, 0-100.
 void Backlight_Init();
 void Set_Backlight(uint8_t light);

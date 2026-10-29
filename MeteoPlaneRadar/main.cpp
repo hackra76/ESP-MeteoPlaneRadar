@@ -78,6 +78,9 @@ void setup() {
   delay(50);
   TCA9554_Init();
 
+  // Load NVS settings & run any flash migrations BEFORE starting the RGB DMA panel
+  Settings_Begin();
+
   Backlight_Init();
   
   if (!ST7701_Init()) {
@@ -117,7 +120,6 @@ void setup() {
   UI_Init();
   
   Watchdog_Begin();
-  Settings_Begin();
   Buzzer_Init();
   Outside_Init();
   FlightStats_Init();
@@ -161,6 +163,9 @@ void setup() {
   if (!WiFi_IsAP()) {
     UI_SwitchScreen(SCREEN_CLOCK_I);
   }
+
+  // Resynchronise ST7701 + RGB GDMA bounce buffers after WiFi/RF NVS calibration
+  LCD_Restart();
   
   // 4. Start Background Worker on Core 0
   Async_Begin();
@@ -186,6 +191,7 @@ void loop() {
   
   if (wasAP && !WiFi_IsAP()) {
     UI_SwitchScreen(SCREEN_CLOCK_I);
+    LCD_Restart();
   }
 
   g_mainStage = "webconfig_take"; g_mainStageMs = millis();
@@ -318,12 +324,13 @@ void loop() {
       }
       char dbg[64];
       Async_DebugInfo(dbg, sizeof(dbg));
-      Serial.printf("[HB] t=%lus wifi=%d rssi=%d int=%u blk=%u min=%u psram=%u sock=%d %s\n",
+      Serial.printf("[HB] t=%lus wifi=%d rssi=%d int=%u blk=%u min=%u psram=%u sock=%d dmar=%lu %s\n",
                     millis() / 1000UL, (int)WiFi.status(), (int)WiFi.RSSI(),
                     (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
                     (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
                     (unsigned)heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
-                    (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM), socks, dbg);
+                    (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM), socks,
+                    (unsigned long)LCD_DmaResyncCount(), dbg);
     }
   }
 

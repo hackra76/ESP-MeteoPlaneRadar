@@ -4,7 +4,7 @@
 ![Display](https://img.shields.io/badge/Display-Round%202.1%22%20480x480%20IPS-blue.svg)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)
 ![Languages](https://img.shields.io/badge/Languages-SK%20%7C%20CZ%20%7C%20EN-green.svg)
-![Release](https://img.shields.io/badge/Release-v3.9.0-brightgreen.svg)
+![Release](https://img.shields.io/badge/Release-v3.9.1-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-purple.svg)
 
 **Multifunkčná meteorologická stanica, živý ADS-B letecký radar, animovaný radar zrážok (SHMÚ, ČHMÚ, RainViewer), kombinovaný taktický radar, sledovanie dráhy ISS, analytika YouTube, finančné trhy, telemetrický HUD pre Klipper 3D tlačiarne, systém varovania pred katastrofami s hardvérovým seizmometrom a animovaný virtuálny spoločník na okrúhlom 2.1" IPS dotykovom displeji.**  
@@ -98,7 +98,7 @@ Vyvinuté pre **Waveshare ESP32-S3-Touch-LCD-2.1** s dotykovými gestami v štý
 ### 🎛️ Priemyselný webový portál, Vlastné poradie obrazoviek a Architektúra
 - **Webový panel "Tactile Field Instrument"**: Responzívny Gzip-komprimovaný portál so živým 480×480 zrkadlením displeja a dotykovou simuláciou, CRT radarovým simulátorom, 64 KB PSRAM sériovým monitorom a OTA aktualizáciami.
 - **Vlastné poradie obrazoviek**: Drag-and-drop a tlačidlový správca poradia obrazoviek uložený v NVS — riadi dotykové listovanie, automatickú rotáciu aj diaľkové ovládanie.
-- **Dvojjadrový FreeRTOS a Anti-Tearing displej**: Jadro 1 vyhradené pre 60 FPS LVGL v9 vykresľovanie (s ST7701 RGB bounce bufferom proti trhaniu obrazu) a dotykové gestá; Jadro 0 pre asynchrónnu sieťovú komunikáciu a dekódovanie obrázkov.
+- **Dvojjadrový FreeRTOS a samoobnovujúci Anti-Tearing displej**: Jadro 1 vyhradené pre 60 FPS LVGL v9 vykresľovanie (s 20-riadkovým ST7701 RGB SRAM bounce bufferom a IRAM-safe VSYNC strážcom fázy/parity DMA proti trhaniu obrazu a vertikálnemu posunu) a dotykové gestá; Jadro 0 pre asynchrónnu sieťovú komunikáciu a dekódovanie obrázkov.
 - **Hardvérový seizmometer a výstrahy**: Kontinuálne monitorovanie otrasov cez IMU QMI8658 spojené s globálnymi výstrahami pred zemetraseniami a cunami (USGS).
 
 ---
@@ -164,11 +164,11 @@ Pre **[Waveshare ESP32-S3-Touch-LCD-2.1](https://www.waveshare.com/esp32-s3-touc
 
 ### Možnosť A — Predkompilovaná binárka (Najjednoduchšie)
 Stiahnite z **[Vydania (Releases)](https://github.com/hackra76/ESP-MeteoPlaneRadar/releases)**:
-- `MeteoPlaneRadar-v3.9.0-factory.bin` — kompletný obraz (bootloader + partície + firmvér).
+- `MeteoPlaneRadar-v3.9.1-factory.bin` — kompletný obraz (bootloader + partície + firmvér).
 - Flash cez [ESP Web Flasher](https://espressif.github.io/esptool-js/) pri `921600` baud od adresy `0x00000000`.
 - Alebo cez príkazový riadok:
   ```bash
-  esptool.py -p COM_PORT -b 921600 write_flash 0x0 MeteoPlaneRadar-v3.9.0-factory.bin
+  esptool.py -p COM_PORT -b 921600 write_flash 0x0 MeteoPlaneRadar-v3.9.1-factory.bin
   ```
 
 ### Možnosť B — PlatformIO
