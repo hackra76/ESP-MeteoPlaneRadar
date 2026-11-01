@@ -59,9 +59,12 @@ float Forecast_CurrentPrecip();
 float Forecast_CurrentWind();     // km/h
 int   Forecast_CurrentCode();
 
-// Today's sun times as UTC epochs. False when nothing has been fetched yet, in
+// Sun times (UTC epochs) for the solar day we are in now: the latest fetched
+// pair whose sunrise has passed. False when nothing has been fetched yet, in
 // which case night mode has to fall back on the manual setting.
 bool Forecast_SunTimes(time_t* rise, time_t* set);
+// Every fetched sunrise/sunset pair (one per forecast day). Returns the count.
+int  Forecast_SunTimesAll(time_t* rises, time_t* sets, int max);
 
 // --- Air quality (separate endpoint, same idea) ------------------------------
 bool  AirQuality_Valid();

@@ -100,20 +100,26 @@ void NightMode_Tick() {
   time_t now = time(nullptr);
   if (now < 1700000000) return; // Wait until clock has valid epoch time (RTC or NTP/HTTP)
 
-  time_t rise = 0, set = 0;
-  if (!Forecast_SunTimes(&rise, &set)) {
-    // If weather forecast has not provided sunrise/sunset yet, compute directly from location
-    if (Settings_HasLocation()) {
-      calculateSolarTimes(Settings_Lat(), Settings_Lon(), now, &rise, &set);
+  // Day = "now" falls inside ANY day's [sunrise + offset, sunset - offset).
+  // Never trust a single "today" pair: the forecast's daily[0] is the UTC day.
+  // East of UTC that is still YESTERDAY for the first hours of the morning
+  // (until 10:00 local at UTC+10), so it read as NIGHT after sunrise and, with
+  // Clock-only-at-night, snapped every swipe back to the Clock screen.
+  time_t rises[8], sets[8];
+  int n = Forecast_SunTimesAll(rises, sets, 8);
+  if (n == 0 && Settings_HasLocation()) {
+    // No forecast yet: compute yesterday / today / tomorrow (UTC-day anchored).
+    for (int d = -1; d <= 1; d++) {
+      if (calculateSolarTimes(Settings_Lat(), Settings_Lon(), now + d * 86400L, &rises[n], &sets[n])) n++;
     }
   }
-  if (!rise || !set) return;
+  if (n == 0) return;
 
-  const long off = (long)Settings_NightOffsetMin() * 60L;
-  const time_t nightEnds   = rise + off;     // dawn, shifted later by the offset
-  const time_t nightStarts = set  - off;     // dusk, shifted earlier
-
-  bool night = (now < nightEnds || now >= nightStarts);
+  const long off = (long)Settings_NightOffsetMin() * 60L;  // >0 = longer night
+  bool night = true;
+  for (int i = 0; i < n; i++) {
+    if (now >= rises[i] + off && now < sets[i] - off) { night = false; break; }
+  }
 
   if (!s_stateKnown || night != Settings_IsNight()) {
     s_stateKnown = true;
