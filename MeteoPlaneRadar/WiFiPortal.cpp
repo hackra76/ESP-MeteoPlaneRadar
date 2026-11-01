@@ -64,10 +64,14 @@ static bool tryConnect(const char* ssid, const char* pass, uint32_t timeoutMs) {
   drawConnecting(ssid);
 
   WiFi.softAPdisconnect(true);
+  // arduino-esp32 3.x applies the hostname when the STA interface starts, so it
+  // must be set with Wi-Fi off; setting it after mode(WIFI_STA) is ignored and
+  // DHCP sends the default "esp32s3-XXXXXX" instead of the configured name.
+  WiFi.mode(WIFI_MODE_NULL);
+  WiFi.setHostname(Settings_Hostname());
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
   WiFi.setAutoReconnect(true);
-  WiFi.setHostname(Settings_Hostname());
   WiFi.begin(ssid, pass);
 
   const unsigned long start = millis();
