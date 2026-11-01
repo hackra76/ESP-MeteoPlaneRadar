@@ -25,6 +25,13 @@ static float s_curTemp = 0, s_curPrecip = 0, s_curWind = 0;
 static int   s_curCode = 0;
 
 static time_t s_sunrise = 0, s_sunset = 0;
+// Every daily sunrise/sunset pair from the last fetch. The request uses
+// timezone=UTC, so daily[0] is the UTC day: east of UTC it is still YESTERDAY
+// for the first hours of the local morning (until 10:00 local at UTC+10).
+// Callers must pick the pair that brackets "now".
+#define SUN_PAIRS_MAX (FORECAST_DAYS + 1)
+static time_t s_sunRises[SUN_PAIRS_MAX], s_sunSets[SUN_PAIRS_MAX];
+static int    s_sunN = 0;
 
 static unsigned long s_lastTry = 0;
 static bool          s_everTried = false;
@@ -54,12 +61,30 @@ float Forecast_CurrentWind()  { Async_LockForecast(); float w = s_curWind; Async
 int   Forecast_CurrentCode()  { Async_LockForecast(); int c = s_curCode; Async_UnlockForecast(); return c; }
 
 bool Forecast_SunTimes(time_t* rise, time_t* set) {
+  // The current solar day = the latest pair whose sunrise has passed (or the
+  // first pair if it is still before all of them).
+  time_t now = time(nullptr);
   Async_LockForecast();
   if (!s_sunrise || !s_sunset) { Async_UnlockForecast(); return false; }
-  if (rise) *rise = s_sunrise;
-  if (set)  *set  = s_sunset;
+  time_t r = s_sunrise, st = s_sunset;
+  for (int i = 0; i < s_sunN; i++) {
+    if (s_sunRises[i] && s_sunSets[i] && s_sunRises[i] <= now) { r = s_sunRises[i]; st = s_sunSets[i]; }
+  }
+  if (rise) *rise = r;
+  if (set)  *set  = st;
   Async_UnlockForecast();
   return true;
+}
+
+int Forecast_SunTimesAll(time_t* rises, time_t* sets, int max) {
+  Async_LockForecast();
+  int n = 0;
+  for (int i = 0; i < s_sunN && n < max; i++) {
+    if (!s_sunRises[i] || !s_sunSets[i]) continue;
+    rises[n] = s_sunRises[i]; sets[n] = s_sunSets[i]; n++;
+  }
+  Async_UnlockForecast();
+  return n;
 }
 
 // -----------------------------------------------------------------------------
@@ -155,6 +180,14 @@ static bool fetchForecast() {
   if (!dt.isNull()) {
     if (!dSr.isNull() && dSr.size() > 0) s_sunrise = (time_t)dSr[0].as<long long>();
     if (!dSs.isNull() && dSs.size() > 0) s_sunset  = (time_t)dSs[0].as<long long>();
+    s_sunN = 0;
+    if (!dSr.isNull() && !dSs.isNull()) {
+      for (size_t i = 0; i < dSr.size() && i < dSs.size() && s_sunN < SUN_PAIRS_MAX; i++) {
+        s_sunRises[s_sunN] = (time_t)dSr[i].as<long long>();
+        s_sunSets[s_sunN]  = (time_t)dSs[i].as<long long>();
+        s_sunN++;
+      }
+    }
     for (size_t i = 1; i < dt.size() && s_dayN < FORECAST_DAYS; i++) {
       s_days[s_dayN].t      = (time_t)dt[i].as<long long>();
       s_days[s_dayN].code   = dC.isNull()  ? 0 : dC[i].as<int>();
